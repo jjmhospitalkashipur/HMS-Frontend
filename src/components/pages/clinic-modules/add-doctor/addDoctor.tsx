@@ -93,7 +93,7 @@ const AddDoctorComponent = () => {
                         <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
-                              Email <span className="text-danger">*</span>
+                              Email
                             </label>
                             <input type="email" className="form-control" />
                           </div>
@@ -150,7 +150,6 @@ const AddDoctorComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">
                               Blood Group
-                              <span className="text-danger ms-1">*</span>
                             </label>
                             <CommonSelect
                               options={Blood_Group}
@@ -214,66 +213,80 @@ const AddDoctorComponent = () => {
                         </div>
                         <div className="col-lg-4">
                           <div className="mb-3">
-                            <label className="form-label">Image</label>
-                            <input
-                              type="file"
-                              className="form-control"
-                              accept="image/*"
-                            />
-                          </div>
-                        </div>
-                       
-                        <div className="col-lg-3">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Visit Type <span className="text-danger">*</span>
-                            </label>
-                            <CommonSelect
-                              options={Visit_Type}
-                              className="select"
-                              defaultValue={Visit_Type[0]}
-                            />
-                          </div>
-                        </div>
-                        <div className="col-lg-3">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Consultation Charge Per Visit Type
-                              <span className="text-danger">*</span>
-                            </label>
-                            <div className="input-group">
-                              <input type="text" className="form-control" />
-                              <span className="input-group-text bg-transparent text-dark fs-14">
-                              ₹
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-lg-3">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Sessions <span className="text-danger">*</span>
-                            </label>
-                            <CommonSelect
-                              options={Sessions}
-                              className="select"
-                              defaultValue={Sessions[0]}
-                            />
-                          </div>
-                        </div>
-                        <div className="col-lg-3">
-                          <div className="mb-3">
                             <label className="form-label">
                               Max Appts per Slot
-                              <span className="text-danger">*</span>
                             </label>
                             <input type="text" className="form-control" />
                           </div>
                         </div>
-                        <div className="col-lg-12">
+                       
+                        <div className="col-lg-6">
                           <div className="mb-3">
                             <label className="form-label">
-                              Address <span className="text-danger">*</span>
+                              Visit & Charges <span className="text-danger">*</span>
+                            </label>
+                            <div className="table-responsive">
+                              <table className="table table-bordered">
+                                <thead>
+                                  <tr>
+                                    <th className="text-dark">Visit</th>
+                                    <th className="text-dark">Charges</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td className="text-dark">New</td>
+                                    <td>
+                                      <div className="input-group">
+                                        <input type="text" className="form-control" />
+                                        <span className="input-group-text bg-transparent text-dark fs-14">
+                                          ₹
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-dark">emergency</td>
+                                    <td>
+                                      <div className="input-group">
+                                        <input type="text" className="form-control" />
+                                        <span className="input-group-text bg-transparent text-dark fs-14">
+                                          ₹
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-dark">followup</td>
+                                    <td>
+                                      <div className="input-group">
+                                        <input type="text" className="form-control" />
+                                        <span className="input-group-text bg-transparent text-dark fs-14">
+                                          ₹
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-dark">MR</td>
+                                    <td>
+                                      <div className="input-group">
+                                        <input type="text" className="form-control" />
+                                        <span className="input-group-text bg-transparent text-dark fs-14">
+                                          ₹
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-lg-6">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Address
                             </label>
                             <textarea
                               className="form-control"

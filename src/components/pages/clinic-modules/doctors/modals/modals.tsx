@@ -12,6 +12,9 @@ import {
   Designation,
   Gender,
   State,
+  Location,
+  Recures_Every,
+  Session,
 } from "@/core/common/selectOption";
 import CommonSelect from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
@@ -20,6 +23,7 @@ import TagInput from "@/core/common/Taginput";
 import DuplicateForms from "@/core/common/duplicate-forms/duplicateForms";
 import EducationForms from "@/core/common/duplicate-forms/educationForm";
 import RewardsForms from "@/core/common/duplicate-forms/rewardsForm";
+import CommonTimePicker from "@/core/common/common-time-pickers/CommonTimePicker";
 import Link from "next/link";
 
 const Modals = () => {
@@ -1279,6 +1283,196 @@ const Modals = () => {
         </div>
       </div>
       {/* End Delete Modal  */}
+      
+      {/* Start Schedule Details Modal */}
+      <div className="modal fade" id="schedule_details" tabIndex={-1} aria-labelledby="schedule_detailsLabel" aria-hidden="true">
+        <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-content">
+            <div className="modal-header d-block pb-0 px-0">
+              <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
+                <h5 className="modal-title fs-18 fw-bold" id="schedule_detailsLabel">Schedule Details</h5>
+                <button type="button" className="btn-close custom-btn-close opacity-100" data-bs-dismiss="modal" aria-label="Close">
+                  <i className="ti ti-x fs-16 text-dark" />
+                </button>
+              </div>
+            </div>
+            <div className="modal-body p-0">
+              <form>
+                <div className="p-3">
+                  <div className="border shadow-sm p-3 rounded-2">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="avatar avatar-xxl flex-shrink-0">
+                        <ImageWithBasePath
+                          src="assets/img/doctors/doctor-01.jpg"
+                          alt="Doctor"
+                          className="rounded-circle"
+                        />
+                      </div>
+                      <div className="flex-grow-1">
+                        <p className="mb-1 fs-13 text-muted">#DT2002</p>
+                        <h6 className="mb-2 fw-semibold fs-16">Dr. John Smith</h6>
+                        <div className="d-flex align-items-center gap-2 flex-wrap mb-2">
+                          <span className="badge bg-primary">Cardiology</span>
+                        </div>
+                        <p className="mb-0 fs-13 text-muted">MBBS, M.D, Cardiology</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-3 py-2">
+                  <h6 className="fw-bold mb-0">Schedules</h6>
+                </div>
+                <div className="p-3">
+                  <ul
+                    className="nav nav-pills schedule-tab mb-3"
+                    id="pills-tab"
+                    role="tablist"
+                  >
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto active"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-1"
+                        type="button"
+                        role="tab"
+                        aria-selected="true"
+                      >
+                        Monday
+                      </button>
+                    </li>
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-2"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        tabIndex={-1}
+                      >
+                        Tuesday
+                      </button>
+                    </li>
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-3"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        tabIndex={-1}
+                      >
+                        Wednesday
+                      </button>
+                    </li>
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-4"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        tabIndex={-1}
+                      >
+                        Thursday
+                      </button>
+                    </li>
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-5"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        tabIndex={-1}
+                      >
+                        Friday
+                      </button>
+                    </li>
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-6"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        tabIndex={-1}
+                      >
+                        Saturday
+                      </button>
+                    </li>
+                    <li className="nav-item me-1" role="presentation">
+                      <button
+                        className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
+                        data-bs-toggle="pill"
+                        data-bs-target="#schedule-7"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        tabIndex={-1}
+                      >
+                        Sunday
+                      </button>
+                    </li>
+                  </ul>
+                  <div className="tab-content" id="pills-tabContent">
+                    <div
+                      className="tab-pane fade active show"
+                      id="schedule-1"
+                      role="tabpanel"
+                    >
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                    <div className="tab-pane fade" id="schedule-2" role="tabpanel">
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                    <div className="tab-pane fade" id="schedule-3" role="tabpanel">
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                    <div className="tab-pane fade" id="schedule-4" role="tabpanel">
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                    <div className="tab-pane fade" id="schedule-5" role="tabpanel">
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                    <div className="tab-pane fade" id="schedule-6" role="tabpanel">
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                    <div className="tab-pane fade" id="schedule-7" role="tabpanel">
+                      <div className="add-schedule-list">
+                        <DuplicateForms />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer mb-1 p-3 border-1 border-top">
+              <div className="d-flex justify-content-end gap-2">
+                <button type="button" className="btn btn-light btm-md" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" className="btn btn-primary btm-md">Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* End Schedule Details Modal */}
     </>
   );
 };

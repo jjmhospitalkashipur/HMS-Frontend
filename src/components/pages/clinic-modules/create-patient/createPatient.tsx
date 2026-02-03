@@ -23,7 +23,9 @@ const CreatePatientComponent = () => {
   const [phone, setPhone] = useState<string>("");
   const [emergencyPhone, setEmergencyPhone] = useState<string>("");
   const [dob, setDob] = useState<string | null>(null);
-  const [age, setAge] = useState<string>("");
+  const [ageYears, setAgeYears] = useState<string>("");
+  const [ageMonths, setAgeMonths] = useState<string>("");
+  const [ageDays, setAgeDays] = useState<string>("");
   
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
@@ -35,14 +37,28 @@ const CreatePatientComponent = () => {
     if (date) {
       const birthDate = new Date(date);
       const today = new Date();
-      let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        calculatedAge--;
+      let years = today.getFullYear() - birthDate.getFullYear();
+      let months = today.getMonth() - birthDate.getMonth();
+      let days = today.getDate() - birthDate.getDate();
+
+      if (days < 0) {
+        months--;
+        const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        days += lastMonth.getDate();
       }
-      setAge(calculatedAge.toString());
+
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      setAgeYears(years.toString());
+      setAgeMonths(months.toString());
+      setAgeDays(days.toString());
     } else {
-      setAge("");
+      setAgeYears("");
+      setAgeMonths("");
+      setAgeDays("");
     }
   };
   return (
@@ -108,7 +124,7 @@ const CreatePatientComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Title<span className="text-danger ms-1">*</span>
@@ -120,7 +136,7 @@ const CreatePatientComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-4">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Name<span className="text-danger ms-1">*</span>
@@ -128,12 +144,22 @@ const CreatePatientComponent = () => {
                           <input type="text" className="form-control" placeholder="Enter patient name" />
                         </div>
                       </div>
-                     
+                      <div className="col-md-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Gender<span className="text-danger ms-1">*</span>
+                          </label>
+                          <CommonSelect
+                            options={Gender}
+                            className="select"
+                            defaultValue={Gender[0]}
+                          />
+                        </div>
+                      </div>
                       <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Email Address
-                            <span className="text-danger ms-1">*</span>
                           </label>
                           <input type="email" className="form-control" placeholder="Enter email address" />
                         </div>
@@ -164,34 +190,51 @@ const CreatePatientComponent = () => {
                       <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Age
+                            Age<span className="text-danger ms-1">*</span>
                           </label>
-                          <input 
-                            type="text" 
-                            className="form-control" 
-                            value={age}
-                            readOnly
-                            placeholder="Auto-calculated from DOB"
-                          />
+                          <div className="row g-2">
+                            <div className="col-4">
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Years"
+                                value={ageYears}
+                                onChange={(e) => setAgeYears(e.target.value)}
+                              />
+                            </div>
+                            <div className="col-4">
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Months"
+                                value={ageMonths}
+                                onChange={(e) => setAgeMonths(e.target.value)}
+                              />
+                            </div>
+                            <div className="col-4">
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Days"
+                                value={ageDays}
+                                onChange={(e) => setAgeDays(e.target.value)}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Gender<span className="text-danger ms-1">*</span>
+                            Aadhaar Number
                           </label>
-                          <CommonSelect
-                            options={Gender}
-                            className="select"
-                            defaultValue={Gender[0]}
-                          />
+                          <input type="text" className="form-control" placeholder="Enter Aadhaar Number" />
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Blood Group
-                            <span className="text-danger ms-1">*</span>
                           </label>
                           <CommonSelect
                             options={Blood_Group}
@@ -200,15 +243,7 @@ const CreatePatientComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-4">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Aadhaar Number
-                          </label>
-                          <input type="text" className="form-control" placeholder="Enter Aadhaar Number" />
-                        </div>
-                      </div>
-                      <div className="col-md-4">
+                      <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Aadhaar Upload
@@ -220,7 +255,7 @@ const CreatePatientComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Other Doc Upload
@@ -231,6 +266,14 @@ const CreatePatientComponent = () => {
                             accept="image/*,.pdf"
                             multiple
                           />
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Address<span className="text-danger ms-1">*</span>
+                          </label>
+                          <textarea className="form-control" rows={3} placeholder="Enter full address"></textarea>
                         </div>
                       </div>
                       {/* <div className="col-md-6">
@@ -256,63 +299,6 @@ const CreatePatientComponent = () => {
                             className="select"
                             defaultValue={Status[0]}
                           />
-                        </div>
-                      </div> */}
-                    </div>
-                    <h6 className="fw-bold text-primary mb-3 border-top pt-3">
-                      Address Information
-                    </h6>
-                    <div className="row">
-                      <div className="col-md-12">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Address<span className="text-danger ms-1">*</span>
-                          </label>
-                          <textarea className="form-control" rows={3} placeholder="Enter full address"></textarea>
-                        </div>
-                      </div>
-                      {/* <div className="col-lg-6">
-                        <div className="mb-3">
-                          <label className="form-label mb-1">
-                            Country<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Country}
-                            className="select"
-                            defaultValue={Country[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-6">
-                        <div className="mb-3">
-                          <label className="form-label mb-1">
-                            State<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={State}
-                            className="select"
-                            defaultValue={State[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-6">
-                        <div className="mb-3">
-                          <label className="form-label mb-1">
-                            City<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={City}
-                            className="select"
-                            defaultValue={City[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-lg-6">
-                        <div className="mb-3">
-                          <label className="form-label mb-1">
-                            Pincode<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input type="text" className="form-control" />
                         </div>
                       </div> */}
                     </div>

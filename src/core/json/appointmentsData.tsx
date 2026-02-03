@@ -1,6 +1,7 @@
 export const AppointmentsData = [
   {
     id: "1",
+    Case_ID: "CASE-001",
     Date_Time: "30 Apr 2025 - 09:30 AM",
     Patient: "Alberto Ripley",
     Phone: "+1 56556 54565",
@@ -13,6 +14,7 @@ export const AppointmentsData = [
   },
   {
     id: "2",
+    Case_ID: "CASE-002",
     Date_Time: "15 Apr 2025 - 11:20 AM",
     Patient: "Susan Babin",
     Phone: "+1 65658 95654",
@@ -25,6 +27,7 @@ export const AppointmentsData = [
   },
   {
     id: "3",
+    Case_ID: "CASE-003",
     Date_Time: "02 Apr 2025 - 08:15 AM",
     Patient: "Carol Lam",
     Phone: "+1 55654 56647",
@@ -37,6 +40,7 @@ export const AppointmentsData = [
   },
   {
     id: "4",
+    Case_ID: "CASE-004",
     Date_Time: "27 Mar 2025 - 02:00 PM",
     Patient: "Marsha Noland",
     Phone: "+1 65668 54558",
@@ -49,6 +53,7 @@ export const AppointmentsData = [
   },
   {
     id: "5",
+    Case_ID: "CASE-005",
     Date_Time: "12 Mar 2025 - 05:40 PM",
     Patient: "Irma Armstrong",
     Phone: "+1 45214 66568",
@@ -61,6 +66,7 @@ export const AppointmentsData = [
   },
   {
     id: "6",
+    Case_ID: "CASE-006",
     Date_Time: "24 Feb 2025 - 09:20 AM",
     Patient: "Ezra Belcher",
     Phone: "+1 65895 41247",
@@ -73,6 +79,7 @@ export const AppointmentsData = [
   },
   {
     id: "7",
+    Case_ID: "CASE-007",
     Date_Time: "16 Feb 2025 - 11:40 AM",
     Patient: "Glen Lentz",
     Phone: "+1 62458 45845",
@@ -85,6 +92,7 @@ export const AppointmentsData = [
   },
   {
     id: "8",
+    Case_ID: "CASE-008",
     Date_Time: "01 Feb 2025 - 04:00 PM",
     Patient: "Bernard Griffith",
     Phone: "+1 61422 45214",
@@ -97,6 +105,7 @@ export const AppointmentsData = [
   },
   {
     id: "9",
+    Case_ID: "CASE-009",
     Date_Time: "25 Jan 2025 - 03:10 PM",
     Patient: "John Elsass",
     Phone: "+1 47851 26371",
@@ -109,6 +118,7 @@ export const AppointmentsData = [
   },
   {
     id: "10",
+    Case_ID: "CASE-010",
     Date_Time: "12 Jan 2025 - 03:10 PM",
     Patient: "John Albert",
     Phone: "+1 47851 35267",

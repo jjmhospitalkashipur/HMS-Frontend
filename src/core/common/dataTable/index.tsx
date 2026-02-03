@@ -12,6 +12,7 @@ const Datatable: React.FC<DatatableProps> = ({
   dataSource,
   Selection,
   searchText,
+  onRowClick,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [Selections, setSelections] = useState<any>(true);
@@ -56,6 +57,14 @@ const Datatable: React.FC<DatatableProps> = ({
       rowHoverable={false}
       dataSource={filteredDataSource}
       rowKey={getRowKey}
+      onRow={(record) => ({
+        onClick: () => {
+          if (onRowClick) {
+            onRowClick(record);
+          }
+        },
+        style: { cursor: onRowClick ? 'pointer' : 'default' },
+      })}
       pagination={{
         showSizeChanger: false,
         pageSize,

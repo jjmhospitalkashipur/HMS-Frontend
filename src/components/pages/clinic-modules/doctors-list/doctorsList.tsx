@@ -1,7 +1,6 @@
 "use client";
 
-
-import { DatePicker, Select } from "antd";
+import { DatePicker } from "antd";
 import {
   Amount,
   Department,
@@ -9,123 +8,142 @@ import {
   Doctor,
   Status,
 } from "@/core/common/selectOption";
-import ImageWithBasePath from "@/core/imageWithBasePath";
 import { all_routes } from "../../../../routes/all_routes";
-import { useState } from "react";
-import { DoctorsListData } from "@/core/json/doctorsListData";
+import { useState, useEffect } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "../doctors/modals/modals";
 import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+
+interface IDoctor {
+  _id: string;
+  doctorId: string;
+  name: string;
+  email: string;
+  phone: string;
+  department: string;
+  designation: string;
+  yearsOfExperience: number;
+  gender: string;
+  visitTypes: Array<{
+    type: string;
+    charge: number;
+  }>;
+}
 
 const DoctorsListComponent = () => {
-  const data = DoctorsListData;
+  const [doctors, setDoctors] = useState<IDoctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchText, setSearchText] = useState<string>("");
+
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  const fetchDoctors = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
+        params: { limit: 20 }
+      });
+
+      if (response.data?.code === 200) {
+        setDoctors(response.data.data.doctors);
+        setTotalCount(response.data.data.count);
+      }
+    } catch (error) {
+      console.error("Error fetching doctors:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns = [
     {
-      title: "Name & Designation",
-      dataIndex: "Name_Designation",
-      render: (text: any, render: any) => (
-        <div className="d-flex align-items-center">
-          <Link href={all_routes.doctorsDetails} className="avatar me-2">
-            <ImageWithBasePath
-              src={`assets/img/doctors/${render.img}`}
-              alt="Doctor"
-              className="rounded-circle"
-            />
-          </Link>
-          <div>
-            <h6 className="mb-1 fs-14 fw-semibold">
-              <Link href={all_routes.doctorsDetails}>{text}</Link>
-            </h6>
-            <span className="fs-13 d-block">{render.Department}</span>
-          </div>
-        </div>
+      title: "Doctor ID",
+      dataIndex: "doctorId",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Name",
+      dataIndex: "name",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => (
+        <Link href={all_routes.doctorsDetails} className="text-dark fw-semibold">
+          {text}
+        </Link>
       ),
-      sorter: (a: any, b: any) =>
-        a.Name_Designation.length - b.Name_Designation.length,
     },
     {
       title: "Department",
-      dataIndex: "Department",
-      sorter: (a: any, b: any) => a.Department.length - b.Department.length,
+      dataIndex: "department",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Designation",
+      dataIndex: "designation",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
     },
     {
       title: "Phone",
-      dataIndex: "Phone",
-      sorter: (a: any, b: any) => a.Phone.length - b.Phone.length,
+      dataIndex: "phone",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
     },
     {
       title: "Email",
-      dataIndex: "Email",
-      sorter: (a: any, b: any) => a.Email.length - b.Email.length,
+      dataIndex: "email",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
     },
     {
-      title: "Fees",
-      dataIndex: "Fees",
-      render: (text: any) => <h6 className="fs-14 fw-semibold mb-0">{text}</h6>,
-      sorter: (a: any, b: any) => a.Fees.length - b.Fees.length,
-    },
-    {
-      title: "Status",
-      dataIndex: "Status",
-      render: (text: string) => (
-        <span
-          className={`badge ${
-            text === "Available" ? "badge-soft-success" : "badge-soft-danger"
-          }  border border-success`}
-        >
-          {text}
-        </span>
-      ),
-      sorter: (a: any, b: any) => a.Status.length - b.Status.length,
+      title: "Experience",
+      dataIndex: "yearsOfExperience",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: number) => <span className="text-dark">{text} years</span>,
     },
     {
       title: "",
+      sorter: false,
+      showSorterTooltip: false,
       render: () => (
-        <div className="d-flex align-items-center">
+        <div className="d-flex align-items-center gap-2">
           <div className="action-item me-2">
-            <Link href={all_routes.appointmentCalendar}>
-              <i className="ti ti-calendar-cog fs-16" />
-            </Link>
-          </div>
-          <div className="action-item me-2">
-            <Link href={all_routes.doctorScheduleClini}>
+            <Link
+              href="#"
+              data-bs-toggle="modal"
+              data-bs-target="#schedule_details"
+            >
               <i className="ti ti-clock fs-16" />
             </Link>
           </div>
           <div className="action-item">
-            <Link href="#" data-bs-toggle="dropdown">
-              <i className="ti ti-dots-vertical fs-16" />
+            <Link
+              href="#"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#edit_doctor"
+            >
+              <i className="ti ti-edit fs-16" />
             </Link>
-            <ul className="dropdown-menu">
-              <li>
-                <Link
-                  href="#"
-                  className="dropdown-item d-flex align-items-center"
-                  data-bs-toggle="offcanvas"
-                  data-bs-target="#edit_doctor"
-                >
-                  Edit
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="dropdown-item d-flex align-items-center"
-                  data-bs-toggle="modal"
-                  data-bs-target="#delete_modal"
-                >
-                  Delete
-                </Link>
-              </li>
-            </ul>
           </div>
         </div>
       ),
     },
   ];
-  const [searchText, setSearchText] = useState<string>("");
 
   const handleSearch = (value: string) => {
     setSearchText(value);
@@ -149,7 +167,7 @@ const DoctorsListComponent = () => {
               <h4 className="fw-bold mb-0">
                 Doctor List
                 <span className="badge badge-soft-primary fs-13 fw-medium ms-2">
-                  Total Doctors : 565
+                  Total Doctors : {totalCount}
                 </span>
               </h4>
             </div>
@@ -389,12 +407,20 @@ const DoctorsListComponent = () => {
             </div>
           </div>
           <div className="table-responsive">
-            <Datatable
-              columns={columns}
-              dataSource={data}
-              Selection={false}
-              searchText={searchText}
-            />
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : (
+              <Datatable
+                columns={columns}
+                dataSource={doctors}
+                Selection={false}
+                searchText={searchText}
+              />
+            )}
           </div>
         </div>
         {/* End Content */}

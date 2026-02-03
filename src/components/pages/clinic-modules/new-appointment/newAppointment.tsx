@@ -4,11 +4,7 @@
 import { useState } from "react";
 import { all_routes } from "../../../../routes/all_routes";
 import {
-  Appointment_Type,
-  Department,
   Doctor,
-  Patient,
-  Status_Checkout,
   Title,
   Gender,
   Visit,
@@ -28,6 +24,7 @@ const NewAppointmentComponent = () => {
   const [ageYears, setAgeYears] = useState<string>("");
   const [ageMonths, setAgeMonths] = useState<string>("");
   const [ageDays, setAgeDays] = useState<string>("");
+  const [appointmentType, setAppointmentType] = useState<string>("OPD");
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [total, setTotal] = useState<number>(0);
   const [discount, setDiscount] = useState<number>(0);
@@ -74,6 +71,28 @@ const NewAppointmentComponent = () => {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .page-wrapper input::placeholder,
+          .page-wrapper textarea::placeholder {
+            color: #000 !important;
+            opacity: 1;
+          }
+          .page-wrapper input::-webkit-input-placeholder,
+          .page-wrapper textarea::-webkit-input-placeholder {
+            color: #000 !important;
+          }
+          .page-wrapper input::-moz-placeholder,
+          .page-wrapper textarea::-moz-placeholder {
+            color: #000 !important;
+            opacity: 1;
+          }
+          .page-wrapper input:-ms-input-placeholder,
+          .page-wrapper textarea:-ms-input-placeholder {
+            color: #000 !important;
+          }
+        `
+      }} />
       {/* ========================
 			Start Page Content
 		========================= */}
@@ -145,18 +164,6 @@ const NewAppointmentComponent = () => {
                       <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Email
-                          </label>
-                          <input
-                            type="email"
-                            className="form-control"
-                            placeholder="Enter email address"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-4">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
                             Sex<span className="text-danger ms-1">*</span>
                           </label>
                           <CommonSelect
@@ -166,7 +173,7 @@ const NewAppointmentComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Date of Birth
@@ -189,7 +196,7 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Age<span className="text-danger ms-1">*</span>
@@ -225,7 +232,7 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="col-md-12">
+                      <div className="col-md-5">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Address
@@ -241,145 +248,129 @@ const NewAppointmentComponent = () => {
                   </div>
                 </div>
               </div>
-              {/* Appointment Details Card */}
-              <div className="card">
-                <div className="card-body">
-                  <div className="border-bottom d-flex  fw-bold text-primary align-items-center justify-content-between pb-3 mb-3">Doctor Details</div>
-                  <div className="form">
-                    <div className="row">
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Doctor<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Doctor}
-                            className="select"
-                            defaultValue={Doctor[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Department
-                            <span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Department}
-                            className="select"
-                            defaultValue={Department[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Appointment Type
-                            <span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Appointment_Type}
-                            className="select"
-                            defaultValue={Appointment_Type[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Slot<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Slot}
-                            className="select"
-                            defaultValue={Slot[0]}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Visit<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Visit}
-                            className="select"
-                            defaultValue={Visit[0]}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Date of Appointment
-                            <span className="text-danger ms-1">*</span>
-                          </label>
-                          <div className="input-icon-end position-relative">
-                            <DatePicker
-                              className="form-control datetimepicker"
-                              format={{
-                                format: "DD-MM-YYYY",
-                                type: "mask",
-                              }}
-                              getPopupContainer={getModalContainer}
-                              placeholder="DD-MM-YYYY"
-                              suffixIcon={null}
-                            />
-                            <span className="input-icon-addon">
-                              <i className="ti ti-calendar" />
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Time<span className="text-danger ms-1">*</span>
-                          </label>
-                          <div className="input-icon-end position-relative">
-                             <CommonTimePicker />
-                            <span className="input-icon-addon">
-                              <i className="ti ti-clock text-gray-7" />
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Status<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Status_Checkout}
-                            className="select"
-                            defaultValue={Status_Checkout[0]}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label mb-1 fw-medium">
-                        Appointment Reason
-                        <span className="text-danger ms-1">*</span>
-                      </label>
-                      <textarea
-                        className="form-control"
-                        rows={1}
-                        defaultValue={""}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Payment Details Card */}
+              {/* Doctor Details and Payment Details in Same Row */}
               <div className="card mb-3">
                 <div className="card-body">
-                  <h6 className="fw-bold text-primary mb-3">Payment Details</h6>
                   <div className="row">
-                    <div className="col-md-4">
+                    {/* Doctor Details Section */}
+                    <div className="col-lg-7 pe-4">
+                      <h6 className="fw-bold text-primary mb-3">Doctor Details</h6>
+                      <div className="row">
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label className="form-label mb-1 fw-medium">
+                              Doctor<span className="text-danger ms-1">*</span>
+                            </label>
+                            <CommonSelect
+                              options={Doctor}
+                              className="select"
+                              defaultValue={Doctor[0]}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label className="form-label mb-1 fw-medium">
+                              Slot<span className="text-danger ms-1">*</span>
+                            </label>
+                            <CommonSelect
+                              options={Slot}
+                              className="select"
+                              defaultValue={Slot[0]}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label className="form-label mb-1 fw-medium">
+                              Date of Appointment
+                              <span className="text-danger ms-1">*</span>
+                            </label>
+                            <div className="input-icon-end position-relative">
+                              <DatePicker
+                                className="form-control datetimepicker"
+                                format={{
+                                  format: "DD-MM-YYYY",
+                                  type: "mask",
+                                }}
+                                getPopupContainer={getModalContainer}
+                                placeholder="DD-MM-YYYY"
+                                suffixIcon={null}
+                              />
+                              <span className="input-icon-addon">
+                                <i className="ti ti-calendar" />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label className="form-label mb-1 fw-medium">
+                              Time<span className="text-danger ms-1">*</span>
+                            </label>
+                            <div className="input-icon-end position-relative">
+                              <CommonTimePicker />
+                              <span className="input-icon-addon">
+                                <i className="ti ti-clock text-gray-7" />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label className="form-label mb-2 fw-medium">
+                              Appointment Type
+                              <span className="text-danger ms-1">*</span>
+                            </label>
+                            <div className="d-flex gap-3">
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="appointmentType"
+                                  id="opd"
+                                  value="OPD"
+                                  checked={appointmentType === "OPD"}
+                                  onChange={(e) => setAppointmentType(e.target.value)}
+                                />
+                                <label className="form-check-label" htmlFor="opd">
+                                  OPD
+                                </label>
+                              </div>
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="appointmentType"
+                                  id="dayCare"
+                                  value="Day Care"
+                                  checked={appointmentType === "Day Care"}
+                                  onChange={(e) => setAppointmentType(e.target.value)}
+                                />
+                                <label className="form-check-label" htmlFor="dayCare">
+                                  Day Care
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label className="form-label mb-1 fw-medium">
+                              Visit<span className="text-danger ms-1">*</span>
+                            </label>
+                            <CommonSelect
+                              options={Visit}
+                              className="select"
+                              defaultValue={Visit[0]}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Payment Details Section */}
+                    <div className="col-lg-5 border-start ps-4">
+                      <h6 className="fw-bold text-primary mb-3">Payment Details</h6>
                       <div className="mb-3">
                         <label className="form-label mb-2 fw-medium">
                           Payment Mode
@@ -429,8 +420,6 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="col-md-4 ms-auto">
                       <div className="mb-3 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Total</label>
                         <div className="form-control bg-light" style={{ pointerEvents: "none" }}>

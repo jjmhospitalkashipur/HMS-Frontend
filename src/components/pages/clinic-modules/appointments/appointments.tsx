@@ -10,30 +10,54 @@ import Datatable from "@/core/common/dataTable";
 import PredefinedDatePicker from "@/core/common/datePicker";
 import Modals from "./modals/modals";
 import Link from "next/link";
+import PrintPrescription from "./printPrescription";
 
 const AppointmentsComponent = () => {
   const data = AppointmentsData;
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [showPrint, setShowPrint] = useState(false);
+
+  const handlePrint = (record: any) => {
+    setSelectedAppointment(record);
+    setShowPrint(true);
+  };
+
+  const handlePrintClose = () => {
+    setShowPrint(false);
+    setSelectedAppointment(null);
+  };
+
   const columns = [
     {
-      title: "Date & Time",
+      title: "Case ID",
+      dataIndex: "Case_ID",
+      sorter: false,
+      showSorterTooltip: false,
+    },
+    {
+      title: "Appointment date",
       dataIndex: "Date_Time",
-      sorter: (a: any, b: any) => a.Date_Time.length - b.Date_Time.length,
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => {
+        const parts = text.split(" - ");
+        const date = parts[0] || "";
+        const time = parts[1] || "";
+        return (
+          <div>
+            <div className="text-dark">{date}</div>
+            <div className="text-dark fs-13">{time}</div>
+          </div>
+        );
+      },
     },
     {
       title: "Patient",
       dataIndex: "Patient",
+      sorter: false,
+      showSorterTooltip: false,
       render: (text: any, render: any) => (
         <div className="d-flex align-items-center">
-          <Link
-            href={all_routes.patientDetails}
-            className="avatar avatar-md me-2"
-          >
-            <ImageWithBasePath
-              src={`assets/img/users/${render.Patient_Image}`}
-              alt="product"
-              className="rounded-circle"
-            />
-          </Link>
           <Link
             href={all_routes.patientDetails}
             className="text-dark fw-semibold"
@@ -45,23 +69,14 @@ const AppointmentsComponent = () => {
           </Link>
         </div>
       ),
-      sorter: (a: any, b: any) => a.Patient.length - b.Patient.length,
     },
     {
       title: "Doctor",
       dataIndex: "Doctor",
+      sorter: false,
+      showSorterTooltip: false,
       render: (text: any, render: any) => (
         <div className="d-flex align-items-center">
-          <Link
-            href={all_routes.doctordetails}
-            className="avatar me-2 flex-shrink-0"
-          >
-            <ImageWithBasePath
-              src={`assets/img/doctors/${render.Doctor_Image}`}
-              alt="img"
-              className="rounded-circle"
-            />
-          </Link>
           <div>
             <h6 className="fs-14 mb-1 text-truncate">
               <Link href={all_routes.doctordetails} className="fw-semibold">
@@ -72,16 +87,18 @@ const AppointmentsComponent = () => {
           </div>
         </div>
       ),
-      sorter: (a: any, b: any) => a.Doctor.length - b.Doctor.length,
     },
     {
       title: "Mode",
       dataIndex: "Mode",
-      sorter: (a: any, b: any) => a.Mode.length - b.Mode.length,
+      sorter: false,
+      showSorterTooltip: false,
     },
     {
       title: "Status",
       dataIndex: "Status",
+      sorter: false,
+      showSorterTooltip: false,
       render: (text: string) => (
         <span
           className={`fs-13 badge ${
@@ -99,42 +116,48 @@ const AppointmentsComponent = () => {
           {text}
         </span>
       ),
-      sorter: (a: any, b: any) => a.Status.length - b.Status.length,
     },
     {
       title: "",
-      render: () => (
-        <div className="action-item">
-          <Link href="#" data-bs-toggle="dropdown">
-            <i className="ti ti-dots-vertical" />
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: any, record: any) => (
+        <div className="d-flex align-items-center gap-2">
+          <Link 
+            href="#" 
+            className="text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle edit action
+            }}
+          >
+            <i className="ti ti-edit fs-16" />
           </Link>
-          <ul className="dropdown-menu p-2">
-            <li>
-              <Link href="#" className="dropdown-item d-flex align-items-center">
-                Edit
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="#"
-                className="dropdown-item d-flex align-items-center"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#view_details"
-              >
-                View
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="#"
-                className="dropdown-item d-flex align-items-center"
-                data-bs-toggle="modal"
-                data-bs-target="#delete_modal"
-              >
-                Delete
-              </Link>
-            </li>
-          </ul>
+          <Link
+            href="#"
+            className="text-success"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePrint(record);
+            }}
+            title="Download/Print Prescription"
+          >
+            <i className="ti ti-download fs-16" />
+          </Link>
+          <Link
+            href="#"
+            className="text-danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle delete action - trigger modal using hidden button
+              const triggerButton = document.querySelector('#delete_modal_trigger') as HTMLElement;
+              if (triggerButton) {
+                triggerButton.click();
+              }
+            }}
+          >
+            <i className="ti ti-x fs-16" />
+          </Link>
         </div>
       ),
     },
@@ -145,8 +168,31 @@ const AppointmentsComponent = () => {
     setSearchText(value);
   };
 
+  const handleRowClick = (record: any) => {
+    // Trigger view action on row click using hidden button
+    const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
+    if (triggerButton) {
+      triggerButton.click();
+    }
+  };
+
   return (
     <>
+      {/* Hidden buttons to trigger modals/offcanvas */}
+      <button
+        id="view_details_trigger"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#view_details"
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
+      <button
+        id="delete_modal_trigger"
+        data-bs-toggle="modal"
+        data-bs-target="#delete_modal"
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
       {/* ========================
 			Start Page Content
 		========================= */}
@@ -865,6 +911,7 @@ const AppointmentsComponent = () => {
               dataSource={data}
               Selection={false}
               searchText={searchText}
+              onRowClick={handleRowClick}
             />
           </div>
           {/*  End Table */}
@@ -886,6 +933,12 @@ const AppointmentsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
+      {showPrint && selectedAppointment && (
+        <PrintPrescription
+          appointmentData={selectedAppointment}
+          onClose={handlePrintClose}
+        />
+      )}
     </>
   );
 };

@@ -1,11 +1,11 @@
 "use client";
 
 
-import ImageWithBasePath from "@/core/imageWithBasePath";
 import { all_routes } from "../../../../routes/all_routes";
 import { useState } from "react";
 import PredefinedDatePicker from "@/core/common/datePicker";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
+import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
 
@@ -15,8 +15,232 @@ const PatientDetailsComponent = () => {
   const handleSearch = (value: string) => {
     setSearchText(value);
   };
+
+  const appointmentData = [
+    {
+      id: "1",
+      Case_ID: "CASE-001",
+      Date_Time: "30 Apr 2025 - 09:30 AM",
+      Doctor: "Dr. Mick Thompson",
+      role: "Cardiologist",
+      Mode: "In-person",
+      Status: "Checked Out",
+    },
+    {
+      id: "2",
+      Case_ID: "CASE-002",
+      Date_Time: "15 Apr 2025 - 11:20 AM",
+      Doctor: "Dr. Sarah Johnson",
+      role: "Orthopedic Surgeon",
+      Mode: "Online",
+      Status: "Checked In",
+    },
+    {
+      id: "3",
+      Case_ID: "CASE-003",
+      Date_Time: "02 Apr 2025 - 08:15 AM",
+      Doctor: "Dr. Emily Carter",
+      role: "Pediatrician",
+      Mode: "In-Person",
+      Status: "Cancelled",
+    },
+    {
+      id: "4",
+      Case_ID: "CASE-004",
+      Date_Time: "27 Mar 2025 - 02:00 PM",
+      Doctor: "Dr. David Lee",
+      role: "Gynecologist",
+      Mode: "In-person",
+      Status: "Schedule",
+    },
+    {
+      id: "5",
+      Case_ID: "CASE-005",
+      Date_Time: "12 Mar 2025 - 05:40 PM",
+      Doctor: "Dr. Anna Kim",
+      role: "Psychiatrist",
+      Mode: "Online",
+      Status: "Confirmed",
+    },
+    {
+      id: "6",
+      Case_ID: "CASE-006",
+      Date_Time: "24 Feb 2025 - 09:20 AM",
+      Doctor: "Dr. John Smith",
+      role: "Neurosurgeon",
+      Mode: "In-Person",
+      Status: "Cancelled",
+    },
+    {
+      id: "7",
+      Case_ID: "CASE-007",
+      Date_Time: "16 Feb 2025 - 11:40 AM",
+      Doctor: "Dr. Lisa White",
+      role: "Oncologist",
+      Mode: "Online",
+      Status: "Confirmed",
+    },
+    {
+      id: "8",
+      Case_ID: "CASE-008",
+      Date_Time: "01 Feb 2025 - 04:00 PM",
+      Doctor: "Dr. Patricia Brown",
+      role: "Pulmonologist",
+      Mode: "Online",
+      Status: "Checked Out",
+    },
+    {
+      id: "9",
+      Case_ID: "CASE-009",
+      Date_Time: "25 Jan 2025 - 03:10 PM",
+      Doctor: "Dr. Rachel Green",
+      role: "Urologist",
+      Mode: "Online",
+      Status: "Schedule",
+    },
+    {
+      id: "10",
+      Case_ID: "CASE-010",
+      Date_Time: "12 Jan 2025 - 03:10 PM",
+      Doctor: "Dr. Michael Smith",
+      role: "Cardiologist",
+      Mode: "In-Person",
+      Status: "Cancelled",
+    },
+  ];
+
+  const appointmentColumns = [
+    {
+      title: "Case ID",
+      dataIndex: "Case_ID",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Appointment date",
+      dataIndex: "Date_Time",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => {
+        const parts = text.split(" - ");
+        const date = parts[0] || "";
+        const time = parts[1] || "";
+        return (
+          <div>
+            <div className="text-dark">{date}</div>
+            <div className="text-dark fs-13">{time}</div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Doctor",
+      dataIndex: "Doctor",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: any, record: any) => (
+        <div className="d-flex align-items-center">
+          <div>
+            <h6 className="fs-14 mb-1 text-truncate">
+              <Link href={all_routes.doctordetails} className="fw-semibold text-dark">
+                {text}
+              </Link>
+            </h6>
+            <p className="mb-0 fs-13 text-truncate text-dark">{record.role}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Mode",
+      dataIndex: "Mode",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Status",
+      dataIndex: "Status",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: string) => (
+        <span
+          className={`fs-13 badge ${
+            text === "Checked Out"
+              ? "badge-soft-info text-info"
+              : text === "Checked In"
+              ? "badge-soft-warning text-warning"
+              : text === "Cancelled"
+              ? "badge-soft-danger text-danger"
+              : text === "Schedule"
+              ? "badge-soft-primary text-primary"
+              : "badge-soft-success text-success"
+          }  rounded  fw-medium`}
+        >
+          {text}
+        </span>
+      ),
+    },
+    {
+      title: "",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: any, record: any) => (
+        <div className="d-flex align-items-center gap-2">
+          <Link 
+            href="#" 
+            className="text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle edit action
+            }}
+          >
+            <i className="ti ti-edit fs-16" />
+          </Link>
+          <Link
+            href="#"
+            className="text-danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle delete action - trigger modal using hidden button
+              const triggerButton = document.querySelector('#delete_modal_trigger') as HTMLElement;
+              if (triggerButton) {
+                triggerButton.click();
+              }
+            }}
+          >
+            <i className="ti ti-x fs-16" />
+          </Link>
+        </div>
+      ),
+    },
+  ];
+
+  const handleRowClick = (record: any) => {
+    // Trigger view action on row click using hidden button
+    const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
+    if (triggerButton) {
+      triggerButton.click();
+    }
+  };
   return (
     <>
+      {/* Hidden buttons to trigger modals/offcanvas */}
+      <button
+        id="view_details_trigger"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#view_details"
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
+      <button
+        id="delete_modal_trigger"
+        data-bs-toggle="modal"
+        data-bs-target="#delete_modal"
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
       {/* ========================
 			Start Page Content
 		========================= */}
@@ -37,41 +261,20 @@ const PatientDetailsComponent = () => {
           <div className="card">
             <div className="row align-items-end">
               <div className="col-xl-9 col-lg-8">
-                <div className="d-sm-flex align-items-center position-relative z-0 overflow-hidden p-3">
-                  <ImageWithBasePath
-                    src="./assets/img/icons/shape-01.svg"
-                    alt="img"
-                    className="z-n1 position-absolute end-0 top-0 d-none d-lg-flex"
-                  />
-                  <Link
-                    href="#"
-                    className="avatar avatar-xxxl patient-avatar me-2 flex-shrink-0"
-                  >
-                    <ImageWithBasePath
-                      src="assets/img/users/user-08.jpg"
-                      alt="product"
-                      className="rounded"
-                    />
-                  </Link>
+                <div className="d-sm-flex align-items-center p-3">
                   <div>
-                    <p className="text-primary mb-1">#PT0025</p>
+                    <p className="text-dark mb-1">#PT0025</p>
                     <h5 className="mb-1">
-                      <Link href="#" className="fw-bold">
+                      <Link href="#" className="fw-bold text-dark">
                         Alberto Ripley
                       </Link>
                     </h5>
-                    <p className="mb-3">4150 Hiney Road, Las Vegas, NV 89109</p>
+                    <p className="mb-3 text-dark">4150 Hiney Road, Las Vegas, NV 89109</p>
                     <div className="d-flex align-items-center flex-wrap">
                       <p className="mb-0 d-inline-flex align-items-center">
                         <i className="ti ti-phone me-1 text-dark" />
-                        Phone :
+                        <span className="text-dark">Phone :</span>
                         <span className="text-dark ms-1">+1 54546 45648</span>
-                      </p>
-                      <span className="mx-2 text-light">|</span>
-                      <p className="mb-0 d-inline-flex align-items-center">
-                        <i className="ti ti-calendar-time me-1 text-dark" />
-                        Last Visited :
-                        <span className="text-dark ms-1">30 Apr 2025</span>
                       </p>
                     </div>
                   </div>
@@ -79,7 +282,7 @@ const PatientDetailsComponent = () => {
               </div>
               <div className="col-xl-3 col-lg-4">
                 <div className="p-3 text-lg-end">
-                  <div className="mb-4">
+                  {/* <div className="mb-4">
                     <Link
                       href="#"
                       className="btn btn-outline-white shadow-sm rounded-circle d-inline-flex align-items-center p-2 fs-14 me-2"
@@ -97,8 +300,8 @@ const PatientDetailsComponent = () => {
                       className="btn btn-outline-white shadow-sm rounded-circle d-inline-flex align-items-center p-2 fs-14"
                     >
                       <i className="ti ti-video" />
-                    </Link>
-                  </div>
+                    </Link> 
+                   </div> */}
                   <Link
                     href={all_routes.newAppointment}
                     className="btn btn-primary"
@@ -116,54 +319,103 @@ const PatientDetailsComponent = () => {
             <div className="col-xl-5 d-flex">
               <div className="card shadow-sm flex-fill w-100">
                 <div className="card-header">
-                  <h5 className="fw-bold mb-0">
+                  <h5 className="fw-bold mb-0 text-dark">
                     <i className="ti ti-user-star me-1" />
                     About
                   </h5>
                 </div>
                 <div className="card-body pb-0">
-                  <div className="row">
-                    <div className="col-sm-5">
+                  <div className="row g-2">
+                    <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                          <i className="ti ti-calendar-event fs-16" />
+                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                          <i className="ti ti-gender-male fs-14" />
                         </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1">DOB</h6>
-                          <p className="mb-0">25 Jan 1990</p>
+                        <div className="flex-grow-1">
+                          <h6 className="fs-13 fw-bold mb-1 text-dark">Gender</h6>
+                          <p className="mb-0 text-dark">Male</p>
                         </div>
                       </div>
                     </div>
-                    <div className="col-sm-7">
+                    <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                          <i className="ti ti-droplet fs-16" />
+                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                          <i className="ti ti-mail fs-14" />
                         </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1">Blood Group</h6>
-                          <p className="mb-0">O +ve</p>
+                        <div className="flex-grow-1">
+                          <h6 className="fs-13 fw-bold mb-1 text-dark">Email Address</h6>
+                          <p className="mb-0 text-break text-dark">alberto@example.com</p>
                         </div>
                       </div>
                     </div>
-                    <div className="col-sm-5">
+                    <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                          <i className="ti ti-gender-male fs-16" />
+                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                          <i className="ti ti-calendar-event fs-14" />
                         </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1">Gender</h6>
-                          <p className="mb-0">Male</p>
+                        <div className="flex-grow-1">
+                          <h6 className="fs-13 fw-bold mb-1 text-dark">DOB</h6>
+                          <p className="mb-0 text-dark">25 Jan 1990</p>
                         </div>
                       </div>
                     </div>
-                    <div className="col-sm-7">
+                    <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                          <i className="ti ti-mail fs-16" />
+                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                          <i className="ti ti-calendar fs-14" />
                         </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1">Email</h6>
-                          <p className="mb-0 text-break">alberto@example.com</p>
+                        <div className="flex-grow-1">
+                          <h6 className="fs-13 fw-bold mb-1 text-dark">Age</h6>
+                          <p className="mb-0 text-nowrap text-dark">35 Years 2 Months 10 Days</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-sm-6">
+                      <div className="d-flex align-items-center mb-3">
+                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                          <i className="ti ti-id fs-14" />
+                        </span>
+                        <div className="flex-grow-1">
+                          <h6 className="fs-13 fw-bold mb-1 text-dark">Aadhaar Number</h6>
+                          <p className="mb-0 text-dark">1234 5678 9012</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-sm-6">
+                      <div className="d-flex align-items-center mb-3">
+                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                          <i className="ti ti-droplet fs-14" />
+                        </span>
+                        <div className="flex-grow-1">
+                          <h6 className="fs-13 fw-bold mb-1 text-dark">Blood Group</h6>
+                          <p className="mb-0 text-dark">O +ve</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-sm-12 border-top pt-3 mt-2">
+                      <h6 className="fs-14 fw-bold mb-3 text-dark">Emergency Contact</h6>
+                      <div className="row g-2">
+                        <div className="col-sm-6">
+                          <div className="d-flex align-items-center mb-3">
+                            <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                              <i className="ti ti-user fs-14" />
+                            </span>
+                            <div className="flex-grow-1">
+                              <h6 className="fs-13 fw-bold mb-1 text-dark">Emergency Contact Name</h6>
+                              <p className="mb-0 text-dark">Jane Ripley</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-sm-6">
+                          <div className="d-flex align-items-center mb-3">
+                            <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                              <i className="ti ti-phone fs-14" />
+                            </span>
+                            <div className="flex-grow-1">
+                              <h6 className="fs-13 fw-bold mb-1 text-dark">Emergency Contact Phone</h6>
+                              <p className="mb-0 text-dark">+1 54546 45649</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -174,107 +426,105 @@ const PatientDetailsComponent = () => {
             <div className="col-xl-7 d-flex">
               <div className="card shadow-sm flex-fill w-100">
                 <div className="card-header">
-                  <h5 className="fw-bold mb-0">
-                    <i className="ti ti-book me-1" />
-                    Vital Signs
+                  <h5 className="fw-bold mb-0 text-dark">
+                    <i className="ti ti-files me-1" />
+                    Documents
                   </h5>
                 </div>
                 <div className="card-body pb-0">
-                  <div className="row">
-                    <div className="col-sm-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-2 bg-light text-dark flex-shrink-0 me-2 border">
-                          <i className="ti ti-droplet fs-16" />
-                        </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1 text-truncate">
-                            Blood Pressure
-                          </h6>
-                          <p className="mb-0 d-inline-flex align-items-center text-truncate">
-                            <i className="ti ti-point-filled me-1 text-success fs-18" />
-                            100/67 mmHg
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-2 bg-light text-dark flex-shrink-0 me-2 border">
-                          <i className="ti ti-heart-rate-monitor fs-16" />
-                        </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1 text-truncate">
-                            Heart Rate
-                          </h6>
-                          <p className="mb-0 d-inline-flex align-items-center text-truncate">
-                            <i className="ti ti-point-filled me-1 text-danger fs-18" />
-                            89 Bpm
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-2 bg-light text-dark flex-shrink-0 me-2 border">
-                          <i className="ti ti-hexagons fs-16" />
-                        </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1">SPO2</h6>
-                          <p className="mb-0 d-inline-flex align-items-center text-truncate">
-                            <i className="ti ti-point-filled me-1 text-success fs-18" />
-                            98 %
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-2 bg-light text-dark flex-shrink-0 me-2 border">
-                          <i className="ti ti-temperature fs-16" />
-                        </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1 text-truncate">
-                            Temperature
-                          </h6>
-                          <p className="mb-0 d-inline-flex align-items-center text-truncate">
-                            <i className="ti ti-point-filled me-1 text-success fs-18" />
-                            101 C
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-2 bg-light text-dark flex-shrink-0 me-2 border">
-                          <i className="ti ti-activity fs-16" />
-                        </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1 text-truncate">
-                            Respiratory Rate
-                          </h6>
-                          <p className="mb-0 d-inline-flex align-items-center text-truncate">
-                            <i className="ti ti-point-filled me-1 text-danger fs-18" />
-                            24 rpm
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-2 bg-light text-dark flex-shrink-0 me-2 border">
-                          <i className="ti ti-weight fs-16" />
-                        </span>
-                        <div>
-                          <h6 className="fs-13 fw-bold mb-1 text-truncate">
-                            Weight
-                          </h6>
-                          <p className="mb-0 d-inline-flex align-items-center text-truncate">
-                            <i className="ti ti-point-filled me-1 text-success fs-18" />
-                            100 kg
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover">
+                      <thead>
+                        <tr>
+                          <th className="text-dark">Document Name</th>
+                          <th className="text-dark">Type</th>
+                          <th className="text-dark">Upload Date</th>
+                          <th className="text-dark">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
+                                <i className="ti ti-file-text fs-16" />
+                              </span>
+                              <span className="fw-semibold text-dark">Aadhaar Card</span>
+                            </div>
+                          </td>
+                          <td className="text-dark">PDF</td>
+                          <td className="text-dark">15 Jan 2025</td>
+                          <td>
+                            <Link href="#" className="text-primary me-2">
+                              <i className="ti ti-download fs-16" />
+                            </Link>
+                            <Link href="#" className="text-danger">
+                              <i className="ti ti-trash fs-16" />
+                            </Link>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
+                                <i className="ti ti-file-text fs-16" />
+                              </span>
+                              <span className="fw-semibold text-dark">Medical Report</span>
+                            </div>
+                          </td>
+                          <td>PDF</td>
+                          <td>20 Jan 2025</td>
+                          <td>
+                            <Link href="#" className="text-primary me-2">
+                              <i className="ti ti-download fs-16" />
+                            </Link>
+                            <Link href="#" className="text-danger">
+                              <i className="ti ti-trash fs-16" />
+                            </Link>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
+                                <i className="ti ti-file-text fs-16" />
+                              </span>
+                              <span className="fw-semibold text-dark">Insurance Card</span>
+                            </div>
+                          </td>
+                          <td className="text-dark">Image</td>
+                          <td className="text-dark">25 Jan 2025</td>
+                          <td>
+                            <Link href="#" className="text-primary me-2">
+                              <i className="ti ti-download fs-16" />
+                            </Link>
+                            <Link href="#" className="text-danger">
+                              <i className="ti ti-trash fs-16" />
+                            </Link>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
+                                <i className="ti ti-file-text fs-16" />
+                              </span>
+                              <span className="fw-semibold text-dark">Lab Results</span>
+                            </div>
+                          </td>
+                          <td>PDF</td>
+                          <td>30 Jan 2025</td>
+                          <td>
+                            <Link href="#" className="text-primary me-2">
+                              <i className="ti ti-download fs-16" />
+                            </Link>
+                            <Link href="#" className="text-danger">
+                              <i className="ti ti-trash fs-16" />
+                            </Link>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
@@ -395,13 +645,6 @@ const PatientDetailsComponent = () => {
                                         className="form-check-input m-0 me-2"
                                         type="checkbox"
                                       />
-                                      <span className="avatar avatar-xs rounded-circle me-2">
-                                        <ImageWithBasePath
-                                          src="assets/img/doctors/doctor-01.jpg"
-                                          className="flex-shrink-0 rounded-circle"
-                                          alt="img"
-                                        />
-                                      </span>
                                       Dr. Mick Thompson
                                     </label>
                                   </li>
@@ -411,13 +654,6 @@ const PatientDetailsComponent = () => {
                                         className="form-check-input m-0 me-2"
                                         type="checkbox"
                                       />
-                                      <span className="avatar avatar-xs rounded-circle me-2">
-                                        <ImageWithBasePath
-                                          src="assets/img/doctors/doctor-02.jpg"
-                                          className="flex-shrink-0 rounded-circle"
-                                          alt="img"
-                                        />
-                                      </span>
                                       Dr. Sarah Johnson
                                     </label>
                                   </li>
@@ -427,13 +663,6 @@ const PatientDetailsComponent = () => {
                                         className="form-check-input m-0 me-2"
                                         type="checkbox"
                                       />
-                                      <span className="avatar avatar-xs rounded-circle me-2">
-                                        <ImageWithBasePath
-                                          src="assets/img/doctors/doctor-03.jpg"
-                                          className="flex-shrink-0 rounded-circle"
-                                          alt="img"
-                                        />
-                                      </span>
                                       Dr. Emily Carter
                                     </label>
                                   </li>
@@ -443,13 +672,6 @@ const PatientDetailsComponent = () => {
                                         className="form-check-input m-0 me-2"
                                         type="checkbox"
                                       />
-                                      <span className="avatar avatar-xs rounded-circle me-2">
-                                        <ImageWithBasePath
-                                          src="assets/img/doctors/doctor-04.jpg"
-                                          className="flex-shrink-0 rounded-circle"
-                                          alt="img"
-                                        />
-                                      </span>
                                       Dr. David Lee
                                     </label>
                                   </li>
@@ -459,13 +681,6 @@ const PatientDetailsComponent = () => {
                                         className="form-check-input m-0 me-2"
                                         type="checkbox"
                                       />
-                                      <span className="avatar avatar-xs rounded-circle me-2">
-                                        <ImageWithBasePath
-                                          src="assets/img/doctors/doctor-05.jpg"
-                                          className="flex-shrink-0 rounded-circle"
-                                          alt="img"
-                                        />
-                                      </span>
                                       Dr. Anna Kim
                                     </label>
                                   </li>
@@ -840,649 +1055,13 @@ const PatientDetailsComponent = () => {
               {/*  End Filter */}
               {/*  Start Table */}
               <div className="table-responsive">
-                <table className="table datatable table-nowrap">
-                  <thead className="">
-                    <tr>
-                      <th className="no-sort">Date &amp; Time</th>
-                      <th>Doctor Name</th>
-                      <th>Mode</th>
-                      <th>Status</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>30 Apr 2025 - 09:30 AM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-01.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Mick Thompson
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Cardiologist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>In-person</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-info rounded text-info fw-medium">
-                          Checked Out
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>15 Apr 2025 - 11:20 AM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-02.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Sarah Johnson
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Orthopedic Surgeon
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>Online</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-warning rounded text-warning fw-medium">
-                          Checked In
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>02 Apr 2025 - 08:15 AM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-03.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Emily Carter
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Pediatrician
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>In-Person</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-danger rounded text-danger fw-medium">
-                          Cancelled
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>27 Mar 2025 - 02:00 PM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-04.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. David Lee
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Gynecologist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>In-person</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-info rounded text-info fw-medium">
-                          Schedule
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>12 Mar 2025 - 05:40 PM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-05.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Anna Kim
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Psychiatrist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>Online</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium">
-                          Confirmed
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>24 Feb 2025 - 09:20 AM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-06.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. John Smith
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Neurosurgeon
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>In-Person</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-danger rounded text-danger fw-medium">
-                          Cancelled
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>16 Feb 2025 - 11:40 AM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-07.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Lisa White
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Oncologist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>Online</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium">
-                          Confirmed
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>01 Feb 2025 - 04:00 PM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-08.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Patricia Brown
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Pulmonologist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>Online</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-info rounded text-info fw-medium">
-                          Checked Out
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>25 Jan 2025 - 03:10 PM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-09.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Rachel Green
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Urologist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>Online</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-primary rounded text-primary fw-medium">
-                          Schedule
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>12 Jan 2025 - 03:10 PM</td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href={all_routes.doctordetails}
-                            className="avatar me-2 flex-shrink-0"
-                          >
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-10.jpg"
-                              alt="img"
-                              className="rounded-circle"
-                            />
-                          </Link>
-                          <div>
-                            <h6 className="fs-14 mb-1 text-truncate">
-                              <Link
-                                href={all_routes.doctordetails}
-                                className="fw-semibold"
-                              >
-                                Dr. Michael Smith
-                              </Link>
-                            </h6>
-                            <p className="mb-0 fs-13 text-truncate">
-                              Cardiologist
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>In-Person</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-danger rounded text-danger fw-medium">
-                          cancelled
-                        </span>
-                      </td>
-                      <td className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu p-2">
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="offcanvas"
-                              data-bs-target="#view_details"
-                            >
-                              View
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                <Datatable
+                  columns={appointmentColumns}
+                  dataSource={appointmentData}
+                  Selection={false}
+                  searchText={searchText}
+                  onRowClick={handleRowClick}
+                />
               </div>
               {/*  End Table */}
             </div>

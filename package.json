@@ -25,6 +25,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "antd": "^5.29.0",
     "apexcharts": "^5.3.6",
+    "axios": "^1.13.4",
     "bootstrap": "^5.3.8",
     "clipboard-copy": "^4.0.1",
     "dayjs": "^1.11.19",
