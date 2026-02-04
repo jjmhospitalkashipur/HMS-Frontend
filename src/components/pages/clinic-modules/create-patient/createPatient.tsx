@@ -26,6 +26,20 @@ const CreatePatientComponent = () => {
   const [ageYears, setAgeYears] = useState<string>("");
   const [ageMonths, setAgeMonths] = useState<string>("");
   const [ageDays, setAgeDays] = useState<string>("");
+  const [aadharNumber, setAadharNumber] = useState<string>("");
+  const [aadharFile, setAadharFile] = useState<File | null>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'aadhar' | 'doc') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (type === 'aadhar') {
+        setAadharFile(file);
+      } else {
+        setDocFile(file);
+      }
+    }
+  };
   
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
@@ -63,6 +77,28 @@ const CreatePatientComponent = () => {
   };
   return (
     <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .page-wrapper input::placeholder,
+          .page-wrapper textarea::placeholder {
+            color: #000 !important;
+            opacity: 1;
+          }
+          .page-wrapper input::-webkit-input-placeholder,
+          .page-wrapper textarea::-webkit-input-placeholder {
+            color: #000 !important;
+          }
+          .page-wrapper input::-moz-placeholder,
+          .page-wrapper textarea::-moz-placeholder {
+            color: #000 !important;
+            opacity: 1;
+          }
+          .page-wrapper input:-ms-input-placeholder,
+          .page-wrapper textarea:-ms-input-placeholder {
+            color: #000 !important;
+          }
+        `
+      }} />
       {/* ========================
 			Start Page Content
 		========================= */}
@@ -164,7 +200,7 @@ const CreatePatientComponent = () => {
                           <input type="email" className="form-control" placeholder="Enter email address" />
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             DOB<span className="text-danger ms-1">*</span>
@@ -187,7 +223,7 @@ const CreatePatientComponent = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-4">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Age<span className="text-danger ms-1">*</span>
@@ -226,14 +262,6 @@ const CreatePatientComponent = () => {
                       <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Aadhaar Number
-                          </label>
-                          <input type="text" className="form-control" placeholder="Enter Aadhaar Number" />
-                        </div>
-                      </div>
-                      <div className="col-md-2">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
                             Blood Group
                           </label>
                           <CommonSelect
@@ -243,37 +271,12 @@ const CreatePatientComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-2">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Aadhaar Upload
-                          </label>
-                          <input
-                            type="file"
-                            className="form-control"
-                            accept="image/*,.pdf"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-2">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Other Doc Upload
-                          </label>
-                          <input
-                            type="file"
-                            className="form-control"
-                            accept="image/*,.pdf"
-                            multiple
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-6">
+                      <div className="col-md-12">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Address<span className="text-danger ms-1">*</span>
                           </label>
-                          <textarea className="form-control" rows={3} placeholder="Enter full address"></textarea>
+                          <textarea className="form-control" rows={1} placeholder="Enter full address"></textarea>
                         </div>
                       </div>
                       {/* <div className="col-md-6">
@@ -303,13 +306,124 @@ const CreatePatientComponent = () => {
                       </div> */}
                     </div>
                     <h6 className="fw-bold text-primary mb-3 border-top pt-3">
+                      Documents
+                    </h6>
+                    <div className="mb-3">
+                      <div className="row">
+                        <div className="col-md-12">
+                          <div className="mb-3">
+                            <label className="form-label mb-2 fw-medium">Aadhar Number</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Enter Aadhar Number"
+                              value={aadharNumber}
+                              onChange={(e) => setAadharNumber(e.target.value)}
+                              maxLength={12}
+                              style={{ maxWidth: "400px" }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="row">
+                        <div className="col-md-6 mb-3">
+                          <label className="form-label mb-2 fw-medium">Aadhar Card</label>
+                            <div
+                              className="border border-dashed rounded p-3 text-center position-relative"
+                              style={{
+                                minHeight: "100px",
+                                cursor: "pointer",
+                                backgroundColor: "#f8f9fa",
+                              }}
+                              onClick={() => {
+                                const input = document.getElementById('aadhar-upload') as HTMLInputElement;
+                                input?.click();
+                              }}
+                            >
+                            <input
+                              id="aadhar-upload"
+                              type="file"
+                              className="d-none"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileSelect(e, 'aadhar')}
+                            />
+                            {aadharFile ? (
+                              <div>
+                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                <p className="mb-0 text-dark fw-medium">{aadharFile.name}</p>
+                                <button
+                                  className="btn btn-sm btn-link text-danger mt-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAadharFile(null);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <label className="form-label mb-2 fw-medium">Other Document</label>
+                            <div
+                              className="border border-dashed rounded p-3 text-center position-relative"
+                              style={{
+                                minHeight: "100px",
+                                cursor: "pointer",
+                                backgroundColor: "#f8f9fa",
+                              }}
+                              onClick={() => {
+                                const input = document.getElementById('doc-upload') as HTMLInputElement;
+                                input?.click();
+                              }}
+                            >
+                            <input
+                              id="doc-upload"
+                              type="file"
+                              className="d-none"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileSelect(e, 'doc')}
+                            />
+                            {docFile ? (
+                              <div>
+                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                <p className="mb-0 text-dark fw-medium">{docFile.name}</p>
+                                <button
+                                  className="btn btn-sm btn-link text-danger mt-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDocFile(null);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h6 className="fw-bold text-primary mb-3 border-top pt-3">
                       Emergency Contact
                     </h6>
                     <div className="row">
                       <div className="col-md-6">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Name<span className="text-danger ms-1">*</span>
+                            Name
                           </label>
                           <input type="text" className="form-control" placeholder="Enter emergency contact name" />
                         </div>
@@ -317,7 +431,7 @@ const CreatePatientComponent = () => {
                       <div className="col-md-6">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Phone No<span className="text-danger ms-1">*</span>
+                            Phone No
                           </label>
                           <PhoneInput
                             defaultCountry="IN"

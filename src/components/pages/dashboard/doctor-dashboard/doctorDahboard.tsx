@@ -788,35 +788,9 @@ const DoctorDashboardComponent = () => {
                 <div className="card-header d-flex align-items-center justify-content-between">
                   <h5 className="fw-bold mb-0">Availability</h5>
                   <div className="dropdown">
-                    <Link
-                      href="#"
-                      className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
-                      data-bs-toggle="dropdown"
-                    >
-                      Trustcare Clinic <i className="ti ti-chevron-down ms-1" />
-                    </Link>
-                    <ul className="dropdown-menu">
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          CureWell Medical Hub
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Trustcare Clinic
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          NovaCare Medical
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Greeny Medical Clinic
-                        </Link>
-                      </li>
-                    </ul>
+                    <span className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center">
+                      JJM Hospital
+                    </span>
                   </div>
                 </div>
                 <div className="card-body">

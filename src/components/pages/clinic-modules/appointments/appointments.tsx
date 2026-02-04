@@ -27,12 +27,33 @@ const AppointmentsComponent = () => {
     setSelectedAppointment(null);
   };
 
+  const [statusUpdates, setStatusUpdates] = useState<Record<string, string>>({});
+
+  const handleStatusChange = (recordId: string, newStatus: string) => {
+    setStatusUpdates((prev) => ({
+      ...prev,
+      [recordId]: newStatus,
+    }));
+  };
+
+  const getStatusForRecord = (record: any) => {
+    return statusUpdates[record.id] || record.Status;
+  };
+
   const columns = [
     {
       title: "Case ID",
       dataIndex: "Case_ID",
       sorter: false,
       showSorterTooltip: false,
+      render: (text: string, record: any) => (
+        <div>
+          <div className="text-dark mb-1">{text}</div>
+          <span className="fs-13 badge badge-soft-secondary text-secondary rounded fw-medium">
+            Token No: {record.Token_No || "N/A"}
+          </span>
+        </div>
+      ),
     },
     {
       title: "Appointment date",
@@ -89,33 +110,89 @@ const AppointmentsComponent = () => {
       ),
     },
     {
-      title: "Mode",
-      dataIndex: "Mode",
+      title: "Visit",
+      dataIndex: "Visit",
       sorter: false,
       showSorterTooltip: false,
+      render: (text: any, record: any) => (
+        <div>
+          <div className="text-dark">{record.Visit || "New"}</div>
+          <div className="text-body fs-13 fw-normal">{record.Appointment_Type || record.Mode || "OPD"}</div>
+        </div>
+      ),
     },
     {
       title: "Status",
       dataIndex: "Status",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: string) => (
-        <span
-          className={`fs-13 badge ${
-            text === "Checked Out"
-              ? "badge-soft-info text-info"
-              : text === "Checked In"
-              ? "badge-soft-warning text-warning"
-              : text === "Cancelled"
-              ? "badge-soft-danger text-danger"
-              : text === "Schedule"
-              ? "badge-soft-primary text-primary"
-              : "badge-soft-success text-success"
-          }  rounded  fw-medium`}
-        >
-          {text}
-        </span>
-      ),
+      render: (text: string, record: any) => {
+        const currentStatus = getStatusForRecord(record);
+        const statusOptions = [
+          "Checked Out",
+          "Checked In",
+          "Cancelled",
+          "Schedule",
+          "Confirmed",
+        ];
+
+        const getStatusClass = (status: string) => {
+          switch (status) {
+            case "Checked Out":
+              return "badge-soft-info text-info";
+            case "Checked In":
+              return "badge-soft-warning text-warning";
+            case "Cancelled":
+              return "badge-soft-danger text-danger";
+            case "Schedule":
+              return "badge-soft-primary text-primary";
+            case "Confirmed":
+              return "badge-soft-success text-success";
+            default:
+              return "badge-soft-secondary text-secondary";
+          }
+        };
+
+        return (
+          <div className="dropdown" onClick={(e) => e.stopPropagation()}>
+            <button
+              className={`btn btn-sm fs-13 badge ${getStatusClass(currentStatus)} rounded fw-medium dropdown-toggle`}
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              {currentStatus}
+            </button>
+            <ul className="dropdown-menu">
+              {statusOptions.map((option) => (
+                <li key={option}>
+                  <Link
+                    className="dropdown-item"
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleStatusChange(record.id, option);
+                      // Close dropdown by removing show classes
+                      const dropdown = e.currentTarget.closest('.dropdown');
+                      if (dropdown) {
+                        const button = dropdown.querySelector('[data-bs-toggle="dropdown"]') as HTMLElement;
+                        const menu = dropdown.querySelector('.dropdown-menu') as HTMLElement;
+                        if (button && menu) {
+                          button.setAttribute('aria-expanded', 'false');
+                          button.classList.remove('show');
+                          menu.classList.remove('show');
+                        }
+                      }
+                    }}
+                  >
+                    {option}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      },
     },
     {
       title: "",
@@ -149,8 +226,8 @@ const AppointmentsComponent = () => {
             className="text-danger"
             onClick={(e) => {
               e.stopPropagation();
-              // Handle delete action - trigger modal using hidden button
-              const triggerButton = document.querySelector('#delete_modal_trigger') as HTMLElement;
+              // Handle cancel action - trigger modal using hidden button
+              const triggerButton = document.querySelector('#cancel_modal_trigger') as HTMLElement;
               if (triggerButton) {
                 triggerButton.click();
               }
@@ -187,9 +264,9 @@ const AppointmentsComponent = () => {
         aria-hidden="true"
       />
       <button
-        id="delete_modal_trigger"
+        id="cancel_modal_trigger"
         data-bs-toggle="modal"
-        data-bs-target="#delete_modal"
+        data-bs-target="#cancel_modal"
         style={{ display: 'none' }}
         aria-hidden="true"
       />

@@ -197,8 +197,8 @@ const Modals = () => {
         </div>
       </div>
       {/* End Add New Appointment*/}
-      {/* Start Delete Modal  */}
-      <div className="modal fade" id="delete_modal">
+      {/* Start Cancel Modal  */}
+      <div className="modal fade" id="cancel_modal">
         <div className="modal-dialog modal-dialog-centered modal-sm">
           <div className="modal-content">
             <div className="modal-body text-center position-relative">
@@ -214,14 +214,14 @@ const Modals = () => {
               />
               <div className="mb-3 position-relative z-1">
                 <span className="avatar avatar-lg bg-danger text-white">
-                  <i className="ti ti-trash fs-24" />
+                  <i className="ti ti-x fs-24" />
                 </span>
               </div>
               <h5 className="fw-bold mb-1 position-relative z-1">
-                Delete Confirmation
+                Cancel Appointment
               </h5>
               <p className="mb-3 position-relative z-1">
-                Are you sure want to delete?
+                Are you sure want to cancel?
               </p>
               <div className="d-flex justify-content-center">
                 <Link
@@ -236,14 +236,14 @@ const Modals = () => {
                   className="btn btn-danger position-relative z-1"
                   data-bs-dismiss="modal"
                 >
-                  Yes, Delete
+                  Yes, Cancel
                 </Link>
               </div>
             </div>
           </div>
         </div>
       </div>
-      {/* End Delete Modal  */}
+      {/* End Cancel Modal  */}
     </>
   );
 };

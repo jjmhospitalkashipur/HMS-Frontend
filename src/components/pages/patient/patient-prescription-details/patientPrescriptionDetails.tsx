@@ -62,7 +62,7 @@ const PatientPrescriptionDetailsComponent = () => {
                       </div>
                       <div>
                         <h6 className="text-dark fw-semibold mb-1">
-                          Trustcare Clinic
+                          JJM Hospital
                         </h6>
                         <p className="mb-1"> Dr. Mick Thompson </p>
                         <p className="mb-0"> MD Cardiologist. MBBS,MS</p>

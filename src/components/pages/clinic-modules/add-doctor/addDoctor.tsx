@@ -23,6 +23,19 @@ const AddDoctorComponent = () => {
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
   };
   const [phone, setPhone] = useState<string | undefined>();
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (type === 'photo') {
+        setPhotoFile(file);
+      } else {
+        setPosterFile(file);
+      }
+    }
+  };
 
   return (
     <>
@@ -61,41 +74,12 @@ const AddDoctorComponent = () => {
                    
                     <div className="pb-0">
                       <div className="row">
-                      <div className="col-lg-3">
-                          <div className="mb-3 d-flex align-items-center">
-                            <label className="form-label">Photo</label>
-                            <div className="drag-upload-btn avatar avatar-xxl rounded-circle bg-light text-muted position-relative overflow-hidden z-1 mb-2 ms-4 p-0">
-                              <i className="ti ti-user-plus fs-16" />
-                              <input
-                                type="file"
-                                className="form-control image-sign"
-                                multiple
-                              />
-                              <div className="position-absolute bottom-0 end-0 star-0 w-100 h-25 bg-dark d-flex align-items-center justify-content-center z-n1">
-                                <Link
-                                  href="#"
-                                  className="text-white d-flex align-items-center justify-content-center"
-                                >
-                                  <i className="ti ti-photo fs-14" />
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
                         <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Name <span className="text-danger">*</span>
                             </label>
                             <input type="text" className="form-control" />
-                          </div>
-                        </div>
-                        <div className="col-lg-3">
-                          <div className="mb-3">
-                            <label className="form-label">
-                              Email
-                            </label>
-                            <input type="email" className="form-control" />
                           </div>
                         </div>
                         <div className="col-lg-3">
@@ -110,8 +94,15 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Email
+                            </label>
+                            <input type="email" className="form-control" />
+                          </div>
+                        </div>
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               DOB <span className="text-danger">*</span>
@@ -133,7 +124,7 @@ const AddDoctorComponent = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Gender
@@ -146,7 +137,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Blood Group
@@ -158,7 +149,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Years of Exp <span className="text-danger">*</span>
@@ -166,7 +157,7 @@ const AddDoctorComponent = () => {
                             <input type="text" className="form-control" />
                           </div>
                         </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Department
@@ -179,7 +170,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Designation
@@ -192,7 +183,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Medical License No
@@ -201,17 +192,7 @@ const AddDoctorComponent = () => {
                             <input type="text" className="form-control" />
                           </div>
                         </div>
-                        <div className="col-lg-4">
-                          <div className="mb-3">
-                            <label className="form-label">Poster</label>
-                            <input
-                              type="file"
-                              className="form-control"
-                              accept="image/*"
-                            />
-                          </div>
-                        </div>
-                        <div className="col-lg-4">
+                        <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
                               Max Appts per Slot
@@ -219,7 +200,6 @@ const AddDoctorComponent = () => {
                             <input type="text" className="form-control" />
                           </div>
                         </div>
-                       
                         <div className="col-lg-6">
                           <div className="mb-3">
                             <label className="form-label">
@@ -246,7 +226,7 @@ const AddDoctorComponent = () => {
                                     </td>
                                   </tr>
                                   <tr>
-                                    <td className="text-dark">emergency</td>
+                                    <td className="text-dark">Emergency</td>
                                     <td>
                                       <div className="input-group">
                                         <input type="text" className="form-control" />
@@ -257,7 +237,7 @@ const AddDoctorComponent = () => {
                                     </td>
                                   </tr>
                                   <tr>
-                                    <td className="text-dark">followup</td>
+                                    <td className="text-dark">Followup</td>
                                     <td>
                                       <div className="input-group">
                                         <input type="text" className="form-control" />
@@ -293,6 +273,100 @@ const AddDoctorComponent = () => {
                               rows={3}
                               placeholder="Enter address"
                             />
+                          </div>
+                          <div className="row">
+                            <div className="col-lg-6">
+                              <div className="mb-3">
+                                <label className="form-label mb-2 fw-medium">Photo</label>
+                                <div
+                                  className="border border-dashed rounded p-3 text-center position-relative"
+                                  style={{
+                                    minHeight: "100px",
+                                    cursor: "pointer",
+                                    backgroundColor: "#f8f9fa",
+                                  }}
+                                  onClick={() => {
+                                    const input = document.getElementById('photo-upload') as HTMLInputElement;
+                                    input?.click();
+                                  }}
+                                >
+                                  <input
+                                    id="photo-upload"
+                                    type="file"
+                                    className="d-none"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileSelect(e, 'photo')}
+                                  />
+                                  {photoFile ? (
+                                    <div>
+                                      <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                      <p className="mb-0 text-dark fw-medium">{photoFile.name}</p>
+                                      <button
+                                        className="btn btn-sm btn-link text-danger mt-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPhotoFile(null);
+                                        }}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                      <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                      <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-lg-6">
+                              <div className="mb-3">
+                                <label className="form-label mb-2 fw-medium">Poster</label>
+                                <div
+                                  className="border border-dashed rounded p-3 text-center position-relative"
+                                  style={{
+                                    minHeight: "100px",
+                                    cursor: "pointer",
+                                    backgroundColor: "#f8f9fa",
+                                  }}
+                                  onClick={() => {
+                                    const input = document.getElementById('poster-upload') as HTMLInputElement;
+                                    input?.click();
+                                  }}
+                                >
+                                  <input
+                                    id="poster-upload"
+                                    type="file"
+                                    className="d-none"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileSelect(e, 'poster')}
+                                  />
+                                  {posterFile ? (
+                                    <div>
+                                      <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                      <p className="mb-0 text-dark fw-medium">{posterFile.name}</p>
+                                      <button
+                                        className="btn btn-sm btn-link text-danger mt-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPosterFile(null);
+                                        }}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                      <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                      <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -532,10 +532,10 @@ export const Visit = [
 ];
 export const Slot = [
   { value: "Select", label: "Select" },
-  { value: "morning", label: "morning" },
-  { value: "noon", label: "noon" },
-  { value: "evening", label: "evening" },
-  { value: "night", label: "night" },
+  { value: "Morning", label: "Morning" },
+  { value: "Noon", label: "Noon" },
+  { value: "Evening", label: "Evening" },
+  { value: "Night", label: "Night" },
 ];
 export const Visit_Type = [
   { value: "Select", label: "Select" },

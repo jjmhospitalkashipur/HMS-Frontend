@@ -164,7 +164,7 @@ const NewAppointmentComponent = () => {
                       <div className="col-md-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Sex<span className="text-danger ms-1">*</span>
+                            Gender<span className="text-danger ms-1">*</span>
                           </label>
                           <CommonSelect
                             options={Gender}
@@ -249,11 +249,11 @@ const NewAppointmentComponent = () => {
                 </div>
               </div>
               {/* Doctor Details and Payment Details in Same Row */}
-              <div className="card mb-3">
-                <div className="card-body">
-                  <div className="row">
-                    {/* Doctor Details Section */}
-                    <div className="col-lg-7 pe-4">
+              <div className="row mb-3">
+                {/* Doctor Details Section */}
+                <div className="col-lg-7 pe-3">
+                  <div className="card h-100">
+                    <div className="card-body">
                       <h6 className="fw-bold text-primary mb-3">Doctor Details</h6>
                       <div className="row">
                         <div className="col-md-6">
@@ -276,7 +276,7 @@ const NewAppointmentComponent = () => {
                             <CommonSelect
                               options={Slot}
                               className="select"
-                              defaultValue={Slot[0]}
+                              defaultValue={Slot[1]}
                             />
                           </div>
                         </div>
@@ -362,14 +362,18 @@ const NewAppointmentComponent = () => {
                             <CommonSelect
                               options={Visit}
                               className="select"
-                              defaultValue={Visit[0]}
+                              defaultValue={Visit[1]}
                             />
                           </div>
                         </div>
                       </div>
                     </div>
-                    {/* Payment Details Section */}
-                    <div className="col-lg-5 border-start ps-4">
+                  </div>
+                </div>
+                {/* Payment Details Section */}
+                <div className="col-lg-5 ps-3">
+                  <div className="card h-100">
+                    <div className="card-body">
                       <h6 className="fw-bold text-primary mb-3">Payment Details</h6>
                       <div className="mb-3">
                         <label className="form-label mb-2 fw-medium">
