@@ -10,6 +10,7 @@ export const Designation = [
   { value: "Orthopedic Surgeon", label: "Orthopedic Surgeon" },
   { value: "Pediatrician", label: "Pediatrician" },
   { value: "Gynecologist", label: "Gynecologist" },
+  { value: "Senior Consultant", label: "Senior Consultant" },
 ];
 export const Department = [
   { value: "Cardiology", label: "Cardiology" },
@@ -194,10 +195,9 @@ export const Title = [
   { value: "Prof.", label: "Prof." },
 ];
 export const Appointment_Type = [
-  { value: "Select", label: "Select" },
   { value: "OPD", label: "OPD" },
   { value: "Day care", label: "Day care" },
-  { value: "online", label: "online" },
+
 ];
 export const Primary_Doctor = [
   { value: "Select", label: "Select" },

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useId } from "react";
 import Select from "react-select";
 
 export type Option = {
@@ -9,12 +9,17 @@ export type Option = {
 export interface SelectProps {
   options: Option[];
   defaultValue?: Option;
+  value?: Option | null;
+  onChange?: (option: Option | null) => void;
   className?: string;
-  styles?: any; 
+  styles?: any;
+  instanceId?: string;
 }
 
-const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, className }) => {
-  const [selectedOption, setSelectedOption] = useState<Option | undefined>(defaultValue);
+const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, value, onChange, className, instanceId }) => {
+  const [selectedOption, setSelectedOption] = useState<Option | undefined>(value || defaultValue);
+  const reactId = useId();
+  const stableInstanceId = instanceId || `common-select-${reactId}`;
 
   const customStyles = {
     option: (base: any, state: any) => ({
@@ -30,11 +35,22 @@ const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, className 
   };
 
   const handleChange = (option: Option | null) => {
-    setSelectedOption(option || undefined);
+    if (onChange) {
+      onChange(option);
+    } else {
+      setSelectedOption(option || undefined);
+    }
   };
+  
   useEffect(() => {
-    setSelectedOption(defaultValue || undefined);
-  }, [defaultValue])
+    if (value !== undefined && value !== null) {
+      setSelectedOption(value);
+    } else if (defaultValue) {
+      setSelectedOption(defaultValue);
+    } else {
+      setSelectedOption(undefined);
+    }
+  }, [value, defaultValue]);
   
   return (
     <Select
@@ -42,10 +58,11 @@ const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, className 
       className={className}
       styles={customStyles}
       options={options}
-      instanceId="common-select"
+      instanceId={stableInstanceId}
       value={selectedOption}
       onChange={handleChange}
       placeholder="Select"
+      key={stableInstanceId}
     />
   );
 };

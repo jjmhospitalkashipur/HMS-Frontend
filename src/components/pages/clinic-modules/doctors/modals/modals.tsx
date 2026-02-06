@@ -15,18 +15,290 @@ import {
   Location,
   Recures_Every,
   Session,
+  Sessions,
 } from "@/core/common/selectOption";
-import CommonSelect from "@/core/common/common-select/commonSelect";
+import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import TagInput from "@/core/common/Taginput";
 import DuplicateForms from "@/core/common/duplicate-forms/duplicateForms";
 import EducationForms from "@/core/common/duplicate-forms/educationForm";
 import RewardsForms from "@/core/common/duplicate-forms/rewardsForm";
 import CommonTimePicker from "@/core/common/common-time-pickers/CommonTimePicker";
 import Link from "next/link";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
+import Select from "react-select";
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+
+interface ISlot {
+  session: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface IDaySchedule {
+  dayOfWeek: string;
+  slots: ISlot[];
+}
+
+interface IScheduleData {
+  weeklySchedule: IDaySchedule[];
+}
+
+interface IDoctorInfo {
+  _id: string;
+  doctorId: string;
+  name: string;
+  department: string;
+  designation: string;
+  imageUrl?: string;
+}
+
+// Schedule Form Component with state management
+const ScheduleForm = ({ 
+  slots, 
+  onSlotsChange,
+  dayName
+}: { 
+  slots: ISlot[]; 
+  onSlotsChange: (slots: ISlot[]) => void;
+  dayName: string;
+}) => {
+  // Reset empty slot state when dayName changes (day switch)
+  const [emptySlotState, setEmptySlotState] = useState<ISlot>({ session: Session[0]?.value || "", startTime: "", endTime: "" });
+  const [formKey, setFormKey] = useState(0);
+
+  // Reset empty slot state and force remount whenever dayName changes
+  useEffect(() => {
+    console.log(`ScheduleForm for ${dayName}: slots =`, slots, `slots.length =`, slots.length);
+    setEmptySlotState({ session: Session[0]?.value || "", startTime: "", endTime: "" });
+    setFormKey(prev => prev + 1);
+  }, [dayName]); // Only depend on dayName, not slots array
+
+  // Reset when slots array becomes empty
+  useEffect(() => {
+    if (slots.length === 0) {
+      console.log(`ScheduleForm ${dayName}: slots became empty, resetting formKey`);
+      setEmptySlotState({ session: Session[0]?.value || "", startTime: "", endTime: "" });
+      setFormKey(prev => prev + 1);
+    }
+  }, [slots.length, dayName]);
+
+  const handleAddSlot = () => {
+    onSlotsChange([...slots, { session: Session[0]?.value || "", startTime: "", endTime: "" }]);
+  };
+
+  const handleDeleteSlot = (index: number) => {
+    const newSlots = slots.filter((_, i) => i !== index);
+    onSlotsChange(newSlots);
+  };
+
+  const handleSlotChange = (index: number, field: keyof ISlot, value: string) => {
+    const newSlots = [...slots];
+    newSlots[index] = { ...newSlots[index], [field]: value };
+    onSlotsChange(newSlots);
+  };
+
+  // If no slots exist for this day, show empty form with fresh state
+  if (slots.length === 0) {
+    return (
+      <div key={`empty-form-${dayName}-${formKey}`}>
+        <div className="row gx-3 mb-3">
+          <div className="col-lg-5">
+            <div className="mb-3">
+              <label className="form-label">Session</label>
+              <CommonSelect
+                key={`session-select-${dayName}-empty-${formKey}`}
+                instanceId={`session-select-${dayName}-empty-${formKey}`}
+                options={Session}
+                className="select"
+                defaultValue={Session[0]}
+                value={Session[0]}
+                onChange={(option) => {
+                  if (option) {
+                    const newSlot = { session: option.value, startTime: "", endTime: "" };
+                    onSlotsChange([newSlot]);
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="col-lg-7">
+            <div className="row align-items-end gx-3">
+              <div className="col-lg-9">
+                <div className="row gx-3">
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">From</label>
+                      <div className="input-icon-end position-relative">
+                        <CommonTimePicker 
+                          key={`from-time-${dayName}-${formKey}`}
+                          value={undefined}
+                          onChange={(time) => {
+                            const timeStr = time ? time.format("HH:mm") : "";
+                            const newSlot = { session: Session[0]?.value || "", startTime: timeStr, endTime: "" };
+                            onSlotsChange([newSlot]);
+                          }}
+                        />
+                        <span className="input-icon-addon">
+                          <i className="ti ti-clock-hour-10" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-lg-6">
+                    <div className="mb-3">
+                      <label className="form-label">To</label>
+                      <div className="input-icon-end position-relative">
+                        <CommonTimePicker 
+                          key={`to-time-${dayName}-${formKey}`}
+                          value={undefined}
+                          onChange={(time) => {
+                            const timeStr = time ? time.format("HH:mm") : "";
+                            // Get current slot or create new one
+                            const currentSlot = slots.length > 0 ? slots[0] : { session: Session[0]?.value || "", startTime: "", endTime: "" };
+                            const newSlot = { ...currentSlot, endTime: timeStr };
+                            onSlotsChange([newSlot]);
+                          }}
+                        />
+                        <span className="input-icon-addon">
+                          <i className="ti ti-clock-hour-10" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-lg-3">
+                <div className="mb-3 d-flex">
+                  <Link
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleAddSlot();
+                    }}
+                    className="add-schedule-btn p-2 bg-light btn-icon text-dark rounded d-flex align-items-center justify-content-center"
+                    style={{ marginRight: 8 }}
+                  >
+                    <i className="ti ti-plus fs-16" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div key={`slots-${dayName}-${slots.length}`}>
+      {slots.map((slot, index) => {
+        const sessionOption = Session.find(s => 
+          s.value.toLowerCase() === slot.session.toLowerCase()
+        ) || Session[0];
+
+        return (
+          <div className="row gx-3 mb-3" key={`${dayName}-slot-${index}-${slot.session}-${slot.startTime}-${slot.endTime}`}>
+            <div className="col-lg-5">
+              <div className="mb-3">
+                <label className="form-label">Session</label>
+                <CommonSelect
+                  key={`${dayName}-session-${index}-${slot.session}`}
+                  instanceId={`${dayName}-session-${index}`}
+                  options={Session}
+                  className="select"
+                  value={sessionOption}
+                  onChange={(option) => {
+                    if (option) {
+                      handleSlotChange(index, "session", option.value);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="col-lg-7">
+              <div className="row align-items-end gx-3">
+                <div className="col-lg-9">
+                  <div className="row gx-3">
+                    <div className="col-lg-6">
+                      <div className="mb-3">
+                        <label className="form-label">From</label>
+                        <div className="input-icon-end position-relative">
+                          <CommonTimePicker 
+                            value={slot.startTime ? dayjs(slot.startTime, "HH:mm") : null}
+                            onChange={(time) => {
+                              const timeStr = time ? time.format("HH:mm") : "";
+                              handleSlotChange(index, "startTime", timeStr);
+                            }}
+                          />
+                          <span className="input-icon-addon">
+                            <i className="ti ti-clock-hour-10" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-lg-6">
+                      <div className="mb-3">
+                        <label className="form-label">To</label>
+                        <div className="input-icon-end position-relative">
+                          <CommonTimePicker 
+                            value={slot.endTime ? dayjs(slot.endTime, "HH:mm") : null}
+                            onChange={(time) => {
+                              const timeStr = time ? time.format("HH:mm") : "";
+                              handleSlotChange(index, "endTime", timeStr);
+                            }}
+                          />
+                          <span className="input-icon-addon">
+                            <i className="ti ti-clock-hour-10" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3 d-flex">
+                    <Link
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleAddSlot();
+                      }}
+                      className="add-schedule-btn p-2 bg-light btn-icon text-dark rounded d-flex align-items-center justify-content-center"
+                      style={{ marginRight: 8 }}
+                    >
+                      <i className="ti ti-plus fs-16" />
+                    </Link>
+                    {slots.length > 1 && (
+                      <Link
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDeleteSlot(index);
+                        }}
+                        className="remove-schedule-btn p-2 bg-soft-danger btn-icon text-danger rounded d-flex align-items-center justify-content-center"
+                      >
+                        <i className="ti ti-trash fs-16" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const Modals = () => {
+  const router = useRouter();
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
@@ -35,6 +307,551 @@ const Modals = () => {
   const [tags, setTags] = useState<string[]>(["English", "French"]);
   const handleTagsChange = (newTags: string[]) => {
     setTags(newTags);
+  };
+
+  // Schedule modal state
+  const [scheduleDoctorId, setScheduleDoctorId] = useState<string | null>(null);
+  const [scheduleData, setScheduleData] = useState<IScheduleData | null>(null);
+  const [doctorInfo, setDoctorInfo] = useState<IDoctorInfo | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState<boolean>(false);
+  const [scheduleMessage, setScheduleMessage] = useState<{ type: 'success' | 'error' | null; text: string }>({ type: null, text: '' });
+  const [activeScheduleTab, setActiveScheduleTab] = useState<string>("Monday");
+  
+  // Schedule form state for each day
+  const [mondaySlots, setMondaySlots] = useState<ISlot[]>([]);
+  const [tuesdaySlots, setTuesdaySlots] = useState<ISlot[]>([]);
+  const [wednesdaySlots, setWednesdaySlots] = useState<ISlot[]>([]);
+  const [thursdaySlots, setThursdaySlots] = useState<ISlot[]>([]);
+  const [fridaySlots, setFridaySlots] = useState<ISlot[]>([]);
+  const [saturdaySlots, setSaturdaySlots] = useState<ISlot[]>([]);
+  const [sundaySlots, setSundaySlots] = useState<ISlot[]>([]);
+
+  const fetchDoctorInfoForSchedule = useCallback(async (id: string) => {
+    try {
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        return;
+      }
+
+      setScheduleLoading(true);
+      
+      // Fetch doctor info
+      const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${id}`);
+      if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
+        const doctor = doctorResponse.data.data.doctor;
+        setDoctorInfo({
+          _id: doctor._id,
+          doctorId: doctor.doctorId || doctor._id,
+          name: doctor.name || "",
+          department: doctor.department || "",
+          designation: doctor.designation || "",
+          imageUrl: doctor.imageUrl,
+        });
+
+        // Populate schedule from doctor's weeklySchedule using dayOfWeek field
+        // First, reset all days to empty
+        setMondaySlots([]);
+        setTuesdaySlots([]);
+        setWednesdaySlots([]);
+        setThursdaySlots([]);
+        setFridaySlots([]);
+        setSaturdaySlots([]);
+        setSundaySlots([]);
+
+        if (doctor.weeklySchedule && Array.isArray(doctor.weeklySchedule)) {
+          // Map schedules by dayOfWeek from API response
+          doctor.weeklySchedule.forEach((daySchedule: IDaySchedule) => {
+            const dayOfWeek = daySchedule.dayOfWeek;
+            if (!dayOfWeek || !daySchedule.slots || !Array.isArray(daySchedule.slots)) {
+              return;
+            }
+
+            const slots = daySchedule.slots.map(slot => ({
+              session: slot.session || "",
+              startTime: slot.startTime || "",
+              endTime: slot.endTime || "",
+            }));
+
+            // Set slots only for the specific day from dayOfWeek
+            switch (dayOfWeek) {
+              case "Monday":
+                setMondaySlots(slots);
+                break;
+              case "Tuesday":
+                setTuesdaySlots(slots);
+                break;
+              case "Wednesday":
+                setWednesdaySlots(slots);
+                break;
+              case "Thursday":
+                setThursdaySlots(slots);
+                break;
+              case "Friday":
+                setFridaySlots(slots);
+                break;
+              case "Saturday":
+                setSaturdaySlots(slots);
+                break;
+              case "Sunday":
+                setSundaySlots(slots);
+                break;
+            }
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Error fetching doctor info:", error);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, []);
+
+  // Listen for schedule modal open and tab changes
+  useEffect(() => {
+    const scheduleModal = document.getElementById("schedule_details");
+    if (!scheduleModal) return;
+
+    const handleScheduleModalShow = () => {
+      let foundDoctorId: string | null = null;
+      
+      // Try to get doctor ID from clicked element
+      const clickedElement = (window as any).lastClickedElement;
+      if (clickedElement) {
+        const doctorIdAttr = clickedElement.getAttribute("data-doctor-id");
+        if (doctorIdAttr) {
+          foundDoctorId = doctorIdAttr;
+        }
+      }
+
+      // Fallback: search for data-doctor-id in the document
+      if (!foundDoctorId) {
+        const allLinks = document.querySelectorAll('[data-doctor-id]');
+        allLinks.forEach((link) => {
+          const trigger = link as HTMLElement;
+          if (trigger.getAttribute("data-bs-target") === "#schedule_details") {
+            const doctorIdAttr = trigger.getAttribute("data-doctor-id");
+            if (doctorIdAttr) {
+              foundDoctorId = doctorIdAttr;
+            }
+          }
+        });
+      }
+
+      if (foundDoctorId) {
+        setScheduleDoctorId(foundDoctorId);
+        setActiveScheduleTab("Monday"); // Reset to Monday when opening modal
+        fetchDoctorInfoForSchedule(foundDoctorId);
+        // Reset schedule data when opening modal
+        setScheduleData(null);
+      }
+    };
+
+    // Track tab changes using Bootstrap's shown.bs.tab event
+    const handleTabShown = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const dayText = target.textContent?.trim();
+      if (dayText && ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].includes(dayText)) {
+        console.log("Tab switched to:", dayText);
+        setActiveScheduleTab(dayText);
+      }
+    };
+
+    // Track clicks on schedule links
+    const handleScheduleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('[data-doctor-id]');
+      if (link) {
+        (window as any).lastClickedElement = link;
+      }
+    };
+
+    // Listen for tab shown events
+    const tabButtons = scheduleModal.querySelectorAll('[data-bs-toggle="pill"]');
+    tabButtons.forEach(button => {
+      button.addEventListener('shown.bs.tab', handleTabShown);
+    });
+
+    scheduleModal.addEventListener("show.bs.modal", handleScheduleModalShow);
+    document.addEventListener("click", handleScheduleClick, true);
+
+    return () => {
+      tabButtons.forEach(button => {
+        button.removeEventListener('shown.bs.tab', handleTabShown);
+      });
+      scheduleModal.removeEventListener("show.bs.modal", handleScheduleModalShow);
+      document.removeEventListener("click", handleScheduleClick, true);
+    };
+  }, [fetchDoctorInfoForSchedule]);
+
+  // Edit doctor form state
+  const [doctorId, setDoctorId] = useState<string | null>(null);
+  const [name, setName] = useState<string>("");
+  const [phone, setPhone] = useState<string | undefined>();
+  const [email, setEmail] = useState<string>("");
+  const [dob, setDob] = useState<any>(undefined);
+  const [gender, setGender] = useState<Option | null>(Gender[0] || null);
+  const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
+  const [yearsOfExperience, setYearsOfExperience] = useState<string>("");
+  const [department, setDepartment] = useState<Option | null>(Department[0] || null);
+  const [designation, setDesignation] = useState<Option | null>(Designation[0] || null);
+  const [medicalLicenseNo, setMedicalLicenseNo] = useState<string>("");
+  const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [sessions, setSessions] = useState<Option[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [visitTypes, setVisitTypes] = useState([
+    { type: "OPD", charge: "" },
+    { type: "Emergency", charge: "" },
+    { type: "ICU Consultation", charge: "" },
+    { type: "Follow-up", charge: "" },
+  ]);
+
+  // Reset form function
+  const resetForm = () => {
+    setName("");
+    setPhone(undefined);
+    setEmail("");
+    setDob(undefined);
+    setGender(Gender[0] || null);
+    setBloodGroup(Blood_Group[0] || null);
+    setYearsOfExperience("");
+    setDepartment(Department[0] || null);
+    setDesignation(Designation[0] || null);
+    setMedicalLicenseNo("");
+    setMaxAppointmentsPerSlot("");
+    setAddress("");
+    setPhotoFile(null);
+    setPosterFile(null);
+    setSessions([]);
+    setVisitTypes([
+      { type: "OPD", charge: "" },
+      { type: "Emergency", charge: "" },
+      { type: "ICU Consultation", charge: "" },
+      { type: "Follow-up", charge: "" },
+    ]);
+  };
+
+  const fetchDoctorData = useCallback(async (id: string) => {
+    try {
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        return;
+      }
+
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/hospital/doctors/${id}`);
+
+      if (response.data?.code === 200 && response.data?.data?.doctor) {
+        const doctor = response.data.data.doctor;
+        setName(doctor.name || "");
+        setPhone(doctor.phone || undefined);
+        setEmail(doctor.email || "");
+        setDob(doctor.dob ? dayjs(doctor.dob) : undefined);
+        setGender(Gender.find(g => g.value === doctor.gender) || Gender[0] || null);
+        setBloodGroup(Blood_Group.find(bg => bg.value === doctor.bloodGroup) || Blood_Group[0] || null);
+        setYearsOfExperience(doctor.yearsOfExperience?.toString() || "");
+        setDepartment(Department.find(d => d.value === doctor.department) || Department[0] || null);
+        setDesignation(Designation.find(d => d.value === doctor.designation) || Designation[0] || null);
+        setMedicalLicenseNo(doctor.medicalLicenseNo || "");
+        setMaxAppointmentsPerSlot(doctor.maxAppointmentsPerSlot?.toString() || "");
+        setAddress(doctor.address || "");
+
+        // Map sessions
+        if (doctor.sessions && Array.isArray(doctor.sessions)) {
+          const mappedSessions = doctor.sessions
+            .map((s: string) => {
+              const sessionValue = s.toLowerCase();
+              if (sessionValue === "afternoon") return "noon";
+              return sessionValue;
+            })
+            .map((s: string) => Sessions.find(se => se.value === s))
+            .filter(Boolean) as Option[];
+          setSessions(mappedSessions);
+        }
+
+        // Map visit types
+        if (doctor.visitTypes && Array.isArray(doctor.visitTypes)) {
+          const defaultVisitTypes = [
+            { type: "OPD", charge: "" },
+            { type: "Emergency", charge: "" },
+            { type: "ICU Consultation", charge: "" },
+            { type: "Follow-up", charge: "" },
+          ];
+          const mappedVisitTypes = defaultVisitTypes.map(vt => {
+            const found = doctor.visitTypes.find((v: any) => v.type === vt.type);
+            return found ? { type: vt.type, charge: found.charge?.toString() || "" } : vt;
+          });
+          setVisitTypes(mappedVisitTypes);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error fetching doctor data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Listen for modal open event to get doctorId
+  useEffect(() => {
+    const editModal = document.getElementById("edit_doctor");
+    if (!editModal) return;
+
+    // Store doctorId when edit button is clicked (before modal opens)
+    const handleEditClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('[data-bs-target="#edit_doctor"]') as HTMLElement;
+      if (link) {
+        const doctorIdAttr = link.getAttribute("data-doctor-id");
+        if (doctorIdAttr) {
+          // Store in modal dataset
+          (editModal as any).dataset.doctorId = doctorIdAttr;
+          // Also store in a variable that persists
+          (window as any).__currentEditDoctorId = doctorIdAttr;
+        }
+      }
+    };
+
+    const handleModalShow = () => {
+      // Reset form first
+      resetForm();
+      
+      // Get doctorId from multiple sources
+      let foundDoctorId: string | null = null;
+      
+      // First check window variable (set during click)
+      if ((window as any).__currentEditDoctorId) {
+        foundDoctorId = (window as any).__currentEditDoctorId;
+      }
+      
+      // Then check modal dataset
+      if (!foundDoctorId) {
+        foundDoctorId = (editModal as any).dataset?.doctorId || null;
+      }
+      
+      // Finally, check all trigger elements
+      if (!foundDoctorId) {
+        const triggerElements = document.querySelectorAll('[data-bs-target="#edit_doctor"]');
+        triggerElements.forEach((trigger) => {
+          const doctorIdAttr = trigger.getAttribute("data-doctor-id");
+          if (doctorIdAttr) {
+            foundDoctorId = doctorIdAttr;
+          }
+        });
+      }
+
+      if (foundDoctorId) {
+        setDoctorId(foundDoctorId);
+        fetchDoctorData(foundDoctorId);
+      }
+    };
+
+    // Use capture phase to catch the click before Bootstrap processes it
+    document.addEventListener("click", handleEditClick, true);
+    editModal.addEventListener("show.bs.offcanvas", handleModalShow);
+    
+    return () => {
+      document.removeEventListener("click", handleEditClick, true);
+      editModal.removeEventListener("show.bs.offcanvas", handleModalShow);
+    };
+  }, [fetchDoctorData]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (type === 'photo') {
+        setPhotoFile(file);
+      } else {
+        setPosterFile(file);
+      }
+    }
+  };
+
+  const handleVisitTypeChange = (index: number, charge: string) => {
+    const updated = [...visitTypes];
+    updated[index].charge = charge;
+    setVisitTypes(updated);
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!scheduleDoctorId || !API_BASE_URL) {
+      setScheduleMessage({ type: 'error', text: 'Doctor ID is missing. Please try again.' });
+      setTimeout(() => setScheduleMessage({ type: null, text: '' }), 3000);
+      return;
+    }
+
+    try {
+      setScheduleLoading(true);
+      setScheduleMessage({ type: null, text: '' });
+
+      // Collect schedule data from state
+      const weeklySchedule: IDaySchedule[] = [];
+      
+      const daySlots = [
+        { day: "Monday", slots: mondaySlots },
+        { day: "Tuesday", slots: tuesdaySlots },
+        { day: "Wednesday", slots: wednesdaySlots },
+        { day: "Thursday", slots: thursdaySlots },
+        { day: "Friday", slots: fridaySlots },
+        { day: "Saturday", slots: saturdaySlots },
+        { day: "Sunday", slots: sundaySlots },
+      ];
+
+      daySlots.forEach(({ day, slots }) => {
+        // Filter out empty slots
+        const validSlots = slots.filter(slot => 
+          slot.session && slot.startTime && slot.endTime
+        );
+        
+        if (validSlots.length > 0) {
+          weeklySchedule.push({
+            dayOfWeek: day,
+            slots: validSlots,
+          });
+        }
+      });
+
+      const schedulePayload: IScheduleData = {
+        weeklySchedule,
+      };
+
+      console.log("Saving schedule:", schedulePayload);
+
+      const response = await axios.put(
+        `${API_BASE_URL}/hospital/doctors/${scheduleDoctorId}/schedule`,
+        schedulePayload
+      );
+
+      if (response.data?.code === 200 || (response.status >= 200 && response.status < 300)) {
+        setScheduleMessage({ type: 'success', text: 'Schedule saved successfully!' });
+        setTimeout(() => {
+          setScheduleMessage({ type: null, text: '' });
+          // Close modal
+          const modal = document.getElementById("schedule_details");
+          if (modal) {
+            const bsModal = (window as any).bootstrap?.Modal?.getInstance(modal);
+            if (bsModal) {
+              bsModal.hide();
+            }
+          }
+        }, 1500);
+      } else {
+        setScheduleMessage({ type: 'error', text: 'Failed to save schedule. Please try again.' });
+        setTimeout(() => setScheduleMessage({ type: null, text: '' }), 3000);
+      }
+    } catch (error: any) {
+      console.error("Error saving schedule:", error);
+      const errorMessage = error.response?.data?.message || "An error occurred while saving the schedule.";
+      setScheduleMessage({ type: 'error', text: errorMessage });
+      setTimeout(() => setScheduleMessage({ type: null, text: '' }), 3000);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const formatDob = (): string => {
+    if (!dob) return "";
+    if (dayjs.isDayjs(dob)) {
+      return dob.format("YYYY-MM-DD");
+    }
+    if (typeof dob === 'string' || dob instanceof Date) {
+      return dayjs(dob).format("YYYY-MM-DD");
+    }
+    return "";
+  };
+
+  const getDobValue = () => {
+    if (!dob) return undefined;
+    if (dayjs.isDayjs(dob)) {
+      return dob;
+    }
+    if (typeof dob === 'string' || dob instanceof Date) {
+      const parsed = dayjs(dob);
+      return parsed.isValid() ? parsed : undefined;
+    }
+    return undefined;
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!doctorId) {
+      console.error("Doctor ID is missing");
+      return;
+    }
+
+    try {
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        return;
+      }
+
+      setLoading(true);
+
+      // Map visit types - filter out empty charges and convert to numbers
+      const visitTypesData = visitTypes
+        .filter(vt => vt.charge && vt.charge.trim() !== "")
+        .map(vt => ({
+          type: vt.type,
+          charge: parseFloat(vt.charge) || 0,
+        }));
+
+      // Map sessions - capitalize first letter and map "noon" to "Afternoon"
+      const sessionsData = sessions
+        .filter(s => s.value !== "Select")
+        .map(s => {
+          const value = s.value;
+          if (value === "noon") {
+            return "Afternoon";
+          }
+          return value.charAt(0).toUpperCase() + value.slice(1);
+        });
+
+      const doctorData = {
+        name: name,
+        imageUrl: photoFile 
+          ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
+          : undefined,
+        email: email || undefined,
+        phone: phone || "",
+        dob: formatDob(),
+        yearsOfExperience: parseInt(yearsOfExperience) || 0,
+        department: department?.value !== "Select" ? department?.value : "",
+        designation: designation?.value !== "Select" ? designation?.value : "",
+        medicalLicenseNo: medicalLicenseNo,
+        gender: gender?.value !== "Select" ? gender?.value : "",
+        bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
+        address: address || undefined,
+        posterUrl: posterFile 
+          ? "https://s3.amazonaws.com/hospital-docs/doctors/posters/dr_priya_sharma_poster.jpg" 
+          : undefined,
+        visitTypes: visitTypesData,
+        sessions: sessionsData.length > 0 ? sessionsData : undefined,
+        maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || undefined,
+      };
+
+      const response = await axios.patch(`${API_BASE_URL}/hospital/doctors/${doctorId}`, doctorData);
+      const isSuccess = response.status >= 200 && response.status < 300;
+      const hasSuccessCode = response.data?.code === 200;
+
+      if (isSuccess || hasSuccessCode) {
+        // Close modal and refresh
+        const modalElement = document.getElementById("edit_doctor");
+        if (modalElement) {
+          const bsModal = (window as any).bootstrap?.Offcanvas?.getInstance(modalElement);
+          bsModal?.hide();
+        }
+        window.location.reload();
+      } else {
+        console.error("Failed to update doctor:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Error updating doctor:", error);
+      console.error("Error details:", error.response?.data);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -603,6 +1420,7 @@ const Modals = () => {
         className="offcanvas offcanvas-offset offcanvas-end offcanvas-large"
         tabIndex={-1}
         id="edit_doctor"
+        style={{ width: '850px' }}
       >
         <div className="offcanvas-header d-block pb-0 px-0">
           <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
@@ -618,578 +1436,336 @@ const Modals = () => {
           </div>
         </div>
         <div className="offcanvas-body p-0">
-          <form>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Contact Information</h6>
-            </div>
+          <form onSubmit={handleEditSubmit}>
             <div className="p-3 pb-0">
-              {/* start row*/}
               <div className="row">
-                <div className="col-lg-12">
-                  <div className="mb-3 d-flex align-items-center">
-                    <label className="form-label">Profile Image</label>
-                    <div className="drag-upload-btn avatar avatar-xxl rounded-circle bg-light text-muted position-relative overflow-hidden z-1 mb-2 ms-4 p-0">
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-01.jpg"
-                        className="position-relative z-n1"
-                        alt=""
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Name <span className="text-danger">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Phone No <span className="text-danger">*</span>
+                    </label>
+                    <PhoneInput
+                      defaultCountry="IN"
+                      value={phone}
+                      onChange={setPhone}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Email
+                    </label>
+                    <input 
+                      type="email" 
+                      className="form-control" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      DOB <span className="text-danger">*</span>
+                    </label>
+                    <div className="input-icon-end position-relative">
+                      <DatePicker
+                        className="form-control datetimepicker"
+                        format={{
+                          format: "DD-MM-YYYY",
+                          type: "mask",
+                        }}
+                        getPopupContainer={getModalContainer}
+                        placeholder="DD-MM-YYYY"
+                        suffixIcon={null}
+                        value={getDobValue()}
+                        onChange={setDob}
+                        allowClear
                       />
-                      <input
-                        type="file"
-                        className="form-control image-sign"
-                        multiple
-                      />
-                      <div className="position-absolute bottom-0 end-0 star-0 w-100 h-25 bg-dark d-flex align-items-center justify-content-center z-n1">
-                        <Link
-                          href="#"
-                          className="text-white d-flex align-items-center justify-content-center"
+                      <span className="input-icon-addon">
+                        <i className="ti ti-calendar" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Gender
+                      <span className="text-danger ms-1">*</span>
+                    </label>
+                    <CommonSelect
+                      options={Gender}
+                      className="select"
+                      value={gender}
+                      onChange={setGender}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Blood Group
+                    </label>
+                    <CommonSelect
+                      options={Blood_Group}
+                      className="select"
+                      value={bloodGroup}
+                      onChange={setBloodGroup}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Years of Exp <span className="text-danger">*</span>
+                    </label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      value={yearsOfExperience}
+                      onChange={(e) => setYearsOfExperience(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Department
+                      <span className="text-danger ms-1">*</span>
+                    </label>
+                    <CommonSelect
+                      options={Department}
+                      className="select"
+                      value={department}
+                      onChange={setDepartment}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Designation
+                      <span className="text-danger ms-1">*</span>
+                    </label>
+                    <CommonSelect
+                      options={Designation}
+                      className="select"
+                      value={designation}
+                      onChange={setDesignation}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Medical License No
+                      <span className="text-danger">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={medicalLicenseNo}
+                      onChange={(e) => setMedicalLicenseNo(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Max Appts per Slot
+                    </label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      value={maxAppointmentsPerSlot}
+                      onChange={(e) => setMaxAppointmentsPerSlot(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Sessions <span className="text-danger">*</span>
+                    </label>
+                    <Select
+                      isMulti
+                      options={Sessions.filter(s => s.value !== "Select")}
+                      value={sessions}
+                      onChange={(selected) => setSessions(selected as Option[])}
+                      classNamePrefix="react-select"
+                      className="select"
+                      placeholder="Select sessions"
+                      instanceId="edit-doctor-sessions-select"
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-6">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Visit & Charges <span className="text-danger">*</span>
+                    </label>
+                    <div className="table-responsive">
+                      <table className="table table-bordered">
+                        <thead>
+                          <tr>
+                            <th className="text-dark">Visit</th>
+                            <th className="text-dark">Charges</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visitTypes.map((vt, index) => (
+                            <tr key={index}>
+                              <td className="text-dark">{vt.type}</td>
+                              <td>
+                                <div className="input-group">
+                                  <input 
+                                    type="number" 
+                                    className="form-control" 
+                                    value={vt.charge}
+                                    onChange={(e) => handleVisitTypeChange(index, e.target.value)}
+                                    placeholder="0"
+                                  />
+                                  <span className="input-group-text bg-transparent text-dark fs-14">
+                                    ₹
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-lg-6">
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Address
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      placeholder="Enter address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </div>
+                  <div className="row">
+                    <div className="col-lg-6">
+                      <div className="mb-3">
+                        <label className="form-label mb-2 fw-medium">Photo</label>
+                        <div
+                          className="border border-dashed rounded p-3 text-center position-relative"
+                          style={{
+                            minHeight: "100px",
+                            cursor: "pointer",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                          onClick={() => {
+                            const input = document.getElementById('edit-photo-upload') as HTMLInputElement;
+                            input?.click();
+                          }}
                         >
-                          <i className="ti ti-photo fs-14" />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* end col*/}
-                <div className="col-lg-12">
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Name <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="Dr.Mick Thompson"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Username <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="Andrew"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Phone Number <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="+1 47895 58974"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Email Address <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="mick@example.com"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* end col*/}
-                <div className="col-lg-12">
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          DOB <span className="text-danger">*</span>
-                        </label>
-                        <div className="input-icon-end position-relative">
-                          <DatePicker
-                            className="form-control datetimepicker"
-                            format={{
-                              format: "DD-MM-YYYY",
-                              type: "mask",
-                            }}
-                            getPopupContainer={getModalContainer}
-                            placeholder="DD-MM-YYYY"
-                            suffixIcon={null}
+                          <input
+                            id="edit-photo-upload"
+                            type="file"
+                            className="d-none"
+                            accept="image/*"
+                            onChange={(e) => handleFileSelect(e, 'photo')}
                           />
-                          <span className="input-icon-addon">
-                            <i className="ti ti-calendar" />
-                          </span>
+                          {photoFile ? (
+                            <div>
+                              <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                              <p className="mb-0 text-dark fw-medium">{photoFile.name}</p>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-link text-danger mt-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPhotoFile(null);
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                              <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                              <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="col-lg-6">
                       <div className="mb-3">
-                        <label className="form-label">
-                          Year Of Experience
-                          <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="+5 Years"
-                        />
+                        <label className="form-label mb-2 fw-medium">Poster</label>
+                        <div
+                          className="border border-dashed rounded p-3 text-center position-relative"
+                          style={{
+                            minHeight: "100px",
+                            cursor: "pointer",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                          onClick={() => {
+                            const input = document.getElementById('edit-poster-upload') as HTMLInputElement;
+                            input?.click();
+                          }}
+                        >
+                          <input
+                            id="edit-poster-upload"
+                            type="file"
+                            className="d-none"
+                            accept="image/*"
+                            onChange={(e) => handleFileSelect(e, 'poster')}
+                          />
+                          {posterFile ? (
+                            <div>
+                              <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                              <p className="mb-0 text-dark fw-medium">{posterFile.name}</p>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-link text-danger mt-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPosterFile(null);
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                              <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                              <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-                {/* end col*/}
-                <div className="col-lg-12">
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Department<span className="text-danger ms-1">*</span>
-                        </label>
-                        <CommonSelect
-                          options={Department}
-                          className="select"
-                          defaultValue={Department[1]}
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Designation
-                          <span className="text-danger ms-1">*</span>
-                        </label>
-                        <CommonSelect
-                          options={Designation}
-                          className="select"
-                          defaultValue={Designation[1]}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* end col*/}
-                <div className="col-lg-12">
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Medical License Number
-                          <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          defaultValue="MGF14578"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">Language Spoken</label>
-                        <TagInput
-                          initialTags={tags}
-                          onTagsChange={handleTagsChange}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* end col*/}
-                <div className="col-lg-12">
-                  <div className="row">
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Blood Group<span className="text-danger ms-1">*</span>
-                        </label>
-                        <CommonSelect
-                          options={Blood_Group}
-                          className="select"
-                          defaultValue={Blood_Group[1]}
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Gender <span className="text-danger ms-1">*</span>
-                        </label>
-                        <CommonSelect
-                          options={Gender}
-                          className="select"
-                          defaultValue={Gender[1]}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* end col*/}
-                <div className="col-lg-12">
-                  <div className="mb-3">
-                    <label className="form-label">Bio</label>
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      defaultValue={
-                        "Dr.Mick Thompson is a compassionate and experienced internal medicine physician with over 5 years of clinical practice."
-                      }
-                    />
-                  </div>
-                  <div className="form-check form-switch mb-3">
-                    <label
-                      className="form-check-label"
-                      htmlFor="switchCheckDefault3"
-                    >
-                      Feature On Website
-                    </label>
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      id="switchCheckDefault3"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* end row*/}
-            </div>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Address Information</h6>
-            </div>
-            <div className="p-3 pb-0">
-              <div className="row">
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Address 1</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      defaultValue="2900 Alpha Avenue"
-                    />
-                  </div>
-                </div>
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Address 2 </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      defaultValue="2900 Alpha Avenue"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Country</label>
-                    <CommonSelect
-                      options={Country}
-                      className="select"
-                      defaultValue={Country[1]}
-                    />
-                  </div>
-                </div>
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">City</label>
-                    <CommonSelect
-                      options={City}
-                      className="select"
-                      defaultValue={City[1]}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">State</label>
-                    <CommonSelect
-                      options={State}
-                      className="select"
-                      defaultValue={State[1]}
-                    />
-                  </div>
-                </div>
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Pincode</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      defaultValue="PA 15650"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Address Information</h6>
-            </div>
-            <div className="p-3">
-              <ul
-                className="nav nav-pills schedule-tab mb-3"
-                id="pills-tab2"
-                role="tablist"
-              >
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto active"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-1"
-                    type="button"
-                    role="tab"
-                    aria-selected="true"
-                  >
-                    Monday
-                  </button>
-                </li>
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-2"
-                    type="button"
-                    role="tab"
-                    aria-selected="false"
-                    tabIndex={-1}
-                  >
-                    Tuesday
-                  </button>
-                </li>
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-3"
-                    type="button"
-                    role="tab"
-                    aria-selected="false"
-                    tabIndex={-1}
-                  >
-                    Wednesday
-                  </button>
-                </li>
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-4"
-                    type="button"
-                    role="tab"
-                    aria-selected="false"
-                    tabIndex={-1}
-                  >
-                    Thursday
-                  </button>
-                </li>
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-5"
-                    type="button"
-                    role="tab"
-                    aria-selected="false"
-                    tabIndex={-1}
-                  >
-                    Friday
-                  </button>
-                </li>
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-6"
-                    type="button"
-                    role="tab"
-                    aria-selected="false"
-                    tabIndex={-1}
-                  >
-                    Saturday
-                  </button>
-                </li>
-                <li className="nav-item me-1" role="presentation">
-                  <button
-                    className="nav-link btn btn-sm btn-icon p-2 d-flex align-items-center justify-content-center w-auto"
-                    data-bs-toggle="pill"
-                    data-bs-target="#schedules-7"
-                    type="button"
-                    role="tab"
-                    aria-selected="false"
-                    tabIndex={-1}
-                  >
-                    Sunday
-                  </button>
-                </li>
-              </ul>
-              <div className="tab-content" id="pills-tabContent2">
-                <div
-                  className="tab-pane fade active show"
-                  id="schedules-1"
-                  role="tabpanel"
-                >
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-                <div className="tab-pane fade" id="schedules-2" role="tabpanel">
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-                <div className="tab-pane fade" id="schedules-3" role="tabpanel">
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-                <div className="tab-pane fade" id="schedules-4" role="tabpanel">
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-                <div className="tab-pane fade" id="schedules-5" role="tabpanel">
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-                <div className="tab-pane fade" id="schedules-6" role="tabpanel">
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-                <div className="tab-pane fade" id="schedules-7" role="tabpanel">
-                  <div className="add-schedule-list">
-                    <DuplicateForms />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <Link href="#" className="btn btn-dark">
-                  Apply All
-                </Link>
-              </div>
-            </div>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Appointment Information</h6>
-            </div>
-            <div className="p-3 pb-0">
-              <div className="row">
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Appointment Type</label>
-                    <CommonSelect
-                      options={Appointment_Type}
-                      className="select"
-                      defaultValue={Appointment_Type[0]}
-                    />
-                  </div>
-                </div>
-                <div className="col-lg-6" />
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">
-                      Accept bookings (in Advance)
-                    </label>
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        className="form-control"
-                        defaultValue={2}
-                      />
-                      <span className="input-group-text bg-transparent text-dark fs-14">
-                        Days
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Appointment Duration</label>
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        className="form-control"
-                        defaultValue={30}
-                      />
-                      <span className="input-group-text bg-transparent text-dark fs-14">
-                        Mins
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Consultation Charge</label>
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        className="form-control"
-                        defaultValue="$100"
-                      />
-                      <span className="input-group-text bg-transparent text-dark fs-14">
-                        $
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-lg-6">
-                  <div className="mb-3">
-                    <label className="form-label">Max Bookings Per Slot</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      defaultValue={200}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="form-check form-switch mb-3">
-                    <label
-                      className="form-check-label"
-                      htmlFor="switchCheckDefault5"
-                    >
-                      Display on Booking Page
-                    </label>
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      id="switchCheckDefault5"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Educational Information</h6>
-            </div>
-            <div className="p-3 pb-0">
-              <div className="add-education-list">
-                <EducationForms />
-              </div>
-            </div>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Awards &amp; Recognition</h6>
-            </div>
-            <div className="p-3 pb-0">
-              <div className="add-award-list">
-                <RewardsForms />
-              </div>
-            </div>
-            <div className="bg-light px-3 py-2">
-              <h6 className="fw-bold mb-0">Certifications</h6>
-            </div>
-            <div className="p-3 pb-0">
-              <div className="add-certification-list">
-                <RewardsForms />
               </div>
             </div>
           </form>
@@ -1203,7 +1779,14 @@ const Modals = () => {
             >
               Cancel
             </Link>
-            <button className="btn btn-primary btm-md">Save Changes</button>
+            <button 
+              type="button"
+              className="btn btn-primary btm-md"
+              onClick={handleEditSubmit}
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
           </div>
         </div>
         {/* End Add New Appointment*/}
@@ -1301,23 +1884,21 @@ const Modals = () => {
                 <div className="p-3">
                   <div className="border shadow-sm p-3 rounded-2">
                     <div className="d-flex align-items-center gap-3">
-                      <div className="avatar avatar-xxl flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/doctors/doctor-01.jpg"
-                          alt="Doctor"
-                          className="rounded-circle"
-                        />
-                      </div>
                       <div className="flex-grow-1">
-                        <p className="mb-1 fs-13 text-muted">#DT2002</p>
-                        <h6 className="mb-2 fw-semibold fs-16">Dr. John Smith</h6>
+                        <p className="mb-1 fs-13 text-muted">{scheduleLoading ? "Loading..." : doctorInfo?.doctorId || "#N/A"}</p>
+                        <h6 className="mb-2 fw-semibold fs-16">{scheduleLoading ? "Loading..." : doctorInfo?.name || "N/A"}</h6>
                         <div className="d-flex align-items-center gap-2 flex-wrap mb-2">
-                          <span className="badge bg-primary">Cardiology</span>
+                          {doctorInfo?.department && <span className="badge bg-primary">{doctorInfo.department}</span>}
                         </div>
-                        <p className="mb-0 fs-13 text-muted">MBBS, M.D, Cardiology</p>
+                        <p className="mb-0 fs-13 text-muted">{doctorInfo?.designation || ""}</p>
                       </div>
                     </div>
                   </div>
+                  {scheduleMessage.type && (
+                    <div className={`alert alert-${scheduleMessage.type === 'success' ? 'success' : 'danger'} mt-3 mb-0`} role="alert">
+                      {scheduleMessage.text}
+                    </div>
+                  )}
                 </div>
                 <div className="px-3 py-2">
                   <h6 className="fw-bold mb-0">Schedules</h6>
@@ -1420,45 +2001,135 @@ const Modals = () => {
                     </li>
                   </ul>
                   <div className="tab-content" id="pills-tabContent">
-                    <div
-                      className="tab-pane fade active show"
-                      id="schedule-1"
-                      role="tabpanel"
-                    >
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
+                    {scheduleLoading ? (
+                      <div className="text-center py-5">
+                        <div className="spinner-border text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="tab-pane fade" id="schedule-2" role="tabpanel">
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
-                      </div>
-                    </div>
-                    <div className="tab-pane fade" id="schedule-3" role="tabpanel">
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
-                      </div>
-                    </div>
-                    <div className="tab-pane fade" id="schedule-4" role="tabpanel">
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
-                      </div>
-                    </div>
-                    <div className="tab-pane fade" id="schedule-5" role="tabpanel">
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
-                      </div>
-                    </div>
-                    <div className="tab-pane fade" id="schedule-6" role="tabpanel">
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
-                      </div>
-                    </div>
-                    <div className="tab-pane fade" id="schedule-7" role="tabpanel">
-                      <div className="add-schedule-list">
-                        <DuplicateForms />
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div
+                          className={`tab-pane fade ${activeScheduleTab === "Monday" ? "active show" : ""}`}
+                          id="schedule-1"
+                          role="tabpanel"
+                          key={`monday-pane-${mondaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Monday" && (
+                            <div className="add-schedule-list" key={`monday-list-${mondaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`monday-form-${mondaySlots.length}-${activeScheduleTab}`}
+                                slots={mondaySlots} 
+                                onSlotsChange={setMondaySlots}
+                                dayName="Monday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`tab-pane fade ${activeScheduleTab === "Tuesday" ? "active show" : ""}`}
+                          id="schedule-2" 
+                          role="tabpanel" 
+                          key={`tuesday-pane-${tuesdaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Tuesday" && (
+                            <div className="add-schedule-list" key={`tuesday-list-${tuesdaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`tuesday-form-${tuesdaySlots.length}-${activeScheduleTab}`}
+                                slots={tuesdaySlots} 
+                                onSlotsChange={setTuesdaySlots}
+                                dayName="Tuesday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`tab-pane fade ${activeScheduleTab === "Wednesday" ? "active show" : ""}`}
+                          id="schedule-3" 
+                          role="tabpanel" 
+                          key={`wednesday-pane-${wednesdaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Wednesday" && (
+                            <div className="add-schedule-list" key={`wednesday-list-${wednesdaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`wednesday-form-${wednesdaySlots.length}-${activeScheduleTab}`}
+                                slots={wednesdaySlots} 
+                                onSlotsChange={setWednesdaySlots}
+                                dayName="Wednesday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`tab-pane fade ${activeScheduleTab === "Thursday" ? "active show" : ""}`}
+                          id="schedule-4" 
+                          role="tabpanel" 
+                          key={`thursday-pane-${thursdaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Thursday" && (
+                            <div className="add-schedule-list" key={`thursday-list-${thursdaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`thursday-form-${thursdaySlots.length}-${activeScheduleTab}`}
+                                slots={thursdaySlots} 
+                                onSlotsChange={setThursdaySlots}
+                                dayName="Thursday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`tab-pane fade ${activeScheduleTab === "Friday" ? "active show" : ""}`}
+                          id="schedule-5" 
+                          role="tabpanel" 
+                          key={`friday-pane-${fridaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Friday" && (
+                            <div className="add-schedule-list" key={`friday-list-${fridaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`friday-form-${fridaySlots.length}-${activeScheduleTab}`}
+                                slots={fridaySlots} 
+                                onSlotsChange={setFridaySlots}
+                                dayName="Friday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`tab-pane fade ${activeScheduleTab === "Saturday" ? "active show" : ""}`}
+                          id="schedule-6" 
+                          role="tabpanel" 
+                          key={`saturday-pane-${saturdaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Saturday" && (
+                            <div className="add-schedule-list" key={`saturday-list-${saturdaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`saturday-form-${saturdaySlots.length}-${activeScheduleTab}`}
+                                slots={saturdaySlots} 
+                                onSlotsChange={setSaturdaySlots}
+                                dayName="Saturday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`tab-pane fade ${activeScheduleTab === "Sunday" ? "active show" : ""}`}
+                          id="schedule-7" 
+                          role="tabpanel" 
+                          key={`sunday-pane-${sundaySlots.length}-${activeScheduleTab}`}
+                        >
+                          {activeScheduleTab === "Sunday" && (
+                            <div className="add-schedule-list" key={`sunday-list-${sundaySlots.length}-${activeScheduleTab}`}>
+                              <ScheduleForm 
+                                key={`sunday-form-${sundaySlots.length}-${activeScheduleTab}`}
+                                slots={sundaySlots} 
+                                onSlotsChange={setSundaySlots}
+                                dayName="Sunday"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </form>
@@ -1466,7 +2137,13 @@ const Modals = () => {
             <div className="modal-footer mb-1 p-3 border-1 border-top">
               <div className="d-flex justify-content-end gap-2">
                 <button type="button" className="btn btn-light btm-md" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" className="btn btn-primary btm-md">Save Changes</button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary btm-md"
+                  onClick={handleSaveSchedule}
+                >
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>

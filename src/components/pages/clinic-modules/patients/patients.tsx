@@ -8,13 +8,13 @@ import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
+import Modals from "./modals/modals";
 
 interface IPatient {
   _id: string;
   mrd: string;
   title: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
   email: string;
   age: number;
@@ -67,7 +67,7 @@ const PatientsComponent = () => {
       showSorterTooltip: false,
       render: (text: any, record: IPatient) => (
         <span className="text-dark fw-semibold">
-          {`${record.title} ${record.firstName} ${record.lastName}`}
+          {record.title ? `${record.title} ${record.name}` : record.name}
         </span>
       ),
     },
@@ -103,14 +103,18 @@ const PatientsComponent = () => {
       title: "",
       sorter: false,
       showSorterTooltip: false,
-      render: (record: IPatient) => (
+      render: (_: any, record: IPatient) => (
         <div className="d-flex align-items-center gap-1">
-          <button
+          <Link
+            href="#"
             className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1 me-1 bg-white"
-            
+            data-bs-toggle="offcanvas"
+            data-bs-target="#edit_patient"
+            data-patient-id={record._id}
+            onClick={(e) => e.stopPropagation()}
           >
             <i className="ti ti-edit" />
-          </button>
+          </Link>
         </div>
       ),
     },
@@ -557,6 +561,7 @@ const PatientsComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
+      <Modals />
     </>
   );
 };

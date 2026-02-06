@@ -120,13 +120,15 @@ const DoctorsListComponent = () => {
       title: "",
       sorter: false,
       showSorterTooltip: false,
-      render: () => (
+      render: (_: any, record: IDoctor) => (
         <div className="d-flex align-items-center gap-2">
           <div className="action-item me-2">
             <Link
               href="#"
               data-bs-toggle="modal"
               data-bs-target="#schedule_details"
+              data-doctor-id={record._id}
+              onClick={(e) => e.stopPropagation()}
             >
               <i className="ti ti-clock fs-16" />
             </Link>
@@ -136,6 +138,7 @@ const DoctorsListComponent = () => {
               href="#"
               data-bs-toggle="offcanvas"
               data-bs-target="#edit_doctor"
+              data-doctor-id={record._id}
             >
               <i className="ti ti-edit fs-16" />
             </Link>

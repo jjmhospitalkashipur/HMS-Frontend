@@ -13,22 +13,37 @@ import {
   Status,
   Title,
 } from "@/core/common/selectOption";
-import CommonSelect from "@/core/common/common-select/commonSelect";
+import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import Link from "next/link";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
 
 const CreatePatientComponent = () => {
+  const router = useRouter();
   const [phone, setPhone] = useState<string>("");
-  const [emergencyPhone, setEmergencyPhone] = useState<string>("");
+  const [title, setTitle] = useState<Option | null>(Title[0] || null);
+  const [name, setName] = useState<string>("");
+  const [gender, setGender] = useState<Option | null>(Gender[0] || null);
+  const [email, setEmail] = useState<string>("");
   const [dob, setDob] = useState<string | null>(null);
   const [ageYears, setAgeYears] = useState<string>("");
   const [ageMonths, setAgeMonths] = useState<string>("");
   const [ageDays, setAgeDays] = useState<string>("");
+  const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
+  const [address, setAddress] = useState<string>("");
   const [aadharNumber, setAadharNumber] = useState<string>("");
   const [aadharFile, setAadharFile] = useState<File | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
+  const [aadharS3Url, setAadharS3Url] = useState<string>("");
+  const [otherDocsS3Urls, setOtherDocsS3Urls] = useState<string[]>([]);
+  const [emergencyContactName, setEmergencyContactName] = useState<string>("");
+  const [emergencyPhone, setEmergencyPhone] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'aadhar' | 'doc') => {
     const file = e.target.files?.[0];
@@ -49,7 +64,7 @@ const CreatePatientComponent = () => {
   const handleDobChange = (date: any) => {
     setDob(date);
     if (date) {
-      const birthDate = new Date(date);
+      const birthDate = dayjs.isDayjs(date) ? date.toDate() : new Date(date);
       const today = new Date();
       let years = today.getFullYear() - birthDate.getFullYear();
       let months = today.getMonth() - birthDate.getMonth();
@@ -73,6 +88,87 @@ const CreatePatientComponent = () => {
       setAgeYears("");
       setAgeMonths("");
       setAgeDays("");
+    }
+  };
+
+  const calculateAge = (): number => {
+    if (ageYears) {
+      return parseInt(ageYears, 10);
+    }
+    if (dob) {
+      const birthDate = dayjs.isDayjs(dob) ? dob.toDate() : new Date(dob);
+      const today = new Date();
+      let years = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        years--;
+      }
+      return years;
+    }
+    return 0;
+  };
+
+  const formatDob = (): string => {
+    if (!dob) return "";
+    // antd DatePicker returns dayjs object
+    if (dayjs.isDayjs(dob)) {
+      return dob.format("YYYY-MM-DD");
+    }
+    // Fallback for Date objects or strings
+    return dayjs(dob).format("YYYY-MM-DD");
+  };
+
+  const handleCreatePatient = async () => {
+    try {
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        return;
+      }
+
+      setLoading(true);
+
+      // TODO: Upload files to S3 first to get URLs
+      // For now, using placeholder URLs if files are selected
+      // You'll need to implement file upload to S3 before calling this API
+      
+      const emergencyContacts = [];
+      if (emergencyContactName && emergencyPhone) {
+        emergencyContacts.push({
+          name: emergencyContactName,
+          number: emergencyPhone,
+        });
+      }
+
+      const patientData = {
+        title: title?.value || "",
+        name: name,
+        phone: phone,
+        email: email || undefined,
+        dob: formatDob(),
+        age: calculateAge(),
+        gender: gender?.value || "",
+        bloodGroup: bloodGroup?.value || undefined,
+        address: address,
+        aadharNo: aadharNumber || undefined,
+        aadharS3Url: aadharS3Url || undefined,
+        otherDocsS3Urls: otherDocsS3Urls.length > 0 ? otherDocsS3Urls : undefined,
+        emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
+      };
+
+      const response = await axios.post(`${API_BASE_URL}/hospital/patients`, patientData);
+      const isSuccess = response.status >= 200 && response.status < 300;
+      const hasSuccessCode = response.data?.code === 200;
+
+      if (isSuccess || hasSuccessCode) {
+        router.push(all_routes.patients);
+      } else {
+        console.error("Failed to create patient:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Error creating patient:", error);
+      console.error("Error details:", error.response?.data);
+    } finally {
+      setLoading(false);
     }
   };
   return (
@@ -168,7 +264,8 @@ const CreatePatientComponent = () => {
                           <CommonSelect
                             options={Title}
                             className="select"
-                            defaultValue={Title[0]}
+                            value={title || undefined}
+                            onChange={(option) => setTitle(option)}
                           />
                         </div>
                       </div>
@@ -177,7 +274,13 @@ const CreatePatientComponent = () => {
                           <label className="form-label mb-1 fw-medium">
                             Name<span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control" placeholder="Enter patient name" />
+                          <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="Enter patient name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                          />
                         </div>
                       </div>
                       <div className="col-md-3">
@@ -188,7 +291,8 @@ const CreatePatientComponent = () => {
                           <CommonSelect
                             options={Gender}
                             className="select"
-                            defaultValue={Gender[0]}
+                            value={gender || undefined}
+                            onChange={(option) => setGender(option)}
                           />
                         </div>
                       </div>
@@ -197,7 +301,13 @@ const CreatePatientComponent = () => {
                           <label className="form-label mb-1 fw-medium">
                             Email Address
                           </label>
-                          <input type="email" className="form-control" placeholder="Enter email address" />
+                          <input 
+                            type="email" 
+                            className="form-control" 
+                            placeholder="Enter email address"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                          />
                         </div>
                       </div>
                       <div className="col-md-2">
@@ -267,7 +377,8 @@ const CreatePatientComponent = () => {
                           <CommonSelect
                             options={Blood_Group}
                             className="select"
-                            defaultValue={Blood_Group[0]}
+                            value={bloodGroup || undefined}
+                            onChange={(option) => setBloodGroup(option)}
                           />
                         </div>
                       </div>
@@ -276,7 +387,13 @@ const CreatePatientComponent = () => {
                           <label className="form-label mb-1 fw-medium">
                             Address<span className="text-danger ms-1">*</span>
                           </label>
-                          <textarea className="form-control" rows={1} placeholder="Enter full address"></textarea>
+                          <textarea 
+                            className="form-control" 
+                            rows={1} 
+                            placeholder="Enter full address"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                          ></textarea>
                         </div>
                       </div>
                       {/* <div className="col-md-6">
@@ -425,7 +542,13 @@ const CreatePatientComponent = () => {
                           <label className="form-label mb-1 fw-medium">
                             Name
                           </label>
-                          <input type="text" className="form-control" placeholder="Enter emergency contact name" />
+                          <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="Enter emergency contact name"
+                            value={emergencyContactName}
+                            onChange={(e) => setEmergencyContactName(e.target.value)}
+                          />
                         </div>
                       </div>
                       <div className="col-md-6">
@@ -446,12 +569,16 @@ const CreatePatientComponent = () => {
               </div>
               {/* card end */}
               <div className="d-flex align-items-center justify-content-end">
-                <Link href="#" className="btn btn-light me-2">
+                <Link href={all_routes.patients} className="btn btn-light me-2">
                   Cancel
                 </Link>
-                <Link href="#" className="btn btn-primary">
-                  Add New Patient
-                </Link>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleCreatePatient}
+                  disabled={loading}
+                >
+                  {loading ? "Creating..." : "Add New Patient"}
+                </button>
               </div>
             </div>
           </div>

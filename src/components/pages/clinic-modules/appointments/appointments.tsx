@@ -3,18 +3,71 @@
 
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { all_routes } from "../../../../routes/all_routes";
-import { AppointmentsData } from "@/core/json/appointmentsData";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import PredefinedDatePicker from "@/core/common/datePicker";
 import Modals from "./modals/modals";
 import Link from "next/link";
 import PrintPrescription from "./printPrescription";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import dayjs from "dayjs";
+
+interface IVisit {
+  _id: string;
+  visitId: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  visitType: string;
+  appointmentType: string;
+  reason?: string;
+  visitDate: string;
+  visitTime: string;
+  sessionSlot: string;
+  tokenNumber: number;
+  price: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface IPatient {
+  _id: string;
+  name: string;
+  phone: string;
+  organisationName?: string;
+}
+
+interface IDoctor {
+  _id: string;
+  name: string;
+  designation?: string;
+}
+
+interface ITransformedAppointment {
+  id: string;
+  Case_ID: string;
+  Token_No: number;
+  Date_Time: string;
+  Patient: string;
+  Phone: string;
+  Doctor: string;
+  role: string;
+  Visit: string;
+  Appointment_Type: string;
+  Status: string;
+  Price: number;
+  [key: string]: any;
+}
 
 const AppointmentsComponent = () => {
-  const data = AppointmentsData;
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [data, setData] = useState<ITransformedAppointment[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [selectedAppointment, setSelectedAppointment] = useState<ITransformedAppointment | null>(null);
+  const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState<any>(null);
   const [showPrint, setShowPrint] = useState(false);
 
   const handlePrint = (record: any) => {
@@ -38,6 +91,105 @@ const AppointmentsComponent = () => {
 
   const getStatusForRecord = (record: any) => {
     return statusUpdates[record.id] || record.Status;
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        setError("API configuration error");
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/hospital/visits`, {
+        params: { limit: 20 }
+      });
+
+      if (response.data?.code === 200 && response.data?.data?.visits) {
+        const visits: IVisit[] = response.data.data.visits;
+        
+        // Fetch patient and doctor details for each visit
+        const transformedData = await Promise.all(
+          visits.map(async (visit) => {
+            let patient: IPatient | null = null;
+            let doctor: IDoctor | null = null;
+
+            try {
+              // Fetch patient details
+              const patientResponse = await axios.get(`${API_BASE_URL}/hospital/patients/${visit.patientId}`);
+              if (patientResponse.data?.code === 200 && patientResponse.data?.data?.patient) {
+                patient = {
+                  _id: patientResponse.data.data.patient._id,
+                  name: patientResponse.data.data.patient.name,
+                  phone: patientResponse.data.data.patient.phone || "",
+                  organisationName: patientResponse.data.data.patient.organisationName || patientResponse.data.data.patient.organisation_name || "",
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching patient ${visit.patientId}:`, err);
+            }
+
+            try {
+              // Fetch doctor details
+              const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${visit.doctorId}`);
+              if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
+                doctor = {
+                  _id: doctorResponse.data.data.doctor._id,
+                  name: doctorResponse.data.data.doctor.name,
+                  designation: doctorResponse.data.data.doctor.designation,
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching doctor ${visit.doctorId}:`, err);
+            }
+
+            // Format date and time
+            const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
+            const visitTime = visit.visitTime || "";
+            const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
+
+            return {
+              id: visit._id,
+              Case_ID: visit.visitId || visit._id,
+              Token_No: visit.tokenNumber || 0,
+              Date_Time: dateTime,
+              Patient: patient?.name || "Unknown Patient",
+              Phone: patient?.phone || "",
+              Organisation_name: patient?.organisationName || "",
+              Doctor: doctor?.name || "Unknown Doctor",
+              role: doctor?.designation || "",
+              Visit: visit.visitType || "",
+              Appointment_Type: visit.appointmentType || "",
+              Status: visit.status || "Scheduled",
+              Price: visit.price || 0,
+              _visitId: visit.visitId,
+              _appointmentId: visit.appointmentId,
+              _patientId: visit.patientId,
+              _doctorId: visit.doctorId,
+              _reason: visit.reason,
+              _sessionSlot: visit.sessionSlot,
+            } as ITransformedAppointment;
+          })
+        );
+
+        setData(transformedData);
+      } else {
+        setError("Failed to fetch appointments");
+        console.error("Failed to fetch appointments:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching appointments:", error);
+      setError(error.response?.data?.message || "An error occurred while fetching appointments");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const columns = [
@@ -77,15 +229,15 @@ const AppointmentsComponent = () => {
       dataIndex: "Patient",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any, render: any) => (
+      render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
           <Link
-            href={all_routes.patientDetails}
+            href={`${all_routes.patientDetails}?id=${record._patientId || ""}`}
             className="text-dark fw-semibold"
           >
             {text}
             <span className="text-body fs-13 fw-normal d-block">
-              {render.Phone}
+              {record.Phone}
             </span>
           </Link>
         </div>
@@ -96,15 +248,18 @@ const AppointmentsComponent = () => {
       dataIndex: "Doctor",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any, render: any) => (
+      render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
           <div>
             <h6 className="fs-14 mb-1 text-truncate">
-              <Link href={all_routes.doctordetails} className="fw-semibold">
+              <Link 
+                href={`${all_routes.doctordetails}?id=${record._doctorId || ""}`} 
+                className="fw-semibold"
+              >
                 {text}
               </Link>
             </h6>
-            <p className="mb-0 fs-13 text-truncate">{render.role}</p>
+            <p className="mb-0 fs-13 text-truncate">{record.role}</p>
           </div>
         </div>
       ),
@@ -245,7 +400,64 @@ const AppointmentsComponent = () => {
     setSearchText(value);
   };
 
-  const handleRowClick = (record: any) => {
+  const handleRowClick = async (record: any) => {
+    setSelectedAppointment(record);
+    
+    // Fetch full appointment details
+    try {
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined");
+        // Still show modal with record data
+        setSelectedAppointmentDetails(null);
+        const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
+        if (triggerButton) {
+          triggerButton.click();
+        }
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/hospital/visits/${record.id}`);
+      
+      if (response.data?.code === 200 && response.data?.data?.visit) {
+        const visit = response.data.data.visit;
+        
+        // Fetch patient and doctor details
+        let patient = null;
+        let doctor = null;
+
+        try {
+          const patientResponse = await axios.get(`${API_BASE_URL}/hospital/patients/${visit.patientId || record._patientId}`);
+          if (patientResponse.data?.code === 200 && patientResponse.data?.data?.patient) {
+            patient = patientResponse.data.data.patient;
+          }
+        } catch (err) {
+          console.error("Error fetching patient:", err);
+        }
+
+        try {
+          const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${visit.doctorId || record._doctorId}`);
+          if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
+            doctor = doctorResponse.data.data.doctor;
+          }
+        } catch (err) {
+          console.error("Error fetching doctor:", err);
+        }
+
+        setSelectedAppointmentDetails({
+          visit,
+          patient,
+          doctor,
+        });
+      } else {
+        // If visit details not found, still show modal with record data
+        setSelectedAppointmentDetails(null);
+      }
+    } catch (error: any) {
+      console.error("Error fetching appointment details:", error);
+      // Still show modal with record data even if API fails
+      setSelectedAppointmentDetails(null);
+    }
+
     // Trigger view action on row click using hidden button
     const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
     if (triggerButton) {
@@ -982,14 +1194,28 @@ const AppointmentsComponent = () => {
           </div>
           {/*  End Filter */}
           {/*  Start Table */}
+          {error && (
+            <div className="alert alert-danger mb-3" role="alert">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
           <div className="table-responsive">
-            <Datatable
-              columns={columns}
-              dataSource={data}
-              Selection={false}
-              searchText={searchText}
-              onRowClick={handleRowClick}
-            />
+            {loading ? (
+              <div className="text-center p-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2 text-muted">Loading appointments...</p>
+              </div>
+            ) : (
+              <Datatable
+                columns={columns}
+                dataSource={data}
+                Selection={false}
+                searchText={searchText}
+                onRowClick={handleRowClick}
+              />
+            )}
           </div>
           {/*  End Table */}
         </div>
@@ -1009,7 +1235,10 @@ const AppointmentsComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
-      <Modals />
+      <Modals 
+        appointment={selectedAppointmentDetails}
+        appointmentRecord={selectedAppointment}
+      />
       {showPrint && selectedAppointment && (
         <PrintPrescription
           appointmentData={selectedAppointment}

@@ -15,7 +15,7 @@ interface IPrintPrescriptionProps {
     Age?: string;
     Sex?: string;
     Address?: string;
-    Token_No?: string;
+    Token_No?: string | number;
     OPD_No?: string;
     Amount?: string;
     Organisation_name?: string;
@@ -169,27 +169,29 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
           <tbody>
             <tr>
               <td className="table-label">Token No.:</td>
-              <td className="table-value">{appointmentData.Token_No || "13"}</td>
-              <td className="table-label">Registered On:</td>
-              <td className="table-value">{formatDateTime(appointmentData.Date_Time) || "04 Feb 2026, 13:59"}</td>
+              <td className="table-value">{appointmentData.Token_No?.toString() || "13"}</td>
+              <td className="table-label">Date:</td>
+              <td className="table-value">{formatDateTime(appointmentData.Date_Time) || "04 Feb 2026"}</td>
             </tr>
             <tr>
               <td className="table-label">Patient Name:</td>
               <td className="table-value">{appointmentData.Patient || "Mrs. PRABHA WATI TIWARI"}</td>
-              <td className="table-label">Reported On:</td>
-              <td className="table-value">{formatDateTime(appointmentData.Date_Time) || "04 Feb 2026, 15:45"}</td>
+              <td className="table-label">Case ID:</td>
+              <td className="table-value">{appointmentData.Case_ID || "DGL1428"}</td>
             </tr>
             <tr>
               <td className="table-label">Age / Gender:</td>
               <td className="table-value">
                 {appointmentData.Age || "70"} Yrs / {appointmentData.Sex ? appointmentData.Sex.toUpperCase() : "FEMALE"}
               </td>
-              <td className="table-label">Case ID:</td>
-              <td className="table-value">{appointmentData.Case_ID || "DGL1428"}</td>
+              <td className="table-label">Phone No.:</td>
+              <td className="table-value">{appointmentData.Phone || "N/A"}</td>
             </tr>
             <tr>
+              <td className="table-label">Organization:</td>
+              <td className="table-value">{appointmentData.Organisation_name || ""}</td>
               <td className="table-label">Ref. Consultant:</td>
-              <td className="table-value" colSpan={3}>
+              <td className="table-value">
                 {appointmentData.Doctor || "Dr. ABHISHEK GOEL"} {appointmentData.role ? `M.D. D.M. (${appointmentData.role})` : "M.D. D.M. (NEPHROLOGY)"}
               </td>
             </tr>

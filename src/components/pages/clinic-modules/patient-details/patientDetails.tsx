@@ -2,112 +2,188 @@
 
 
 import { all_routes } from "../../../../routes/all_routes";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PredefinedDatePicker from "@/core/common/datePicker";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import dayjs from "dayjs";
+
+interface IPatient {
+  _id: string;
+  mrd: string;
+  title: string;
+  name: string;
+  phone: string;
+  email: string;
+  age: number;
+  gender: string;
+  bloodGroup: string;
+  address: string;
+  aadharNo: string;
+  aadharS3Url?: string;
+  otherDocsS3Urls?: string[];
+  emergencyContacts?: Array<{
+    name: string;
+    number: string;
+  }>;
+  dob?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface IVisit {
+  _id: string;
+  visitId: string;
+  patientId: string;
+  doctorId: string;
+  visitType: string;
+  appointmentType: string;
+  visitDate: string;
+  visitTime: string;
+  sessionSlot: string;
+  status: string;
+  [key: string]: any;
+}
+
+interface IDoctor {
+  _id: string;
+  name: string;
+  designation: string;
+}
+
+interface IAppointment {
+  id: string;
+  Case_ID: string;
+  Date_Time: string;
+  Doctor: string;
+  role: string;
+  Mode: string;
+  Status: string;
+}
 
 const PatientDetailsComponent = () => {
+  const searchParams = useSearchParams();
+  const patientId = searchParams.get("id");
   const [searchText, setSearchText] = useState<string>("");
+  const [patient, setPatient] = useState<IPatient | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [appointments, setAppointments] = useState<IAppointment[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState<boolean>(false);
 
   const handleSearch = (value: string) => {
     setSearchText(value);
   };
 
-  const appointmentData = [
-    {
-      id: "1",
-      Case_ID: "CASE-001",
-      Date_Time: "30 Apr 2025 - 09:30 AM",
-      Doctor: "Dr. Mick Thompson",
-      role: "Cardiologist",
-      Mode: "In-person",
-      Status: "Checked Out",
-    },
-    {
-      id: "2",
-      Case_ID: "CASE-002",
-      Date_Time: "15 Apr 2025 - 11:20 AM",
-      Doctor: "Dr. Sarah Johnson",
-      role: "Orthopedic Surgeon",
-      Mode: "Online",
-      Status: "Checked In",
-    },
-    {
-      id: "3",
-      Case_ID: "CASE-003",
-      Date_Time: "02 Apr 2025 - 08:15 AM",
-      Doctor: "Dr. Emily Carter",
-      role: "Pediatrician",
-      Mode: "In-Person",
-      Status: "Cancelled",
-    },
-    {
-      id: "4",
-      Case_ID: "CASE-004",
-      Date_Time: "27 Mar 2025 - 02:00 PM",
-      Doctor: "Dr. David Lee",
-      role: "Gynecologist",
-      Mode: "In-person",
-      Status: "Schedule",
-    },
-    {
-      id: "5",
-      Case_ID: "CASE-005",
-      Date_Time: "12 Mar 2025 - 05:40 PM",
-      Doctor: "Dr. Anna Kim",
-      role: "Psychiatrist",
-      Mode: "Online",
-      Status: "Confirmed",
-    },
-    {
-      id: "6",
-      Case_ID: "CASE-006",
-      Date_Time: "24 Feb 2025 - 09:20 AM",
-      Doctor: "Dr. John Smith",
-      role: "Neurosurgeon",
-      Mode: "In-Person",
-      Status: "Cancelled",
-    },
-    {
-      id: "7",
-      Case_ID: "CASE-007",
-      Date_Time: "16 Feb 2025 - 11:40 AM",
-      Doctor: "Dr. Lisa White",
-      role: "Oncologist",
-      Mode: "Online",
-      Status: "Confirmed",
-    },
-    {
-      id: "8",
-      Case_ID: "CASE-008",
-      Date_Time: "01 Feb 2025 - 04:00 PM",
-      Doctor: "Dr. Patricia Brown",
-      role: "Pulmonologist",
-      Mode: "Online",
-      Status: "Checked Out",
-    },
-    {
-      id: "9",
-      Case_ID: "CASE-009",
-      Date_Time: "25 Jan 2025 - 03:10 PM",
-      Doctor: "Dr. Rachel Green",
-      role: "Urologist",
-      Mode: "Online",
-      Status: "Schedule",
-    },
-    {
-      id: "10",
-      Case_ID: "CASE-010",
-      Date_Time: "12 Jan 2025 - 03:10 PM",
-      Doctor: "Dr. Michael Smith",
-      role: "Cardiologist",
-      Mode: "In-Person",
-      Status: "Cancelled",
-    },
-  ];
+  useEffect(() => {
+    if (patientId) {
+      fetchPatientDetails();
+      fetchAppointments();
+    }
+  }, [patientId]);
+
+  const fetchPatientDetails = async () => {
+    try {
+      setLoading(true);
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/hospital/patients/${patientId}`);
+      
+      if (response.data?.code === 200 && response.data?.data?.patient) {
+        setPatient(response.data.data.patient);
+      } else {
+        console.error("Failed to fetch patient details:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching patient details:", error);
+      console.error("Error details:", error.response?.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      if (!patientId || !API_BASE_URL) {
+        return;
+      }
+
+      setAppointmentsLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/hospital/visits/patient/${patientId}`);
+
+      if (response.data?.code === 200 && response.data?.data?.visits) {
+        const visits: IVisit[] = response.data.data.visits;
+        
+        // Fetch doctor details for each visit
+        const transformedAppointments = await Promise.all(
+          visits.map(async (visit) => {
+            let doctor: IDoctor | null = null;
+
+            try {
+              const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${visit.doctorId}`);
+              if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
+                doctor = {
+                  _id: doctorResponse.data.data.doctor._id,
+                  name: doctorResponse.data.data.doctor.name,
+                  designation: doctorResponse.data.data.doctor.designation,
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching doctor ${visit.doctorId}:`, err);
+            }
+
+            // Format date and time
+            const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
+            const visitTime = visit.visitTime || "";
+            const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
+
+            return {
+              id: visit._id,
+              Case_ID: visit.visitId || visit._id,
+              Date_Time: dateTime,
+              Doctor: doctor?.name || "Unknown Doctor",
+              role: doctor?.designation || "",
+              Mode: visit.appointmentType || "In-person",
+              Status: visit.status || "Scheduled",
+            } as IAppointment;
+          })
+        );
+
+        setAppointments(transformedAppointments);
+      } else {
+        setAppointments([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching appointments:", error);
+      setAppointments([]);
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  };
+
+  const formatAadhar = (aadhar?: string): string => {
+    if (!aadhar) return "N/A";
+    // Format as XXXX XXXX XXXX
+    return aadhar.replace(/(\d{4})(\d{4})(\d{4})/, "$1 $2 $3");
+  };
+
+  const getDocumentName = (url: string): string => {
+    const fileName = url.split("/").pop() || "";
+    return fileName.replace(/\.[^/.]+$/, "") || "Document";
+  };
+
+  const getDocumentType = (url: string): string => {
+    const extension = url.split(".").pop()?.toUpperCase() || "";
+    return extension === "PDF" ? "PDF" : extension === "JPG" || extension === "PNG" ? "Image" : extension;
+  };
+
 
   const appointmentColumns = [
     {
@@ -263,18 +339,18 @@ const PatientDetailsComponent = () => {
               <div className="col-xl-9 col-lg-8">
                 <div className="d-sm-flex align-items-center p-3">
                   <div>
-                    <p className="text-dark mb-1">#PT0025</p>
+                    <p className="text-dark mb-1">{loading ? "Loading..." : patient?.mrd || "N/A"}</p>
                     <h5 className="mb-1">
                       <Link href="#" className="fw-bold text-dark">
-                        Alberto Ripley
+                        {loading ? "Loading..." : patient ? `${patient.title} ${patient.name}` : "Patient not found"}
                       </Link>
                     </h5>
-                    <p className="mb-3 text-dark">4150 Hiney Road, Las Vegas, NV 89109</p>
+                    {patient?.address && <p className="mb-3 text-dark">{patient.address}</p>}
                     <div className="d-flex align-items-center flex-wrap">
                       <p className="mb-0 d-inline-flex align-items-center">
                         <i className="ti ti-phone me-1 text-dark" />
                         <span className="text-dark">Phone :</span>
-                        <span className="text-dark ms-1">+1 54546 45648</span>
+                        <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
                       </p>
                     </div>
                   </div>
@@ -329,11 +405,11 @@ const PatientDetailsComponent = () => {
                     <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
                         <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                          <i className="ti ti-gender-male fs-14" />
+                          <i className={`ti ti-gender-${patient?.gender?.toLowerCase() === 'male' ? 'male' : patient?.gender?.toLowerCase() === 'female' ? 'female' : 'gender-male'} fs-14`} />
                         </span>
                         <div className="flex-grow-1">
                           <h6 className="fs-13 fw-bold mb-1 text-dark">Gender</h6>
-                          <p className="mb-0 text-dark">Male</p>
+                          <p className="mb-0 text-dark">{patient?.gender || "N/A"}</p>
                         </div>
                       </div>
                     </div>
@@ -344,21 +420,23 @@ const PatientDetailsComponent = () => {
                         </span>
                         <div className="flex-grow-1">
                           <h6 className="fs-13 fw-bold mb-1 text-dark">Email Address</h6>
-                          <p className="mb-0 text-break text-dark">alberto@example.com</p>
+                          <p className="mb-0 text-break text-dark">{patient?.email || "N/A"}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="col-sm-6">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                          <i className="ti ti-calendar-event fs-14" />
-                        </span>
-                        <div className="flex-grow-1">
-                          <h6 className="fs-13 fw-bold mb-1 text-dark">DOB</h6>
-                          <p className="mb-0 text-dark">25 Jan 1990</p>
+                    {patient?.dob && (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                            <i className="ti ti-calendar-event fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">DOB</h6>
+                            <p className="mb-0 text-dark">{dayjs(patient.dob).format("DD MMM YYYY")}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                     <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
                         <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
@@ -366,59 +444,50 @@ const PatientDetailsComponent = () => {
                         </span>
                         <div className="flex-grow-1">
                           <h6 className="fs-13 fw-bold mb-1 text-dark">Age</h6>
-                          <p className="mb-0 text-nowrap text-dark">35 Years 2 Months 10 Days</p>
+                          <p className="mb-0 text-nowrap text-dark">{patient?.age ? `${patient.age} Years` : "N/A"}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="col-sm-6">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                          <i className="ti ti-id fs-14" />
-                        </span>
-                        <div className="flex-grow-1">
-                          <h6 className="fs-13 fw-bold mb-1 text-dark">Aadhaar Number</h6>
-                          <p className="mb-0 text-dark">1234 5678 9012</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-6">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                          <i className="ti ti-droplet fs-14" />
-                        </span>
-                        <div className="flex-grow-1">
-                          <h6 className="fs-13 fw-bold mb-1 text-dark">Blood Group</h6>
-                          <p className="mb-0 text-dark">O +ve</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-sm-12 border-top pt-3 mt-2">
-                      <h6 className="fs-14 fw-bold mb-3 text-dark">Emergency Contact</h6>
-                      <div className="row g-2">
-                        <div className="col-sm-6">
-                          <div className="d-flex align-items-center mb-3">
-                            <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                              <i className="ti ti-user fs-14" />
-                            </span>
-                            <div className="flex-grow-1">
-                              <h6 className="fs-13 fw-bold mb-1 text-dark">Emergency Contact Name</h6>
-                              <p className="mb-0 text-dark">Jane Ripley</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-sm-6">
-                          <div className="d-flex align-items-center mb-3">
-                            <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                              <i className="ti ti-phone fs-14" />
-                            </span>
-                            <div className="flex-grow-1">
-                              <h6 className="fs-13 fw-bold mb-1 text-dark">Emergency Contact Phone</h6>
-                              <p className="mb-0 text-dark">+1 54546 45649</p>
-                            </div>
+                    {patient?.aadharNo && (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                            <i className="ti ti-id fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">Aadhaar Number</h6>
+                            <p className="mb-0 text-dark">{formatAadhar(patient.aadharNo)}</p>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+                    {patient?.bloodGroup && (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
+                            <i className="ti ti-droplet fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">Blood Group</h6>
+                            <p className="mb-0 text-dark">{patient.bloodGroup}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {patient?.emergencyContacts && patient.emergencyContacts.length > 0 && (
+                      <div className="col-sm-12 border-top pt-3 mt-2">
+                        <h6 className="fs-14 fw-bold  text-dark">Emergency Contact</h6>
+                        <div className="d-flex py-2 align-items-center">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2" style={{ width: '32px', height: '32px' }}>
+                            <i className="ti ti-user fs-14" />
+                          </span>
+                          <div className="flex-grow-1  d-flex align-items-center justify-content-between">
+                            <span className="text-dark fw-medium">{patient.emergencyContacts[0].name}</span>
+                            <span className="text-dark fw-medium">{patient.emergencyContacts[0].number}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -443,86 +512,54 @@ const PatientDetailsComponent = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                                <i className="ti ti-file-text fs-16" />
-                              </span>
-                              <span className="fw-semibold text-dark">Aadhaar Card</span>
-                            </div>
-                          </td>
-                          <td className="text-dark">PDF</td>
-                          <td className="text-dark">15 Jan 2025</td>
-                          <td>
-                            <Link href="#" className="text-primary me-2">
-                              <i className="ti ti-download fs-16" />
-                            </Link>
-                            <Link href="#" className="text-danger">
-                              <i className="ti ti-trash fs-16" />
-                            </Link>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                                <i className="ti ti-file-text fs-16" />
-                              </span>
-                              <span className="fw-semibold text-dark">Medical Report</span>
-                            </div>
-                          </td>
-                          <td>PDF</td>
-                          <td>20 Jan 2025</td>
-                          <td>
-                            <Link href="#" className="text-primary me-2">
-                              <i className="ti ti-download fs-16" />
-                            </Link>
-                            <Link href="#" className="text-danger">
-                              <i className="ti ti-trash fs-16" />
-                            </Link>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                                <i className="ti ti-file-text fs-16" />
-                              </span>
-                              <span className="fw-semibold text-dark">Insurance Card</span>
-                            </div>
-                          </td>
-                          <td className="text-dark">Image</td>
-                          <td className="text-dark">25 Jan 2025</td>
-                          <td>
-                            <Link href="#" className="text-primary me-2">
-                              <i className="ti ti-download fs-16" />
-                            </Link>
-                            <Link href="#" className="text-danger">
-                              <i className="ti ti-trash fs-16" />
-                            </Link>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                                <i className="ti ti-file-text fs-16" />
-                              </span>
-                              <span className="fw-semibold text-dark">Lab Results</span>
-                            </div>
-                          </td>
-                          <td>PDF</td>
-                          <td>30 Jan 2025</td>
-                          <td>
-                            <Link href="#" className="text-primary me-2">
-                              <i className="ti ti-download fs-16" />
-                            </Link>
-                            <Link href="#" className="text-danger">
-                              <i className="ti ti-trash fs-16" />
-                            </Link>
-                          </td>
-                        </tr>
+                        {patient?.aadharS3Url && (
+                          <tr>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
+                                  <i className="ti ti-file-text fs-16" />
+                                </span>
+                                <span className="fw-semibold text-dark">Aadhaar Card</span>
+                              </div>
+                            </td>
+                            <td className="text-dark">{getDocumentType(patient.aadharS3Url)}</td>
+                            <td className="text-dark">{patient.createdAt ? dayjs(patient.createdAt).format("DD MMM YYYY") : "N/A"}</td>
+                            <td>
+                              <Link href={patient.aadharS3Url} target="_blank" className="text-primary me-2">
+                                <i className="ti ti-download fs-16" />
+                              </Link>
+                            </td>
+                          </tr>
+                        )}
+                        {patient?.otherDocsS3Urls && patient.otherDocsS3Urls.length > 0 ? (
+                          patient.otherDocsS3Urls.map((url, index) => (
+                            <tr key={index}>
+                              <td>
+                                <div className="d-flex align-items-center">
+                                  <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
+                                    <i className="ti ti-file-text fs-16" />
+                                  </span>
+                                  <span className="fw-semibold text-dark">{getDocumentName(url)}</span>
+                                </div>
+                              </td>
+                              <td className="text-dark">{getDocumentType(url)}</td>
+                              <td className="text-dark">{patient.createdAt ? dayjs(patient.createdAt).format("DD MMM YYYY") : "N/A"}</td>
+                              <td>
+                                <Link href={url} target="_blank" className="text-primary me-2">
+                                  <i className="ti ti-download fs-16" />
+                                </Link>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          !patient?.aadharS3Url && (
+                            <tr>
+                              <td colSpan={4} className="text-center text-dark py-4">
+                                No documents available
+                              </td>
+                            </tr>
+                          )
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1055,13 +1092,21 @@ const PatientDetailsComponent = () => {
               {/*  End Filter */}
               {/*  Start Table */}
               <div className="table-responsive">
-                <Datatable
-                  columns={appointmentColumns}
-                  dataSource={appointmentData}
-                  Selection={false}
-                  searchText={searchText}
-                  onRowClick={handleRowClick}
-                />
+                {appointmentsLoading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <Datatable
+                    columns={appointmentColumns}
+                    dataSource={appointments}
+                    Selection={false}
+                    searchText={searchText}
+                    onRowClick={handleRowClick}
+                  />
+                )}
               </div>
               {/*  End Table */}
             </div>

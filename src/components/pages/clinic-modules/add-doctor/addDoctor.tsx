@@ -10,21 +10,50 @@ import {
   Visit_Type,
   Sessions,
 } from "@/core/common/selectOption";
-import CommonSelect from "@/core/common/common-select/commonSelect";
+import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { useState } from "react";
 import { all_routes } from "../../../../routes/all_routes";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import Link from "next/link";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
+import Select from "react-select";
 
 const AddDoctorComponent = () => {
+  const router = useRouter();
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
   };
+
+  // Form state
+  const [name, setName] = useState<string>("");
   const [phone, setPhone] = useState<string | undefined>();
+  const [email, setEmail] = useState<string>("");
+  const [dob, setDob] = useState<any>(null);
+  const [gender, setGender] = useState<Option | null>(Gender[0] || null);
+  const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
+  const [yearsOfExperience, setYearsOfExperience] = useState<string>("");
+  const [department, setDepartment] = useState<Option | null>(Department[0] || null);
+  const [designation, setDesignation] = useState<Option | null>(Designation[0] || null);
+  const [medicalLicenseNo, setMedicalLicenseNo] = useState<string>("");
+  const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [sessions, setSessions] = useState<Option[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // Visit types state
+  const [visitTypes, setVisitTypes] = useState([
+    { type: "OPD", charge: "" },
+    { type: "Emergency", charge: "" },
+    { type: "ICU Consultation", charge: "" },
+    { type: "Follow-up", charge: "" },
+  ]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
     const file = e.target.files?.[0];
@@ -34,6 +63,90 @@ const AddDoctorComponent = () => {
       } else {
         setPosterFile(file);
       }
+    }
+  };
+
+  const handleVisitTypeChange = (index: number, charge: string) => {
+    const updated = [...visitTypes];
+    updated[index].charge = charge;
+    setVisitTypes(updated);
+  };
+
+  const formatDob = (): string => {
+    if (!dob) return "";
+    if (dayjs.isDayjs(dob)) {
+      return dob.format("YYYY-MM-DD");
+    }
+    return dayjs(dob).format("YYYY-MM-DD");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (!API_BASE_URL) {
+        console.error("API_BASE_URL is undefined. Check .env.local file.");
+        return;
+      }
+
+      setLoading(true);
+
+      // Map visit types - filter out empty charges and convert to numbers
+      const visitTypesData = visitTypes
+        .filter(vt => vt.charge && vt.charge.trim() !== "")
+        .map(vt => ({
+          type: vt.type,
+          charge: parseFloat(vt.charge) || 0,
+        }));
+
+      // Map sessions - capitalize first letter and map "noon" to "Afternoon"
+      const sessionsData = sessions
+        .filter(s => s.value !== "Select")
+        .map(s => {
+          const value = s.value;
+          if (value === "noon") {
+            return "Afternoon";
+          }
+          return value.charAt(0).toUpperCase() + value.slice(1);
+        });
+
+      const doctorData = {
+        name: name,
+        imageUrl: photoFile 
+          ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
+          : "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg",
+        email: email || undefined,
+        phone: phone || "",
+        dob: formatDob(),
+        yearsOfExperience: parseInt(yearsOfExperience) || 0,
+        department: department?.value !== "Select" ? department?.value : "",
+        designation: designation?.value !== "Select" ? designation?.value : "",
+        medicalLicenseNo: medicalLicenseNo,
+        gender: gender?.value !== "Select" ? gender?.value : "",
+        bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
+        address: address || undefined,
+        posterUrl: posterFile 
+          ? "https://s3.amazonaws.com/hospital-docs/doctors/posters/dr_priya_sharma_poster.jpg" 
+          : "https://s3.amazonaws.com/hospital-docs/doctors/posters/dr_priya_sharma_poster.jpg",
+        visitTypes: visitTypesData,
+        sessions: sessionsData.length > 0 ? sessionsData : ["Morning", "Afternoon", "Evening"],
+        maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || 4,
+      };
+
+      const response = await axios.post(`${API_BASE_URL}/hospital/doctors`, doctorData);
+      const isSuccess = response.status >= 200 && response.status < 300;
+      const hasSuccessCode = response.data?.code === 200;
+
+      if (isSuccess || hasSuccessCode) {
+        router.push(all_routes.doctorsList);
+      } else {
+        console.error("Failed to create doctor:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Error creating doctor:", error);
+      console.error("Error details:", error.response?.data);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +183,7 @@ const AddDoctorComponent = () => {
                       New Doctor
                     </h5>
                   </div>
-                  <form>
+                  <form onSubmit={handleSubmit}>
                    
                     <div className="pb-0">
                       <div className="row">
@@ -79,7 +192,13 @@ const AddDoctorComponent = () => {
                             <label className="form-label">
                               Name <span className="text-danger">*</span>
                             </label>
-                            <input type="text" className="form-control" />
+                            <input 
+                              type="text" 
+                              className="form-control" 
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              required
+                            />
                           </div>
                         </div>
                         <div className="col-lg-3">
@@ -91,6 +210,7 @@ const AddDoctorComponent = () => {
                               defaultCountry="IN"
                               value={phone}
                               onChange={setPhone}
+                              required
                             />
                           </div>
                         </div>
@@ -99,7 +219,12 @@ const AddDoctorComponent = () => {
                             <label className="form-label">
                               Email
                             </label>
-                            <input type="email" className="form-control" />
+                            <input 
+                              type="email" 
+                              className="form-control" 
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                            />
                           </div>
                         </div>
                         <div className="col-lg-3">
@@ -117,6 +242,8 @@ const AddDoctorComponent = () => {
                                 getPopupContainer={getModalContainer}
                                 placeholder="DD-MM-YYYY"
                                 suffixIcon={null}
+                                value={dob}
+                                onChange={setDob}
                               />
                               <span className="input-icon-addon">
                                 <i className="ti ti-calendar" />
@@ -133,7 +260,8 @@ const AddDoctorComponent = () => {
                             <CommonSelect
                               options={Gender}
                               className="select"
-                              defaultValue={Gender[0]}
+                              value={gender}
+                              onChange={setGender}
                             />
                           </div>
                         </div>
@@ -145,7 +273,8 @@ const AddDoctorComponent = () => {
                             <CommonSelect
                               options={Blood_Group}
                               className="select"
-                              defaultValue={Blood_Group[0]}
+                              value={bloodGroup}
+                              onChange={setBloodGroup}
                             />
                           </div>
                         </div>
@@ -154,7 +283,13 @@ const AddDoctorComponent = () => {
                             <label className="form-label">
                               Years of Exp <span className="text-danger">*</span>
                             </label>
-                            <input type="text" className="form-control" />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              value={yearsOfExperience}
+                              onChange={(e) => setYearsOfExperience(e.target.value)}
+                              required
+                            />
                           </div>
                         </div>
                         <div className="col-lg-3">
@@ -166,7 +301,8 @@ const AddDoctorComponent = () => {
                             <CommonSelect
                               options={Department}
                               className="select"
-                              defaultValue={Department[0]}
+                              value={department}
+                              onChange={setDepartment}
                             />
                           </div>
                         </div>
@@ -179,7 +315,8 @@ const AddDoctorComponent = () => {
                             <CommonSelect
                               options={Designation}
                               className="select"
-                              defaultValue={Designation[0]}
+                              value={designation}
+                              onChange={setDesignation}
                             />
                           </div>
                         </div>
@@ -189,7 +326,13 @@ const AddDoctorComponent = () => {
                               Medical License No
                               <span className="text-danger">*</span>
                             </label>
-                            <input type="text" className="form-control" />
+                            <input 
+                              type="text" 
+                              className="form-control" 
+                              value={medicalLicenseNo}
+                              onChange={(e) => setMedicalLicenseNo(e.target.value)}
+                              required
+                            />
                           </div>
                         </div>
                         <div className="col-lg-3">
@@ -197,7 +340,29 @@ const AddDoctorComponent = () => {
                             <label className="form-label">
                               Max Appts per Slot
                             </label>
-                            <input type="text" className="form-control" />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              value={maxAppointmentsPerSlot}
+                              onChange={(e) => setMaxAppointmentsPerSlot(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-3">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Sessions <span className="text-danger">*</span>
+                            </label>
+                            <Select
+                              isMulti
+                              options={Sessions.filter(s => s.value !== "Select")}
+                              value={sessions}
+                              onChange={(selected) => setSessions(selected as Option[])}
+                              classNamePrefix="react-select"
+                              className="select"
+                              placeholder="Select sessions"
+                              instanceId="add-doctor-sessions-select"
+                            />
                           </div>
                         </div>
                         <div className="col-lg-6">
@@ -214,50 +379,25 @@ const AddDoctorComponent = () => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  <tr>
-                                    <td className="text-dark">New</td>
-                                    <td>
-                                      <div className="input-group">
-                                        <input type="text" className="form-control" />
-                                        <span className="input-group-text bg-transparent text-dark fs-14">
-                                          ₹
-                                        </span>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  <tr>
-                                    <td className="text-dark">Emergency</td>
-                                    <td>
-                                      <div className="input-group">
-                                        <input type="text" className="form-control" />
-                                        <span className="input-group-text bg-transparent text-dark fs-14">
-                                          ₹
-                                        </span>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  <tr>
-                                    <td className="text-dark">Followup</td>
-                                    <td>
-                                      <div className="input-group">
-                                        <input type="text" className="form-control" />
-                                        <span className="input-group-text bg-transparent text-dark fs-14">
-                                          ₹
-                                        </span>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  <tr>
-                                    <td className="text-dark">MR</td>
-                                    <td>
-                                      <div className="input-group">
-                                        <input type="text" className="form-control" />
-                                        <span className="input-group-text bg-transparent text-dark fs-14">
-                                          ₹
-                                        </span>
-                                      </div>
-                                    </td>
-                                  </tr>
+                                  {visitTypes.map((vt, index) => (
+                                    <tr key={index}>
+                                      <td className="text-dark">{vt.type}</td>
+                                      <td>
+                                        <div className="input-group">
+                                          <input 
+                                            type="number" 
+                                            className="form-control" 
+                                            value={vt.charge}
+                                            onChange={(e) => handleVisitTypeChange(index, e.target.value)}
+                                            placeholder="0"
+                                          />
+                                          <span className="input-group-text bg-transparent text-dark fs-14">
+                                            ₹
+                                          </span>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
                                 </tbody>
                               </table>
                             </div>
@@ -272,6 +412,8 @@ const AddDoctorComponent = () => {
                               className="form-control"
                               rows={3}
                               placeholder="Enter address"
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
                             />
                           </div>
                           <div className="row">
@@ -302,6 +444,7 @@ const AddDoctorComponent = () => {
                                       <i className="ti ti-file-check fs-24 text-success mb-2"></i>
                                       <p className="mb-0 text-dark fw-medium">{photoFile.name}</p>
                                       <button
+                                        type="button"
                                         className="btn btn-sm btn-link text-danger mt-2"
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -348,6 +491,7 @@ const AddDoctorComponent = () => {
                                       <i className="ti ti-file-check fs-24 text-success mb-2"></i>
                                       <p className="mb-0 text-dark fw-medium">{posterFile.name}</p>
                                       <button
+                                        type="button"
                                         className="btn btn-sm btn-link text-danger mt-2"
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -373,18 +517,17 @@ const AddDoctorComponent = () => {
                     </div>
                     <div className=" d-flex justify-content-end gap-2">
                       <Link
-                        href="#"
+                        href={all_routes.doctorsList}
                         className="btn btn-light btm-md"
-                        data-bs-dismiss="offcanvas"
                       >
                         Cancel
                       </Link>
                       <button
+                        type="submit"
                         className="btn btn-primary btm-md"
-                        data-bs-toggle="modal"
-                        data-bs-target="#success_modal"
+                        disabled={loading}
                       >
-                        Add Doctor
+                        {loading ? "Adding..." : "Add Doctor"}
                       </button>
                     </div>
                   </form>
