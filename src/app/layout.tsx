@@ -14,9 +14,9 @@ export const metadata = {
   keywords: "Advanced CRM template, customer relationship management...",
   author: "Dreams Technologies",
   icons: {
-    icon: "favicon.png",
-    shortcut: "favicon.png", // Add shortcut icon for better support
-    apple: "favicon.png", // Optional: for Apple devices (place in `public/`)
+    icon: "/JJM Logo.png",
+    shortcut: "/JJM Logo.png",
+    apple: "/JJM Logo.png",
   },
 };
 

@@ -1,5 +1,12 @@
 @use "./main.scss";
 
+// Hide Preclinic page footer (2025 © Preclinic, All Rights Reserved)
+.main-wrapper .footer.text-center.bg-white.p-2.border-top,
+.main-wrapper .footer.p-3.bg-white.border-1.border-top,
+.main-wrapper .footer.p-3.bg-white.border-top {
+  display: none !important;
+}
+
 //Dark Mode Toggle button Style
 .navbar-header .topbar-menu .header-item .header-togglebtn {
   display: none;

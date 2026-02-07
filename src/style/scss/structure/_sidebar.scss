@@ -5,6 +5,7 @@
     display: -webkit-box;
     display: -ms-flexbox;
     display: flex;
+    flex-direction: column;
     background: $menu-bg;
     margin-top: 0;
     z-index: 99;
@@ -22,18 +23,29 @@
         top: 0;
     }
     .sidebar-logo {
-        position: fixed;
-        height: 56px;
-        width: 276px;
+        position: relative;
+        flex-shrink: 0;
+        height: 64px;
+        min-height: 64px;
+        width: 100%;
         padding: 13px 22px;
         border-bottom: 1px solid $menu-item-border;
+        background: $menu-bg;
         .logo {
             display: block;
         }
         .dark-logo, .logo-normal{
           img{
-            width: 114px;
+            width: auto;
+            height: auto;
+            max-width: none;
           }
+        }
+        .logo-normal .avatar img {
+            width: 48px !important;
+            height: 48px !important;
+            max-width: 48px;
+            object-fit: contain;
         }
         .logo-small, .dark-logo {
             display: none;
@@ -65,8 +77,8 @@
         }
     }
     [data-simplebar] {
-        top: 56px;
-        height: calc(100% - 56px);
+        top: 0;
+        height: 100%;
         @include respond-below(sm) {
             width: 100% !important;
         }
@@ -77,12 +89,36 @@
             margin-top: 0;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            height: 100%;
         }
     }
     .sidebar-inner {
-        width: 100%;        
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        margin-top: 24px;
+    }
+    .sidebar-inner [data-simplebar] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 72px;
+        height: auto;
+    }
+    .sidebar-menu.sidebar-menu-content {
+        margin-top: 0;
+        padding: 0 24px 16px;
+    }
+    .sidebar-inner > .sidebar-footer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 8px 12px;
+        margin: 0;
+        border-top: 1px solid $menu-item-border;
+        background: $menu-bg;
     }
     .sidebar-menu {
         margin-top: 56px;
@@ -585,6 +621,9 @@
                 }     
                 .sidebar-menu {
                     padding: 24px 24px 0;
+                    .sidebar-new-appointment-wrap .sidebar-btn-text {
+                        display: inline;
+                    }
                     ul {
                         li {
                             a {
@@ -601,6 +640,12 @@
                             margin-left: 8px;
                         }
                     }
+                }
+                .sidebar-footer .sidebar-profile-text {
+                    display: block;
+                }
+                .sidebar-footer .sidebar-profile-block .d-flex {
+                    justify-content: flex-start;
                 }
                 .user-names{
                     display: none;
@@ -667,6 +712,12 @@
     }
     .sidebar-footer{
         padding: 15px;
+        .sidebar-profile-text {
+            display: none;
+        }
+        .sidebar-profile-block .d-flex {
+            justify-content: center;
+        }
     }
     .form-switch.form-check-reverse{
         span{
@@ -684,8 +735,9 @@
                 display: none;
             }
             .logo-small {
-                display: block;
-                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             .sidebar-logo-content{
                 justify-content: center !important;
@@ -702,6 +754,16 @@
         }
         .sidebar-menu {
             padding: 15px 15px 0;
+            .sidebar-new-appointment-wrap {
+                .sidebar-btn-text {
+                    display: none;
+                }
+                .sidebar-new-appointment-btn {
+                    justify-content: center;
+                    padding-left: 0.5rem;
+                    padding-right: 0.5rem;
+                }
+            }
             > ul {
                 li {
                     position: relative;

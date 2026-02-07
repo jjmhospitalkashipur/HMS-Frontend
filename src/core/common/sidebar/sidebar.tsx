@@ -9,6 +9,7 @@ import { all_routes } from "@/routes/all_routes";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import "overlayscrollbars/overlayscrollbars.css";
 import { setExpandMenu, setMobileSidebar } from "@/core/redux/sidebarSlice";
+import Image from "next/image";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { updateTheme } from "@/core/redux/themeSlice";
 
@@ -150,31 +151,24 @@ const Sidebar = () => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Start Logo */}
-        <div className="sidebar-logo">
-          <div>
-            {/* Logo Normal */}
-            <Link href={all_routes.dashboard} className="logo logo-normal">
-              <ImageWithBasePath src="assets/img/logo.svg" alt="Logo" />
-            </Link>
-            {/* Logo Small */}
-            <Link href={all_routes.dashboard} className="logo-small">
-              <ImageWithBasePath src="assets/img/logo-small.svg" alt="Logo" />
-            </Link>
-            {/* Logo Dark */}
-            <Link href={all_routes.dashboard} className="dark-logo">
-              <ImageWithBasePath src="assets/img/logo-white.svg" alt="Logo" />
-            </Link>
-          </div>
+        {/* Start Logo - JJM Hospital + collapse button in same row */}
+        <div className="sidebar-logo d-flex align-items-center justify-content-between gap-2">
+          <Link href={all_routes.dashboard} className="logo logo-normal d-flex align-items-center gap-2 min-w-0 flex-grow-1 text-decoration-none">
+            <span className="avatar rounded flex-shrink-0 p-1 overflow-hidden bg-white d-flex align-items-center justify-content-center" style={{ width: 52, height: 52 }}>
+              <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
+            </span>
+            <span className="fs-14 fw-semibold text-dark text-truncate">JJM Hospital</span>
+          </Link>
+         
           <button
-            className="sidenav-toggle-btn btn border-0 p-0 active"
+            className="sidenav-toggle-btn btn border-0 p-0 active flex-shrink-0"
             id="toggle_btn"
             onClick={handleMiniSidebar}
           >
             <i className="ti ti-arrow-left" />
           </button>
           {/* Sidebar Menu Close */}
-          <button className="sidebar-close"  onClick={toggleMobileSidebar}>
+          <button className="sidebar-close" onClick={toggleMobileSidebar}>
             <i className="ti ti-x align-middle" />
           </button>
         </div>
@@ -182,30 +176,14 @@ const Sidebar = () => {
         {/* Sidenav Menu */}
         <div className="sidebar-inner">
           <OverlayScrollbarsComponent style={{ height: "100%", width: "100%" }}>
-            <div id="sidebar-menu" className="sidebar-menu">
-              <div className="sidebar-top shadow-sm p-2 rounded-1 mb-3">
-                <div className="d-flex align-items-center">
-                  <span className="avatar rounded-circle flex-shrink-0 p-2">
-                    <ImageWithBasePath
-                      src="./assets/img/icons/trustcare.svg"
-                      alt="img"
-                    />
-                  </span>
-                  <div className="ms-2">
-                    <h6 className="fs-14 fw-semibold mb-0">
-                      JJM Hospital
-                    </h6>
-                    <p className="fs-13 mb-0">Lasvegas</p>
-                  </div>
-                </div>
-              </div>
-              <div className="mb-3 px-2">
+            <div id="sidebar-menu" className="sidebar-menu sidebar-menu-content">
+              <div className="mb-3 px-2 sidebar-new-appointment-wrap">
                 <Link
                   href={all_routes.newAppointment}
-                  className="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center"
+                  className="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center sidebar-new-appointment-btn"
                 >
-                  <i className="ti ti-plus me-1" />
-                  New Appointment
+                  <i className="ti ti-plus" />
+                  <span className="sidebar-btn-text ms-1">New Appointment</span>
                 </Link>
               </div>
               <ul>
@@ -377,30 +355,18 @@ const Sidebar = () => {
                 ))}
               </ul>
             </div>
-            {/* <div className="sidebar-footer border-top mt-3">
-              <div className="trial-item mt-0 p-3 text-center">
-                <div className="trial-item-icon rounded-4 mb-3 p-2 text-center shadow-sm d-inline-flex">
-                  <ImageWithBasePath
-                    src="./assets/img/icons/sidebar-icon.svg"
-                    alt="img"
-                  />
-                </div>
-                <div>
-                  <h6 className="fs-14 fw-semibold mb-1">Upgrade To Pro</h6>
-                  <p className="fs-13 mb-0">
-                    Check 1 min video and begin use Preclinic like a pro
-                  </p>
-                </div>
-                <Link
-                  href="#"
-                  className="close-icon shadow-sm"
-
-                >
-                  <i className="ti ti-x" />
-                </Link>
-              </div>
-            </div> */}
           </OverlayScrollbarsComponent>
+          <div className="sidebar-footer sidebar-profile-block">
+            <div className="d-flex align-items-center gap-2 p-2 rounded-2 bg-light">
+              <span className="avatar rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center bg-primary text-white fs-14 fw-semibold sidebar-profile-avatar" style={{ width: 36, height: 36 }}>
+                JA
+              </span>
+              <div className="min-w-0 flex-grow-1 sidebar-profile-text">
+                <p className="fs-13 fw-semibold text-dark mb-0 text-truncate">Jimmy Anderson</p>
+                <p className="fs-12 text-muted mb-0">Administrator</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       {/* Sidenav Menu End */}

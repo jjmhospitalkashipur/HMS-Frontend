@@ -4,9 +4,14 @@ import Header from "@/core/common/header/header";
 import Sidebar from "@/core/common/sidebar/sidebar";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import Link from "next/link";
 
 export default function ThemeLayouts({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname(); // Get the current pathname
+  const pathname = usePathname();
+
+  const toggleMobileSidebar = () => {
+    document.body.classList.toggle("slide-nav");
+  };
 
     useEffect(() => {
         const htmlElement = document.documentElement;
@@ -66,7 +71,18 @@ export default function ThemeLayouts({ children }: { children: React.ReactNode }
     
   return (
     <div className="main-wrapper">
-      <Header />
+      {/* Header commented out - profile name and role shown in sidebar bottom instead */}
+      {/* <Header /> */}
+      {/* Mobile menu button - only visible when header is hidden */}
+      <Link
+        href="#"
+        id="mobile_btn"
+        className="mobile-btn d-lg-none position-fixed top-0 start-0 mt-3 ms-3 z-3 btn btn-icon btn-light rounded-circle shadow-sm"
+        onClick={(e) => { e.preventDefault(); toggleMobileSidebar(); }}
+        aria-label="Open menu"
+      >
+        <i className="ti ti-menu-deep fs-24" />
+      </Link>
       <Sidebar />
       {children}
     </div>

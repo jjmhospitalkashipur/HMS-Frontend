@@ -14,9 +14,11 @@ export interface SelectProps {
   className?: string;
   styles?: any;
   instanceId?: string;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
-const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, value, onChange, className, instanceId }) => {
+const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, value, onChange, className, instanceId, disabled, placeholder }) => {
   const [selectedOption, setSelectedOption] = useState<Option | undefined>(value || defaultValue);
   const reactId = useId();
   const stableInstanceId = instanceId || `common-select-${reactId}`;
@@ -61,7 +63,8 @@ const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, value, onC
       instanceId={stableInstanceId}
       value={selectedOption}
       onChange={handleChange}
-      placeholder="Select"
+      placeholder={placeholder ?? "Select"}
+      isDisabled={disabled}
       key={stableInstanceId}
     />
   );

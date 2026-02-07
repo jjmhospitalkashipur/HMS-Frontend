@@ -81,12 +81,33 @@ const AppointmentsComponent = () => {
   };
 
   const [statusUpdates, setStatusUpdates] = useState<Record<string, string>>({});
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
-  const handleStatusChange = (recordId: string, newStatus: string) => {
-    setStatusUpdates((prev) => ({
-      ...prev,
-      [recordId]: newStatus,
-    }));
+  const handleStatusChange = async (record: ITransformedAppointment, newStatus: string) => {
+    const visitId = record.id;
+    if (!visitId || !API_BASE_URL) return;
+
+    setStatusUpdatingId(visitId);
+    try {
+      const response = await axios.patch(
+        `${API_BASE_URL}/hospital/visits/${visitId}`,
+        { status: newStatus }
+      );
+      if (response.data?.code === 200 || response.status >= 200) {
+        setStatusUpdates((prev) => ({
+          ...prev,
+          [visitId]: newStatus,
+        }));
+      } else {
+        console.error("Failed to update status:", response.data);
+        alert("Failed to update status. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("Error updating visit status:", err);
+      alert(err.response?.data?.message || "Failed to update status. Please try again.");
+    } finally {
+      setStatusUpdatingId(null);
+    }
   };
 
   const getStatusForRecord = (record: any) => {
@@ -284,29 +305,31 @@ const AppointmentsComponent = () => {
       render: (text: string, record: any) => {
         const currentStatus = getStatusForRecord(record);
         const statusOptions = [
-          "Checked Out",
-          "Checked In",
+          "Scheduled",
+          "In Progress",
+          "Completed",
           "Cancelled",
-          "Schedule",
-          "Confirmed",
+          "No Show",
         ];
 
         const getStatusClass = (status: string) => {
           switch (status) {
-            case "Checked Out":
-              return "badge-soft-info text-info";
-            case "Checked In":
+            case "Scheduled":
+              return "badge-soft-primary text-primary";
+            case "In Progress":
               return "badge-soft-warning text-warning";
+            case "Completed":
+              return "badge-soft-success text-success";
             case "Cancelled":
               return "badge-soft-danger text-danger";
-            case "Schedule":
-              return "badge-soft-primary text-primary";
-            case "Confirmed":
-              return "badge-soft-success text-success";
+            case "No Show":
+              return "badge-soft-secondary text-secondary";
             default:
               return "badge-soft-secondary text-secondary";
           }
         };
+
+        const isUpdating = statusUpdatingId === record.id;
 
         return (
           <div className="dropdown" onClick={(e) => e.stopPropagation()}>
@@ -315,8 +338,9 @@ const AppointmentsComponent = () => {
               type="button"
               data-bs-toggle="dropdown"
               aria-expanded="false"
+              disabled={isUpdating}
             >
-              {currentStatus}
+              {isUpdating ? "Updating..." : currentStatus}
             </button>
             <ul className="dropdown-menu">
               {statusOptions.map((option) => (
@@ -326,7 +350,8 @@ const AppointmentsComponent = () => {
                     href="#"
                     onClick={(e) => {
                       e.preventDefault();
-                      handleStatusChange(record.id, option);
+                      if (isUpdating) return;
+                      handleStatusChange(record, option);
                       // Close dropdown by removing show classes
                       const dropdown = e.currentTarget.closest('.dropdown');
                       if (dropdown) {
@@ -355,13 +380,13 @@ const AppointmentsComponent = () => {
       showSorterTooltip: false,
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center gap-2">
-          <Link 
-            href="#" 
+          <Link
+            href="#"
             className="text-primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Handle edit action
-            }}
+            data-bs-toggle="offcanvas"
+            data-bs-target="#edit_appointment"
+            data-visit-id={record.id}
+            onClick={(e) => e.stopPropagation()}
           >
             <i className="ti ti-edit fs-16" />
           </Link>
@@ -381,9 +406,9 @@ const AppointmentsComponent = () => {
             className="text-danger"
             onClick={(e) => {
               e.stopPropagation();
-              // Handle cancel action - trigger modal using hidden button
               const triggerButton = document.querySelector('#cancel_modal_trigger') as HTMLElement;
               if (triggerButton) {
+                triggerButton.setAttribute('data-visit-id', record.id);
                 triggerButton.click();
               }
             }}

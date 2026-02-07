@@ -82,7 +82,28 @@ const AddDoctorComponent = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!name?.trim()) {
+      alert("Name is required.");
+      return;
+    }
+    if (!phone?.trim()) {
+      alert("Phone Number is required.");
+      return;
+    }
+    const validSessions = sessions.filter((s) => s.value && s.value !== "Select");
+    if (validSessions.length === 0) {
+      alert("Please select at least one Session.");
+      return;
+    }
+    const visitTypesWithCharge = visitTypes.filter(
+      (vt) => vt.charge?.trim() !== "" && !Number.isNaN(parseFloat(vt.charge))
+    );
+    if (visitTypesWithCharge.length === 0) {
+      alert("Please enter Charges for at least one Visit type.");
+      return;
+    }
+
     try {
       if (!API_BASE_URL) {
         console.error("API_BASE_URL is undefined. Check .env.local file.");
@@ -230,7 +251,7 @@ const AddDoctorComponent = () => {
                         <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
-                              DOB <span className="text-danger">*</span>
+                              DOB
                             </label>
                             <div className="input-icon-end position-relative">
                               <DatePicker
@@ -255,7 +276,6 @@ const AddDoctorComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">
                               Gender
-                              <span className="text-danger ms-1">*</span>
                             </label>
                             <CommonSelect
                               options={Gender}
@@ -281,14 +301,13 @@ const AddDoctorComponent = () => {
                         <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
-                              Years of Exp <span className="text-danger">*</span>
+                              Years of Exp
                             </label>
                             <input 
                               type="number" 
                               className="form-control" 
                               value={yearsOfExperience}
                               onChange={(e) => setYearsOfExperience(e.target.value)}
-                              required
                             />
                           </div>
                         </div>
@@ -296,7 +315,6 @@ const AddDoctorComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">
                               Department
-                              <span className="text-danger ms-1">*</span>
                             </label>
                             <CommonSelect
                               options={Department}
@@ -310,7 +328,6 @@ const AddDoctorComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">
                               Designation
-                              <span className="text-danger ms-1">*</span>
                             </label>
                             <CommonSelect
                               options={Designation}
@@ -324,14 +341,12 @@ const AddDoctorComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">
                               Medical License No
-                              <span className="text-danger">*</span>
                             </label>
                             <input 
                               type="text" 
                               className="form-control" 
                               value={medicalLicenseNo}
                               onChange={(e) => setMedicalLicenseNo(e.target.value)}
-                              required
                             />
                           </div>
                         </div>

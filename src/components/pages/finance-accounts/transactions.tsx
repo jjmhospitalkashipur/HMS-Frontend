@@ -1,112 +1,186 @@
 "use client";
 
-import  { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import FilterIndex from "@/core/common/filter/filterIndex";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
-import { TransactionsListData } from "@/core/json/transactionsListData";
 import Datatable from "@/core/common/dataTable";
-import ImageWithBasePath from "@/core/imageWithBasePath";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+
+interface ITransaction {
+  _id: string;
+  transactionId: string;
+  visitId: string;
+  transactionType: string;
+  amount: number;
+  paymentMode: string;
+  referenceNo: string;
+  transactionDate: string;
+  createdAt?: string;
+  visitReadableId?: string;
+  visitType?: string;
+  appointmentType?: string;
+  doctorName?: string;
+  patientName?: string;
+  patientPhone?: string;
+}
+
+interface ITableRow {
+  id: string;
+  TransactionID: string;
+  VisitID: string;
+  PatientName: string;
+  PatientPhone: string;
+  Date: string;
+  Time: string;
+  VisitType: string;
+  AppointmentType: string;
+  Doctor: string;
+  PaymentMode: string;
+  Amount: string;
+}
 
 const TransactionsListComponent = () => {
-  const data = TransactionsListData;
-  const columns = [
-    {
-      title: "Transaction ID",
-      dataIndex: "TransactionID",
-      render: (text: any) => <Link href="#">{text}</Link>,
-      sorter: (a: any, b: any) =>
-        a.TransactionID.length - b.TransactionID.length,
-    },
-    {
-      title: "Patient",
-      dataIndex: "Patient",
-      render: (text: any, record: any) => (
-        <div className="d-flex align-items-center">
-          <Link href="#" className="avatar avatar-md me-2">
-            <ImageWithBasePath
-              src={`assets/img/users/${record.Image}`}
-              alt="product"
-              className="rounded-circle"
-            />
-          </Link>
-          <Link href="#" className="text-dark fw-semibold">
-            {text}
-          </Link>
-        </div>
-      ),
-      sorter: (a: any, b: any) => a.Patient.length - b.Patient.length,
-    },
-    {
-      title: "Description",
-      dataIndex: "Description",
-      render: (text: any) => <div className="text-dark"> {text} </div>,
-      sorter: (a: any, b: any) => a.Description.length - b.Description.length,
-    },
-    {
-      title: "Paid Date",
-      dataIndex: "PaidDate",
-      render: (text: any) => <div className="text-dark">{text}</div>,
-      sorter: (a: any, b: any) => a.PaidDate.length - b.PaidDate.length,
-    },
-    {
-      title: "Payment Method",
-      dataIndex: "PaymentMethod",
-      render: (text: any) => <div className="text-dark"> {text} </div>,
-      sorter: (a: any, b: any) =>
-        a.PaymentMethod.length - b.PaymentMethod.length,
-    },
-    {
-      title: "Amount",
-      dataIndex: "Amount",
-      render: (text: any) => <div className="text-dark"> {text} </div>,
-      sorter: (a: any, b: any) =>
-        a.PaymentMAmountethod.length - b.PaymentMethod.length,
-    },
-    {
-      title: "Status",
-      dataIndex: "Status",
-      render: (text: any) => (
-        <span
-          className={`badge border ${
-            text === "Completed"
-              ? "badge-soft-success border-success text-success"
-              : "badge-soft-info border-info text-info"
-          } rounded fw-medium`}
-        >
-          Completed
-        </span>
-      ),
-      sorter: (a: any, b: any) => a.Status.length - b.Status.length,
-    },
-  ];
-
+  const [data, setData] = useState<ITableRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
+
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      if (!API_BASE_URL) {
+        setError("API configuration error");
+        setLoading(false);
+        return;
+      }
+      const response = await axios.get(`${API_BASE_URL}/hospital/transactions`, {
+        params: { limit: 100 },
+      });
+      if (response.data?.code === 200 && response.data?.data?.transactions) {
+        const transactions: ITransaction[] = response.data.data.transactions;
+        setTotalCount(response.data.data.count ?? transactions.length);
+        const formatTime = (iso: string | undefined) => {
+          if (!iso) return "";
+          try {
+            const d = new Date(iso);
+            return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+          } catch {
+            return "";
+          }
+        };
+        const rows: ITableRow[] = transactions.map((t) => ({
+          id: t._id,
+          TransactionID: t.transactionId ?? "",
+          VisitID: t.visitReadableId ? t.visitReadableId : "—",
+          PatientName: t.patientName ?? "—",
+          PatientPhone: t.patientPhone ?? "—",
+          Date: t.transactionDate ?? "",
+          Time: formatTime(t.createdAt),
+          VisitType: t.visitType ?? "—",
+          AppointmentType: t.appointmentType ?? "—",
+          Doctor: t.doctorName ?? "—",
+          PaymentMode: t.paymentMode ?? "",
+          Amount: t.amount != null ? `₹${Number(t.amount).toLocaleString()}` : "—",
+        }));
+        setData(rows);
+      } else {
+        setError("Failed to load transactions");
+      }
+    } catch (err: any) {
+      console.error("Error fetching transactions:", err);
+      setError(err.response?.data?.message || "Failed to load transactions");
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
   const handleSearch = (value: string) => {
     setSearchText(value);
   };
+
+  const columns = [
+    {
+      title: "Transaction ID",
+      dataIndex: "TransactionID",
+      render: (text: string) => (
+        <span className="text-dark fw-semibold">{text}</span>
+      ),
+    },
+    {
+      title: "Case ID",
+      dataIndex: "VisitID",
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Patient",
+      dataIndex: "PatientName",
+      render: (_: string, record: any) => (
+        <div>
+          <div className="text-dark fw-medium">{record.PatientName}</div>
+          <div className="text-dark fs-13">{record.PatientPhone}</div>
+        </div>
+      ),
+    },
+    {
+      title: "Visit Type",
+      dataIndex: "VisitType",
+      render: (_: string, record: any) => (
+        <div>
+          <div className="text-dark">{record.VisitType}</div>
+          <div className="text-dark fs-13">{record.AppointmentType}</div>
+        </div>
+      ),
+    },
+    {
+      title: "Doctor",
+      dataIndex: "Doctor",
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Payment Mode",
+      dataIndex: "PaymentMode",
+      render: (text: string) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Amount",
+      dataIndex: "Amount",
+      render: (text: string) => <span className="text-dark fw-medium">{text}</span>,
+    },
+    {
+      title: "Date",
+      dataIndex: "Date",
+      render: (text: string, record: any) => (
+        <div>
+          <div className="text-dark">{text}</div>
+          {record.Time && <div className="text-dark fs-13">{record.Time}</div>}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
-      {/* ========================
-			Start Page Content
-		========================= */}
       <div className="page-wrapper">
-        {/* Start Content */}
         <div className="content">
-          {/* Start Page Header */}
           <div className="d-flex align-items-sm-center flex-sm-row flex-column gap-2 pb-3 mb-3 border-1 border-bottom">
             <div className="flex-grow-1">
               <h4 className="fw-bold mb-0">
-                {" "}
                 Transactions{" "}
                 <span className="badge badge-soft-primary fw-medium border py-1 px-2 border-primary fs-13 ms-1">
-                  Total Transactions : 565
-                </span>{" "}
+                  Total Transactions : {totalCount}
+                </span>
               </h4>
             </div>
             <div className="text-end d-flex">
-              {/* dropdown*/}
               <div className="dropdown me-1">
                 <Link
                   href="#"
@@ -131,9 +205,8 @@ const TransactionsListComponent = () => {
               </div>
             </div>
           </div>
-          {/* End Page Header */}
-          {/*  Start Filter */}
-          <div className=" d-flex align-items-center justify-content-between flex-wrap row-gap-3">
+
+          <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3">
             <div className="d-flex align-items-center gap-2">
               <div className="search-set mb-3">
                 <div className="d-flex align-items-center flex-wrap gap-2">
@@ -182,7 +255,7 @@ const TransactionsListComponent = () => {
                 >
                   <span className="me-1"> Sort By : </span> Recent
                 </Link>
-                <ul className="dropdown-menu  dropdown-menu-end p-2">
+                <ul className="dropdown-menu dropdown-menu-end p-2">
                   <li>
                     <Link href="#" className="dropdown-item rounded-1">
                       Recent
@@ -197,20 +270,30 @@ const TransactionsListComponent = () => {
               </div>
             </div>
           </div>
-          {/*  End Filter */}
-          {/*  Start Table */}
+
+          {error && (
+            <div className="alert alert-danger mb-3" role="alert">
+              {error}
+            </div>
+          )}
+
           <div className="table-responsive">
-            <Datatable
-              columns={columns}
-              dataSource={data}
-              Selection={false}
-              searchText={searchText}
-            />
+            {loading ? (
+              <div className="d-flex justify-content-center align-items-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : (
+              <Datatable
+                columns={columns}
+                dataSource={data}
+                Selection={false}
+                searchText={searchText}
+              />
+            )}
           </div>
-          {/*  End Table */}
         </div>
-        {/* End Content */}
-        {/* Footer Start */}
         <div className="footer text-center bg-white p-2 border-top">
           <p className="text-dark mb-0">
             2025 ©{" "}
@@ -220,11 +303,7 @@ const TransactionsListComponent = () => {
             , All Rights Reserved
           </p>
         </div>
-        {/* Footer End */}
       </div>
-      {/* ========================
-			End Page Content
-		========================= */}
     </>
   );
 };

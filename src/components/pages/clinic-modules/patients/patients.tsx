@@ -180,7 +180,7 @@ const PatientsComponent = () => {
                   </li>
                 </ul>
               </div>
-              <div className="bg-white border shadow-sm rounded px-1 pb-0 text-center d-flex align-items-center justify-content-center">
+              {/* <div className="bg-white border shadow-sm rounded px-1 pb-0 text-center d-flex align-items-center justify-content-center">
                 <Link
                   href={all_routes.patients}
                   className="bg-light rounded p-1 d-flex align-items-center justify-content-center"
@@ -193,7 +193,7 @@ const PatientsComponent = () => {
                 >
                   <i className="ti ti-layout-grid fs-14 text-body" />
                 </Link>
-              </div>
+              </div> */}
               <Link
                 href={all_routes.createPatient}
                 className="btn btn-primary ms-2 fs-13 btn-md"

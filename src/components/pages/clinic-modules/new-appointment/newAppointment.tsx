@@ -1,13 +1,12 @@
 "use client";
 
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { all_routes } from "../../../../routes/all_routes";
 import {
   Title,
   Gender,
   Visit_Type,
-  Slot,
   Blood_Group,
   Appointment_Type,
 } from "@/core/common/selectOption";
@@ -25,6 +24,7 @@ import dayjs from "dayjs";
 interface IDoctor {
   _id: string;
   name: string;
+  sessions?: string[];
 }
 
 interface IPatient {
@@ -74,11 +74,11 @@ const NewAppointmentComponent = () => {
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
   const [visitDate, setVisitDate] = useState<any>(null);
   const [visitTime, setVisitTime] = useState<any>(null);
-  const [sessionSlot, setSessionSlot] = useState<Option | null>(Slot.find(s => s.value === "Morning") || Slot[0] || null);
+  const [sessionSlot, setSessionSlot] = useState<Option | null>(null);
   const [reason, setReason] = useState<string>("");
 
   // Payment form state
-  const [paymentMode, setPaymentMode] = useState<string>("Card");
+  const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [total, setTotal] = useState<number>(0);
   const [discount, setDiscount] = useState<number>(0);
   const [amountReceived, setAmountReceived] = useState<number>(0);
@@ -119,6 +119,20 @@ const NewAppointmentComponent = () => {
   // Fetch doctors on component mount
   useEffect(() => {
     fetchDoctors();
+  }, []);
+
+  // Session options from selected doctor only; empty until doctor is selected
+  const sessionOptions = useMemo(() => {
+    if (!selectedDoctor?.value) return [];
+    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
+    const sessions = doctor?.sessions;
+    if (!sessions?.length) return [];
+    return sessions.map((s) => ({ value: s, label: s }));
+  }, [selectedDoctor, doctors]);
+
+  const handleDoctorChange = useCallback((option: Option | null) => {
+    setSelectedDoctor(option);
+    setSessionSlot(null);
   }, []);
 
   const searchPatients = useCallback(async (phoneNumber: string) => {
@@ -335,6 +349,13 @@ const NewAppointmentComponent = () => {
 
       if (!selectedDoctor?.value) {
         const errorMsg = "Please select a doctor";
+        setError(errorMsg);
+        alert(errorMsg);
+        return;
+      }
+
+      if (!sessionSlot?.value) {
+        const errorMsg = "Please select a session slot";
         setError(errorMsg);
         alert(errorMsg);
         return;
@@ -825,7 +846,7 @@ const NewAppointmentComponent = () => {
                               options={doctorOptions}
                               className="select"
                               value={selectedDoctor}
-                              onChange={setSelectedDoctor}
+                              onChange={handleDoctorChange}
                             />
                           </div>
                         </div>
@@ -835,10 +856,12 @@ const NewAppointmentComponent = () => {
                               Session Slot<span className="text-danger ms-1">*</span>
                             </label>
                             <CommonSelect
-                              options={Slot}
+                              options={sessionOptions}
                               className="select"
                               value={sessionSlot}
                               onChange={setSessionSlot}
+                              disabled={!selectedDoctor}
+                              placeholder={!selectedDoctor ? "Select doctor first" : undefined}
                             />
                           </div>
                         </div>
