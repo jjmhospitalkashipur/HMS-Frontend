@@ -10,6 +10,8 @@ interface IPrintPrescriptionProps {
     Phone?: string;
     Doctor?: string;
     role?: string;
+    Visit?: string;
+    Appointment_Type?: string;
     UHD_No?: string;
     Guardian_Name?: string;
     Age?: string;
@@ -54,66 +56,70 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
             <!DOCTYPE html>
             <html>
               <head>
-                <title>Prescription</title>
+                <title>Appointment - Patient Details</title>
                 <style>
-                  @media print {
-                    @page {
-                      margin: 0;
-                      size: A4;
-                    }
-                    body {
-                      margin: 0;
-                      padding: 0;
-                      font-family: Arial, sans-serif;
-                      font-size: 12px;
-                      color: #000;
-                    }
-                  }
+                  * { margin: 0; padding: 0; box-sizing: border-box; }
                   body {
                     margin: 0;
-                    padding: 0;
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
+                    padding: 20px;
+                    font-family: Tahoma, Arial, sans-serif;
+                    font-size: 14px;
                     color: #000;
-                    background: white;
+                    background: #fff;
+                    line-height: 1.4;
                   }
                   .prescription-container {
                     width: 100%;
-                    max-width: 210mm;
+                    max-width: 900px;
                     margin: 0 auto;
                     padding: 0;
-                    background: white;
+                    background: #fff;
                   }
-                  .letterhead-space {
-                    height: 100px;
-                    width: 100%;
+                  .letterhead-space { height: 80px; width: 100%; margin-bottom: 20px; }
+                  .patient-card {
+                    border-radius: 12px;
+                    padding: 8px;
                     margin-bottom: 20px;
                   }
-                  .patient-details-wrapper {
-                    padding: 0 20px;
-                    margin-bottom: 20px;
-                  }
-                  .patient-details-table {
+                  .patient-info-table {
                     width: 100%;
                     border-collapse: collapse;
+                    font-size: 14px;
+                    line-height: 1.4;
+                    margin: 0;
                   }
-                  .patient-details-table td {
+                  .patient-info-table td {
+                    padding: 6px 8px;
                     border: 1px solid #000;
-                    padding: 8px 12px;
-                    font-size: 11px;
+                    vertical-align: middle;
+                    font-size: 13px;
                   }
-                  .patient-details-table tr:nth-child(even) {
-                    background-color: #f5f5f5;
+                  .info-label-cell {
+                    background-color: #f8f9fa;
+                    font-weight: 600;
+                    color: #495057;
+                    width: 20%;
+                    text-align: left;
+                    white-space: nowrap;
                   }
-                  .patient-details-table tr:nth-child(odd) {
-                    background-color: #fff;
+                  .info-value-cell {
+                    background-color: #ffffff;
+                    font-weight: 500;
+                    color: #212529;
+                    width: 30%;
+                    text-align: left;
                   }
-                  .table-label {
-                    font-weight: bold;
-                    width: 25%;
+                  .info-value-cell-full {
+                    background-color: #ffffff;
+                    font-weight: 500;
+                    color: #212529;
+                    text-align: left;
                   }
-                  .table-value {
-                    width: 25%;
+                  @media print {
+                    @page { margin: 12mm; size: A4; }
+                    body { padding: 0; background: white !important; }
+                    .patient-info-table td { border: 1px solid #000 !important; font-size: 12px !important; }
+                    .patient-info-table { page-break-inside: avoid; }
                   }
                 </style>
               </head>
@@ -163,40 +169,47 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
         {/* Letterhead Space */}
         <div className="letterhead-space"></div>
 
-        {/* Patient Details Table */}
-        <div className="patient-details-wrapper">
-          <table className="patient-details-table">
-          <tbody>
-            <tr>
-              <td className="table-label">Token No.:</td>
-              <td className="table-value">{appointmentData.Token_No?.toString() || "13"}</td>
-              <td className="table-label">Date:</td>
-              <td className="table-value">{formatDateTime(appointmentData.Date_Time) || "04 Feb 2026"}</td>
-            </tr>
-            <tr>
-              <td className="table-label">Patient Name:</td>
-              <td className="table-value">{appointmentData.Patient || "Mrs. PRABHA WATI TIWARI"}</td>
-              <td className="table-label">Case ID:</td>
-              <td className="table-value">{appointmentData.Case_ID || "DGL1428"}</td>
-            </tr>
-            <tr>
-              <td className="table-label">Age / Gender:</td>
-              <td className="table-value">
-                {appointmentData.Age || "70"} Yrs / {appointmentData.Sex ? appointmentData.Sex.toUpperCase() : "FEMALE"}
-              </td>
-              <td className="table-label">Phone No.:</td>
-              <td className="table-value">{appointmentData.Phone || "N/A"}</td>
-            </tr>
-            <tr>
-              <td className="table-label">Organization:</td>
-              <td className="table-value">{appointmentData.Organisation_name || ""}</td>
-              <td className="table-label">Ref. Consultant:</td>
-              <td className="table-value">
-                {appointmentData.Doctor || "Dr. ABHISHEK GOEL"} {appointmentData.role ? `M.D. D.M. (${appointmentData.role})` : "M.D. D.M. (NEPHROLOGY)"}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {/* Patient Details Table - styled like report patient-info-table */}
+        <div className="patient-card">
+          <table className="patient-info-table">
+            <tbody>
+              <tr>
+                <td className="info-label-cell">Token No.:</td>
+                <td className="info-value-cell">{appointmentData.Token_No?.toString() ?? "—"}</td>
+                <td className="info-label-cell">Date / Time:</td>
+                <td className="info-value-cell">{formatDateTime(appointmentData.Date_Time) || "—"}</td>
+              </tr>
+              <tr>
+                <td className="info-label-cell">Patient Name:</td>
+                <td className="info-value-cell">{appointmentData.Patient || "—"}</td>
+                <td className="info-label-cell">Case ID:</td>
+                <td className="info-value-cell">{appointmentData.Case_ID || "—"}</td>
+              </tr>
+              <tr>
+                <td className="info-label-cell">Age / Gender:</td>
+                <td className="info-value-cell">
+                  {appointmentData.Age != null || appointmentData.Sex
+                    ? `${appointmentData.Age ?? "—"} Yrs / ${appointmentData.Sex ?? "—"}`
+                    : "—"}
+                </td>
+                <td className="info-label-cell">Phone No.:</td>
+                <td className="info-value-cell">{appointmentData.Phone || "—"}</td>
+              </tr>
+              <tr>
+                <td className="info-label-cell">Visit Type:</td>
+                <td className="info-value-cell">{appointmentData.Visit || "—"}</td>
+                <td className="info-label-cell">Appointment Type:</td>
+                <td className="info-value-cell">{appointmentData.Appointment_Type || "—"}</td>
+              </tr>
+              <tr>
+                <td className="info-label-cell">Ref. Consultant:</td>
+                <td className="info-value-cell-full" colSpan={3}>
+                  {appointmentData.Doctor ? `Dr. ${appointmentData.Doctor.replace(/^Dr\.\s*/i, "")}` : "—"}
+                  {appointmentData.role ? ` (${appointmentData.role})` : ""}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

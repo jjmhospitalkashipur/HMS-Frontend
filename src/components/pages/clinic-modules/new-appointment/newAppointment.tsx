@@ -711,7 +711,7 @@ const NewAppointmentComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Date of Birth
@@ -735,7 +735,7 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="col-md-3">
+                      <div className="col-md-4">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Age<span className="text-danger ms-1">*</span>
@@ -798,31 +798,35 @@ const NewAppointmentComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-6">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Emergency Contact Name
-                          </label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Enter emergency contact name"
-                            value={emergencyContactName}
-                            onChange={(e) => setEmergencyContactName(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-6">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Emergency Contact Phone
-                          </label>
-                          <PhoneInput
-                            defaultCountry="IN"
-                            value={emergencyPhone}
-                            onChange={(value) => setEmergencyPhone(value || "")}
-                            placeholder="Enter emergency contact phone"
-                          />
+                      <div className="col-md-7">
+                        <div className="row g-2">
+                          <div className="col-md-6">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Emergency Contact Name
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter emergency contact name"
+                                value={emergencyContactName}
+                                onChange={(e) => setEmergencyContactName(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Emergency Contact Phone
+                              </label>
+                              <PhoneInput
+                                defaultCountry="IN"
+                                value={emergencyPhone}
+                                onChange={(value) => setEmergencyPhone(value || "")}
+                                placeholder="Enter emergency contact phone"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -834,11 +838,11 @@ const NewAppointmentComponent = () => {
                 {/* Doctor Details Section */}
                 <div className="col-lg-7 pe-3">
                   <div className="card h-100">
-                    <div className="card-body">
-                      <h6 className="fw-bold text-primary mb-3">Doctor Details</h6>
-                      <div className="row">
+                    <div className="card-body p-3">
+                      <h6 className="fw-bold text-primary mb-2">Doctor Details</h6>
+                      <div className="row g-2">
                         <div className="col-md-6">
-                          <div className="mb-3">
+                          <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
                               Doctor<span className="text-danger ms-1">*</span>
                             </label>
@@ -851,22 +855,7 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                         <div className="col-md-6">
-                          <div className="mb-3">
-                            <label className="form-label mb-1 fw-medium">
-                              Session Slot<span className="text-danger ms-1">*</span>
-                            </label>
-                            <CommonSelect
-                              options={sessionOptions}
-                              className="select"
-                              value={sessionSlot}
-                              onChange={setSessionSlot}
-                              disabled={!selectedDoctor}
-                              placeholder={!selectedDoctor ? "Select doctor first" : undefined}
-                            />
-                          </div>
-                        </div>
-                        <div className="col-md-6">
-                          <div className="mb-3">
+                          <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
                               Date of Appointment
                               <span className="text-danger ms-1">*</span>
@@ -891,7 +880,22 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                         <div className="col-md-6">
-                          <div className="mb-3">
+                          <div className="mb-2">
+                            <label className="form-label mb-1 fw-medium">
+                              Session Slot<span className="text-danger ms-1">*</span>
+                            </label>
+                            <CommonSelect
+                              options={sessionOptions}
+                              className="select"
+                              value={sessionSlot}
+                              onChange={setSessionSlot}
+                              disabled={!selectedDoctor}
+                              placeholder={!selectedDoctor ? "Select doctor first" : undefined}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
                               Time<span className="text-danger ms-1">*</span>
                             </label>
@@ -912,8 +916,8 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                         <div className="col-md-6">
-                          <div className="mb-3">
-                            <label className="form-label mb-2 fw-medium">
+                          <div className="mb-2">
+                            <label className="form-label mb-1 fw-medium">
                               Appointment Type
                               <span className="text-danger ms-1">*</span>
                             </label>
@@ -938,16 +942,31 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                         <div className="col-md-6">
-                          <div className="mb-3">
+                          <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
                               Visit Type<span className="text-danger ms-1">*</span>
                             </label>
-                            <CommonSelect
-                              options={Visit_Type}
-                              className="select"
-                              value={visitType}
-                              onChange={setVisitType}
-                            />
+                            <div className="d-flex gap-3 flex-wrap">
+                              {Visit_Type.filter((v) => v.value !== "Select").map((type) => (
+                                <div key={type.value} className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="visitType"
+                                    id={`visitType-${type.value}`}
+                                    value={type.value}
+                                    checked={visitType?.value === type.value}
+                                    onChange={(e) => {
+                                      const opt = Visit_Type.find((v) => v.value === e.target.value);
+                                      if (opt) setVisitType(opt);
+                                    }}
+                                  />
+                                  <label className="form-check-label" htmlFor={`visitType-${type.value}`}>
+                                    {type.label}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                         {/* <div className="col-md-12">
@@ -971,13 +990,13 @@ const NewAppointmentComponent = () => {
                 {/* Payment Details Section */}
                 <div className="col-lg-5 ps-3">
                   <div className="card h-100">
-                    <div className="card-body">
-                      <h6 className="fw-bold text-primary mb-3">Payment Details</h6>
-                      <div className="mb-3">
-                        <label className="form-label mb-2 fw-medium">
+                    <div className="card-body p-3">
+                      <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
+                      <div className="mb-2 d-flex align-items-center flex-wrap gap-2">
+                        <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
                           Payment Mode
                         </label>
-                        <div className="d-flex gap-3">
+                        <div className="d-flex gap-3 flex-wrap ms-auto justify-content-end">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1022,13 +1041,13 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="mb-3 d-flex align-items-center">
+                      <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Total</label>
                         <div className="form-control bg-light" style={{ pointerEvents: "none" }}>
                           ₹{total.toFixed(2)}
                         </div>
                       </div>
-                      <div className="mb-3 d-flex align-items-center">
+                      <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Discount</label>
                         <input
                           type="number"
@@ -1039,13 +1058,13 @@ const NewAppointmentComponent = () => {
                           min="0"
                         />
                       </div>
-                      <div className="mb-3 d-flex align-items-center">
+                      <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Final Amount</label>
                         <div className="form-control bg-light" style={{ pointerEvents: "none" }}>
                           ₹{finalAmount.toFixed(2)}
                         </div>
                       </div>
-                      <div className="mb-3 d-flex align-items-center">
+                      <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Amount Received</label>
                         <input
                           type="number"
@@ -1056,7 +1075,7 @@ const NewAppointmentComponent = () => {
                           min="0"
                         />
                       </div>
-                      <div className="mb-3 d-flex align-items-center">
+                      <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Balance</label>
                         <div
                           className="form-control d-flex align-items-center justify-content-between"

@@ -9,6 +9,7 @@ import Datatable from "@/core/common/dataTable";
 import PredefinedDatePicker from "@/core/common/datePicker";
 import Modals from "./modals/modals";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import PrintPrescription from "./printPrescription";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
@@ -38,6 +39,9 @@ interface IPatient {
   name: string;
   phone: string;
   organisationName?: string;
+  age?: number;
+  gender?: string;
+  dob?: string;
 }
 
 interface IDoctor {
@@ -59,10 +63,13 @@ interface ITransformedAppointment {
   Appointment_Type: string;
   Status: string;
   Price: number;
+  Age?: string;
+  Sex?: string;
   [key: string]: any;
 }
 
 const AppointmentsComponent = () => {
+  const router = useRouter();
   const [data, setData] = useState<ITransformedAppointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -146,11 +153,15 @@ const AppointmentsComponent = () => {
               // Fetch patient details
               const patientResponse = await axios.get(`${API_BASE_URL}/hospital/patients/${visit.patientId}`);
               if (patientResponse.data?.code === 200 && patientResponse.data?.data?.patient) {
+                const p = patientResponse.data.data.patient;
                 patient = {
-                  _id: patientResponse.data.data.patient._id,
-                  name: patientResponse.data.data.patient.name,
-                  phone: patientResponse.data.data.patient.phone || "",
-                  organisationName: patientResponse.data.data.patient.organisationName || patientResponse.data.data.patient.organisation_name || "",
+                  _id: p._id,
+                  name: p.name,
+                  phone: p.phone || "",
+                  organisationName: p.organisationName || p.organisation_name || "",
+                  age: p.age,
+                  gender: p.gender,
+                  dob: p.dob,
                 };
               }
             } catch (err) {
@@ -176,6 +187,7 @@ const AppointmentsComponent = () => {
             const visitTime = visit.visitTime || "";
             const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
 
+            const ageDisplay = patient?.age != null ? String(patient.age) : patient?.dob ? String(dayjs().diff(dayjs(patient.dob), "year")) : undefined;
             return {
               id: visit._id,
               Case_ID: visit.visitId || visit._id,
@@ -190,6 +202,9 @@ const AppointmentsComponent = () => {
               Appointment_Type: visit.appointmentType || "",
               Status: visit.status || "Scheduled",
               Price: visit.price || 0,
+              PaymentStatus: (visit as any).paymentStatus || "Unpaid",
+              Age: ageDisplay,
+              Sex: patient?.gender,
               _visitId: visit.visitId,
               _appointmentId: visit.appointmentId,
               _patientId: visit.patientId,
@@ -296,6 +311,30 @@ const AppointmentsComponent = () => {
           <div className="text-body fs-13 fw-normal">{record.Appointment_Type || record.Mode || "OPD"}</div>
         </div>
       ),
+    },
+    {
+      title: "Amount",
+      dataIndex: "Price",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: number, record: any) => {
+        const paymentStatus = record.PaymentStatus || "Unpaid";
+        const isPaid = paymentStatus === "Paid";
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <span className="fw-semibold text-dark">
+              ₹{record.Price?.toFixed(2) || "0.00"}
+            </span>
+            <span 
+              className={`d-inline-flex align-items-center justify-content-center rounded-circle ${isPaid ? "bg-success" : "bg-warning"}`}
+              style={{ width: "15px", height: "15px", minWidth: "15px" }}
+            >
+              <i className="ti ti-check fs-10 text-white" />
+            </span>
+            
+          </div>
+        );
+      },
     },
     {
       title: "Status",
@@ -426,68 +465,8 @@ const AppointmentsComponent = () => {
   };
 
   const handleRowClick = async (record: any) => {
-    setSelectedAppointment(record);
-    
-    // Fetch full appointment details
-    try {
-      if (!API_BASE_URL) {
-        console.error("API_BASE_URL is undefined");
-        // Still show modal with record data
-        setSelectedAppointmentDetails(null);
-        const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
-        if (triggerButton) {
-          triggerButton.click();
-        }
-        return;
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/hospital/visits/${record.id}`);
-      
-      if (response.data?.code === 200 && response.data?.data?.visit) {
-        const visit = response.data.data.visit;
-        
-        // Fetch patient and doctor details
-        let patient = null;
-        let doctor = null;
-
-        try {
-          const patientResponse = await axios.get(`${API_BASE_URL}/hospital/patients/${visit.patientId || record._patientId}`);
-          if (patientResponse.data?.code === 200 && patientResponse.data?.data?.patient) {
-            patient = patientResponse.data.data.patient;
-          }
-        } catch (err) {
-          console.error("Error fetching patient:", err);
-        }
-
-        try {
-          const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${visit.doctorId || record._doctorId}`);
-          if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
-            doctor = doctorResponse.data.data.doctor;
-          }
-        } catch (err) {
-          console.error("Error fetching doctor:", err);
-        }
-
-        setSelectedAppointmentDetails({
-          visit,
-          patient,
-          doctor,
-        });
-      } else {
-        // If visit details not found, still show modal with record data
-        setSelectedAppointmentDetails(null);
-      }
-    } catch (error: any) {
-      console.error("Error fetching appointment details:", error);
-      // Still show modal with record data even if API fails
-      setSelectedAppointmentDetails(null);
-    }
-
-    // Trigger view action on row click using hidden button
-    const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
-    if (triggerButton) {
-      triggerButton.click();
-    }
+    // Navigate to appointment details page
+    router.push(`${all_routes.appointmentDetails}/${record.id}`);
   };
 
   return (

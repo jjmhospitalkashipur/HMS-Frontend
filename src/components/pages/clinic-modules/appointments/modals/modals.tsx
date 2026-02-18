@@ -646,7 +646,7 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                       <input type="email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">DOB</label>
                       <DatePicker
@@ -659,7 +659,7 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                       />
                     </div>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-4">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Age (Y/M/D)</label>
                       <div className="row g-1">
@@ -713,6 +713,12 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                   </div>
                   <div className="col-md-6">
                     <div className="mb-3">
+                      <label className="form-label mb-1 fw-medium">Date of Appointment</label>
+                      <DatePicker className="form-control w-100" format="DD-MM-YYYY" getPopupContainer={getModalContainer} value={visitDate} onChange={setVisitDate} />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Session Slot</label>
                       <CommonSelect
                         options={sessionOptions}
@@ -722,12 +728,6 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                         disabled={!selectedDoctor}
                         placeholder={!selectedDoctor ? "Select doctor first" : undefined}
                       />
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label mb-1 fw-medium">Date of Appointment</label>
-                      <DatePicker className="form-control w-100" format="DD-MM-YYYY" getPopupContainer={getModalContainer} value={visitDate} onChange={setVisitDate} />
                     </div>
                   </div>
                   <div className="col-md-6">
@@ -760,7 +760,27 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                   <div className="col-md-6">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Visit Type</label>
-                      <CommonSelect options={Visit_Type} className="select" value={visitType} onChange={setVisitType} />
+                      <div className="d-flex gap-3 flex-wrap">
+                        {Visit_Type.filter((v) => v.value !== "Select").map((type) => (
+                          <div key={type.value} className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="radio"
+                              name="editVisitType"
+                              id={`edit-visitType-${type.value}`}
+                              value={type.value}
+                              checked={visitType?.value === type.value}
+                              onChange={(e) => {
+                                const opt = Visit_Type.find((v) => v.value === e.target.value);
+                                if (opt) setVisitType(opt);
+                              }}
+                            />
+                            <label className="form-check-label" htmlFor={`edit-visitType-${type.value}`}>
+                              {type.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   {/* <div className="col-12">
@@ -773,7 +793,6 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
               </div>
               {/* Status only – no payment details in edit */}
               <div className="p-3 pb-0">
-                <h6 className="fw-bold text-primary mb-3">Status</h6>
                 <div className="row">
                   <div className="col-md-6">
                     <div className="mb-3">

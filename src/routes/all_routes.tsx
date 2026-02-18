@@ -115,6 +115,7 @@ export const all_routes = {
   createPatient: "/create-patient",
   appointments: "/appointments",
   newAppointment: "/new-appointment",
+  appointmentDetails: "/appointment-details",
   appointmentCalendar: "/appointment-calendar",
   locations: "/locations",
   procedures: "/procedures",
@@ -124,6 +125,7 @@ export const all_routes = {
   activities: "/activities",
   messages: "/messages",
   appointmentconsultations: "/appointment-consultations",
+  queueDisplay: "/queue-display",
 
   //HRM Pages
   staffs: "/staffs",

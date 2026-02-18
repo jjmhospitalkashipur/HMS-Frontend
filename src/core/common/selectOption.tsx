@@ -540,8 +540,8 @@ export const Slot = [
 export const Visit_Type = [
   { value: "Select", label: "Select" },
   { value: "New", label: "New" },
-  { value: "emergency", label: "emergency" },
-  { value: "followup", label: "followup" },
+  { value: "Emergency", label: "Emergency" },
+  { value: "Follow-up", label: "Follow-up" },
   { value: "MR", label: "MR" },
 ];
 export const Sessions = [

@@ -1,0 +1,600 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { all_routes } from "../../../../../routes/all_routes";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import dayjs from "dayjs";
+import ImageWithBasePath from "@/core/imageWithBasePath";
+import PrintReceipt from "../printReceipt";
+import type { IReceiptData } from "../printReceipt";
+
+interface IVisit {
+  _id: string;
+  visitId: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  visitType: string;
+  appointmentType: string;
+  reason?: string;
+  visitDate: string;
+  visitTime: string;
+  sessionSlot: string;
+  tokenNumber: number;
+  price: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  patient?: IPatient;
+  doctor?: IDoctor;
+  transactions?: ITransaction[];
+  amountPaid?: number;
+  paymentStatus?: string;
+}
+
+interface IPatient {
+  _id: string;
+  mrd?: string;
+  title?: string;
+  name: string;
+  phone: string;
+  email?: string;
+  dob?: string;
+  age?: number;
+  gender?: string;
+  bloodGroup?: string;
+  address?: string;
+}
+
+interface IDoctor {
+  _id: string;
+  doctorId?: string;
+  name: string;
+  designation?: string;
+  department?: string;
+  email?: string;
+  phone?: string;
+}
+
+interface ITransaction {
+  _id: string;
+  transactionId: string;
+  visitId: string;
+  transactionType: string;
+  amount: number;
+  paymentMode: string;
+  referenceNo?: string;
+  transactionDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const AppointmentDetailsComponent = () => {
+  const params = useParams();
+  const router = useRouter();
+  const visitId = params?.id as string;
+  
+  const [visit, setVisit] = useState<IVisit | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [showPrintReceipt, setShowPrintReceipt] = useState(false);
+  const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<string>("Cash");
+  const [amount, setAmount] = useState<string>("0");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (visitId) {
+      fetchAppointmentDetails();
+    }
+  }, [visitId]);
+
+  const fetchAppointmentDetails = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      if (!API_BASE_URL) {
+        setError("API configuration error");
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/hospital/visits/${visitId}`);
+
+      if (response.data?.code === 200 && response.data?.data?.visit) {
+        setVisit(response.data.data.visit);
+      } else {
+        setError("Appointment not found");
+      }
+    } catch (err: any) {
+      console.error("Error fetching appointment details:", err);
+      setError(err.response?.data?.message || "Failed to load appointment details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (time: string) => {
+    if (!time) return "N/A";
+    const [hours, minutes] = time.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const calculateAge = (dob: string) => {
+    if (!dob) return null;
+    const birthDate = dayjs(dob);
+    const today = dayjs();
+    const years = today.diff(birthDate, "year");
+    const months = today.diff(birthDate, "month") % 12;
+    return { years, months };
+  };
+
+  const handleAddTransaction = async () => {
+    if (!visit || !API_BASE_URL || submitting) return;
+    
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    if (!paymentMode || paymentMode === "Select") {
+      alert("Please select a payment mode");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await axios.post(`${API_BASE_URL}/hospital/transactions`, {
+        visitId: visit._id,
+        transactionType: "Payment",
+        amount: amountNum,
+        paymentMode: paymentMode,
+      });
+
+      if (response.data?.code === 200 || response.status >= 200 && response.status < 300) {
+        setShowAddTransaction(false);
+        setAmount("0");
+        setPaymentMode("Cash");
+        await fetchAppointmentDetails();
+      } else {
+        alert(response.data?.message || "Failed to add transaction");
+      }
+    } catch (err: any) {
+      console.error("Error adding transaction:", err);
+      alert(err.response?.data?.message || "Failed to add transaction. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowAddTransaction(false);
+    setAmount("0");
+    setPaymentMode("Cash");
+  };
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="d-flex justify-content-center align-items-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !visit) {
+    return (
+      <div className="page-wrapper">
+        <div className="content">
+          <div className="alert alert-danger">
+            <strong>Error:</strong> {error || "Appointment not found"}
+          </div>
+          <Link href={all_routes.appointments} className="btn btn-primary">
+            Back to Appointments
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const patient = visit.patient;
+  const doctor = visit.doctor;
+  const transactions = visit.transactions || [];
+  const age = patient?.dob ? calculateAge(patient.dob) : null;
+  const totalPaid = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const dueAmount = Math.max(0, (visit.price || 0) - totalPaid);
+
+  return (
+    <div className="page-wrapper">
+      <div className="content">
+        {/* Header */}
+        <div className="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h6 className="fw-bold mb-0 d-flex align-items-center">
+            <Link href={all_routes.appointments} className="text-dark">
+              <i className="ti ti-chevron-left me-1" />
+              Appointments
+            </Link>
+          </h6>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm d-inline-flex align-items-center"
+            onClick={() => setShowPrintReceipt(true)}
+          >
+            <i className="ti ti-receipt me-1" />
+            Print Receipt
+          </button>
+        </div>
+
+        {/* Main Content - Two Column Layout */}
+        <div className="row">
+          {/* Left Column - Appointment Details */}
+          <div className="col-lg-7 pe-3">
+            {/* Combined Details Card */}
+            <div className="card mb-3">
+              <div className="card-body p-3">
+                {/* Appointment Information Section */}
+                <h6 className="fw-bold text-primary mb-3">Appointment Information</h6>
+                <div className="row g-2 mb-4">
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Visit ID</label>
+                      <div className="fw-bold text-dark">{visit.visitId}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Appointment ID</label>
+                      <div className="fw-bold text-dark">{visit.appointmentId}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Appointment Date</label>
+                      <div className="fw-bold text-dark">
+                        {visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Time</label>
+                      <div className="fw-bold text-dark">{formatTime(visit.visitTime)}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Session Slot</label>
+                      <div className="fw-bold text-dark">{visit.sessionSlot || "N/A"}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Token Number</label>
+                      <div className="fw-bold text-dark">{visit.tokenNumber || "N/A"}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Visit Type</label>
+                      <div className="fw-bold text-dark">{visit.visitType || "N/A"}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Appointment Type</label>
+                      <div className="fw-bold text-dark">{visit.appointmentType || "N/A"}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Status</label>
+                      <div>
+                        <span className={`badge ${
+                          visit.status === "Completed" ? "badge-soft-success" :
+                          visit.status === "Cancelled" ? "badge-soft-danger" :
+                          visit.status === "In Progress" ? "badge-soft-warning" :
+                          "badge-soft-primary"
+                        }`}>
+                          {visit.status || "Scheduled"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Patient Details Section */}
+                <h6 className="fw-bold text-primary mb-3">Patient Details</h6>
+                <div className="row g-2 mb-4">
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Patient Name</label>
+                      <div className="fw-bold text-dark">
+                        {patient?.title ? `${patient.title} ` : ""}{patient?.name || "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Age / Gender</label>
+                      <div className="fw-bold text-dark">
+                        {age ? `${age.years} years` : patient?.age ? `${patient.age} years` : "N/A"} / {patient?.gender || "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                  {patient?.mrd && (
+                    <div className="col-md-3">
+                      <div className="mb-2">
+                        <label className="form-label mb-1 fw-medium text-dark fs-14">MRD</label>
+                        <div className="fw-bold text-dark">{patient.mrd}</div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="col-md-3">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">Phone</label>
+                      <div className="fw-bold text-dark">{patient?.phone || "N/A"}</div>
+                    </div>
+                  </div>
+                  {patient?.email && (
+                    <div className="col-md-3">
+                      <div className="mb-2">
+                        <label className="form-label mb-1 fw-medium text-dark fs-14">Email</label>
+                        <div className="fw-bold text-dark">{patient.email}</div>
+                      </div>
+                    </div>
+                  )}
+                  {patient?.bloodGroup && (
+                    <div className="col-md-3">
+                      <div className="mb-2">
+                        <label className="form-label mb-1 fw-medium text-dark fs-14">Blood Group</label>
+                        <div className="fw-bold text-dark">{patient.bloodGroup}</div>
+                      </div>
+                    </div>
+                  )}
+                  {patient?.address && (
+                    <div className="col-md-12">
+                      <div className="mb-2">
+                        <label className="form-label mb-1 fw-medium text-dark fs-14">Address</label>
+                        <div className="fw-bold text-dark">{patient.address}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Doctor Details Section */}
+                {doctor && (
+                  <>
+                    <h6 className="fw-bold text-primary mb-3">Doctor Details</h6>
+                    <div className="row g-2">
+                      <div className="col-md-4">
+                        <div className="mb-2">
+                          <label className="form-label mb-1 fw-medium text-dark fs-14">Doctor Name</label>
+                          <div className="fw-bold text-dark">{doctor.name}</div>
+                        </div>
+                      </div>
+                      {doctor.designation && (
+                        <div className="col-md-4">
+                          <div className="mb-2">
+                            <label className="form-label mb-1 fw-medium text-dark fs-14">Designation</label>
+                            <div className="fw-bold text-dark">{doctor.designation}</div>
+                          </div>
+                        </div>
+                      )}
+                      {doctor.department && (
+                        <div className="col-md-4">
+                          <div className="mb-2">
+                            <label className="form-label mb-1 fw-medium text-dark fs-14">Department</label>
+                            <div className="fw-bold text-dark">{doctor.department}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Payment History */}
+          <div className="col-lg-5 ps-3">
+            <div className="card">
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center justify-content-between mb-3">
+                  <h6 className="fw-bold text-primary mb-0">Payment History</h6>
+                </div>
+
+                {transactions.length === 0 ? (
+                  <div className="text-center py-4 text-muted">
+                    <i className="ti ti-receipt fs-48 mb-2 d-block" />
+                    <p className="mb-0">No payment transactions found</p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th className="border-0 fs-13 fw-medium">ID</th>
+                          <th className="border-0 fs-13 fw-medium">Date - Time</th>
+                          <th className="border-0 fs-13 fw-medium">Amount</th>
+                          <th className="border-0 fs-13 fw-medium">Mode</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.map((txn) => (
+                          <tr key={txn._id}>
+                            <td className="fs-15 text-dark fw-medium">{txn.transactionId}</td>
+                            <td className="fs-15 text-dark">
+                              {dayjs(txn.transactionDate).format("DD MMM YYYY")}
+                              <br />
+                              <small className="text-dark">
+                                {dayjs(txn.createdAt).format("HH:mm")}
+                              </small>
+                            </td>
+                            <td className="fs-15 text-dark fw-medium">
+                              <i className="ti ti-check fs-14 me-1 text-success" />
+                              ₹{txn.amount?.toFixed(2) || "0.00"}
+                            </td>
+                            <td className="fs-15 text-dark">
+                              <span className="badge badge-soft-primary">{txn.paymentMode}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="mt-3  d-flex justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setShowAddTransaction(true)}
+                  >
+                    <i className="ti ti-plus me-1" />
+                    Add Transaction
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {showPrintReceipt && visit && (() => {
+          const ageDisplay = patient?.dob ? dayjs().diff(dayjs(patient.dob), "year") : patient?.age;
+          const receiptData: IReceiptData = {
+            visitId: visit.visitId,
+            appointmentId: visit.appointmentId,
+            visitDate: visit.visitDate,
+            visitTime: visit.visitTime,
+            tokenNumber: visit.tokenNumber,
+            visitType: visit.visitType,
+            appointmentType: visit.appointmentType,
+            status: visit.status,
+            patientName: patient?.name,
+            patientTitle: patient?.title,
+            mrd: patient?.mrd,
+            age: ageDisplay != null ? String(ageDisplay) : undefined,
+            gender: patient?.gender,
+            phone: patient?.phone,
+            doctorName: doctor?.name,
+            doctorDesignation: doctor?.designation,
+            transactions: (visit.transactions || []).map((t) => ({
+              _id: t._id,
+              transactionId: t.transactionId,
+              transactionType: t.transactionType,
+              amount: t.amount,
+              paymentMode: t.paymentMode,
+              referenceNo: t.referenceNo,
+              transactionDate: t.transactionDate,
+              createdAt: t.createdAt,
+            })),
+          };
+          return (
+            <PrintReceipt
+              receiptData={receiptData}
+              onClose={() => setShowPrintReceipt(false)}
+            />
+          );
+        })()}
+
+        {/* Add Transaction Modal */}
+        {showAddTransaction && visit && (
+          <>
+            <div className="modal-backdrop fade show" onClick={handleCloseModal} style={{ zIndex: 1050 }} />
+            <div className="modal fade show" style={{ display: "block", zIndex: 1055 }} tabIndex={-1} role="dialog">
+              <div className="modal-dialog modal-dialog-centered" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title fw-bold">Add Transaction</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={handleCloseModal}
+                      aria-label="Close"
+                    />
+                  </div>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label mb-2 fw-medium text-dark">
+                        Mode<span className="text-danger">*</span>
+                      </label>
+                      <select
+                        className="form-select"
+                        value={paymentMode}
+                        onChange={(e) => setPaymentMode(e.target.value)}
+                      >
+                        <option value="Select">Select</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="UPI">UPI</option>
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label mb-2 fw-medium text-dark">
+                        Amount Received<span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="mb-0">
+                      <label className="form-label mb-2 fw-medium text-dark">Due</label>
+                      <div className="text-dark fs-15">
+                        ₹{dueAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-light"
+                      onClick={handleCloseModal}
+                      disabled={submitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleAddTransaction}
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                          Adding...
+                        </>
+                      ) : (
+                        "Add"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AppointmentDetailsComponent;

@@ -17,6 +17,7 @@ import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import dayjs from "dayjs";
 
 interface IDoctor {
   _id: string;
@@ -120,31 +121,46 @@ const DoctorsListComponent = () => {
       title: "",
       sorter: false,
       showSorterTooltip: false,
-      render: (_: any, record: IDoctor) => (
-        <div className="d-flex align-items-center gap-2">
-          <div className="action-item me-2">
+      render: (_: unknown, record: IDoctor) => {
+        const queueHref = `${all_routes.queueDisplay}/${record._id}?sessionSlot=Morning&date=${dayjs().format("YYYY-MM-DD")}`;
+        return (
+          <div className="d-flex align-items-center gap-2">
             <Link
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target="#schedule_details"
-              data-doctor-id={record._id}
-              onClick={(e) => e.stopPropagation()}
+              href={queueHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-soft-primary btn-sm d-inline-flex align-items-center gap-1"
+              title="View queue display"
             >
-              <i className="ti ti-clock fs-16" />
+              <i className="ti ti-presentation fs-16" />
+              <span className="d-none d-sm-inline">Queue</span>
             </Link>
+            <div className="action-item">
+              <Link
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#schedule_details"
+                data-doctor-id={record._id}
+                onClick={(e) => e.stopPropagation()}
+                title="Schedule"
+              >
+                <i className="ti ti-clock fs-16" />
+              </Link>
+            </div>
+            <div className="action-item">
+              <Link
+                href="#"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#edit_doctor"
+                data-doctor-id={record._id}
+                title="Edit"
+              >
+                <i className="ti ti-edit fs-16" />
+              </Link>
+            </div>
           </div>
-          <div className="action-item">
-            <Link
-              href="#"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#edit_doctor"
-              data-doctor-id={record._id}
-            >
-              <i className="ti ti-edit fs-16" />
-            </Link>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
   ];
 
