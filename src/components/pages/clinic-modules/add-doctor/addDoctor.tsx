@@ -51,8 +51,9 @@ const AddDoctorComponent = () => {
   const [visitTypes, setVisitTypes] = useState([
     { type: "OPD", charge: "" },
     { type: "Emergency", charge: "" },
-    { type: "ICU Consultation", charge: "" },
+    { type: "Day care", charge: "" },
     { type: "Follow-up", charge: "" },
+    { type: "MR", charge: "" },
   ]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
@@ -120,30 +121,23 @@ const AddDoctorComponent = () => {
           charge: parseFloat(vt.charge) || 0,
         }));
 
-      // Map sessions - capitalize first letter and map "noon" to "Afternoon"
       const sessionsData = sessions
-        .filter(s => s.value !== "Select")
-        .map(s => {
-          const value = s.value;
-          if (value === "noon") {
-            return "Afternoon";
-          }
-          return value.charAt(0).toUpperCase() + value.slice(1);
-        });
+        .filter(s => s.value && s.value !== "Select")
+        .map(s => s.value);
 
-      const doctorData = {
+      const formattedDob = formatDob();
+      const genderValue = gender?.value && gender.value !== "Select" ? gender.value : "";
+      const doctorData: Record<string, unknown> = {
         name: name,
         imageUrl: photoFile 
           ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
           : "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg",
         email: email || undefined,
         phone: phone || "",
-        dob: formatDob(),
         yearsOfExperience: parseInt(yearsOfExperience) || 0,
         department: department?.value !== "Select" ? department?.value : "",
         designation: designation?.value !== "Select" ? designation?.value : "",
         medicalLicenseNo: medicalLicenseNo,
-        gender: gender?.value !== "Select" ? gender?.value : "",
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
         posterUrl: posterFile 
@@ -153,6 +147,8 @@ const AddDoctorComponent = () => {
         sessions: sessionsData.length > 0 ? sessionsData : ["Morning", "Afternoon", "Evening"],
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || 4,
       };
+      if (formattedDob) doctorData.dob = formattedDob;
+      if (genderValue) doctorData.gender = genderValue;
 
       const response = await axios.post(`${API_BASE_URL}/hospital/doctors`, doctorData);
       const isSuccess = response.status >= 200 && response.status < 300;

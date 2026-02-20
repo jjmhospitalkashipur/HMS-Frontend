@@ -18,6 +18,7 @@ interface IPrintPrescriptionProps {
     Sex?: string;
     Address?: string;
     Token_No?: string | number;
+    MRD_No?: string;
     OPD_No?: string;
     Amount?: string;
     Organisation_name?: string;
@@ -174,16 +175,16 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
           <table className="patient-info-table">
             <tbody>
               <tr>
-                <td className="info-label-cell">Token No.:</td>
-                <td className="info-value-cell">{appointmentData.Token_No?.toString() ?? "—"}</td>
-                <td className="info-label-cell">Date / Time:</td>
-                <td className="info-value-cell">{formatDateTime(appointmentData.Date_Time) || "—"}</td>
+                <td className="info-label-cell">MRD No.:</td>
+                <td className="info-value-cell">{appointmentData.MRD_No || "—"}</td>
+                <td className="info-label-cell">Case ID:</td>
+                <td className="info-value-cell">{appointmentData.Case_ID || "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Patient Name:</td>
                 <td className="info-value-cell">{appointmentData.Patient || "—"}</td>
-                <td className="info-label-cell">Case ID:</td>
-                <td className="info-value-cell">{appointmentData.Case_ID || "—"}</td>
+                <td className="info-label-cell">Token No.:</td>
+                <td className="info-value-cell">{appointmentData.Token_No?.toString() ?? "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Age / Gender:</td>
@@ -192,14 +193,17 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     ? `${appointmentData.Age ?? "—"} Yrs / ${appointmentData.Sex ?? "—"}`
                     : "—"}
                 </td>
-                <td className="info-label-cell">Phone No.:</td>
-                <td className="info-value-cell">{appointmentData.Phone || "—"}</td>
+                <td className="info-label-cell">Appointment type :</td>
+                <td className="info-value-cell">
+                  {appointmentData.Appointment_Type || "—"}
+                  {appointmentData.Visit ? ` (${appointmentData.Visit})` : ""}
+                </td>
               </tr>
               <tr>
-                <td className="info-label-cell">Visit Type:</td>
-                <td className="info-value-cell">{appointmentData.Visit || "—"}</td>
-                <td className="info-label-cell">Appointment Type:</td>
-                <td className="info-value-cell">{appointmentData.Appointment_Type || "—"}</td>
+                <td className="info-label-cell">Phone No.:</td>
+                <td className="info-value-cell">{appointmentData.Phone || "—"}</td>
+                <td className="info-label-cell">Date / Time:</td>
+                <td className="info-value-cell">{formatDateTime(appointmentData.Date_Time) || "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Ref. Consultant:</td>

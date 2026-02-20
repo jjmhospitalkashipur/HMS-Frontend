@@ -32,6 +32,9 @@ export interface IReceiptData {
   doctorName?: string;
   doctorDesignation?: string;
   transactions?: IReceiptTransaction[];
+  totalAmount?: number;
+  discount?: number;
+  dueAmount?: number;
 }
 
 interface IPrintReceiptProps {
@@ -64,26 +67,38 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                 line-height: 1.4;
               }
               .receipt-container { width: 100%; max-width: 900px; margin: 0 auto; padding: 0; background: #fff; }
-              .letterhead-space { height: 60px; width: 100%; margin-bottom: 20px; }
-             
-              .patient-card { border-radius: 12px; padding: 8px; margin-bottom: 24px; }
-              .patient-info-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.4; margin: 0; }
-              .patient-info-table td { padding: 6px 8px; border: 1px solid #000; vertical-align: middle; font-size: 13px; }
-              .info-label-cell { background-color: #f8f9fa; font-weight: 600; color: #495057; width: 20%; text-align: left; white-space: nowrap; }
-              .info-value-cell { background-color: #fff; font-weight: 500; color: #212529; width: 30%; text-align: left; }
-              .info-value-cell-full { background-color: #fff; font-weight: 500; color: #212529; text-align: left; }
-              .payment-section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
-              .payment-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-              .payment-table th, .payment-table td { padding: 8px 10px; border: none; border-bottom: 1px solid #dee2e6; text-align: left; vertical-align: middle; }
-              .payment-table th { background: transparent; font-weight: 600; color: #495057; }
-              .payment-table tbody tr:nth-child(even) { background-color: #fafafa; }
-              .payment-no-data { text-align: center; padding: 24px; color: #6c757d; font-size: 14px; border: none; border-bottom: 1px solid #dee2e6; }
+              .header { display: flex; align-items: center; gap: 12px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #000; }
+              .logo-placeholder { width: 50px; height: 50px; background-color: #0066cc; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; flex-shrink: 0; }
+              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0; }
+              .content-box { border: 1px solid #000; padding: 12px; margin-bottom: 25px; }
+              .patient-details-box { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
+              .patient-row { display: flex; padding: 3px 0; }
+              .patient-label { font-weight: 600; color: #495057; padding-right: 8px; }
+              .patient-value { font-weight: 500; color: #212529; flex: 1; }
+              .patient-pair { display: flex; width: 50%; }
+              .patient-pair:first-child { padding-right: 15px; }
+              .patient-pair:last-child { padding-left: 15px; }
+              .patient-row-full { display: flex; }
+              .patient-row-full .patient-label { width: auto; min-width: 140px; }
+              .patient-row-full .patient-value-full { flex: 1; }
+              .transactions-section { margin-bottom: 0; }
+              .summary-section { padding-bottom: 15px; }
+              .transaction-header { display: flex; padding: 10px 0; border-bottom: 2px solid #000; font-weight: bold; font-size: 13px; }
+              .transaction-header .col-code { width: 15%; }
+              .transaction-header .col-transactions { width: 60%; }
+              .transaction-header .col-rate { width: 25%; text-align: right; }
+              .transaction-row { display: flex; padding: 10px 0; border-bottom: 1px solid #000; font-size: 13px; }
+              .transaction-row .col-code { width: 15%; }
+              .transaction-row .col-transactions { width: 60%; }
+              .transaction-row .col-rate { width: 25%; text-align: right; }
+              .summary-section { margin-top: 20px; }
+              .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #000; }
+              .summary-row.total-paid { font-weight: bold; border-bottom: 2px solid #000; padding-top: 10px; padding-bottom: 10px; margin-top: 6px; }
+              .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #666; }
+              .payment-no-data { text-align: center; padding: 24px; color: #6c757d; font-size: 14px; border: 1px solid #000; }
               @media print {
                 @page { margin: 12mm; size: A4; }
                 body { padding: 0; background: white !important; }
-                .patient-info-table td { border: 1px solid #000 !important; }
-                .payment-table th, .payment-table td { border: none !important; border-bottom: 1px solid #000 !important; }
-                .patient-info-table, .payment-table { page-break-inside: avoid; }
               }
             </style>
           </head>
@@ -126,83 +141,131 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
       ? dayjs(receiptData.visitDate).format("DD MMM YYYY")
       : "—";
   const transactions = receiptData.transactions ?? [];
+  const totalAmount = receiptData.totalAmount ?? transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const discount = receiptData.discount ?? 0;
+  const finalAmount = totalAmount - discount;
+  const totalPaid = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 
   return (
     <div style={{ display: "none" }}>
       <div ref={printRef} className="receipt-container">
-        <div className="letterhead-space" />
-
-
-        <div className="patient-card">
-          <table className="patient-info-table">
-            <tbody>
-              <tr>
-                <td className="info-label-cell">Token No.:</td>
-                <td className="info-value-cell">{receiptData.tokenNumber ?? "—"}</td>
-                <td className="info-label-cell">Date / Time:</td>
-                <td className="info-value-cell">{dateTime}</td>
-              </tr>
-              <tr>
-                <td className="info-label-cell">Patient Name:</td>
-                <td className="info-value-cell">{patientName}</td>
-                <td className="info-label-cell">Visit ID:</td>
-                <td className="info-value-cell">{receiptData.visitId ?? "—"}</td>
-              </tr>
-              <tr>
-                <td className="info-label-cell">Age / Gender:</td>
-                <td className="info-value-cell">{ageGender}</td>
-                <td className="info-label-cell">Phone No.:</td>
-                <td className="info-value-cell">{receiptData.phone ?? "—"}</td>
-              </tr>
-              <tr>
-                <td className="info-label-cell">MRD No.:</td>
-                <td className="info-value-cell">{receiptData.mrd ?? "—"}</td>
-                <td className="info-label-cell">Case ID:</td>
-                <td className="info-value-cell">{receiptData.appointmentId ?? "—"}</td>
-              </tr>
-              <tr>
-                <td className="info-label-cell">Visit Type:</td>
-                <td className="info-value-cell">{receiptData.visitType ?? "—"}</td>
-                <td className="info-label-cell">Status:</td>
-                <td className="info-value-cell">{receiptData.status ?? "—"}</td>
-              </tr>
-              <tr>
-                <td className="info-label-cell">Ref. Consultant:</td>
-                <td className="info-value-cell-full" colSpan={3}>{doctorDisplay}</td>
-              </tr>
-            </tbody>
-          </table>
+        {/* Header */}
+        <div className="header">
+          <div className="logo-placeholder">JJM</div>
+          <div className="header-info">
+            <h2>JJM Hospital</h2>
+          </div>
         </div>
 
-        <div className="payment-section-title">Payment History</div>
-        {transactions.length === 0 ? (
-          <div className="payment-no-data">No payment transactions found</div>
-        ) : (
-          <table className="payment-table">
-            <thead>
-              <tr>
-                <th>Transaction ID</th>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>Mode</th>
-              
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((txn) => (
-                <tr key={txn._id}>
-                  <td>{txn.transactionId ?? "—"}</td>
-                  <td>{txn.transactionDate ? dayjs(txn.transactionDate).format("DD MMM YYYY HH:mm") : "—"}</td>
-                  <td>{txn.transactionType ?? "—"}</td>
-                  <td>₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}</td>
-                  <td>{txn.paymentMode ?? "—"}</td>
-                 
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {/* Content Box - wraps patient details and transactions */}
+        <div className="content-box">
+          {/* Patient Details */}
+          <div className="patient-details-box">
+            <div className="patient-row">
+              <div className="patient-pair">
+                <div className="patient-label">Token No.:</div>
+                <div className="patient-value">{receiptData.tokenNumber ?? "—"}</div>
+              </div>
+              <div className="patient-pair">
+                <div className="patient-label">Date / Time:</div>
+                <div className="patient-value">{dateTime}</div>
+              </div>
+            </div>
+            <div className="patient-row">
+              <div className="patient-pair">
+                <div className="patient-label">Patient Name:</div>
+                <div className="patient-value">{patientName}</div>
+              </div>
+              <div className="patient-pair">
+                <div className="patient-label">Visit ID:</div>
+                <div className="patient-value">{receiptData.visitId ?? "—"}</div>
+              </div>
+            </div>
+            <div className="patient-row">
+              <div className="patient-pair">
+                <div className="patient-label">Age / Gender:</div>
+                <div className="patient-value">{ageGender}</div>
+              </div>
+              <div className="patient-pair">
+                <div className="patient-label">Phone No.:</div>
+                <div className="patient-value">{receiptData.phone ?? "—"}</div>
+              </div>
+            </div>
+            <div className="patient-row">
+              <div className="patient-pair">
+                <div className="patient-label">MRD No.:</div>
+                <div className="patient-value">{receiptData.mrd ?? "—"}</div>
+              </div>
+              <div className="patient-pair">
+                <div className="patient-label">Case ID:</div>
+                <div className="patient-value">{receiptData.appointmentId ?? "—"}</div>
+              </div>
+            </div>
+            <div className="patient-row">
+              <div className="patient-pair">
+                <div className="patient-label">Visit Type:</div>
+                <div className="patient-value">{receiptData.visitType ?? "—"}</div>
+              </div>
+              <div className="patient-pair">
+                <div className="patient-label">Status:</div>
+                <div className="patient-value">{receiptData.status ?? "—"}</div>
+              </div>
+            </div>
+            <div className="patient-row patient-row-full">
+              <div className="patient-label">Ref. Consultant:</div>
+              <div className="patient-value-full">{doctorDisplay}</div>
+            </div>
+          </div>
+
+          {/* Transactions Section */}
+          <div className="transactions-section">
+          <div className="transaction-header">
+            <div className="col-code">Code</div>
+            <div className="col-transactions">Transactions</div>
+            <div className="col-rate">Rate</div>
+          </div>
+          {transactions.length === 0 ? (
+            <div className="payment-no-data">No payment transactions found</div>
+          ) : (
+            transactions.map((txn, index) => (
+              <div key={txn._id} className="transaction-row">
+                <div className="col-code">{txn.transactionId ?? `TXN${index + 1}`}</div>
+                <div className="col-transactions">
+                  {txn.transactionDate
+                    ? `${dayjs(txn.transactionDate).format("DD MMM YYYY")}${txn.createdAt ? ` ${dayjs(txn.createdAt).format("HH:mm")}` : ""} - ${txn.paymentMode ?? "—"}`
+                    : `${txn.paymentMode ?? "—"}`}
+                </div>
+                <div className="col-rate">₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}</div>
+              </div>
+            ))
+          )}
+          </div>
+
+          {/* Summary Section */}
+          <div className="summary-section">
+            <div className="summary-row">
+              <span>Total:</span>
+              <span>₹{totalAmount.toFixed(2)}</span>
+            </div>
+            <div className="summary-row">
+              <span>Discount:</span>
+              <span>₹{discount.toFixed(2)}</span>
+            </div>
+            <div className="summary-row">
+              <span>Final Amount:</span>
+              <span>₹{finalAmount.toFixed(2)}</span>
+            </div>
+            <div className="summary-row total-paid">
+              <span>Total Paid Amount:</span>
+              <span>₹{totalPaid.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="footer">
+          <div>This is a computer generated receipt.</div>
+        </div>
       </div>
     </div>
   );

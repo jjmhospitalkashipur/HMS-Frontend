@@ -1,15 +1,10 @@
 "use client";
 
 import { DatePicker } from "antd";
-import {
-  Amount,
-  Department,
-  Designation,
-  Doctor,
-  Status,
-} from "@/core/common/selectOption";
+import { Department, Status } from "@/core/common/selectOption";
+import type { Option } from "@/core/common/common-select/commonSelect";
 import { all_routes } from "../../../../routes/all_routes";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "../doctors/modals/modals";
@@ -29,17 +24,65 @@ interface IDoctor {
   designation: string;
   yearsOfExperience: number;
   gender: string;
+  status?: string;
+  createdAt?: string;
   visitTypes: Array<{
     type: string;
     charge: number;
   }>;
 }
 
+const STATUS_OPTIONS: Option[] = [
+  { value: "", label: "All" },
+  ...Status.map((s) => ({ value: s.value, label: s.label })),
+];
+const BASE_DEPARTMENT_OPTIONS = [{ value: "Pediatrics", label: "Pediatrics" }];
+const getDepartmentOptions = (doctorsList: IDoctor[]): Option[] => {
+  const fromDoctors = Array.from(new Set(doctorsList.map((d) => d.department).filter(Boolean)));
+  const all = Array.from(new Set([...BASE_DEPARTMENT_OPTIONS.map((o) => o.value), ...fromDoctors])).sort();
+  return [{ value: "", label: "All" }, ...all.map((d) => ({ value: d, label: d }))];
+};
+
 const DoctorsListComponent = () => {
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState<string>("");
+
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
+  const [filterDepartment, setFilterDepartment] = useState<string>("");
+  const [appliedStatus, setAppliedStatus] = useState<string>("");
+  const [appliedDate, setAppliedDate] = useState<string | null>(null);
+  const [appliedDepartment, setAppliedDepartment] = useState<string>("");
+
+  const filteredDoctors = useMemo(() => {
+    return doctors.filter((doc) => {
+      if (appliedStatus && (doc.status ?? "") !== appliedStatus) return false;
+      if (appliedDepartment && (doc.department ?? "") !== appliedDepartment) return false;
+      if (appliedDate) {
+        const docDate = doc.createdAt ? dayjs(doc.createdAt).format("YYYY-MM-DD") : null;
+        if (!docDate || docDate !== appliedDate) return false;
+      }
+      return true;
+    });
+  }, [doctors, appliedStatus, appliedDepartment, appliedDate]);
+
+  const handleApplyFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppliedStatus(filterStatus);
+    setAppliedDepartment(filterDepartment);
+    setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
+  };
+
+  const handleClearFilter = () => {
+    setFilterStatus("");
+    setFilterDate(null);
+    setFilterDepartment("");
+    setAppliedStatus("");
+    setAppliedDate(null);
+    setAppliedDepartment("");
+  };
 
   useEffect(() => {
     fetchDoctors();
@@ -122,7 +165,7 @@ const DoctorsListComponent = () => {
       sorter: false,
       showSorterTooltip: false,
       render: (_: unknown, record: IDoctor) => {
-        const queueHref = `${all_routes.queueDisplay}/${record._id}?sessionSlot=Morning&date=${dayjs().format("YYYY-MM-DD")}`;
+        const queueHref = `${all_routes.queueDisplay}/${record.doctorId || record._id}`;
         return (
           <div className="d-flex align-items-center gap-2">
             <Link
@@ -273,155 +316,67 @@ const DoctorsListComponent = () => {
                   className="dropdown-menu dropdown-lg dropdown-menu-end filter-dropdown p-0"
                   id="filter-dropdown"
                 >
-                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header">
+                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header px-3 py-2">
                     <h4 className="mb-0">Filter</h4>
-                    <div className="d-flex align-items-center">
-                      <Link
-                        href="#"
-                        className="link-danger text-decoration-underline"
-                      >
-                        Clear All
-                      </Link>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearFilter}
+                      className="btn btn-link link-danger text-decoration-underline p-0"
+                    >
+                      Clear All
+                    </button>
                   </div>
-                  <form action="#">
-                    <div className="filter-body pb-0">
+                  <form onSubmit={handleApplyFilter}>
+                    <div className="filter-body p-3">
                       <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Doctor</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
+                        <label className="form-label mb-1">Status</label>
                         <CommonSelect
-                          options={Doctor}
-                          className="select"
-                          defaultValue={Doctor[0]}
+                          options={STATUS_OPTIONS}
+                          value={STATUS_OPTIONS.find((o) => o.value === filterStatus) ?? null}
+                          onChange={(opt) => setFilterStatus(opt?.value ?? "")}
+                          placeholder="All"
+                          className="w-100"
                         />
                       </div>
                       <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Designation</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <CommonSelect
-                          options={Designation}
-                          className="select"
-                          defaultValue={Designation[0]}
+                        <label className="form-label mb-1">Date</label>
+                        <DatePicker
+                          className="w-100"
+                          format="DD-MM-YYYY"
+                          placeholder="Select date"
+                          value={filterDate}
+                          onChange={(d) => setFilterDate(d)}
+                          getPopupContainer={(node) => node?.parentElement ?? document.body}
                         />
                       </div>
                       <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Department</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
+                        <label className="form-label mb-1">Department</label>
                         <CommonSelect
-                          options={Department}
-                          className="select"
-                          defaultValue={Department[0]}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label mb-1 text-dark fs-14 fw-medium">
-                          Date<span className="text-danger">*</span>
-                        </label>
-                        <div className="input-icon-end position-relative">
-                          <DatePicker
-                            className="form-control datetimepicker"
-                            format={{
-                              format: "DD-MM-YYYY",
-                              type: "mask",
-                            }}
-                            getPopupContainer={getModalContainer}
-                            placeholder="DD-MM-YYYY"
-                            suffixIcon={null}
-                          />
-                          <span className="input-icon-addon">
-                            <i className="ti ti-calendar" />
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Amount</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <CommonSelect
-                          options={Amount}
-                          className="select"
-                          defaultValue={Amount[0]}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Status</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <CommonSelect
-                          options={Status}
-                          className="select"
-                          defaultValue={Status[0]}
+                          options={getDepartmentOptions(doctors)}
+                          value={getDepartmentOptions(doctors).find((o) => o.value === filterDepartment) ?? null}
+                          onChange={(opt) => setFilterDepartment(opt?.value ?? "")}
+                          placeholder="All"
+                          className="w-100"
                         />
                       </div>
                     </div>
-                    <div className="filter-footer d-flex align-items-center justify-content-end border-top">
-                      <Link
-                        href="#"
-                        className="btn btn-light btn-md me-2"
-                        id="close-filter"
+                    <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-light btn-md fw-medium"
+                        onClick={() => {
+                          const toggle = document.getElementById("filter-dropdown")?.closest(".dropdown")?.querySelector<HTMLElement>("[data-bs-toggle=\"dropdown\"]");
+                          toggle?.click();
+                        }}
                       >
                         Close
-                      </Link>
-                      <button type="submit" className="btn btn-primary btn-md">
+                      </button>
+                      <button type="submit" className="btn btn-primary btn-md fw-medium">
                         Filter
                       </button>
                     </div>
                   </form>
                 </div>
-              </div>
-              <div className="dropdown">
-                <Link
-                  href="#"
-                  className="dropdown-toggle btn bg-white btn-md d-inline-flex align-items-center fw-normal rounded border text-dark px-2 py-1 fs-14"
-                  data-bs-toggle="dropdown"
-                >
-                  <span className="me-1"> Sort By : </span> Recent
-                </Link>
-                <ul className="dropdown-menu  dropdown-menu-end p-2">
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Recently Added
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Ascending
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Desending
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Last Month
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Last 7 Days
-                    </Link>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
@@ -435,7 +390,7 @@ const DoctorsListComponent = () => {
             ) : (
               <Datatable
                 columns={columns}
-                dataSource={doctors}
+                dataSource={filteredDoctors}
                 Selection={false}
                 searchText={searchText}
               />

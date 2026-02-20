@@ -21,10 +21,16 @@ import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 
+interface IVisitTypeCharge {
+  type: string;
+  charge: number;
+}
+
 interface IDoctor {
   _id: string;
   name: string;
   sessions?: string[];
+  visitTypes?: IVisitTypeCharge[];
 }
 
 interface IPatient {
@@ -72,8 +78,8 @@ const NewAppointmentComponent = () => {
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type.find(v => v.value === "New") || Visit_Type[0] || null);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
-  const [visitDate, setVisitDate] = useState<any>(null);
-  const [visitTime, setVisitTime] = useState<any>(null);
+  const [visitDate, setVisitDate] = useState<any>(dayjs());
+  const [visitTime, setVisitTime] = useState<any>(dayjs());
   const [sessionSlot, setSessionSlot] = useState<Option | null>(null);
   const [reason, setReason] = useState<string>("");
 
@@ -133,29 +139,67 @@ const NewAppointmentComponent = () => {
   const handleDoctorChange = useCallback((option: Option | null) => {
     setSelectedDoctor(option);
     setSessionSlot(null);
+    setTotal(0);
   }, []);
 
-  const searchPatients = useCallback(async (phoneNumber: string) => {
+  // Set total from doctor's visit type charge when doctor and visit type are selected
+  const updateTotalFromDoctorCharge = useCallback(() => {
+    if (!selectedDoctor?.value || !visitType?.value || visitType.value === "Select") {
+      setTotal(0);
+      return;
+    }
+    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
+    const visitTypes = doctor?.visitTypes;
+    if (!visitTypes?.length) {
+      setTotal(0);
+      return;
+    }
+    const vtValue = visitType.value;
+    let match = visitTypes.find((vt) => vt.type === vtValue);
+    if (!match && vtValue === "New") {
+      match = visitTypes.find((vt) => vt.type === "OPD");
+    }
+    setTotal(match?.charge ?? 0);
+  }, [selectedDoctor, visitType, doctors]);
+
+  useEffect(() => {
+    updateTotalFromDoctorCharge();
+  }, [updateTotalFromDoctorCharge]);
+
+  // When Day Care is selected, set visit type to "New" and date to today
+  useEffect(() => {
+    if (appointmentType === "Day care") {
+      const newVisitType = Visit_Type.find((v) => v.value === "New");
+      if (newVisitType && visitType?.value !== "New") {
+        setVisitType(newVisitType);
+      }
+      // Always set date to today when Day Care is selected
+      setVisitDate(dayjs());
+    }
+  }, [appointmentType, visitType]);
+
+  const searchPatients = useCallback(async (searchText: string) => {
     try {
       if (!API_BASE_URL) {
         console.error("API_BASE_URL is undefined");
         return;
       }
 
-      const phoneDigits = phoneNumber.replace(/\D/g, '');
-      console.log("Searching patients with phone:", phoneDigits);
+      // Search by name or phone number
+      const searchQuery = searchText.trim();
+      console.log("Searching patients with:", searchQuery);
       setSearchingPatients(true);
       
       const response = await axios.get(`${API_BASE_URL}/hospital/patients`, {
         params: { 
           limit: 20,
           page: 1,
-          search: phoneDigits
+          search: searchQuery
         }
       });
 
       console.log("Patients API response:", response.data);
-      console.log("API URL called:", `${API_BASE_URL}/hospital/patients?limit=20&page=1&search=${phoneDigits}`);
+      console.log("API URL called:", `${API_BASE_URL}/hospital/patients?limit=20&page=1&search=${searchQuery}`);
 
       if (response.data?.code === 200 && response.data?.data?.patients) {
         const patients = response.data.data.patients;
@@ -175,9 +219,9 @@ const NewAppointmentComponent = () => {
     }
   }, [selectedPatient]);
 
-  // Search patients when phone number changes
+  // Search patients when phone/name changes
   useEffect(() => {
-    if (!phone) {
+    if (!phone || phone.trim().length === 0) {
       setPatientSearchResults([]);
       setShowPatientDropdown(false);
       setSelectedPatient(null);
@@ -185,11 +229,11 @@ const NewAppointmentComponent = () => {
     }
 
     const searchTimeout = setTimeout(() => {
-      const phoneDigits = phone.replace(/\D/g, '');
-      console.log("Phone changed, digits:", phoneDigits, "Length:", phoneDigits.length);
-      if (phoneDigits.length >= 3) {
-        console.log("Triggering search with", phoneDigits.length, "digits");
-        searchPatients(phoneDigits);
+      const searchText = phone.trim();
+      console.log("Search text changed:", searchText, "Length:", searchText.length);
+      if (searchText.length >= 2) {
+        console.log("Triggering search with", searchText.length, "characters");
+        searchPatients(searchText);
       } else {
         setPatientSearchResults([]);
         setShowPatientDropdown(false);
@@ -382,14 +426,20 @@ const NewAppointmentComponent = () => {
         return;
       }
 
-      if (!visitTime) {
-        const errorMsg = "Please select visit time";
-        setError(errorMsg);
-        alert(errorMsg);
-        return;
-      }
 
       setLoading(true);
+
+      // Helper to create transaction when amount received > 0
+      const createTransactionIfAmountReceived = async (visitId: string) => {
+        const amount = Number(amountReceived) || 0;
+        if (amount <= 0) return;
+        await axios.post(`${API_BASE_URL}/hospital/transactions`, {
+          visitId,
+          transactionType: "Payment",
+          amount,
+          paymentMode: paymentMode,
+        });
+      };
 
       // Check if existing patient is selected
       if (selectedPatient) {
@@ -401,7 +451,7 @@ const NewAppointmentComponent = () => {
           appointmentType: appointmentType,
           reason: reason || undefined,
           visitDate: formatVisitDate(),
-          visitTime: formatVisitTime(),
+          visitTime: visitTime ? formatVisitTime() : undefined,
           sessionSlot: sessionSlot?.value !== "Select" ? sessionSlot?.value : "",
         };
 
@@ -412,6 +462,14 @@ const NewAppointmentComponent = () => {
         const hasSuccessCode = response.data?.code === 200;
 
         if (isSuccess || hasSuccessCode) {
+          const visitId = response.data?.data?.visit?._id ?? response.data?.data?._id;
+          if (visitId && amountReceived > 0) {
+            try {
+              await createTransactionIfAmountReceived(visitId);
+            } catch (txErr) {
+              console.error("Visit created but transaction failed:", txErr);
+            }
+          }
           router.push(all_routes.appointments);
           return;
         } else {
@@ -452,11 +510,6 @@ const NewAppointmentComponent = () => {
         visitDate: formatVisitDate(),
         visitTime: formatVisitTime(),
         sessionSlot: sessionSlot?.value !== "Select" ? sessionSlot?.value : "",
-        transaction: {
-          transactionType: "Payment",
-          amount: finalAmount,
-          paymentMode: paymentMode,
-        },
       };
 
       console.log("Submitting appointment for new patient:", appointmentData);
@@ -466,6 +519,14 @@ const NewAppointmentComponent = () => {
       const hasSuccessCode = response.data?.code === 200;
 
       if (isSuccess || hasSuccessCode) {
+        const visitId = response.data?.data?.visit?._id ?? response.data?.data?._id;
+        if (visitId && amountReceived > 0) {
+          try {
+            await createTransactionIfAmountReceived(visitId);
+          } catch (txErr) {
+            console.error("Visit created but transaction failed:", txErr);
+          }
+        }
         router.push(all_routes.appointments);
       } else {
         const errorMsg = response.data?.message || "Failed to create appointment. Please try again.";
@@ -613,15 +674,16 @@ const NewAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium">
                             Phone Number<span className="text-danger ms-1">*</span>
                           </label>
-                          <PhoneInput
-                            defaultCountry="IN"
+                          <input
+                            type="text"
+                            className="form-control"
                             value={phone}
-                            onChange={(value) => {
-                              console.log("PhoneInput onChange called with value:", value);
-                              setPhone(value || "");
-                              setSelectedPatient(null); // Clear selected patient when phone changes
+                            onChange={(e) => {
+                              console.log("Search input onChange called with value:", e.target.value);
+                              setPhone(e.target.value || "");
+                              setSelectedPatient(null); // Clear selected patient when search changes
                             }}
-                            placeholder="Enter 10-digit phone number"
+                            placeholder="Enter phone number or name"
                             required
                           />
                           {showPatientDropdown && patientSearchResults.length > 0 && (
@@ -897,7 +959,7 @@ const NewAppointmentComponent = () => {
                         <div className="col-md-6">
                           <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
-                              Time<span className="text-danger ms-1">*</span>
+                              Time
                             </label>
                             <div className="input-icon-end position-relative">
                               <TimePicker
@@ -947,25 +1009,33 @@ const NewAppointmentComponent = () => {
                               Visit Type<span className="text-danger ms-1">*</span>
                             </label>
                             <div className="d-flex gap-3 flex-wrap">
-                              {Visit_Type.filter((v) => v.value !== "Select").map((type) => (
-                                <div key={type.value} className="form-check">
-                                  <input
-                                    className="form-check-input"
-                                    type="radio"
-                                    name="visitType"
-                                    id={`visitType-${type.value}`}
-                                    value={type.value}
-                                    checked={visitType?.value === type.value}
-                                    onChange={(e) => {
-                                      const opt = Visit_Type.find((v) => v.value === e.target.value);
-                                      if (opt) setVisitType(opt);
-                                    }}
-                                  />
-                                  <label className="form-check-label" htmlFor={`visitType-${type.value}`}>
-                                    {type.label}
-                                  </label>
-                                </div>
-                              ))}
+                              {Visit_Type.filter((v) => v.value !== "Select").map((type) => {
+                                const isDayCare = appointmentType === "Day care";
+                                const isDisabled = isDayCare && type.value !== "New";
+                                return (
+                                  <div key={type.value} className="form-check">
+                                    <input
+                                      className="form-check-input"
+                                      type="radio"
+                                      name="visitType"
+                                      id={`visitType-${type.value}`}
+                                      value={type.value}
+                                      checked={visitType?.value === type.value}
+                                      disabled={isDisabled}
+                                      onChange={(e) => {
+                                        const opt = Visit_Type.find((v) => v.value === e.target.value);
+                                        if (opt) setVisitType(opt);
+                                      }}
+                                    />
+                                    <label 
+                                      className={`form-check-label ${isDisabled ? "text-muted" : ""}`} 
+                                      htmlFor={`visitType-${type.value}`}
+                                    >
+                                      {type.label}
+                                    </label>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>

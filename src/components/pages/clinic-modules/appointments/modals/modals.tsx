@@ -708,7 +708,7 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                   <div className="col-md-6">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Doctor</label>
-                      <CommonSelect options={doctorOptions} className="select" value={selectedDoctor} onChange={handleEditDoctorChange} />
+                      <CommonSelect options={doctorOptions} className="select" value={selectedDoctor} onChange={handleEditDoctorChange} disabled />
                     </div>
                   </div>
                   <div className="col-md-6">

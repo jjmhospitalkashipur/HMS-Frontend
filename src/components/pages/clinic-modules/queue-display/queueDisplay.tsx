@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import { User, AlertTriangle } from "tabler-icons-react";
+import { User, AlertTriangle, Maximize, Minimize, Ambulance } from "tabler-icons-react";
 
 interface IQueuePatient {
   _id: string;
@@ -42,17 +42,33 @@ interface IQueueApiResponse {
   data: { display: IQueueDisplay };
 }
 
-const getStatusDisplay = (status: string) => {
+const getStatusDisplay = (status: string, visitType?: string) => {
   const normalized = status?.toLowerCase() ?? "";
+  const normalizedVisitType = visitType?.toLowerCase() ?? "";
+  
+  // Consulting (In Progress) - always green, regardless of visit type
   if (normalized === "consulting" || normalized === "in progress") {
     return {
       label: "Consulting (कंसल्टेशन जारी)",
-      className: "bg-success text-white",
+      rowStyle: { backgroundColor: "#10b981" }, // Emerald green
+      textClass: "text-white",
     };
   }
+  
+  // MR + Scheduled → Purple (distinct from regular blue)
+  if (normalizedVisitType === "mr") {
+    return {
+      label: "In Queue (आप कतार में हैं)",
+      rowStyle: { backgroundColor: "#8b5cf6" }, // Purple for MR scheduled
+      textClass: "text-white",
+    };
+  }
+  
+  // Regular Scheduled (non-MR) → Light blue
   return {
     label: "In Queue (आप कतार में हैं)",
-    className: "bg-danger bg-opacity-25 text-dark",
+    rowStyle: { backgroundColor: "#60a5fa" }, // Light blue for regular scheduled
+    textClass: "text-white",
   };
 };
 
@@ -64,14 +80,32 @@ const QueueDisplayComponent = () => {
   const dateParam = searchParams?.get("date");
   const date = dateParam ?? dayjs().format("YYYY-MM-DD");
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
   useEffect(() => {
     if (!doctorId) return;
     fetchQueue();
-    const interval = setInterval(fetchQueue, 30000);
+    const interval = setInterval(fetchQueue, 20000);
     return () => clearInterval(interval);
   }, [doctorId, sessionSlot, date]);
 
@@ -80,7 +114,7 @@ const QueueDisplayComponent = () => {
     try {
       setError("");
       const response = await axios.get<IQueueApiResponse>(
-        `${API_BASE_URL}/hospital/visits/display/queue`,
+        `${API_BASE_URL}/hospital/visits/display/queue/${doctorId}`,
         {
           params: { doctorId, sessionSlot, date },
         }
@@ -137,10 +171,26 @@ const QueueDisplayComponent = () => {
     : "—";
   const departmentOrSpecialization = display?.department ?? display?.specialization ?? "—";
   const designation = display?.designation ?? "—";
-  const queue = display?.queue ?? [];
+  const allQueue = display?.queue ?? [];
+  // Filter to show only "In Progress" and "Scheduled" status
+  const queue = allQueue.filter((entry) => {
+    const normalized = entry.status?.toLowerCase() ?? "";
+    return normalized === "in progress" || normalized === "scheduled";
+  });
 
   return (
-    <div className="min-vh-100 d-flex flex-column bg-white">
+    <div ref={containerRef} className="min-vh-100 d-flex flex-column bg-white position-relative">
+      {/* Fullscreen toggle */}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        className="position-fixed top-0 start-0 m-3 btn btn-light btn-lg shadow border d-flex align-items-center justify-content-center rounded-circle p-1 z-3"
+        style={{ width: "50px", height: "50px" }}
+        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+      >
+        {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+      </button>
       {/* Header */}
       <div className="bg-secondary text-white py-3 px-3 px-md-4">
         <h1 className="mb-0 fs-4 fs-md-3 fw-bold text-center align-items-center ">
@@ -192,23 +242,25 @@ const QueueDisplayComponent = () => {
                     </td>
                   </tr>
                 ) : (
-                  queue.map((entry, index) => {
-                    const statusDisplay = index === 0 ? getStatusDisplay("Consulting") : getStatusDisplay(entry.status);
-                    const rowClass = statusDisplay.className;
+                  queue.map((entry) => {
+                    const normalizedStatus = entry.status?.toLowerCase() ?? "";
+                    const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
+                    const isConsulting = normalizedStatus === "consulting" || normalizedStatus === "in progress";
+                    const isMR = entry.visitType?.toLowerCase() === "mr";
                     return (
-                      <tr key={entry._id} className={rowClass}>
-                        <td className={`py-3 px-3 fw-semibold align-middle fs-5 text-center ${rowClass}`}>
+                      <tr key={entry._id} style={statusDisplay.rowStyle}>
+                        <td className={`py-3 px-3 fw-semibold align-middle fs-5 text-center ${statusDisplay.textClass}`} style={statusDisplay.rowStyle}>
                           {entry.tokenNumber}
                         </td>
-                        <td className={`py-3 px-3 align-middle text-center fs-5 ${rowClass}`}>
+                        <td className={`py-3 px-3 align-middle text-center fs-5 ${statusDisplay.textClass}`} style={statusDisplay.rowStyle}>
                           <span className="d-inline-flex align-items-center justify-content-center gap-2">
                             {entry.visitType === "Emergency" && (
-                              <AlertTriangle size={22} color="red" aria-label="Emergency" />
+                              <Ambulance size={22} color={isConsulting ? "#ffffff" : "#dc2626"} aria-label="Emergency" />
                             )}
                             {statusDisplay.label}
                           </span>
                         </td>
-                        <td className={`py-3 px-3 align-middle fw-medium fs-5 text-center ${rowClass}`}>
+                        <td className={`py-3 px-3 align-middle fw-medium fs-5 text-center ${statusDisplay.textClass}`} style={statusDisplay.rowStyle}>
                           {entry.patient?.mrd ?? "—"}
                         </td>
                       </tr>

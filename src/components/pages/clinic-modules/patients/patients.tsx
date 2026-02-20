@@ -2,13 +2,15 @@
 
 import { all_routes } from "../../../../routes/all_routes";
 import Datatable from "@/core/common/dataTable";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import Modals from "./modals/modals";
+import { DatePicker } from "antd";
+import dayjs from "dayjs";
 
 interface IPatient {
   _id: string;
@@ -21,6 +23,7 @@ interface IPatient {
   gender: string;
   bloodGroup: string;
   address: string;
+  createdAt?: string;
 }
 
 const PatientsComponent = () => {
@@ -29,6 +32,35 @@ const PatientsComponent = () => {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState<string>("");
+
+  const [dateFrom, setDateFrom] = useState<dayjs.Dayjs | null>(null);
+  const [dateTo, setDateTo] = useState<dayjs.Dayjs | null>(null);
+  const [appliedDateFrom, setAppliedDateFrom] = useState<string | null>(null);
+  const [appliedDateTo, setAppliedDateTo] = useState<string | null>(null);
+
+  const filteredPatients = useMemo(() => {
+    return patients.filter((p) => {
+      if (!appliedDateFrom && !appliedDateTo) return true;
+      const created = p.createdAt ? dayjs(p.createdAt) : null;
+      if (!created) return false;
+      if (appliedDateFrom && created.isBefore(dayjs(appliedDateFrom).startOf("day"))) return false;
+      if (appliedDateTo && created.isAfter(dayjs(appliedDateTo).endOf("day"))) return false;
+      return true;
+    });
+  }, [patients, appliedDateFrom, appliedDateTo]);
+
+  const handleApplyFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppliedDateFrom(dateFrom ? dateFrom.format("YYYY-MM-DD") : null);
+    setAppliedDateTo(dateTo ? dateTo.format("YYYY-MM-DD") : null);
+  };
+
+  const handleClearFilter = () => {
+    setDateFrom(null);
+    setDateTo(null);
+    setAppliedDateFrom(null);
+    setAppliedDateTo(null);
+  };
 
   useEffect(() => {
     fetchPatients();
@@ -232,295 +264,61 @@ const PatientsComponent = () => {
                   className="dropdown-menu dropdown-lg dropdown-menu-end filter-dropdown p-0"
                   id="filter-dropdown"
                 >
-                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header">
+                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header px-3 py-2">
                     <h4 className="mb-0 fw-bold">Filter</h4>
-                    <div className="d-flex align-items-center">
-                      <Link
-                        href="#"
-                        className="link-danger text-decoration-underline"
-                      >
-                        Clear All
-                      </Link>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearFilter}
+                      className="btn btn-link link-danger text-decoration-underline p-0"
+                    >
+                      Clear All
+                    </button>
                   </div>
-                  <form action="#">
-                    <div className="filter-body pb-0">
+                  <form onSubmit={handleApplyFilter}>
+                    <div className="filter-body p-3">
                       <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Patient</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Search Patient"
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Doctor</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Search Doctor"
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Designation</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <div className="mb-3">
-                              <div className="input-icon-start input-icon position-relative">
-                                <span className="input-icon-addon fs-12">
-                                  <i className="ti ti-search" />
-                                </span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-md"
-                                  placeholder="Search"
-                                />
-                              </div>
-                            </div>
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Cardiologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Orthopedic Surgeon
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Pediatrician
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Gynecologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Psychiatrist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Neurosurgeon
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Oncologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Pulmonologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Urologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Dermatologist
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
+                        <label className="form-label mb-1">Date Range</label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <DatePicker
+                              className="w-100"
+                              format="DD-MM-YYYY"
+                              placeholder="From"
+                              value={dateFrom}
+                              onChange={(d) => setDateFrom(d)}
+                              getPopupContainer={(node) => node?.parentElement ?? document.body}
+                            />
                           </div>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label mb-1 text-dark fs-14 fw-medium">
-                          Date<span className="text-danger">*</span>
-                        </label>
-                        <div className="input-icon-end position-relative">
-                          <input
-                            type="text"
-                            className="form-control bookingrange"
-                            placeholder="dd/mm/yyyy"
-                          />
-                          <span className="input-icon-addon">
-                            <i className="ti ti-calendar" />
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Status</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Available
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Unavailable
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
+                          <div className="col-6">
+                            <DatePicker
+                              className="w-100"
+                              format="DD-MM-YYYY"
+                              placeholder="To"
+                              value={dateTo}
+                              onChange={(d) => setDateTo(d)}
+                              getPopupContainer={(node) => node?.parentElement ?? document.body}
+                            />
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="filter-footer d-flex align-items-center justify-content-end border-top">
-                      <Link
-                        href="#"
-                        className="btn btn-light btn-md me-2 fw-medium"
-                        id="close-filter"
+                    <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-light btn-md fw-medium"
+                        onClick={() => {
+                          const toggle = document.getElementById("filter-dropdown")?.closest(".dropdown")?.querySelector<HTMLElement>("[data-bs-toggle=\"dropdown\"]");
+                          toggle?.click();
+                        }}
                       >
                         Close
-                      </Link>
-                      <button
-                        type="submit"
-                        className="btn btn-primary btn-md fw-medium"
-                      >
+                      </button>
+                      <button type="submit" className="btn btn-primary btn-md fw-medium">
                         Filter
                       </button>
                     </div>
                   </form>
                 </div>
-              </div>
-              <div className="dropdown">
-                <Link
-                  href="#"
-                  className="dropdown-toggle btn bg-white btn-md d-inline-flex align-items-center fw-normal rounded border text-dark px-2 py-1 fs-14"
-                  data-bs-toggle="dropdown"
-                >
-                  <span className="me-1"> Sort By : </span> Recent
-                </Link>
-                <ul className="dropdown-menu  dropdown-menu-end p-2">
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Recent
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Oldest
-                    </Link>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
@@ -536,7 +334,7 @@ const PatientsComponent = () => {
             ) : (
               <Datatable
                 columns={columns}
-                dataSource={patients}
+                dataSource={filteredPatients}
                 Selection={false}
                 searchText={searchText}
                 onRowClick={handleRowClick}

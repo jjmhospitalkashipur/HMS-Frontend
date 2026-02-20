@@ -504,8 +504,9 @@ const Modals = () => {
   const [visitTypes, setVisitTypes] = useState([
     { type: "OPD", charge: "" },
     { type: "Emergency", charge: "" },
-    { type: "ICU Consultation", charge: "" },
+    { type: "Day care", charge: "" },
     { type: "Follow-up", charge: "" },
+    { type: "MR", charge: "" },
   ]);
 
   // Reset form function
@@ -528,8 +529,9 @@ const Modals = () => {
     setVisitTypes([
       { type: "OPD", charge: "" },
       { type: "Emergency", charge: "" },
-      { type: "ICU Consultation", charge: "" },
+      { type: "Day care", charge: "" },
       { type: "Follow-up", charge: "" },
+      { type: "MR", charge: "" },
     ]);
   };
 
@@ -558,13 +560,13 @@ const Modals = () => {
         setMaxAppointmentsPerSlot(doctor.maxAppointmentsPerSlot?.toString() || "");
         setAddress(doctor.address || "");
 
-        // Map sessions
+        // Map sessions (backend may send "noon" or "Afternoon"; we use "Afternoon", capitalize others)
         if (doctor.sessions && Array.isArray(doctor.sessions)) {
           const mappedSessions = doctor.sessions
             .map((s: string) => {
-              const sessionValue = s.toLowerCase();
-              if (sessionValue === "afternoon") return "noon";
-              return sessionValue;
+              const lower = (s || "").toLowerCase();
+              if (lower === "noon" || lower === "afternoon") return "Afternoon";
+              return (s || "").charAt(0).toUpperCase() + (s || "").slice(1).toLowerCase();
             })
             .map((s: string) => Sessions.find(se => se.value === s))
             .filter(Boolean) as Option[];
@@ -576,8 +578,9 @@ const Modals = () => {
           const defaultVisitTypes = [
             { type: "OPD", charge: "" },
             { type: "Emergency", charge: "" },
-            { type: "ICU Consultation", charge: "" },
+            { type: "Day care", charge: "" },
             { type: "Follow-up", charge: "" },
+            { type: "MR", charge: "" },
           ];
           const mappedVisitTypes = defaultVisitTypes.map(vt => {
             const found = doctor.visitTypes.find((v: any) => v.type === vt.type);
@@ -797,16 +800,9 @@ const Modals = () => {
           charge: parseFloat(vt.charge) || 0,
         }));
 
-      // Map sessions - capitalize first letter and map "noon" to "Afternoon"
       const sessionsData = sessions
-        .filter(s => s.value !== "Select")
-        .map(s => {
-          const value = s.value;
-          if (value === "noon") {
-            return "Afternoon";
-          }
-          return value.charAt(0).toUpperCase() + value.slice(1);
-        });
+        .filter(s => s.value && s.value !== "Select")
+        .map(s => s.value);
 
       const doctorData = {
         name: name,

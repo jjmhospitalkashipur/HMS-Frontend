@@ -1,12 +1,10 @@
 "use client";
 
-
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { all_routes } from "../../../../routes/all_routes";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
-import PredefinedDatePicker from "@/core/common/datePicker";
 import Modals from "./modals/modals";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +12,17 @@ import PrintPrescription from "./printPrescription";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { DatePicker } from "antd";
+import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
+import { Visit_Type, Appointment_Type } from "@/core/common/selectOption";
+
+const APPOINTMENT_STATUS_OPTIONS: Option[] = [
+  { value: "", label: "All" },
+  { value: "Scheduled", label: "Scheduled" },
+  { value: "In Progress", label: "In Progress" },
+  { value: "Completed", label: "Completed" },
+  { value: "Cancelled", label: "Cancelled" },
+];
 
 interface IVisit {
   _id: string;
@@ -42,6 +51,7 @@ interface IPatient {
   age?: number;
   gender?: string;
   dob?: string;
+  mrd?: string;
 }
 
 interface IDoctor {
@@ -65,6 +75,8 @@ interface ITransformedAppointment {
   Price: number;
   Age?: string;
   Sex?: string;
+  MRD_No?: string;
+  createdAt?: string;
   [key: string]: any;
 }
 
@@ -89,6 +101,22 @@ const AppointmentsComponent = () => {
 
   const [statusUpdates, setStatusUpdates] = useState<Record<string, string>>({});
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  // Filter state (form)
+  const [doctors, setDoctors] = useState<IDoctor[]>([]);
+  const [filterDoctorId, setFilterDoctorId] = useState<string>("");
+  const [filterVisitType, setFilterVisitType] = useState<string>("");
+  const [filterAppointmentType, setFilterAppointmentType] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [createdDateFrom, setCreatedDateFrom] = useState<dayjs.Dayjs | null>(null);
+  const [createdDateTo, setCreatedDateTo] = useState<dayjs.Dayjs | null>(null);
+  // Applied filters (when user clicks Filter)
+  const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
+  const [appliedVisitType, setAppliedVisitType] = useState<string>("");
+  const [appliedAppointmentType, setAppliedAppointmentType] = useState<string>("");
+  const [appliedStatus, setAppliedStatus] = useState<string>("");
+  const [appliedCreatedFrom, setAppliedCreatedFrom] = useState<string | null>(null);
+  const [appliedCreatedTo, setAppliedCreatedTo] = useState<string | null>(null);
 
   const handleStatusChange = async (record: ITransformedAppointment, newStatus: string) => {
     const visitId = record.id;
@@ -124,6 +152,69 @@ const AppointmentsComponent = () => {
   useEffect(() => {
     fetchAppointments();
   }, []);
+
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    axios.get(`${API_BASE_URL}/hospital/doctors`, { params: { limit: 100 } }).then((res) => {
+      if (res.data?.code === 200 && res.data?.data?.doctors) {
+        setDoctors(res.data.data.doctors);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const doctorOptions: Option[] = useMemo(
+    () => [{ value: "", label: "All" }, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
+    [doctors]
+  );
+  const visitTypeOptions: Option[] = useMemo(
+    () => [{ value: "", label: "All" }, ...Visit_Type.filter((v) => v.value !== "Select").map((v) => ({ value: v.value, label: v.label }))],
+    []
+  );
+  const appointmentTypeOptions: Option[] = useMemo(
+    () => [{ value: "", label: "All" }, ...Appointment_Type.map((a) => ({ value: a.value, label: a.label }))],
+    []
+  );
+
+  const filteredData = useMemo(() => {
+    return data.filter((row) => {
+      if (appliedDoctorId && row._doctorId !== appliedDoctorId) return false;
+      if (appliedVisitType && row.Visit !== appliedVisitType) return false;
+      if (appliedAppointmentType && row.Appointment_Type !== appliedAppointmentType) return false;
+      if (appliedStatus && row.Status !== appliedStatus) return false;
+      if (appliedCreatedFrom || appliedCreatedTo) {
+        const created = row.createdAt ? dayjs(row.createdAt) : null;
+        if (!created) return false;
+        if (appliedCreatedFrom && created.isBefore(dayjs(appliedCreatedFrom).startOf("day"))) return false;
+        if (appliedCreatedTo && created.isAfter(dayjs(appliedCreatedTo).endOf("day"))) return false;
+      }
+      return true;
+    });
+  }, [data, appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedCreatedFrom, appliedCreatedTo]);
+
+  const handleApplyFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppliedDoctorId(filterDoctorId);
+    setAppliedVisitType(filterVisitType);
+    setAppliedAppointmentType(filterAppointmentType);
+    setAppliedStatus(filterStatus);
+    setAppliedCreatedFrom(createdDateFrom ? createdDateFrom.format("YYYY-MM-DD") : null);
+    setAppliedCreatedTo(createdDateTo ? createdDateTo.format("YYYY-MM-DD") : null);
+  };
+
+  const handleClearFilter = () => {
+    setFilterDoctorId("");
+    setFilterVisitType("");
+    setFilterAppointmentType("");
+    setFilterStatus("");
+    setCreatedDateFrom(null);
+    setCreatedDateTo(null);
+    setAppliedDoctorId("");
+    setAppliedVisitType("");
+    setAppliedAppointmentType("");
+    setAppliedStatus("");
+    setAppliedCreatedFrom(null);
+    setAppliedCreatedTo(null);
+  };
 
   const fetchAppointments = async () => {
     try {
@@ -162,6 +253,7 @@ const AppointmentsComponent = () => {
                   age: p.age,
                   gender: p.gender,
                   dob: p.dob,
+                  mrd: p.mrd,
                 };
               }
             } catch (err) {
@@ -205,12 +297,14 @@ const AppointmentsComponent = () => {
               PaymentStatus: (visit as any).paymentStatus || "Unpaid",
               Age: ageDisplay,
               Sex: patient?.gender,
+              MRD_No: patient?.mrd,
               _visitId: visit.visitId,
               _appointmentId: visit.appointmentId,
               _patientId: visit.patientId,
               _doctorId: visit.doctorId,
               _reason: visit.reason,
               _sessionSlot: visit.sessionSlot,
+              createdAt: visit.createdAt,
             } as ITransformedAppointment;
           })
         );
@@ -237,7 +331,7 @@ const AppointmentsComponent = () => {
       render: (text: string, record: any) => (
         <div>
           <div className="text-dark mb-1">{text}</div>
-          <span className="fs-13 badge badge-soft-secondary text-secondary rounded fw-medium">
+          <span className="fs-13 badge badge-soft-primary text-primary rounded fw-medium">
             Token No: {record.Token_No || "N/A"}
           </span>
         </div>
@@ -420,11 +514,8 @@ const AppointmentsComponent = () => {
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center gap-2">
           <Link
-            href="#"
             className="text-primary"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#edit_appointment"
-            data-visit-id={record.id}
+            href={`${all_routes.editAppointment}/${record.id}`}
             onClick={(e) => e.stopPropagation()}
           >
             <i className="ti ti-edit fs-16" />
@@ -556,17 +647,6 @@ const AppointmentsComponent = () => {
                   </div>
                 </div>
               </div>
-              <div className="d-flex right-content align-items-center flex-wrap mb-3">
-                <div
-                  id="reportrange"
-                  className="reportrange-picker d-flex align-items-center"
-                >
-                  <i className="ti ti-calendar text-gray-5 fs-14 me-1" />
-                  <span className="reportrange-picker-field">
-                    16 Apr 25 - 16 Apr 25
-                  </span>
-                </div>
-              </div>
             </div>
             <div className="d-flex table-dropdown mb-3 right-content align-items-center flex-wrap row-gap-3">
               <div className="dropdown me-2">
@@ -583,616 +663,101 @@ const AppointmentsComponent = () => {
                   className="dropdown-menu dropdown-lg dropdown-menu-end filter-dropdown p-0"
                   id="filter-dropdown"
                 >
-                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header">
+                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header px-3 py-2">
                     <h4 className="mb-0 fw-bold">Filter</h4>
-                    <div className="d-flex align-items-center">
-                      <Link
-                        href="#"
-                        className="link-danger text-decoration-underline"
-                      >
-                        Clear All
-                      </Link>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearFilter}
+                      className="btn btn-link link-danger text-decoration-underline p-0"
+                    >
+                      Clear All
+                    </button>
                   </div>
-                  <form action="#">
-                    <div className="filter-body pb-0">
+                  <form onSubmit={handleApplyFilter}>
+                    <div className="filter-body p-3">
                       <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Patient</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <div className="mb-3">
-                              <div className="input-icon-start input-icon position-relative">
-                                <span className="input-icon-addon fs-12">
-                                  <i className="ti ti-search" />
-                                </span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-md"
-                                  placeholder="Search"
-                                />
-                              </div>
-                            </div>
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/users/user-33.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Alberto Ripley
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/users/user-12.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Bernard Griffith
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/users/user-02.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Carol Lam
-                                </label>
-                              </li>
-                              <li>
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/users/user-08.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Ezra Belcher
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
+                        <label className="form-label mb-1">Doctor</label>
+                        <CommonSelect
+                          options={doctorOptions}
+                          value={doctorOptions.find((o) => o.value === filterDoctorId) ?? null}
+                          onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
+                          placeholder="All"
+                          className="w-100"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1">Visit Type</label>
+                        <CommonSelect
+                          options={visitTypeOptions}
+                          value={visitTypeOptions.find((o) => o.value === filterVisitType) ?? null}
+                          onChange={(opt) => setFilterVisitType(opt?.value ?? "")}
+                          placeholder="All"
+                          className="w-100"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1">Appointment Type</label>
+                        <CommonSelect
+                          options={appointmentTypeOptions}
+                          value={appointmentTypeOptions.find((o) => o.value === filterAppointmentType) ?? null}
+                          onChange={(opt) => setFilterAppointmentType(opt?.value ?? "")}
+                          placeholder="All"
+                          className="w-100"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1">Status</label>
+                        <CommonSelect
+                          options={APPOINTMENT_STATUS_OPTIONS}
+                          value={APPOINTMENT_STATUS_OPTIONS.find((o) => o.value === filterStatus) ?? null}
+                          onChange={(opt) => setFilterStatus(opt?.value ?? "")}
+                          placeholder="All"
+                          className="w-100"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1"> Date Range</label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <DatePicker
+                              className="w-100"
+                              format="DD-MM-YYYY"
+                              placeholder="From"
+                              value={createdDateFrom}
+                              onChange={(d) => setCreatedDateFrom(d)}
+                              getPopupContainer={(node) => node?.parentElement ?? document.body}
+                            />
                           </div>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Doctor</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <div className="mb-3">
-                              <div className="input-icon-start input-icon position-relative">
-                                <span className="input-icon-addon fs-12">
-                                  <i className="ti ti-search" />
-                                </span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-md"
-                                  placeholder="Search"
-                                />
-                              </div>
-                            </div>
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-01.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Dr. Mick Thompson
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-02.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Dr. Sarah Johnson
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-03.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Dr. Emily Carter
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-04.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Dr. David Lee
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-05.jpg"
-                                      className="flex-shrink-0 rounded-circle"
-                                      alt="img"
-                                    />
-                                  </span>
-                                  Dr. Anna Kim
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Designation</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <div className="mb-3">
-                              <div className="input-icon-start input-icon position-relative">
-                                <span className="input-icon-addon fs-12">
-                                  <i className="ti ti-search" />
-                                </span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-md"
-                                  placeholder="Search"
-                                />
-                              </div>
-                            </div>
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Cardiologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Orthopedic Surgeon
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Pediatrician
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Gynecologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Psychiatrist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Neurosurgeon
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Oncologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Pulmonologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Urologist
-                                </label>
-                              </li>
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Dermatologist
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Mode</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <div className="mb-3">
-                              <div className="input-icon-start input-icon position-relative">
-                                <span className="input-icon-addon fs-12">
-                                  <i className="ti ti-search" />
-                                </span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-md"
-                                  placeholder="Search"
-                                />
-                              </div>
-                            </div>
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  In Person
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Online
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label mb-1 text-dark fs-14 fw-medium">
-                          Date<span className="text-danger">*</span>
-                        </label>
-                        <div className="report-rangepicker position-relative">
-                          <PredefinedDatePicker />
-                          <span className="input-icon-addon">
-                            <i className="ti ti-calendar" />
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="d-flex align-items-center justify-content-between">
-                          <label className="form-label">Status</label>
-                          <Link href="#" className="link-primary mb-1">
-                            Reset
-                          </Link>
-                        </div>
-                        <div className="dropdown">
-                          <Link
-                            href="#"
-                            className="dropdown-toggle btn bg-white  d-flex align-items-center justify-content-start fs-13 p-2 fw-normal border"
-                            data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
-                            aria-expanded="true"
-                          >
-                            Select <i className="ti ti-chevron-down ms-auto" />
-                          </Link>
-                          <div className="dropdown-menu shadow-lg w-100 dropdown-info p-3">
-                            <div className="mb-3">
-                              <div className="input-icon-start input-icon position-relative">
-                                <span className="input-icon-addon fs-12">
-                                  <i className="ti ti-search" />
-                                </span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-md"
-                                  placeholder="Search"
-                                />
-                              </div>
-                            </div>
-                            <ul className="mb-3">
-                              <li className="mb-1">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Checked Out
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Checked In
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Cancelled
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Schedule
-                                </label>
-                              </li>
-                              <li className="mb-0">
-                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                                  <input
-                                    className="form-check-input m-0 me-2"
-                                    type="checkbox"
-                                  />
-                                  Confirmed
-                                </label>
-                              </li>
-                            </ul>
-                            <div className="row g-2">
-                              <div className="col-6">
-                                <Link
-                                  href="#"
-                                  className="btn btn-outline-white w-100 close-filter"
-                                >
-                                  Cancel
-                                </Link>
-                              </div>
-                              <div className="col-6">
-                                <Link href="#" className="btn btn-primary w-100">
-                                  Select
-                                </Link>
-                              </div>
-                            </div>
+                          <div className="col-6">
+                            <DatePicker
+                              className="w-100"
+                              format="DD-MM-YYYY"
+                              placeholder="To"
+                              value={createdDateTo}
+                              onChange={(d) => setCreatedDateTo(d)}
+                              getPopupContainer={(node) => node?.parentElement ?? document.body}
+                            />
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="filter-footer d-flex align-items-center justify-content-end border-top">
-                      <Link
-                        href="#"
-                        className="btn btn-light btn-md me-2 fw-medium"
-                        id="close-filter"
+                    <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-light btn-md fw-medium"
+                        onClick={() => {
+                          const toggle = document.getElementById("filter-dropdown")?.closest(".dropdown")?.querySelector<HTMLElement>("[data-bs-toggle=\"dropdown\"]");
+                          toggle?.click();
+                        }}
                       >
                         Close
-                      </Link>
-                      <button
-                        type="submit"
-                        className="btn btn-primary btn-md fw-medium"
-                      >
+                      </button>
+                      <button type="submit" className="btn btn-primary btn-md fw-medium">
                         Filter
                       </button>
                     </div>
                   </form>
                 </div>
-              </div>
-              <div className="dropdown">
-                <Link
-                  href="#"
-                  className="dropdown-toggle btn bg-white btn-md d-inline-flex align-items-center fw-normal rounded border text-dark px-2 py-1 fs-14"
-                  data-bs-toggle="dropdown"
-                >
-                  <span className="me-1"> Sort By : </span> Recent
-                </Link>
-                <ul className="dropdown-menu  dropdown-menu-end p-2">
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Recent
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Oldest
-                    </Link>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
@@ -1214,7 +779,7 @@ const AppointmentsComponent = () => {
             ) : (
               <Datatable
                 columns={columns}
-                dataSource={data}
+                dataSource={filteredData}
                 Selection={false}
                 searchText={searchText}
                 onRowClick={handleRowClick}

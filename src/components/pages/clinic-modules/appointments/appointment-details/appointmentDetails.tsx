@@ -25,6 +25,7 @@ interface IVisit {
   sessionSlot: string;
   tokenNumber: number;
   price: number;
+  discount?: number;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -500,6 +501,9 @@ const AppointmentDetailsComponent = () => {
               transactionDate: t.transactionDate,
               createdAt: t.createdAt,
             })),
+            totalAmount: visit.price || 0,
+            discount: visit.discount || 0,
+            dueAmount: dueAmount,
           };
           return (
             <PrintReceipt
