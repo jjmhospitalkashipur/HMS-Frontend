@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import { User, AlertTriangle, Maximize, Minimize, Ambulance } from "tabler-icons-react";
+import { AlertTriangle, Maximize, Minimize, Ambulance } from "tabler-icons-react";
 
 interface IQueuePatient {
   _id: string;
@@ -46,29 +46,29 @@ const getStatusDisplay = (status: string, visitType?: string) => {
   const normalized = status?.toLowerCase() ?? "";
   const normalizedVisitType = visitType?.toLowerCase() ?? "";
   
-  // Consulting (In Progress) - always green, regardless of visit type
+  // Consulting (In Progress)
   if (normalized === "consulting" || normalized === "in progress") {
     return {
       label: "Consulting (कंसल्टेशन जारी)",
-      rowStyle: { backgroundColor: "#10b981" }, // Emerald green
-      textClass: "text-white",
+      rowStyle: { backgroundColor: "#bed75a" },
+      textClass: "text-dark",
     };
   }
   
-  // MR + Scheduled → Purple (distinct from regular blue)
+  // MR + Scheduled
   if (normalizedVisitType === "mr") {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#8b5cf6" }, // Purple for MR scheduled
+      rowStyle: { backgroundColor: "#af6eaa" },
       textClass: "text-white",
     };
   }
   
-  // Regular Scheduled (non-MR) → Light blue
+  // Regular In Queue
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#60a5fa" }, // Light blue for regular scheduled
-    textClass: "text-white",
+    rowStyle: { backgroundColor: "#f5eb55" },
+    textClass: "text-dark",
   };
 };
 
@@ -192,8 +192,9 @@ const QueueDisplayComponent = () => {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
       {/* Header */}
-      <div className="bg-secondary text-white py-3 px-3 px-md-4">
-        <h1 className="mb-0 fs-4 fs-md-3 fw-bold text-center align-items-center ">
+      <div className="bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center">
+        <img src="/JJM Logo.png" alt="JJM Hospital" className="flex-shrink-0 me-3" style={{ height: "52px", width: "auto", objectFit: "contain" }} />
+        <h1 className="mb-0 fs-4 fs-md-3 fw-bold text-dark flex-grow-1 text-center">
           JJM Hospital Queue Management System
         </h1>
       </div>
@@ -211,12 +212,15 @@ const QueueDisplayComponent = () => {
         {/* Left: Doctor info */}
         <div className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm p-4 text-center order-2 order-lg-1" style={{ maxWidth: "480px" }}>
           <div
-            className="avatar rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3 flex-shrink-0 position-relative"
-            style={{ width: "220px", height: "220px", zIndex: 10 }}
+            className="bg-light d-inline-flex align-items-center justify-content-center mb-3 flex-shrink-0 overflow-hidden rounded-2"
+            style={{ width: "320px", height: "380px" }}
           >
-            <span className="position-relative d-inline-flex align-items-center justify-content-center" style={{ zIndex: 11 }}>
-              <User size={160} color="#495057" aria-hidden />
-            </span>
+            <img
+              src="/assets/img/statisdoc.png"
+              alt="Doctor"
+              className="w-100 h-100"
+              style={{ objectFit: "cover" }}
+            />
           </div>
           <h2 className="h4 fw-bold text-dark mb-1">{doctorName}</h2>
           <p className="text-secondary mb-1">{departmentOrSpecialization}</p>
