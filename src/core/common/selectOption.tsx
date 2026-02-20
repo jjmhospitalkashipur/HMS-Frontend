@@ -16,6 +16,7 @@ export const Department = [
   { value: "Cardiology", label: "Cardiology" },
   { value: "Orthopedics", label: "Orthopedics" },
   { value: "Pediatrics", label: "Pediatrics" },
+  { value: "Nephrology", label: "Nephrology" },
 ];
 export const Amount = [
   { value: "$501 - $1000", label: "$501 - $1000" },

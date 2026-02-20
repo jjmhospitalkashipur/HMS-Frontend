@@ -126,7 +126,7 @@ export const all_routes = {
   activities: "/activities",
   messages: "/messages",
   appointmentconsultations: "/appointment-consultations",
-  queueDisplay: "/queue-display",
+  queueDisplay: "/qd",
 
   //HRM Pages
   staffs: "/staffs",

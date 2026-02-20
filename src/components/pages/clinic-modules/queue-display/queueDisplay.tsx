@@ -140,7 +140,7 @@ const QueueDisplayComponent = () => {
   if (!doctorId) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-        <p className="text-danger mb-0">Invalid doctor. Use /queue-display/[doctorId]</p>
+        <p className="text-danger mb-0">Invalid doctor. Use /qd/[doctorId]</p>
       </div>
     );
   }
@@ -208,9 +208,9 @@ const QueueDisplayComponent = () => {
       </div>
 
       {/* Main content: doctor info left, queue right */}
-      <div className="flex-grow-1 d-flex flex-column flex-lg-row p-3 p-md-4 p-lg-5 p-xl-6 gap-3 gap-lg-4 gap-xl-5 w-100">
+      <div className="flex-grow-1 d-flex flex-column flex-md-row p-3 p-md-4 p-lg-5 p-xl-6 gap-3 gap-md-4 gap-xl-5 w-100">
         {/* Left: Doctor info */}
-        <div className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-lg-1" style={{ 
+        <div className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1" style={{ 
           maxWidth: "clamp(300px, 30%, 600px)",
           padding: "clamp(1rem, 2vw, 4rem)"
         }}>
@@ -235,7 +235,7 @@ const QueueDisplayComponent = () => {
         </div>
 
         {/* Right: Queue table */}
-        <div className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-lg-2" style={{ minWidth: "0", flex: "1 1 0%" }}>
+        <div className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-md-2" style={{ minWidth: "0", flex: "1 1 0%" }}>
           <div className="table-responsive w-100">
             <table className="table mb-0 w-100">
               <thead className="table-dark">
@@ -289,7 +289,7 @@ const QueueDisplayComponent = () => {
                               <Ambulance style={{ 
                                 width: "clamp(20px, 2vw, 80px)", 
                                 height: "clamp(20px, 2vw, 80px)" 
-                              }} color={isConsulting ? "#ffffff" : "#dc2626"} aria-label="Emergency" />
+                              }} color="#dc2626" aria-label="Emergency" />
                             )}
                             {statusDisplay.label}
                           </span>

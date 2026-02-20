@@ -87,6 +87,13 @@ const DashboardComponent = () => {
                 New Appointment
               </Link>
               <Link
+                href="/qd/DOC00031"
+                className="btn btn-primary d-inline-flex align-items-center"
+              >
+                <i className="ti ti-list me-1" />
+                Queue
+              </Link>
+              <Link
                 href={all_routes.doctorschedule}
                 className="btn btn-outline-white bg-white d-inline-flex align-items-center"
               >
