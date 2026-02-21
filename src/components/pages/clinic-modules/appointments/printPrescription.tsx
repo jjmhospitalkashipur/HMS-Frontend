@@ -98,7 +98,7 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                   .info-label-cell {
                     background-color: #f8f9fa;
                     font-weight: 600;
-                    color: #495057;
+                    color: #000;
                     width: 20%;
                     text-align: left;
                     white-space: nowrap;
@@ -106,14 +106,14 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                   .info-value-cell {
                     background-color: #ffffff;
                     font-weight: 500;
-                    color: #212529;
+                    color: #000;
                     width: 30%;
                     text-align: left;
                   }
                   .info-value-cell-full {
                     background-color: #ffffff;
                     font-weight: 500;
-                    color: #212529;
+                    color: #000;
                     text-align: left;
                   }
                   @media print {
@@ -183,27 +183,16 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
               <tr>
                 <td className="info-label-cell">Patient Name:</td>
                 <td className="info-value-cell">{appointmentData.Patient || "—"}</td>
-                <td className="info-label-cell">Token No.:</td>
-                <td className="info-value-cell">{appointmentData.Token_No?.toString() ?? "—"}</td>
+                <td className="info-label-cell">Date / Time:</td>
+                <td className="info-value-cell">{formatDateTime(appointmentData.Date_Time) || "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Age / Gender:</td>
-                <td className="info-value-cell">
+                <td className="info-value-cell" colSpan={3}>
                   {appointmentData.Age != null || appointmentData.Sex
                     ? `${appointmentData.Age ?? "—"} Yrs / ${appointmentData.Sex ?? "—"}`
                     : "—"}
                 </td>
-                <td className="info-label-cell">Appointment type :</td>
-                <td className="info-value-cell">
-                  {appointmentData.Appointment_Type || "—"}
-                  {appointmentData.Visit ? ` (${appointmentData.Visit})` : ""}
-                </td>
-              </tr>
-              <tr>
-                <td className="info-label-cell">Phone No.:</td>
-                <td className="info-value-cell">{appointmentData.Phone || "—"}</td>
-                <td className="info-label-cell">Date / Time:</td>
-                <td className="info-value-cell">{formatDateTime(appointmentData.Date_Time) || "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Ref. Consultant:</td>

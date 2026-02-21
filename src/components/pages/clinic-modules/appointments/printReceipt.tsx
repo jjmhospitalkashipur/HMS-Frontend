@@ -67,14 +67,20 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                 line-height: 1.4;
               }
               .receipt-container { width: 100%; max-width: 900px; margin: 0 auto; padding: 0; background: #fff; }
-              .header { display: flex; align-items: center; gap: 12px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #000; }
-              .logo-placeholder { width: 50px; height: 50px; background-color: #0066cc; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; flex-shrink: 0; }
-              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0; }
+              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #000; }
+              .header-left { display: flex; align-items: flex-start; gap: 12px; }
+              .logo-placeholder { width: 50px; height: 50px; background-color: #0066cc; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; flex-shrink: 0; border: 2px solid #0066cc; }
+              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 4px 0; color: #000; }
+              .header-info .subtitle { font-size: 14px; font-weight: normal; color: #000; margin: 0; }
+              .header-info .certification { font-size: 12px; color: #000; margin-top: 4px; }
+              .header-right { text-align: right; }
+              .header-right .address { font-size: 13px; color: #000; margin-bottom: 6px; line-height: 1.4; }
+              .header-right .contact { font-size: 13px; color: #000; line-height: 1.6; }
               .content-box { border: 1px solid #000; padding: 12px; margin-bottom: 25px; }
               .patient-details-box { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
               .patient-row { display: flex; padding: 3px 0; }
-              .patient-label { font-weight: 600; color: #495057; padding-right: 8px; }
-              .patient-value { font-weight: 500; color: #212529; flex: 1; }
+              .patient-label { font-weight: 600; color: #000; padding-right: 8px; }
+              .patient-value { font-weight: 500; color: #000; flex: 1; }
               .patient-pair { display: flex; width: 50%; }
               .patient-pair:first-child { padding-right: 15px; }
               .patient-pair:last-child { padding-left: 15px; }
@@ -94,8 +100,8 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               .summary-section { margin-top: 20px; }
               .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #000; }
               .summary-row.total-paid { font-weight: bold; border-bottom: 2px solid #000; padding-top: 10px; padding-bottom: 10px; margin-top: 6px; }
-              .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #666; }
-              .payment-no-data { text-align: center; padding: 24px; color: #6c757d; font-size: 14px; border: 1px solid #000; }
+              .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #000; }
+              .payment-no-data { text-align: center; padding: 24px; color: #000; font-size: 14px; border: 1px solid #000; }
               @media print {
                 @page { margin: 12mm; size: A4; }
                 body { padding: 0; background: white !important; }
@@ -151,9 +157,22 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
       <div ref={printRef} className="receipt-container">
         {/* Header */}
         <div className="header">
-          <div className="logo-placeholder">JJM</div>
-          <div className="header-info">
-            <h2>JJM Hospital</h2>
+          <div className="header-left">
+            <div className="logo-placeholder">JJM</div>
+            <div className="header-info">
+              <h2>JJM Hospital</h2>
+              <div className="certification">ISO 9001:2000 Certified</div>
+            </div>
+          </div>
+          <div className="header-right">
+            <div className="address">
+              Ramnagar Road, Kashipur, Uttarakhand, India<br />
+              - 244713
+            </div>
+            <div className="contact">
+              Phone: +91 5947-274390<br />
+              Mob: +91 63955 62348
+            </div>
           </div>
         </div>
 

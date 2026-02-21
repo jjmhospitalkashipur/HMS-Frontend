@@ -38,17 +38,6 @@ const PatientsComponent = () => {
   const [appliedDateFrom, setAppliedDateFrom] = useState<string | null>(null);
   const [appliedDateTo, setAppliedDateTo] = useState<string | null>(null);
 
-  const filteredPatients = useMemo(() => {
-    return patients.filter((p) => {
-      if (!appliedDateFrom && !appliedDateTo) return true;
-      const created = p.createdAt ? dayjs(p.createdAt) : null;
-      if (!created) return false;
-      if (appliedDateFrom && created.isBefore(dayjs(appliedDateFrom).startOf("day"))) return false;
-      if (appliedDateTo && created.isAfter(dayjs(appliedDateTo).endOf("day"))) return false;
-      return true;
-    });
-  }, [patients, appliedDateFrom, appliedDateTo]);
-
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setAppliedDateFrom(dateFrom ? dateFrom.format("YYYY-MM-DD") : null);
@@ -64,18 +53,22 @@ const PatientsComponent = () => {
 
   useEffect(() => {
     fetchPatients();
-  }, []);
+  }, [appliedDateFrom, appliedDateTo]);
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
+      const params: Record<string, string | number> = { limit: 100, page: 1 };
+      if (appliedDateFrom) params.createdFrom = appliedDateFrom;
+      if (appliedDateTo) params.createdTo = appliedDateTo;
+
       const response = await axios.get(`${API_BASE_URL}/hospital/patients`, {
-        params: { limit: 20, page: 1 }
+        params,
       });
 
       if (response.data?.code === 200) {
-        setPatients(response.data.data.patients);
-        setTotalCount(response.data.data.count);
+        setPatients(response.data.data.patients ?? []);
+        setTotalCount(response.data.data.count ?? (response.data.data.patients?.length ?? 0));
       }
     } catch (error) {
       console.error("Error fetching patients:", error);
@@ -277,7 +270,7 @@ const PatientsComponent = () => {
                   <form onSubmit={handleApplyFilter}>
                     <div className="filter-body p-3">
                       <div className="mb-3">
-                        <label className="form-label mb-1">Date Range</label>
+                        <label className="form-label mb-1">Created Date Range</label>
                         <div className="row g-2">
                           <div className="col-6">
                             <DatePicker
@@ -334,7 +327,7 @@ const PatientsComponent = () => {
             ) : (
               <Datatable
                 columns={columns}
-                dataSource={filteredPatients}
+                dataSource={patients}
                 Selection={false}
                 searchText={searchText}
                 onRowClick={handleRowClick}

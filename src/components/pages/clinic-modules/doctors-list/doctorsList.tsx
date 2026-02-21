@@ -36,12 +36,10 @@ const STATUS_OPTIONS: Option[] = [
   { value: "", label: "All" },
   ...Status.map((s) => ({ value: s.value, label: s.label })),
 ];
-const BASE_DEPARTMENT_OPTIONS = [{ value: "Pediatrics", label: "Pediatrics" }];
-const getDepartmentOptions = (doctorsList: IDoctor[]): Option[] => {
-  const fromDoctors = Array.from(new Set(doctorsList.map((d) => d.department).filter(Boolean)));
-  const all = Array.from(new Set([...BASE_DEPARTMENT_OPTIONS.map((o) => o.value), ...fromDoctors])).sort();
-  return [{ value: "", label: "All" }, ...all.map((d) => ({ value: d, label: d }))];
-};
+const DEPARTMENT_OPTIONS: Option[] = [
+  { value: "", label: "All" },
+  ...Department.filter((d) => d.value).map((d) => ({ value: d.value, label: d.label })),
+];
 
 const DoctorsListComponent = () => {
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
@@ -57,16 +55,12 @@ const DoctorsListComponent = () => {
   const [appliedDepartment, setAppliedDepartment] = useState<string>("");
 
   const filteredDoctors = useMemo(() => {
+    if (!appliedDate) return doctors;
     return doctors.filter((doc) => {
-      if (appliedStatus && (doc.status ?? "") !== appliedStatus) return false;
-      if (appliedDepartment && (doc.department ?? "") !== appliedDepartment) return false;
-      if (appliedDate) {
-        const docDate = doc.createdAt ? dayjs(doc.createdAt).format("YYYY-MM-DD") : null;
-        if (!docDate || docDate !== appliedDate) return false;
-      }
-      return true;
+      const docDate = doc.createdAt ? dayjs(doc.createdAt).format("YYYY-MM-DD") : null;
+      return docDate === appliedDate;
     });
-  }, [doctors, appliedStatus, appliedDepartment, appliedDate]);
+  }, [doctors, appliedDate]);
 
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,18 +80,22 @@ const DoctorsListComponent = () => {
 
   useEffect(() => {
     fetchDoctors();
-  }, []);
+  }, [appliedDepartment, appliedStatus]);
 
   const fetchDoctors = async () => {
     try {
       setLoading(true);
+      const params: Record<string, string | number> = { limit: 100 };
+      if (appliedDepartment) params.department = appliedDepartment;
+      if (appliedStatus) params.status = appliedStatus.toLowerCase();
+
       const response = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
-        params: { limit: 20 }
+        params,
       });
 
       if (response.data?.code === 200) {
-        setDoctors(response.data.data.doctors);
-        setTotalCount(response.data.data.count);
+        setDoctors(response.data.data.doctors ?? []);
+        setTotalCount(response.data.data.count ?? (response.data.data.doctors?.length ?? 0));
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
@@ -352,8 +350,8 @@ const DoctorsListComponent = () => {
                       <div className="mb-3">
                         <label className="form-label mb-1">Department</label>
                         <CommonSelect
-                          options={getDepartmentOptions(doctors)}
-                          value={getDepartmentOptions(doctors).find((o) => o.value === filterDepartment) ?? null}
+                          options={DEPARTMENT_OPTIONS}
+                          value={DEPARTMENT_OPTIONS.find((o) => o.value === filterDepartment) ?? null}
                           onChange={(opt) => setFilterDepartment(opt?.value ?? "")}
                           placeholder="All"
                           className="w-100"

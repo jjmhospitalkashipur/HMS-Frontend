@@ -108,13 +108,15 @@ const AppointmentsComponent = () => {
   const [filterVisitType, setFilterVisitType] = useState<string>("");
   const [filterAppointmentType, setFilterAppointmentType] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
   const [createdDateFrom, setCreatedDateFrom] = useState<dayjs.Dayjs | null>(null);
   const [createdDateTo, setCreatedDateTo] = useState<dayjs.Dayjs | null>(null);
-  // Applied filters (when user clicks Filter)
+  // Applied filters (when user clicks Filter) - sent to server
   const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
   const [appliedVisitType, setAppliedVisitType] = useState<string>("");
   const [appliedAppointmentType, setAppliedAppointmentType] = useState<string>("");
   const [appliedStatus, setAppliedStatus] = useState<string>("");
+  const [appliedDate, setAppliedDate] = useState<string | null>(null);
   const [appliedCreatedFrom, setAppliedCreatedFrom] = useState<string | null>(null);
   const [appliedCreatedTo, setAppliedCreatedTo] = useState<string | null>(null);
 
@@ -151,7 +153,7 @@ const AppointmentsComponent = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedDate, appliedCreatedFrom, appliedCreatedTo]);
 
   useEffect(() => {
     if (!API_BASE_URL) return;
@@ -175,28 +177,13 @@ const AppointmentsComponent = () => {
     []
   );
 
-  const filteredData = useMemo(() => {
-    return data.filter((row) => {
-      if (appliedDoctorId && row._doctorId !== appliedDoctorId) return false;
-      if (appliedVisitType && row.Visit !== appliedVisitType) return false;
-      if (appliedAppointmentType && row.Appointment_Type !== appliedAppointmentType) return false;
-      if (appliedStatus && row.Status !== appliedStatus) return false;
-      if (appliedCreatedFrom || appliedCreatedTo) {
-        const created = row.createdAt ? dayjs(row.createdAt) : null;
-        if (!created) return false;
-        if (appliedCreatedFrom && created.isBefore(dayjs(appliedCreatedFrom).startOf("day"))) return false;
-        if (appliedCreatedTo && created.isAfter(dayjs(appliedCreatedTo).endOf("day"))) return false;
-      }
-      return true;
-    });
-  }, [data, appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedCreatedFrom, appliedCreatedTo]);
-
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setAppliedDoctorId(filterDoctorId);
     setAppliedVisitType(filterVisitType);
     setAppliedAppointmentType(filterAppointmentType);
     setAppliedStatus(filterStatus);
+    setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
     setAppliedCreatedFrom(createdDateFrom ? createdDateFrom.format("YYYY-MM-DD") : null);
     setAppliedCreatedTo(createdDateTo ? createdDateTo.format("YYYY-MM-DD") : null);
   };
@@ -206,12 +193,14 @@ const AppointmentsComponent = () => {
     setFilterVisitType("");
     setFilterAppointmentType("");
     setFilterStatus("");
+    setFilterDate(null);
     setCreatedDateFrom(null);
     setCreatedDateTo(null);
     setAppliedDoctorId("");
     setAppliedVisitType("");
     setAppliedAppointmentType("");
     setAppliedStatus("");
+    setAppliedDate(null);
     setAppliedCreatedFrom(null);
     setAppliedCreatedTo(null);
   };
@@ -227,8 +216,17 @@ const AppointmentsComponent = () => {
         return;
       }
 
+      const params: Record<string, string | number> = { limit: 100 };
+      if (appliedStatus) params.status = appliedStatus;
+      if (appliedVisitType) params.visitType = appliedVisitType;
+      if (appliedAppointmentType) params.appointmentType = appliedAppointmentType;
+      if (appliedDoctorId) params.doctorId = appliedDoctorId;
+      if (appliedDate) params.date = appliedDate;
+      if (appliedCreatedFrom) params.createdFrom = appliedCreatedFrom;
+      if (appliedCreatedTo) params.createdTo = appliedCreatedTo;
+
       const response = await axios.get(`${API_BASE_URL}/hospital/visits`, {
-        params: { limit: 20 }
+        params
       });
 
       if (response.data?.code === 200 && response.data?.data?.visits) {
@@ -716,7 +714,18 @@ const AppointmentsComponent = () => {
                         />
                       </div>
                       <div className="mb-3">
-                        <label className="form-label mb-1"> Date Range</label>
+                        <label className="form-label mb-1">Date (Visit)</label>
+                        <DatePicker
+                          className="w-100"
+                          format="DD-MM-YYYY"
+                          placeholder="Select date"
+                          value={filterDate}
+                          onChange={(d) => setFilterDate(d)}
+                          getPopupContainer={(node) => node?.parentElement ?? document.body}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1">Created Date Range</label>
                         <div className="row g-2">
                           <div className="col-6">
                             <DatePicker
@@ -779,7 +788,7 @@ const AppointmentsComponent = () => {
             ) : (
               <Datatable
                 columns={columns}
-                dataSource={filteredData}
+                dataSource={data}
                 Selection={false}
                 searchText={searchText}
                 onRowClick={handleRowClick}

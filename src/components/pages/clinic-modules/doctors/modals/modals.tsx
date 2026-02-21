@@ -596,67 +596,55 @@ const Modals = () => {
     }
   }, []);
 
-  // Listen for modal open event to get doctorId
+  // Listen for modal open/close to get doctorId and clear stale state
   useEffect(() => {
     const editModal = document.getElementById("edit_doctor");
     if (!editModal) return;
 
-    // Store doctorId when edit button is clicked (before modal opens)
     const handleEditClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const link = target.closest('[data-bs-target="#edit_doctor"]') as HTMLElement;
       if (link) {
         const doctorIdAttr = link.getAttribute("data-doctor-id");
         if (doctorIdAttr) {
-          // Store in modal dataset
           (editModal as any).dataset.doctorId = doctorIdAttr;
-          // Also store in a variable that persists
           (window as any).__currentEditDoctorId = doctorIdAttr;
         }
       }
     };
 
-    const handleModalShow = () => {
-      // Reset form first
-      resetForm();
-      
-      // Get doctorId from multiple sources
+    const handleModalShow = (e: Event) => {
       let foundDoctorId: string | null = null;
-      
-      // First check window variable (set during click)
-      if ((window as any).__currentEditDoctorId) {
-        foundDoctorId = (window as any).__currentEditDoctorId;
+      const ev = e as { relatedTarget?: HTMLElement };
+      if (ev.relatedTarget) {
+        const id = ev.relatedTarget.getAttribute?.("data-doctor-id");
+        if (id) foundDoctorId = id;
       }
-      
-      // Then check modal dataset
-      if (!foundDoctorId) {
-        foundDoctorId = (editModal as any).dataset?.doctorId || null;
-      }
-      
-      // Finally, check all trigger elements
-      if (!foundDoctorId) {
-        const triggerElements = document.querySelectorAll('[data-bs-target="#edit_doctor"]');
-        triggerElements.forEach((trigger) => {
-          const doctorIdAttr = trigger.getAttribute("data-doctor-id");
-          if (doctorIdAttr) {
-            foundDoctorId = doctorIdAttr;
-          }
-        });
-      }
+      if (!foundDoctorId) foundDoctorId = (window as any).__currentEditDoctorId || null;
+      if (!foundDoctorId) foundDoctorId = (editModal as any).dataset?.doctorId || null;
 
+      setDoctorId(null);
+      resetForm();
       if (foundDoctorId) {
         setDoctorId(foundDoctorId);
         fetchDoctorData(foundDoctorId);
       }
     };
 
-    // Use capture phase to catch the click before Bootstrap processes it
+    const handleModalHidden = () => {
+      (window as any).__currentEditDoctorId = null;
+      delete (editModal as any).dataset?.doctorId;
+      setDoctorId(null);
+      resetForm();
+    };
+
     document.addEventListener("click", handleEditClick, true);
     editModal.addEventListener("show.bs.offcanvas", handleModalShow);
-    
+    editModal.addEventListener("hidden.bs.offcanvas", handleModalHidden);
     return () => {
       document.removeEventListener("click", handleEditClick, true);
       editModal.removeEventListener("show.bs.offcanvas", handleModalShow);
+      editModal.removeEventListener("hidden.bs.offcanvas", handleModalHidden);
     };
   }, [fetchDoctorData]);
 
