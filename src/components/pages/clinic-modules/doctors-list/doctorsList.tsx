@@ -163,7 +163,7 @@ const DoctorsListComponent = () => {
       sorter: false,
       showSorterTooltip: false,
       render: (_: unknown, record: IDoctor) => {
-        const queueHref = `${all_routes.queueDisplay}/${record.doctorId || record._id}`;
+        const queueHref = `/qd/${record.doctorId || record._id}`;
         return (
           <div className="d-flex align-items-center gap-2">
             <Link

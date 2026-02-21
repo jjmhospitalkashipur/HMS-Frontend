@@ -142,9 +142,9 @@ const NewAppointmentComponent = () => {
     setTotal(0);
   }, []);
 
-  // Set total from doctor's visit type charge when doctor and visit type are selected
+  // Set total from doctor's visit type charge; use appointmentType when "Day care" so charge matches
   const updateTotalFromDoctorCharge = useCallback(() => {
-    if (!selectedDoctor?.value || !visitType?.value || visitType.value === "Select") {
+    if (!selectedDoctor?.value) {
       setTotal(0);
       return;
     }
@@ -154,13 +154,21 @@ const NewAppointmentComponent = () => {
       setTotal(0);
       return;
     }
-    const vtValue = visitType.value;
-    let match = visitTypes.find((vt) => vt.type === vtValue);
-    if (!match && vtValue === "New") {
+    // When Day care is selected, look up charge by "Day care"; otherwise by visit type (New → OPD fallback)
+    const chargeKey =
+      appointmentType === "Day care"
+        ? "Day care"
+        : (visitType?.value && visitType.value !== "Select" ? visitType.value : null);
+    if (!chargeKey) {
+      setTotal(0);
+      return;
+    }
+    let match = visitTypes.find((vt) => vt.type === chargeKey);
+    if (!match && chargeKey === "New") {
       match = visitTypes.find((vt) => vt.type === "OPD");
     }
     setTotal(match?.charge ?? 0);
-  }, [selectedDoctor, visitType, doctors]);
+  }, [selectedDoctor, visitType, appointmentType, doctors]);
 
   useEffect(() => {
     updateTotalFromDoctorCharge();
@@ -490,19 +498,22 @@ const NewAppointmentComponent = () => {
         });
       }
 
+      const patientPayload: Record<string, unknown> = {
+        title: title?.value || "",
+        name: name.trim(),
+        phone: phone || "",
+        email: email || undefined,
+        age: calculateAge(),
+        gender: gender?.value !== "Select" ? gender?.value : "",
+        bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
+        address: address || undefined,
+        emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
+      };
+      const formattedDob = formatDob();
+      if (formattedDob) patientPayload.dob = formattedDob;
+
       const appointmentData = {
-        patient: {
-          title: title?.value || "",
-          name: name.trim(),
-          phone: phone || "",
-          email: email || undefined,
-          dob: formatDob(),
-          age: calculateAge(),
-          gender: gender?.value !== "Select" ? gender?.value : "",
-          bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
-          address: address || undefined,
-          emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
-        },
+        patient: patientPayload,
         doctorId: selectedDoctor.value,
         visitType: visitType?.value !== "Select" ? visitType?.value : "",
         appointmentType: appointmentType,

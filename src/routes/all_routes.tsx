@@ -127,6 +127,8 @@ export const all_routes = {
   messages: "/messages",
   appointmentconsultations: "/appointment-consultations",
   queueDisplay: "/qd",
+  qdAllPage1: "/qd-all/1",
+  qdAllPage2: "/qd-all/2",
 
   //HRM Pages
   staffs: "/staffs",

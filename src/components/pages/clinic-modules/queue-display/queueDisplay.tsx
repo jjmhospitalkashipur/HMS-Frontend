@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import axios from "axios";
+import { useParams } from "next/navigation";
 import { API_BASE_URL } from "@/environment";
-import dayjs from "dayjs";
-import { AlertTriangle, Maximize, Minimize, Ambulance } from "tabler-icons-react";
+import { Maximize, Minimize, Ambulance } from "tabler-icons-react";
 
 interface IQueuePatient {
   _id: string;
   visitId: string;
-  appointmentId: string;
+  appointmentId?: string;
   visitType?: string;
-  visitTime: string;
+  visitTime?: string;
   tokenNumber: number;
   status: string;
   patient: {
@@ -36,10 +34,42 @@ interface IQueueDisplay {
   queue: IQueuePatient[];
 }
 
-interface IQueueApiResponse {
-  code: number;
-  message: string;
-  data: { display: IQueueDisplay };
+/** Normalize SSE visit to IQueuePatient */
+function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
+  const patient = (visit.patient as Record<string, unknown>) ?? {};
+  return {
+    _id: (visit._id as string) ?? (visit.visitId as string) ?? "",
+    visitId: (visit.visitId as string) ?? "",
+    appointmentId: visit.appointmentId as string | undefined,
+    visitType: visit.visitType as string | undefined,
+    visitTime: visit.visitTime as string | undefined,
+    tokenNumber: Number(visit.tokenNumber) ?? 0,
+    status: (visit.status as string) ?? "Scheduled",
+    patient: {
+      mrd: (patient.mrd as string) ?? "—",
+      name: (patient.name as string) ?? "—",
+      age: patient.age as number | undefined,
+      gender: patient.gender as string | undefined,
+    },
+  };
+}
+
+/** Build IQueueDisplay from SSE initial/session-change payload */
+function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
+  const queue = Array.isArray(data.queue)
+    ? (data.queue as Record<string, unknown>[]).map(toQueuePatient)
+    : [];
+  return {
+    doctorId: (data.doctorId as string) ?? "",
+    doctorName: (data.doctorName as string) ?? "—",
+    department: (data.department as string) ?? null,
+    specialization: (data.specialization as string) ?? null,
+    designation: (data.designation as string) ?? null,
+    sessionSlot: (data.sessionSlot as string) ?? "Morning",
+    date: (data.date as string) ?? "",
+    totalPatients: Number(data.totalPatients) ?? queue.length,
+    queue,
+  };
 }
 
 const getStatusDisplay = (status: string, visitType?: string) => {
@@ -74,17 +104,14 @@ const getStatusDisplay = (status: string, visitType?: string) => {
 
 const QueueDisplayComponent = () => {
   const params = useParams();
-  const searchParams = useSearchParams();
   const doctorId = params?.doctorId as string;
-  const sessionSlot = searchParams?.get("sessionSlot") ?? "Morning";
-  const dateParam = searchParams?.get("date");
-  const date = dateParam ?? dayjs().format("YYYY-MM-DD");
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const toggleFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -103,39 +130,124 @@ const QueueDisplayComponent = () => {
   }, []);
 
   useEffect(() => {
-    if (!doctorId) return;
-    fetchQueue();
-    const interval = setInterval(fetchQueue, 20000);
-    return () => clearInterval(interval);
-  }, [doctorId, sessionSlot, date]);
-
-  const fetchQueue = async () => {
     if (!API_BASE_URL || !doctorId) return;
-    try {
-      setError("");
-      const response = await axios.get<IQueueApiResponse>(
-        `${API_BASE_URL}/hospital/visits/display/queue/${doctorId}`,
-        {
-          params: { doctorId, sessionSlot, date },
+
+    setError("");
+    const streamUrl = `${API_BASE_URL}/hospital/visits/display/stream/${doctorId}`;
+    const es = new EventSource(streamUrl);
+    eventSourceRef.current = es;
+
+    es.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data) as Record<string, unknown>;
+        const type = ((data.eventType ?? data.type) as string)?.trim().toLowerCase() ?? "";
+
+        switch (type) {
+          case "initial":
+          case "session-change": {
+            setDisplay(displayFromSSE(data));
+            setLoading(false);
+            setError("");
+            break;
+          }
+          case "new-visit": {
+            const visit = data.visit as Record<string, unknown>;
+            if (visit) {
+              setDisplay((prev) => {
+                if (!prev) return prev;
+                const newPatient = toQueuePatient(visit);
+                const exists = prev.queue.some(
+                  (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
+                );
+                if (exists) return prev;
+                return { ...prev, queue: [...prev.queue, newPatient] };
+              });
+            }
+            break;
+          }
+          case "status-change": {
+            const visitId = data.visitId as string;
+            const newStatus = data.newStatus as string;
+            if (!visitId) break;
+            setDisplay((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                queue: prev.queue.map((p) =>
+                  (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
+                ),
+              };
+            });
+            break;
+          }
+          case "visit-updated": {
+            const visit = data.visit as Record<string, unknown>;
+            if (!visit) break;
+            const updated = toQueuePatient(visit);
+            const matchId = (updated.visitId as string) || (updated._id as string);
+            if (!matchId) break;
+            setDisplay((prev) => {
+              if (!prev) return prev;
+              const idx = prev.queue.findIndex(
+                (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
+              );
+              const existing = idx >= 0 ? prev.queue[idx] : null;
+              const merged = existing && !(visit.patient as Record<string, unknown>)
+                ? { ...updated, patient: { ...updated.patient, ...existing.patient } }
+                : { ...updated };
+              const nextQueue = [...prev.queue];
+              if (idx >= 0) {
+                nextQueue[idx] = merged;
+              } else {
+                nextQueue.push(merged);
+              }
+              return { ...prev, queue: nextQueue };
+            });
+            break;
+          }
+          case "visit-deleted": {
+            const visitId = data.visitId as string;
+            if (!visitId) break;
+            setDisplay((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                queue: prev.queue.filter((p) => (p.visitId || p._id) !== visitId),
+              };
+            });
+            break;
+          }
+          case "queue-refresh": {
+            const queue = data.queue as Record<string, unknown>[] | undefined;
+            if (Array.isArray(queue)) {
+              setDisplay((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  queue: queue.map(toQueuePatient),
+                };
+              });
+            }
+            break;
+          }
+          default:
+            break;
         }
-      );
-      if (response.data?.code === 200 && response.data?.data?.display) {
-        setDisplay(response.data.data.display);
-      } else {
-        setDisplay(null);
-        setError("No queue data found");
+      } catch (err) {
+        console.error("SSE parse error:", err);
       }
-    } catch (err: unknown) {
-      const message =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : "Failed to load queue";
-      setError(message);
-      setDisplay(null);
-    } finally {
+    };
+
+    es.onerror = () => {
+      if (loading && !display) setError("Connection lost. Reconnecting…");
       setLoading(false);
-    }
-  };
+    };
+
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, [doctorId]);
 
   if (!doctorId) {
     return (
@@ -180,11 +292,11 @@ const QueueDisplayComponent = () => {
 
   return (
     <div ref={containerRef} className="min-vh-100 w-100 d-flex flex-column bg-white position-relative">
-      {/* Fullscreen toggle */}
+      {/* Fullscreen toggle - top right */}
       <button
         type="button"
         onClick={toggleFullscreen}
-        className="position-fixed top-0 start-0 m-3 btn btn-light btn-lg shadow border d-flex align-items-center justify-content-center rounded-circle p-1 z-3"
+        className="position-fixed top-0 end-0 m-3 btn btn-light btn-lg shadow border d-flex align-items-center justify-content-center rounded-circle p-1 z-3"
         style={{ width: "clamp(40px, 3vw, 60px)", height: "clamp(40px, 3vw, 60px)" }}
         aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
         title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
@@ -234,11 +346,11 @@ const QueueDisplayComponent = () => {
           <p className="mb-0 fw-bold" style={{ fontSize: "clamp(0.875rem, 1.4vw, 3.5rem)" }}>{designation}</p>
         </div>
 
-        {/* Right: Queue table */}
-        <div className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-md-2" style={{ minWidth: "0", flex: "1 1 0%" }}>
-          <div className="table-responsive w-100">
+        {/* Right: Queue table - height constrained so scroll is inside this block */}
+        <div className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-md-2 d-flex flex-column" style={{ minWidth: "0", flex: "1 1 0%", maxHeight: "min(72vh, 900px)" }}>
+          <div className="table-responsive w-100 overflow-auto flex-grow-1" style={{ maxHeight: "100%" }}>
             <table className="table mb-0 w-100">
-              <thead className="table-dark">
+              <thead className="table-dark position-sticky top-0 z-1">
                 <tr>
                   <th className="text-center" style={{ 
                     padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",

@@ -225,9 +225,9 @@ const EditAppointmentComponent = () => {
     }
   }, [selectedDoctor, doctors]);
 
-  // Recalculate Total from doctor's visit type charge when doctor or visit type changes (same as new appointment)
+  // Recalculate Total from doctor's visit type charge; use appointmentType when "Day care" (same as new appointment)
   const updateTotalFromDoctorCharge = useCallback(() => {
-    if (!selectedDoctor?.value || !visitType?.value || visitType.value === "Select") {
+    if (!selectedDoctor?.value) {
       return;
     }
     const doctor = doctors.find((d) => d._id === selectedDoctor.value);
@@ -235,15 +235,22 @@ const EditAppointmentComponent = () => {
     if (!visitTypes?.length) {
       return;
     }
-    const vtValue = visitType.value;
-    let match = visitTypes.find((vt) => vt.type === vtValue);
-    if (!match && vtValue === "New") {
+    // When Day care is selected, look up charge by "Day care"; otherwise by visit type (New → OPD fallback)
+    const chargeKey =
+      appointmentType === "Day care"
+        ? "Day care"
+        : (visitType?.value && visitType.value !== "Select" ? visitType.value : null);
+    if (!chargeKey) {
+      return;
+    }
+    let match = visitTypes.find((vt) => vt.type === chargeKey);
+    if (!match && chargeKey === "New") {
       match = visitTypes.find((vt) => vt.type === "OPD");
     }
     if (match != null) {
       setTotal(match.charge);
     }
-  }, [selectedDoctor, visitType, doctors]);
+  }, [selectedDoctor, visitType, appointmentType, doctors]);
 
   useEffect(() => {
     updateTotalFromDoctorCharge();
