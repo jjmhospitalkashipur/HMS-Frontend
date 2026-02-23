@@ -120,6 +120,10 @@ const AppointmentsComponent = () => {
   const [appliedCreatedFrom, setAppliedCreatedFrom] = useState<string | null>(null);
   const [appliedCreatedTo, setAppliedCreatedTo] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
   const handleStatusChange = async (record: ITransformedAppointment, newStatus: string) => {
     const visitId = record.id;
     if (!visitId || !API_BASE_URL) return;
@@ -151,9 +155,14 @@ const AppointmentsComponent = () => {
     return statusUpdates[record.id] || record.Status;
   };
 
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setPage(newPage);
+    setLimit(newPageSize);
+  };
+
   useEffect(() => {
     fetchAppointments();
-  }, [appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedDate, appliedCreatedFrom, appliedCreatedTo]);
+  }, [appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedDate, appliedCreatedFrom, appliedCreatedTo, page, limit]);
 
   useEffect(() => {
     if (!API_BASE_URL) return;
@@ -179,6 +188,7 @@ const AppointmentsComponent = () => {
 
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
     setAppliedDoctorId(filterDoctorId);
     setAppliedVisitType(filterVisitType);
     setAppliedAppointmentType(filterAppointmentType);
@@ -189,6 +199,7 @@ const AppointmentsComponent = () => {
   };
 
   const handleClearFilter = () => {
+    setPage(1);
     setFilterDoctorId("");
     setFilterVisitType("");
     setFilterAppointmentType("");
@@ -216,7 +227,7 @@ const AppointmentsComponent = () => {
         return;
       }
 
-      const params: Record<string, string | number> = { limit: 100 };
+      const params: Record<string, string | number> = { page, limit };
       if (appliedStatus) params.status = appliedStatus;
       if (appliedVisitType) params.visitType = appliedVisitType;
       if (appliedAppointmentType) params.appointmentType = appliedAppointmentType;
@@ -231,7 +242,15 @@ const AppointmentsComponent = () => {
 
       if (response.data?.code === 200 && response.data?.data?.visits) {
         const visits: IVisit[] = response.data.data.visits;
-        
+        const pagination = response.data?.data?.pagination;
+        if (pagination && typeof pagination === "object") {
+          const { currentPage: p = 1, limit: l = 10, count = visits.length, hasMore = false } = pagination;
+          setTotalCount(hasMore ? p * l + 1 : (p - 1) * l + count);
+        } else {
+          const total = response.data?.data?.total ?? response.data?.data?.count;
+          setTotalCount(typeof total === "number" ? total : visits.length);
+        }
+
         // Fetch patient and doctor details for each visit
         const transformedData = await Promise.all(
           visits.map(async (visit) => {
@@ -792,6 +811,10 @@ const AppointmentsComponent = () => {
                 Selection={false}
                 searchText={searchText}
                 onRowClick={handleRowClick}
+                total={totalCount}
+                currentPage={page}
+                pageSize={limit}
+                onPaginationChange={handlePaginationChange}
               />
             )}
           </div>

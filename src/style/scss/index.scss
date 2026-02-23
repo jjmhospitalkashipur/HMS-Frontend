@@ -435,6 +435,9 @@
   padding: 0.5rem 0.77rem;
   border: 1px solid #e7e8eb;
   border-radius: 0.3rem;
+  .PhoneInputCountry {
+    display: none !important;
+  }
   .PhoneInputInput:focus-visible {
     outline: 0;
   }
@@ -621,6 +624,10 @@
 }
 .ant-picker.form-control:focus{
   border-color: #e7e8eb;
+}
+
+.date-of-appointment-picker .ant-picker-input > input {
+  color: #000 !important;
 }
 
 .summer-description-box{

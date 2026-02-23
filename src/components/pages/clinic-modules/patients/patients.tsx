@@ -38,13 +38,18 @@ const PatientsComponent = () => {
   const [appliedDateFrom, setAppliedDateFrom] = useState<string | null>(null);
   const [appliedDateTo, setAppliedDateTo] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
     setAppliedDateFrom(dateFrom ? dateFrom.format("YYYY-MM-DD") : null);
     setAppliedDateTo(dateTo ? dateTo.format("YYYY-MM-DD") : null);
   };
 
   const handleClearFilter = () => {
+    setPage(1);
     setDateFrom(null);
     setDateTo(null);
     setAppliedDateFrom(null);
@@ -53,12 +58,12 @@ const PatientsComponent = () => {
 
   useEffect(() => {
     fetchPatients();
-  }, [appliedDateFrom, appliedDateTo]);
+  }, [appliedDateFrom, appliedDateTo, page, limit]);
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const params: Record<string, string | number> = { limit: 100, page: 1 };
+      const params: Record<string, string | number> = { page, limit };
       if (appliedDateFrom) params.createdFrom = appliedDateFrom;
       if (appliedDateTo) params.createdTo = appliedDateTo;
 
@@ -67,14 +72,28 @@ const PatientsComponent = () => {
       });
 
       if (response.data?.code === 200) {
-        setPatients(response.data.data.patients ?? []);
-        setTotalCount(response.data.data.count ?? (response.data.data.patients?.length ?? 0));
+        const list = response.data.data.patients ?? [];
+        setPatients(list);
+
+        const pagination = response.data?.data?.pagination;
+        if (pagination && typeof pagination === "object") {
+          const { currentPage: p = 1, limit: l = 10, count = list.length, hasMore = false } = pagination;
+          setTotalCount(hasMore ? p * l + 1 : (p - 1) * l + count);
+        } else {
+          const total = response.data?.data?.total ?? response.data?.data?.count;
+          setTotalCount(typeof total === "number" ? total : list.length);
+        }
       }
     } catch (error) {
       console.error("Error fetching patients:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setPage(newPage);
+    setLimit(newPageSize);
   };
 
   const columns = [
@@ -331,6 +350,10 @@ const PatientsComponent = () => {
                 Selection={false}
                 searchText={searchText}
                 onRowClick={handleRowClick}
+                total={totalCount}
+                currentPage={page}
+                pageSize={limit}
+                onPaginationChange={handlePaginationChange}
               />
             )}
           </div>

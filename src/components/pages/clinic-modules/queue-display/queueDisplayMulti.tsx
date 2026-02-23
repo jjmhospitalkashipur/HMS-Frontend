@@ -323,7 +323,7 @@ const QueueDisplayMultiComponent = () => {
           className="mb-0 fw-bold text-dark flex-grow-1 text-center"
           style={{ fontSize: "clamp(1rem, 2vw, 6rem)" }}
         >
-          JJM Hospital Queue Management System
+          JJM Hospital
         </h1>
       </div>
       <div
@@ -333,7 +333,6 @@ const QueueDisplayMultiComponent = () => {
         <span className="text-nowrap">
           Appointment / Critical Patients will be given priority in Queue
         </span>
-        <span className="d-none d-md-inline ms-2">— Take prior Appointments to avoid waiting.</span>
       </div>
 
       <div className="flex-grow-1 d-flex p-3 p-md-4 p-lg-5 p-xl-6 gap-2 gap-md-3 w-100 overflow-auto min-h-0">

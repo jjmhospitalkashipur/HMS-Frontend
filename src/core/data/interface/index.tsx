@@ -306,6 +306,14 @@ export interface DatatableProps {
   Selection?: boolean | undefined;
   searchText: string;
   onRowClick?: (record: any) => void;
+  /** Server-side pagination: total count from API */
+  total?: number;
+  /** Server-side pagination: current page (1-based) */
+  currentPage?: number;
+  /** Server-side pagination: page size (limit) */
+  pageSize?: number;
+  /** Server-side pagination: called when page or page size changes */
+  onPaginationChange?: (page: number, pageSize: number) => void;
 }
 
 export interface CountriesData {

@@ -13,24 +13,33 @@ const Datatable: React.FC<DatatableProps> = ({
   Selection,
   searchText,
   onRowClick,
+  total: serverTotal,
+  currentPage,
+  pageSize: serverPageSize,
+  onPaginationChange,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [Selections, setSelections] = useState<any>(true);
   const [filteredDataSource, setFilteredDataSource] = useState(dataSource);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(serverPageSize ?? 10);
+  const isServerPagination = serverTotal !== undefined && onPaginationChange;
 
   useEffect(() => {
     setSelections(Selection);
   }, [Selection]);
 
   useEffect(() => {
-    const filteredData = dataSource.filter((record) =>
-      Object.values(record).some((field) =>
-        String(field).toLowerCase().includes(searchText.toLowerCase())
-      )
-    );
-    setFilteredDataSource(filteredData);
-  }, [searchText, dataSource]);
+    if (isServerPagination) {
+      setFilteredDataSource(dataSource);
+    } else {
+      const filteredData = dataSource.filter((record) =>
+        Object.values(record).some((field) =>
+          String(field).toLowerCase().includes(searchText.toLowerCase())
+        )
+      );
+      setFilteredDataSource(filteredData);
+    }
+  }, [searchText, dataSource, isServerPagination]);
 
   const onSelectChange = (newSelectedRowKeys: any[]) => {
     setSelectedRowKeys(newSelectedRowKeys);
@@ -65,30 +74,59 @@ const Datatable: React.FC<DatatableProps> = ({
         },
         style: { cursor: onRowClick ? 'pointer' : 'default' },
       })}
-      pagination={{
-        showSizeChanger: false,
-        pageSize,
-        onShowSizeChange: (size) => setPageSize(size),
-        total: filteredDataSource.length,
-        showTotal: (total) => (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            Rows per page:
-            <Select
-              value={pageSize}
-              onChange={(value) => setPageSize(value)}
-              style={{ width: 80 }}
-              popupMatchSelectWidth={false}
-            >
-              <Option value={10}>10</Option>
-              <Option value={20}>20</Option>
-              <Option value={30}>30</Option>
-            </Select>
-            of {total} Entries
-          </div>
-        ),
-        nextIcon: <i className="ti ti-chevron-right" />,
-        prevIcon: <i className="ti ti-chevron-left" />,
-      }}
+      pagination={
+        isServerPagination
+          ? {
+              current: currentPage ?? 1,
+              pageSize: serverPageSize ?? 10,
+              total: serverTotal ?? 0,
+              showSizeChanger: false,
+              pageSizeOptions: ["10", "20", "30"],
+              onChange: (page, size) => onPaginationChange?.(page, size ?? 10),
+              showTotal: (total) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  Rows per page:
+                  <Select
+                    value={serverPageSize ?? 10}
+                    onChange={(value) => onPaginationChange?.(currentPage ?? 1, value)}
+                    style={{ width: 80 }}
+                    popupMatchSelectWidth={false}
+                  >
+                    <Option value={10}>10</Option>
+                    <Option value={20}>20</Option>
+                    <Option value={30}>30</Option>
+                  </Select>
+                  of {total} Entries
+                </div>
+              ),
+              nextIcon: <i className="ti ti-chevron-right" />,
+              prevIcon: <i className="ti ti-chevron-left" />,
+            }
+          : {
+              showSizeChanger: false,
+              pageSize,
+              onShowSizeChange: (size) => setPageSize(size),
+              total: filteredDataSource.length,
+              showTotal: (total) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  Rows per page:
+                  <Select
+                    value={pageSize}
+                    onChange={(value) => setPageSize(value)}
+                    style={{ width: 80 }}
+                    popupMatchSelectWidth={false}
+                  >
+                    <Option value={10}>10</Option>
+                    <Option value={20}>20</Option>
+                    <Option value={30}>30</Option>
+                  </Select>
+                  of {total} Entries
+                </div>
+              ),
+              nextIcon: <i className="ti ti-chevron-right" />,
+              prevIcon: <i className="ti ti-chevron-left" />,
+            }
+      }
     />
   );
 };

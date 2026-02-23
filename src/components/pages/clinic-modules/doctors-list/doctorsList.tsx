@@ -4,7 +4,7 @@ import { DatePicker } from "antd";
 import { Department, Status } from "@/core/common/selectOption";
 import type { Option } from "@/core/common/common-select/commonSelect";
 import { all_routes } from "../../../../routes/all_routes";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "../doctors/modals/modals";
@@ -54,22 +54,19 @@ const DoctorsListComponent = () => {
   const [appliedDate, setAppliedDate] = useState<string | null>(null);
   const [appliedDepartment, setAppliedDepartment] = useState<string>("");
 
-  const filteredDoctors = useMemo(() => {
-    if (!appliedDate) return doctors;
-    return doctors.filter((doc) => {
-      const docDate = doc.createdAt ? dayjs(doc.createdAt).format("YYYY-MM-DD") : null;
-      return docDate === appliedDate;
-    });
-  }, [doctors, appliedDate]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
     setAppliedStatus(filterStatus);
     setAppliedDepartment(filterDepartment);
     setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
   };
 
   const handleClearFilter = () => {
+    setPage(1);
     setFilterStatus("");
     setFilterDate(null);
     setFilterDepartment("");
@@ -80,28 +77,43 @@ const DoctorsListComponent = () => {
 
   useEffect(() => {
     fetchDoctors();
-  }, [appliedDepartment, appliedStatus]);
+  }, [appliedDepartment, appliedStatus, appliedDate, page, limit]);
 
   const fetchDoctors = async () => {
     try {
       setLoading(true);
-      const params: Record<string, string | number> = { limit: 100 };
+      const params: Record<string, string | number> = { page, limit };
       if (appliedDepartment) params.department = appliedDepartment;
       if (appliedStatus) params.status = appliedStatus.toLowerCase();
+      if (appliedDate) params.date = appliedDate;
 
       const response = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
         params,
       });
 
       if (response.data?.code === 200) {
-        setDoctors(response.data.data.doctors ?? []);
-        setTotalCount(response.data.data.count ?? (response.data.data.doctors?.length ?? 0));
+        const list = response.data.data.doctors ?? [];
+        setDoctors(list);
+
+        const pagination = response.data?.data?.pagination;
+        if (pagination && typeof pagination === "object") {
+          const { currentPage: p = 1, limit: l = 10, count = list.length, hasMore = false } = pagination;
+          setTotalCount(hasMore ? p * l + 1 : (p - 1) * l + count);
+        } else {
+          const total = response.data?.data?.total ?? response.data?.data?.count;
+          setTotalCount(typeof total === "number" ? total : list.length);
+        }
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setPage(newPage);
+    setLimit(newPageSize);
   };
 
   const columns = [
@@ -388,9 +400,13 @@ const DoctorsListComponent = () => {
             ) : (
               <Datatable
                 columns={columns}
-                dataSource={filteredDoctors}
+                dataSource={doctors}
                 Selection={false}
                 searchText={searchText}
+                total={totalCount}
+                currentPage={page}
+                pageSize={limit}
+                onPaginationChange={handlePaginationChange}
               />
             )}
           </div>

@@ -307,15 +307,12 @@ const QueueDisplayComponent = () => {
       <div className="bg-white border-bottom py-2 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
         <img src="/JJM Logo.png" alt="JJM Hospital" className="flex-shrink-0 me-3" style={{ height: "clamp(40px, 4vw, 150px)", width: "auto", objectFit: "contain" }} />
         <h1 className="mb-0 fw-bold text-dark flex-grow-1 text-center" style={{ fontSize: "clamp(1rem, 2vw, 6rem)" }}>
-          JJM Hospital Queue Management System
+          JJM Hospital
         </h1>
       </div>
       <div className="bg-primary text-white py-1 px-3 px-md-4 px-lg-5 px-xl-6 text-center w-100" style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}>
         <span className="text-nowrap">
           Appointment / Critical Patients will be given priority in Queue
-        </span>
-        <span className="d-none d-md-inline ms-2">
-          — Take prior Appointments to avoid waiting.
         </span>
       </div>
 

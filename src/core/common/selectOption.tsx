@@ -174,6 +174,7 @@ export const StatusCompleted = [
 ];
 export const Blood_Group = [
   { value: "Select", label: "Select" },
+  { value: "Not Known", label: "Not Known" },
   { value: "O+", label: "O+" },
   { value: "O-", label: "O-" },
   { value: "A+", label: "A+" },

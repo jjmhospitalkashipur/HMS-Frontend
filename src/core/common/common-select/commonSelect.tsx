@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useId } from "react";
-import Select from "react-select";
+import Select, { InputActionMeta } from "react-select";
 
 export type Option = {
   value: string;
@@ -16,9 +16,27 @@ export interface SelectProps {
   instanceId?: string;
   disabled?: boolean;
   placeholder?: string;
+  /** For async search: called when user types in the select input */
+  onInputChange?: (newValue: string, actionMeta: InputActionMeta) => void;
+  /** For async search: called when dropdown menu opens */
+  onMenuOpen?: () => void;
+  /** Show loading indicator while options are being fetched */
+  isLoading?: boolean;
 }
 
-const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, value, onChange, className, instanceId, disabled, placeholder }) => {
+const CommonSelect: React.FC<SelectProps> = ({
+  options,
+  defaultValue,
+  value,
+  onChange,
+  className,
+  instanceId,
+  disabled,
+  placeholder,
+  onInputChange,
+  onMenuOpen,
+  isLoading = false,
+}) => {
   const [selectedOption, setSelectedOption] = useState<Option | undefined>(value || defaultValue);
   const reactId = useId();
   const stableInstanceId = instanceId || `common-select-${reactId}`;
@@ -66,6 +84,10 @@ const CommonSelect: React.FC<SelectProps> = ({ options, defaultValue, value, onC
       placeholder={placeholder ?? "Select"}
       isDisabled={disabled}
       key={stableInstanceId}
+      onInputChange={onInputChange}
+      onMenuOpen={onMenuOpen}
+      isLoading={isLoading}
+      isSearchable={true}
     />
   );
 };

@@ -17,13 +17,6 @@ import {
   Appointment_Type,
 } from "@/core/common/selectOption";
 
-const STATUS_OPTIONS: Option[] = [
-  { value: "Scheduled", label: "Scheduled" },
-  { value: "In Progress", label: "In Progress" },
-  { value: "Completed", label: "Completed" },
-  { value: "Cancelled", label: "Cancelled" },
-];
-
 interface IVisitTypeCharge {
   type: string;
   charge: number;
@@ -32,6 +25,7 @@ interface IVisitTypeCharge {
 interface IDoctor {
   _id: string;
   name: string;
+  department?: string;
   sessions?: string[];
   visitTypes?: IVisitTypeCharge[];
 }
@@ -56,7 +50,6 @@ const EditAppointmentComponent = () => {
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type[0]);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
   const [reason, setReason] = useState<string>("");
-  const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -91,7 +84,7 @@ const EditAppointmentComponent = () => {
       if (res.data?.code === 200 && res.data?.data?.doctors) {
         const list: IDoctor[] = res.data.data.doctors;
         setDoctors(list);
-        setDoctorOptions(list.map((d) => ({ value: d._id, label: d.name })));
+        setDoctorOptions(list.map((d) => ({ value: d._id, label: d.department ? `${d.name} (${d.department})` : d.name })));
       }
     } catch (e) {
       console.error("Error fetching doctors:", e);
@@ -111,7 +104,6 @@ const EditAppointmentComponent = () => {
         setVisitType(Visit_Type.find((vt) => vt.value === v.visitType) || Visit_Type[0]);
         setAppointmentType(v.appointmentType || "OPD");
         setReason(v.reason || "");
-        setStatus(STATUS_OPTIONS.find((s) => s.value === v.status) || STATUS_OPTIONS[0]);
         const priceNum = v.price != null ? Number(v.price) : 0;
         const discountNum = v.discount != null ? Number(v.discount) : 0;
         const amountPaid = (v as { amountPaid?: number }).amountPaid != null
@@ -133,7 +125,7 @@ const EditAppointmentComponent = () => {
         const docRes = await axios.get(`${API_BASE_URL}/hospital/doctors/${v.doctorId}`);
         if (docRes.data?.code === 200 && docRes.data?.data?.doctor) {
           const d = docRes.data.data.doctor;
-          docOpt.label = d.name || "Unknown";
+          docOpt.label = d.department ? `${d.name || "Unknown"} (${d.department})` : (d.name || "Unknown");
           setSelectedDoctor(docOpt);
           const sessions = d.sessions;
           if (sessions?.length) {
@@ -310,7 +302,6 @@ const EditAppointmentComponent = () => {
         sessionSlot: sessionSlot?.value,
         visitType: visitType?.value !== "Select" ? visitType?.value : undefined,
         appointmentType: appointmentType === "Day care" ? "Day Care" : appointmentType,
-        status: status?.value,
         reason: reason || undefined,
       };
       const remainingAmount = Math.max(0, amountReceived - amountPaidFromApi);
@@ -548,7 +539,13 @@ const EditAppointmentComponent = () => {
                                 id={`edit-apt-${type.value}`}
                                 value={type.value}
                                 checked={appointmentType === type.value}
-                                onChange={(e) => setAppointmentType(e.target.value)}
+                                onChange={(e) => {
+                                  const newType = e.target.value;
+                                  setAppointmentType(newType);
+                                  if (newType !== "Day care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
+                                    setPaymentMode("Cash");
+                                  }
+                                }}
                               />
                               <label className="form-check-label" htmlFor={`edit-apt-${type.value}`}>{type.label}</label>
                             </div>
@@ -556,7 +553,7 @@ const EditAppointmentComponent = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md-8">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Visit Type</label>
                         <div className="d-flex gap-3 flex-wrap">
@@ -580,12 +577,6 @@ const EditAppointmentComponent = () => {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    </div>
-                    <div className="col-md-4">
-                      <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">Status</label>
-                        <CommonSelect options={STATUS_OPTIONS} className="select" value={status} onChange={setStatus} />
                       </div>
                     </div>
                   </div>
@@ -636,6 +627,34 @@ const EditAppointmentComponent = () => {
                             />
                             <label className="form-check-label" htmlFor="edit-card">Card</label>
                           </div>
+                          {appointmentType === "Day care" && (
+                            <>
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="editPaymentMode"
+                                  id="edit-govt-backed"
+                                  value="Govt backed"
+                                  checked={paymentMode === "Govt backed"}
+                                  onChange={(e) => setPaymentMode(e.target.value)}
+                                />
+                                <label className="form-check-label" htmlFor="edit-govt-backed">Govt backed</label>
+                              </div>
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="editPaymentMode"
+                                  id="edit-insurance"
+                                  value="Insurance"
+                                  checked={paymentMode === "Insurance"}
+                                  onChange={(e) => setPaymentMode(e.target.value)}
+                                />
+                                <label className="form-check-label" htmlFor="edit-insurance">Insurance</label>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="mb-2 d-flex align-items-center">

@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { all_routes } from "../../../../routes/all_routes";
 import {
   Title,
@@ -29,6 +29,7 @@ interface IVisitTypeCharge {
 interface IDoctor {
   _id: string;
   name: string;
+  department?: string;
   sessions?: string[];
   visitTypes?: IVisitTypeCharge[];
 }
@@ -75,6 +76,8 @@ const NewAppointmentComponent = () => {
   // Appointment form state
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [doctorOptions, setDoctorOptions] = useState<Option[]>([]);
+  const [doctorSearchLoading, setDoctorSearchLoading] = useState<boolean>(false);
+  const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type.find(v => v.value === "New") || Visit_Type[0] || null);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
@@ -95,37 +98,55 @@ const NewAppointmentComponent = () => {
   const finalAmount = total - discount;
   const balance = finalAmount - amountReceived;
 
-  const fetchDoctors = async () => {
+  const fetchDoctorsWithSearch = useCallback(async (search: string) => {
+    if (!API_BASE_URL) return;
+    setDoctorSearchLoading(true);
     try {
-      if (!API_BASE_URL) {
-        console.error("API_BASE_URL is undefined. Check .env.local file.");
-        return;
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
-        params: { limit: 100 }
-      });
+      const params: Record<string, string | number> = { limit: 20 };
+      if (search.trim()) params.search = search.trim();
+      const response = await axios.get(`${API_BASE_URL}/hospital/doctors`, { params });
 
       if (response.data?.code === 200 && response.data?.data?.doctors) {
-        const doctorsList = response.data.data.doctors;
-        setDoctors(doctorsList);
-        
-        // Convert to options format
-        const options = doctorsList.map((doctor: IDoctor) => ({
-          value: doctor._id,
-          label: doctor.name,
-        }));
-        setDoctorOptions(options);
+        const doctorsList: IDoctor[] = response.data.data.doctors;
+        setDoctorOptions(
+          doctorsList.map((doctor: IDoctor) => ({
+            value: doctor._id,
+            label: doctor.department ? `${doctor.name} (${doctor.department})` : doctor.name,
+          }))
+        );
+        setDoctors((prev) => {
+          const selectedId = selectedDoctor?.value;
+          if (selectedId && !doctorsList.some((d) => d._id === selectedId)) {
+            const existing = prev.find((d) => d._id === selectedId);
+            if (existing) return [existing, ...doctorsList];
+          }
+          return doctorsList;
+        });
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
+    } finally {
+      setDoctorSearchLoading(false);
     }
-  };
+  }, [selectedDoctor?.value]);
 
-  // Fetch doctors on component mount
+  // Fetch doctors once on mount (initial list)
   useEffect(() => {
-    fetchDoctors();
+    fetchDoctorsWithSearch("");
   }, []);
+
+  const handleDoctorInputChange = useCallback(
+    (value: string) => {
+      if (doctorSearchDebounceRef.current) {
+        clearTimeout(doctorSearchDebounceRef.current);
+        doctorSearchDebounceRef.current = null;
+      }
+      doctorSearchDebounceRef.current = setTimeout(() => {
+        fetchDoctorsWithSearch(value);
+      }, 300);
+    },
+    [fetchDoctorsWithSearch]
+  );
 
   // Session options from selected doctor only; empty until doctor is selected
   const sessionOptions = useMemo(() => {
@@ -140,6 +161,20 @@ const NewAppointmentComponent = () => {
     setSelectedDoctor(option);
     setSessionSlot(null);
     setTotal(0);
+  }, []);
+
+  const handleTitleChange = useCallback((option: Option | null) => {
+    setTitle(option);
+    if (!option?.value) return;
+    if (option.value === "Mr.") {
+      const male = Gender.find((g) => g.value === "Male");
+      if (male) setGender(male);
+    } else if (option.value === "Mrs." || option.value === "Ms.") {
+      const female = Gender.find((g) => g.value === "Female");
+      if (female) setGender(female);
+    } else if (option.value === "Dr." || option.value === "Prof.") {
+      setGender(Gender.find((g) => g.value === "Select") ?? Gender[0]);
+    }
   }, []);
 
   // Set total from doctor's visit type charge; use appointmentType when "Day care" so charge matches
@@ -738,7 +773,7 @@ const NewAppointmentComponent = () => {
                             options={Title}
                             className="select"
                             value={title}
-                            onChange={setTitle}
+                            onChange={handleTitleChange}
                           />
                         </div>
                       </div>
@@ -924,6 +959,9 @@ const NewAppointmentComponent = () => {
                               className="select"
                               value={selectedDoctor}
                               onChange={handleDoctorChange}
+                              onInputChange={handleDoctorInputChange}
+                              isLoading={doctorSearchLoading}
+                              placeholder="Select or Search Doctor"
                             />
                           </div>
                         </div>
@@ -933,7 +971,7 @@ const NewAppointmentComponent = () => {
                               Date of Appointment
                               <span className="text-danger ms-1">*</span>
                             </label>
-                            <div className="input-icon-end position-relative">
+                            <div className="input-icon-end position-relative date-of-appointment-picker">
                               <DatePicker
                                 className="form-control datetimepicker"
                                 format={{
@@ -1004,7 +1042,13 @@ const NewAppointmentComponent = () => {
                                     id={type.value}
                                     value={type.value}
                                     checked={appointmentType === type.value}
-                                    onChange={(e) => setAppointmentType(e.target.value)}
+                                    onChange={(e) => {
+                                      const newType = e.target.value;
+                                      setAppointmentType(newType);
+                                      if (newType !== "Day care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
+                                        setPaymentMode("Cash");
+                                      }
+                                    }}
                                   />
                                   <label className="form-check-label" htmlFor={type.value}>
                                     {type.label}
@@ -1120,6 +1164,38 @@ const NewAppointmentComponent = () => {
                               Card
                             </label>
                           </div>
+                          {appointmentType === "Day care" && (
+                            <>
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="paymentMode"
+                                  id="govt-backed"
+                                  value="Govt backed"
+                                  checked={paymentMode === "Govt backed"}
+                                  onChange={(e) => setPaymentMode(e.target.value)}
+                                />
+                                <label className="form-check-label" htmlFor="govt-backed">
+                                  Govt backed
+                                </label>
+                              </div>
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="paymentMode"
+                                  id="insurance"
+                                  value="Insurance"
+                                  checked={paymentMode === "Insurance"}
+                                  onChange={(e) => setPaymentMode(e.target.value)}
+                                />
+                                <label className="form-check-label" htmlFor="insurance">
+                                  Insurance
+                                </label>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="mb-2 d-flex align-items-center">

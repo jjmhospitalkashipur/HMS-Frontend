@@ -490,7 +490,7 @@ const AppointmentDetailsComponent = () => {
             gender: patient?.gender,
             phone: patient?.phone,
             doctorName: doctor?.name,
-            doctorDesignation: doctor?.designation,
+            doctorDepartment: doctor?.department,
             transactions: (visit.transactions || []).map((t) => ({
               _id: t._id,
               transactionId: t.transactionId,

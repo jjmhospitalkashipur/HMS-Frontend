@@ -30,7 +30,7 @@ export interface IReceiptData {
   gender?: string;
   phone?: string;
   doctorName?: string;
-  doctorDesignation?: string;
+  doctorDepartment?: string;
   transactions?: IReceiptTransaction[];
   totalAmount?: number;
   discount?: number;
@@ -139,7 +139,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
     ? `${receiptData.age ?? "—"} Yrs / ${receiptData.gender ?? "—"}`
     : "—";
   const doctorDisplay = receiptData.doctorName
-    ? `Dr. ${receiptData.doctorName.replace(/^Dr\.\s*/i, "")}${receiptData.doctorDesignation ? ` (${receiptData.doctorDesignation})` : ""}`
+    ? `Dr. ${receiptData.doctorName.replace(/^Dr\.\s*/i, "")}${receiptData.doctorDepartment ? ` (${receiptData.doctorDepartment})` : ""}`
     : "—";
   const dateTime = receiptData.visitDate && receiptData.visitTime
     ? `${dayjs(receiptData.visitDate).format("DD MMM YYYY")} - ${formatTime(receiptData.visitTime)}`
@@ -166,8 +166,8 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
           </div>
           <div className="header-right">
             <div className="address">
-              Ramnagar Road, Kashipur, Uttarakhand, India<br />
-              - 244713
+              Jaspur Rd, opposite Anaj Mandi, Sarverkhera,<br />
+              Kashipur, Uttarakhand 244713
             </div>
             <div className="contact">
               Phone: +91 5947-274390<br />
