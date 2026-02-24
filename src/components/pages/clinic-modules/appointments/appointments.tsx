@@ -251,52 +251,67 @@ const AppointmentsComponent = () => {
           setTotalCount(typeof total === "number" ? total : visits.length);
         }
 
-        // Fetch patient and doctor details for each visit
+        // Build row data using embedded patient & doctor info
         const transformedData = await Promise.all(
           visits.map(async (visit) => {
-            let patient: IPatient | null = null;
-            let doctor: IDoctor | null = null;
+            const embeddedPatient = (visit as any).patient as
+              | {
+                  _id?: string;
+                  name?: string;
+                  phone?: string;
+                  organisationName?: string;
+                  organisation_name?: string;
+                  age?: number;
+                  gender?: string;
+                  dob?: string;
+                  mrd?: string;
+                }
+              | undefined;
 
-            try {
-              // Fetch patient details
-              const patientResponse = await axios.get(`${API_BASE_URL}/hospital/patients/${visit.patientId}`);
-              if (patientResponse.data?.code === 200 && patientResponse.data?.data?.patient) {
-                const p = patientResponse.data.data.patient;
-                patient = {
-                  _id: p._id,
-                  name: p.name,
-                  phone: p.phone || "",
-                  organisationName: p.organisationName || p.organisation_name || "",
-                  age: p.age,
-                  gender: p.gender,
-                  dob: p.dob,
-                  mrd: p.mrd,
-                };
-              }
-            } catch (err) {
-              console.error(`Error fetching patient ${visit.patientId}:`, err);
-            }
+            const patient: IPatient | null = embeddedPatient
+              ? {
+                  _id: embeddedPatient._id || visit.patientId,
+                  name: embeddedPatient.name || "",
+                  phone: embeddedPatient.phone || "",
+                  organisationName:
+                    embeddedPatient.organisationName ||
+                    embeddedPatient.organisation_name ||
+                    "",
+                  age: embeddedPatient.age,
+                  gender: embeddedPatient.gender,
+                  dob: embeddedPatient.dob,
+                  mrd: embeddedPatient.mrd,
+                }
+              : null;
 
-            try {
-              // Fetch doctor details
-              const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${visit.doctorId}`);
-              if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
-                doctor = {
-                  _id: doctorResponse.data.data.doctor._id,
-                  name: doctorResponse.data.data.doctor.name,
-                  designation: doctorResponse.data.data.doctor.designation,
-                };
-              }
-            } catch (err) {
-              console.error(`Error fetching doctor ${visit.doctorId}:`, err);
-            }
+            const embeddedDoctor = (visit as any).doctor as
+              | {
+                  _id?: string;
+                  name?: string;
+                  department?: string;
+                  designation?: string;
+                }
+              | undefined;
 
-            // Format date and time
+            const doctor: IDoctor | null = embeddedDoctor
+              ? {
+                  _id: embeddedDoctor._id || visit.doctorId,
+                  name: embeddedDoctor.name || "",
+                  designation: embeddedDoctor.designation,
+                }
+              : null;
+
             const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
             const visitTime = visit.visitTime || "";
             const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
 
-            const ageDisplay = patient?.age != null ? String(patient.age) : patient?.dob ? String(dayjs().diff(dayjs(patient.dob), "year")) : undefined;
+            const ageDisplay =
+              patient?.age != null
+                ? String(patient.age)
+                : patient?.dob
+                ? String(dayjs().diff(dayjs(patient.dob), "year"))
+                : undefined;
+
             return {
               id: visit._id,
               Case_ID: visit.visitId || visit._id,

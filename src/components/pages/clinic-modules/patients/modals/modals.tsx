@@ -276,10 +276,10 @@ const Modals = () => {
         name: name,
         phone: phone,
         email: email || undefined,
-        dob: formatDob(),
+        dob: formatDob() || undefined,
         age: calculateAge(),
         gender: gender?.value || "",
-        bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
+        bloodGroup: bloodGroup?.value && bloodGroup.value !== "Select" ? bloodGroup.value : undefined,
         address: address,
         aadharNo: aadharNumber || undefined,
         emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
@@ -357,7 +357,20 @@ const Modals = () => {
                       options={Title}
                       className="select"
                       value={title}
-                      onChange={setTitle}
+                      onChange={(option) => {
+                        setTitle(option);
+                        if (!option?.value) return;
+                        if (option.value === "Mr.") {
+                          const male = Gender.find((g) => g.value === "Male");
+                          if (male) setGender(male);
+                        } else if (option.value === "Mrs." || option.value === "Ms.") {
+                          const female = Gender.find((g) => g.value === "Female");
+                          if (female) setGender(female);
+                        } else if (option.value === "Dr." || option.value === "Prof.") {
+                          const select = Gender.find((g) => g.value === "Select");
+                          if (select) setGender(select);
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -406,7 +419,7 @@ const Modals = () => {
                 <div className="col-md-2">
                   <div className="mb-3">
                     <label className="form-label mb-1 fw-medium">
-                      DOB<span className="text-danger ms-1">*</span>
+                      DOB
                     </label>
                     <div className="input-icon-end position-relative">
                       <DatePicker

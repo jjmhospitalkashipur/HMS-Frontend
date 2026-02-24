@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { all_routes } from "../../../../routes/all_routes";
 import {
   Blood_Group,
@@ -108,6 +108,21 @@ const CreatePatientComponent = () => {
     return 0;
   };
 
+  const handleTitleChange = useCallback((option: Option | null) => {
+    setTitle(option);
+    if (!option?.value) return;
+    if (option.value === "Mr.") {
+      const male = Gender.find((g) => g.value === "Male");
+      if (male) setGender(male);
+    } else if (option.value === "Mrs." || option.value === "Ms.") {
+      const female = Gender.find((g) => g.value === "Female");
+      if (female) setGender(female);
+    } else if (option.value === "Dr." || option.value === "Prof.") {
+      const select = Gender.find((g) => g.value === "Select");
+      if (select) setGender(select);
+    }
+  }, []);
+
   const formatDob = (): string => {
     if (!dob) return "";
     // antd DatePicker returns dayjs object
@@ -144,10 +159,10 @@ const CreatePatientComponent = () => {
         name: name,
         phone: phone,
         email: email || undefined,
-        dob: formatDob(),
+        dob: formatDob() || undefined,
         age: calculateAge(),
         gender: gender?.value || "",
-        bloodGroup: bloodGroup?.value || undefined,
+        bloodGroup: bloodGroup?.value && bloodGroup.value !== "Select" ? bloodGroup.value : undefined,
         address: address,
         aadharNo: aadharNumber || undefined,
         aadharS3Url: aadharS3Url || undefined,
@@ -265,7 +280,7 @@ const CreatePatientComponent = () => {
                             options={Title}
                             className="select"
                             value={title || undefined}
-                            onChange={(option) => setTitle(option)}
+                            onChange={handleTitleChange}
                           />
                         </div>
                       </div>
@@ -313,7 +328,7 @@ const CreatePatientComponent = () => {
                       <div className="col-md-2">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            DOB<span className="text-danger ms-1">*</span>
+                            DOB
                           </label>
                           <div className="input-icon-end position-relative">
                             <DatePicker

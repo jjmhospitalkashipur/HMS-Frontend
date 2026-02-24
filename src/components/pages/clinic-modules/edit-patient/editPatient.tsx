@@ -144,7 +144,7 @@ const EditPatient = () => {
                       <div className="col-md-6">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            DOB<span className="text-danger ms-1">*</span>
+                            DOB
                           </label>
                           <div className="input-icon-end position-relative">
                             <DatePicker

@@ -42,11 +42,13 @@ interface ISlot {
 
 interface IDaySchedule {
   dayOfWeek: string;
+  mr?: boolean;
   slots: ISlot[];
 }
 
 interface IScheduleData {
   weeklySchedule: IDaySchedule[];
+  mrMaxVisitsPerDay?: number;
 }
 
 interface IDoctorInfo {
@@ -316,6 +318,7 @@ const Modals = () => {
   const [scheduleLoading, setScheduleLoading] = useState<boolean>(false);
   const [scheduleMessage, setScheduleMessage] = useState<{ type: 'success' | 'error' | null; text: string }>({ type: null, text: '' });
   const [activeScheduleTab, setActiveScheduleTab] = useState<string>("Monday");
+  const [mrMaxVisitsPerDay, setMrMaxVisitsPerDay] = useState<string>("");
   
   // Schedule form state for each day
   const [mondaySlots, setMondaySlots] = useState<ISlot[]>([]);
@@ -325,6 +328,13 @@ const Modals = () => {
   const [fridaySlots, setFridaySlots] = useState<ISlot[]>([]);
   const [saturdaySlots, setSaturdaySlots] = useState<ISlot[]>([]);
   const [sundaySlots, setSundaySlots] = useState<ISlot[]>([]);
+  const [mondayMr, setMondayMr] = useState<boolean>(false);
+  const [tuesdayMr, setTuesdayMr] = useState<boolean>(false);
+  const [wednesdayMr, setWednesdayMr] = useState<boolean>(false);
+  const [thursdayMr, setThursdayMr] = useState<boolean>(false);
+  const [fridayMr, setFridayMr] = useState<boolean>(false);
+  const [saturdayMr, setSaturdayMr] = useState<boolean>(false);
+  const [sundayMr, setSundayMr] = useState<boolean>(false);
 
   const fetchDoctorInfoForSchedule = useCallback(async (id: string) => {
     try {
@@ -357,6 +367,19 @@ const Modals = () => {
         setFridaySlots([]);
         setSaturdaySlots([]);
         setSundaySlots([]);
+        setMondayMr(false);
+        setTuesdayMr(false);
+        setWednesdayMr(false);
+        setThursdayMr(false);
+        setFridayMr(false);
+        setSaturdayMr(false);
+        setSundayMr(false);
+
+        if (typeof doctor.mrMaxVisitsPerDay === "number") {
+          setMrMaxVisitsPerDay(String(doctor.mrMaxVisitsPerDay));
+        } else {
+          setMrMaxVisitsPerDay("");
+        }
 
         if (doctor.weeklySchedule && Array.isArray(doctor.weeklySchedule)) {
           // Map schedules by dayOfWeek from API response
@@ -373,27 +396,35 @@ const Modals = () => {
             }));
 
             // Set slots only for the specific day from dayOfWeek
+            const mrFlag = (daySchedule as any).mr === true;
             switch (dayOfWeek) {
               case "Monday":
                 setMondaySlots(slots);
+                setMondayMr(mrFlag);
                 break;
               case "Tuesday":
                 setTuesdaySlots(slots);
+                setTuesdayMr(mrFlag);
                 break;
               case "Wednesday":
                 setWednesdaySlots(slots);
+                setWednesdayMr(mrFlag);
                 break;
               case "Thursday":
                 setThursdaySlots(slots);
+                setThursdayMr(mrFlag);
                 break;
               case "Friday":
                 setFridaySlots(slots);
+                setFridayMr(mrFlag);
                 break;
               case "Saturday":
                 setSaturdaySlots(slots);
+                setSaturdayMr(mrFlag);
                 break;
               case "Sunday":
                 setSundaySlots(slots);
+                setSundayMr(mrFlag);
                 break;
             }
           });
@@ -504,7 +535,7 @@ const Modals = () => {
   const [visitTypes, setVisitTypes] = useState([
     { type: "OPD", charge: "" },
     { type: "Emergency", charge: "" },
-    { type: "Day care", charge: "" },
+    { type: "Day Care", charge: "" },
     { type: "Follow-up", charge: "" },
     { type: "MR", charge: "" },
   ]);
@@ -529,7 +560,7 @@ const Modals = () => {
     setVisitTypes([
       { type: "OPD", charge: "" },
       { type: "Emergency", charge: "" },
-      { type: "Day care", charge: "" },
+      { type: "Day Care", charge: "" },
       { type: "Follow-up", charge: "" },
       { type: "MR", charge: "" },
     ]);
@@ -573,18 +604,25 @@ const Modals = () => {
           setSessions(mappedSessions);
         }
 
-        // Map visit types
+        // Map visit types (API may send visitType, appointmentType, charge or legacy type, charge)
         if (doctor.visitTypes && Array.isArray(doctor.visitTypes)) {
           const defaultVisitTypes = [
             { type: "OPD", charge: "" },
             { type: "Emergency", charge: "" },
-            { type: "Day care", charge: "" },
+            { type: "Day Care", charge: "" },
             { type: "Follow-up", charge: "" },
             { type: "MR", charge: "" },
           ];
           const mappedVisitTypes = defaultVisitTypes.map(vt => {
-            const found = doctor.visitTypes.find((v: any) => v.type === vt.type);
-            return found ? { type: vt.type, charge: found.charge?.toString() || "" } : vt;
+            const found = doctor.visitTypes.find((v: any) => {
+              if (v.visitType != null && v.appointmentType != null) {
+                if (vt.type === "OPD") return v.visitType === "New" && v.appointmentType === "OPD";
+                if (vt.type === "Day Care") return v.visitType === "New" && v.appointmentType === "Day Care";
+                return v.visitType === vt.type && v.appointmentType === "OPD";
+              }
+              return v.type === vt.type;
+            });
+            return found ? { type: vt.type, charge: found.charge?.toString() ?? "" } : vt;
           });
           setVisitTypes(mappedVisitTypes);
         }
@@ -680,16 +718,16 @@ const Modals = () => {
       const weeklySchedule: IDaySchedule[] = [];
       
       const daySlots = [
-        { day: "Monday", slots: mondaySlots },
-        { day: "Tuesday", slots: tuesdaySlots },
-        { day: "Wednesday", slots: wednesdaySlots },
-        { day: "Thursday", slots: thursdaySlots },
-        { day: "Friday", slots: fridaySlots },
-        { day: "Saturday", slots: saturdaySlots },
-        { day: "Sunday", slots: sundaySlots },
+        { day: "Monday", slots: mondaySlots, mr: mondayMr },
+        { day: "Tuesday", slots: tuesdaySlots, mr: tuesdayMr },
+        { day: "Wednesday", slots: wednesdaySlots, mr: wednesdayMr },
+        { day: "Thursday", slots: thursdaySlots, mr: thursdayMr },
+        { day: "Friday", slots: fridaySlots, mr: fridayMr },
+        { day: "Saturday", slots: saturdaySlots, mr: saturdayMr },
+        { day: "Sunday", slots: sundaySlots, mr: sundayMr },
       ];
 
-      daySlots.forEach(({ day, slots }) => {
+      daySlots.forEach(({ day, slots, mr }) => {
         // Filter out empty slots
         const validSlots = slots.filter(slot => 
           slot.session && slot.startTime && slot.endTime
@@ -698,6 +736,7 @@ const Modals = () => {
         if (validSlots.length > 0) {
           weeklySchedule.push({
             dayOfWeek: day,
+            mr: !!mr,
             slots: validSlots,
           });
         }
@@ -705,6 +744,7 @@ const Modals = () => {
 
       const schedulePayload: IScheduleData = {
         weeklySchedule,
+        mrMaxVisitsPerDay: mrMaxVisitsPerDay ? Number(mrMaxVisitsPerDay) : undefined,
       };
 
       console.log("Saving schedule:", schedulePayload);
@@ -780,13 +820,16 @@ const Modals = () => {
 
       setLoading(true);
 
-      // Map visit types - filter out empty charges and convert to numbers
+      // Map visit types to API shape: visitType, appointmentType, charge
+      // OPD and Day care → visitType "New"; others (Emergency, Follow-up, MR) → appointmentType "OPD"
       const visitTypesData = visitTypes
         .filter(vt => vt.charge && vt.charge.trim() !== "")
-        .map(vt => ({
-          type: vt.type,
-          charge: parseFloat(vt.charge) || 0,
-        }));
+        .map(vt => {
+          const charge = parseFloat(vt.charge) || 0;
+          if (vt.type === "OPD") return { visitType: "New", appointmentType: "OPD", charge };
+          if (vt.type === "Day Care") return { visitType: "New", appointmentType: "Day Care", charge };
+          return { visitType: vt.type, appointmentType: "OPD", charge };
+        });
 
       const sessionsData = sessions
         .filter(s => s.value && s.value !== "Select")
@@ -1856,12 +1899,17 @@ const Modals = () => {
         <div className="modal-dialog modal-dialog-centered modal-lg">
           <div className="modal-content">
             <div className="modal-header d-block pb-0 px-0">
-              <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
-                <h5 className="modal-title fs-18 fw-bold" id="schedule_detailsLabel">Schedule Details</h5>
-                <button type="button" className="btn-close custom-btn-close opacity-100" data-bs-dismiss="modal" aria-label="Close">
-                  <i className="ti ti-x fs-16 text-dark" />
-                </button>
-              </div>
+                <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
+                  <h5 className="modal-title fs-18 fw-bold" id="schedule_detailsLabel">Schedule Details</h5>
+                  <button
+                    type="button"
+                    className="btn-close custom-btn-close opacity-100"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                  >
+                    <i className="ti ti-x fs-16 text-dark" />
+                  </button>
+                </div>
             </div>
             <div className="modal-body p-0">
               <form>
@@ -1875,6 +1923,19 @@ const Modals = () => {
                           {doctorInfo?.department && <span className="badge bg-primary">{doctorInfo.department}</span>}
                         </div>
                         <p className="mb-0 fs-13 text-muted">{doctorInfo?.designation || ""}</p>
+                      </div>
+                      <div className="ms-3">
+                        <label className="form-label mb-1 fw-medium">
+                          MR Max Visits / Day
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          className="form-control"
+                          value={mrMaxVisitsPerDay}
+                          onChange={(e) => setMrMaxVisitsPerDay(e.target.value)}
+                          placeholder="e.g. 10"
+                        />
                       </div>
                     </div>
                   </div>
@@ -2001,6 +2062,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Monday" && (
                             <div className="add-schedule-list" key={`monday-list-${mondaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-monday"
+                                    checked={mondayMr}
+                                    onChange={(e) => setMondayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-monday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`monday-form-${mondaySlots.length}-${activeScheduleTab}`}
                                 slots={mondaySlots} 
@@ -2018,6 +2093,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Tuesday" && (
                             <div className="add-schedule-list" key={`tuesday-list-${tuesdaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-tuesday"
+                                    checked={tuesdayMr}
+                                    onChange={(e) => setTuesdayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-tuesday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`tuesday-form-${tuesdaySlots.length}-${activeScheduleTab}`}
                                 slots={tuesdaySlots} 
@@ -2035,6 +2124,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Wednesday" && (
                             <div className="add-schedule-list" key={`wednesday-list-${wednesdaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-wednesday"
+                                    checked={wednesdayMr}
+                                    onChange={(e) => setWednesdayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-wednesday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`wednesday-form-${wednesdaySlots.length}-${activeScheduleTab}`}
                                 slots={wednesdaySlots} 
@@ -2052,6 +2155,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Thursday" && (
                             <div className="add-schedule-list" key={`thursday-list-${thursdaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-thursday"
+                                    checked={thursdayMr}
+                                    onChange={(e) => setThursdayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-thursday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`thursday-form-${thursdaySlots.length}-${activeScheduleTab}`}
                                 slots={thursdaySlots} 
@@ -2069,6 +2186,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Friday" && (
                             <div className="add-schedule-list" key={`friday-list-${fridaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-friday"
+                                    checked={fridayMr}
+                                    onChange={(e) => setFridayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-friday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`friday-form-${fridaySlots.length}-${activeScheduleTab}`}
                                 slots={fridaySlots} 
@@ -2086,6 +2217,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Saturday" && (
                             <div className="add-schedule-list" key={`saturday-list-${saturdaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-saturday"
+                                    checked={saturdayMr}
+                                    onChange={(e) => setSaturdayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-saturday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`saturday-form-${saturdaySlots.length}-${activeScheduleTab}`}
                                 slots={saturdaySlots} 
@@ -2103,6 +2248,20 @@ const Modals = () => {
                         >
                           {activeScheduleTab === "Sunday" && (
                             <div className="add-schedule-list" key={`sunday-list-${sundaySlots.length}-${activeScheduleTab}`}>
+                              <div className="d-flex justify-content-end mb-2">
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="mr-sunday"
+                                    checked={sundayMr}
+                                    onChange={(e) => setSundayMr(e.target.checked)}
+                                  />
+                                  <label className="form-check-label ms-1" htmlFor="mr-sunday">
+                                    MR
+                                  </label>
+                                </div>
+                              </div>
                               <ScheduleForm 
                                 key={`sunday-form-${sundaySlots.length}-${activeScheduleTab}`}
                                 slots={sundaySlots} 

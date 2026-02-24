@@ -22,8 +22,11 @@ import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 
 interface IVisitTypeCharge {
-  type: string;
+  visitType?: string;
+  appointmentType?: string;
   charge: number;
+  /** @deprecated use visitType + appointmentType */
+  type?: string;
 }
 
 interface IDoctor {
@@ -66,8 +69,8 @@ const NewAppointmentComponent = () => {
   const [ageDays, setAgeDays] = useState<string>("");
   const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
   const [address, setAddress] = useState<string>("");
-  const [emergencyContactName, setEmergencyContactName] = useState<string>("");
-  const [emergencyPhone, setEmergencyPhone] = useState<string>("");
+  const [aadharNo, setAadharNo] = useState<string>("");
+  const [ayushmanNo, setAyushmanNo] = useState<string>("");
   const [selectedPatient, setSelectedPatient] = useState<IPatient | null>(null);
   const [patientSearchResults, setPatientSearchResults] = useState<IPatient[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState<boolean>(false);
@@ -177,7 +180,7 @@ const NewAppointmentComponent = () => {
     }
   }, []);
 
-  // Set total from doctor's visit type charge; use appointmentType when "Day care" so charge matches
+  // Set total from doctor's visitTypes (new shape: visitType, appointmentType, charge)
   const updateTotalFromDoctorCharge = useCallback(() => {
     if (!selectedDoctor?.value) {
       setTotal(0);
@@ -189,18 +192,25 @@ const NewAppointmentComponent = () => {
       setTotal(0);
       return;
     }
-    // When Day care is selected, look up charge by "Day care"; otherwise by visit type (New → OPD fallback)
-    const chargeKey =
-      appointmentType === "Day care"
-        ? "Day care"
-        : (visitType?.value && visitType.value !== "Select" ? visitType.value : null);
-    if (!chargeKey) {
-      setTotal(0);
-      return;
-    }
-    let match = visitTypes.find((vt) => vt.type === chargeKey);
-    if (!match && chargeKey === "New") {
-      match = visitTypes.find((vt) => vt.type === "OPD");
+    const selectedVisit = visitType?.value && visitType.value !== "Select" ? visitType.value : null;
+    const aptTypeNorm = (v: string) => (v || "").toLowerCase().replace(/\s/g, "");
+
+    let match = visitTypes.find((vt: IVisitTypeCharge) => {
+      if (vt.visitType != null && vt.appointmentType != null) {
+        if (appointmentType === "Day care") {
+          return vt.visitType === "New" && (vt.appointmentType === "Day care" || vt.appointmentType === "Day Care");
+        }
+        return (vt.appointmentType === "OPD" || aptTypeNorm(vt.appointmentType) === "opd") && vt.visitType === selectedVisit;
+      }
+      if (vt.type != null) {
+        if (appointmentType === "Day care") return vt.type === "Day care";
+        return vt.type === (selectedVisit || "New") || (selectedVisit === "New" && vt.type === "OPD");
+      }
+      return false;
+    });
+
+    if (!match && selectedVisit === "New" && appointmentType !== "Day care") {
+      match = visitTypes.find((vt: IVisitTypeCharge) => vt.appointmentType === "OPD" && vt.visitType === "New");
     }
     setTotal(match?.charge ?? 0);
   }, [selectedDoctor, visitType, appointmentType, doctors]);
@@ -367,12 +377,8 @@ const NewAppointmentComponent = () => {
     }
     
     setAddress(patient.address || "");
-    
-    if (patient.emergencyContacts && patient.emergencyContacts.length > 0) {
-      const contact = patient.emergencyContacts[0];
-      setEmergencyContactName(contact.name || "");
-      setEmergencyPhone(contact.number || "");
-    }
+    setAadharNo((patient as any).aadharNo || "");
+    setAyushmanNo((patient as any).ayushmanCardNo || "");
   };
 
   const getModalContainer = () => {
@@ -525,14 +531,6 @@ const NewAppointmentComponent = () => {
       }
 
       // For new patients, use /hospital/visits/with-patient endpoint
-      const emergencyContacts = [];
-      if (emergencyContactName && emergencyPhone) {
-        emergencyContacts.push({
-          name: emergencyContactName,
-          number: emergencyPhone,
-        });
-      }
-
       const patientPayload: Record<string, unknown> = {
         title: title?.value || "",
         name: name.trim(),
@@ -542,7 +540,8 @@ const NewAppointmentComponent = () => {
         gender: gender?.value !== "Select" ? gender?.value : "",
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
-        emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
+        aadharNo: aadharNo || undefined,
+        ayushmanCardNo: ayushmanNo || undefined,
       };
       const formattedDob = formatDob();
       if (formattedDob) patientPayload.dob = formattedDob;
@@ -911,27 +910,28 @@ const NewAppointmentComponent = () => {
                           <div className="col-md-6">
                             <div className="mb-3">
                               <label className="form-label mb-1 fw-medium">
-                                Emergency Contact Name
+                                Aadhar No
                               </label>
                               <input
                                 type="text"
                                 className="form-control"
-                                placeholder="Enter emergency contact name"
-                                value={emergencyContactName}
-                                onChange={(e) => setEmergencyContactName(e.target.value)}
+                                placeholder="Enter Aadhar number"
+                                value={aadharNo}
+                                onChange={(e) => setAadharNo(e.target.value)}
                               />
                             </div>
                           </div>
                           <div className="col-md-6">
                             <div className="mb-3">
                               <label className="form-label mb-1 fw-medium">
-                                Emergency Contact Phone
+                                Ayushman No
                               </label>
-                              <PhoneInput
-                                defaultCountry="IN"
-                                value={emergencyPhone}
-                                onChange={(value) => setEmergencyPhone(value || "")}
-                                placeholder="Enter emergency contact phone"
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter Ayushman card number"
+                                value={ayushmanNo}
+                                onChange={(e) => setAyushmanNo(e.target.value)}
                               />
                             </div>
                           </div>

@@ -18,8 +18,11 @@ import {
 } from "@/core/common/selectOption";
 
 interface IVisitTypeCharge {
-  type: string;
+  visitType?: string;
+  appointmentType?: string;
   charge: number;
+  /** @deprecated use visitType + appointmentType */
+  type?: string;
 }
 
 interface IDoctor {
@@ -50,6 +53,7 @@ const EditAppointmentComponent = () => {
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type[0]);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
   const [reason, setReason] = useState<string>("");
+  const [visitStatus, setVisitStatus] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -74,8 +78,8 @@ const EditAppointmentComponent = () => {
   const [gender, setGender] = useState<Option | null>(Gender[0] || null);
   const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
   const [address, setAddress] = useState<string>("");
-  const [emergencyContactName, setEmergencyContactName] = useState<string>("");
-  const [emergencyPhone, setEmergencyPhone] = useState<string>("");
+  const [aadharNo, setAadharNo] = useState<string>("");
+  const [ayushmanNo, setAyushmanNo] = useState<string>("");
 
   const fetchDoctors = useCallback(async () => {
     if (!API_BASE_URL) return;
@@ -99,6 +103,7 @@ const EditAppointmentComponent = () => {
       const res = await axios.get(`${API_BASE_URL}/hospital/visits/${id}`);
       if (res.data?.code === 200 && res.data?.data?.visit) {
         const v = res.data.data.visit;
+        setVisitStatus((v as { status?: string }).status || "");
         setVisitDate(v.visitDate ? dayjs(v.visitDate) : null);
         setVisitTime(v.visitTime ? dayjs(v.visitTime, "HH:mm") : null);
         setVisitType(Visit_Type.find((vt) => vt.value === v.visitType) || Visit_Type[0]);
@@ -154,6 +159,8 @@ const EditAppointmentComponent = () => {
             setGender(Gender.find((g) => g.value === p.gender) || Gender[0] || null);
             setBloodGroup(Blood_Group.find((bg) => bg.value === p.bloodGroup) || Blood_Group[0] || null);
             setAddress(p.address || "");
+            setAadharNo((p as any).aadharNo || "");
+            setAyushmanNo((p as any).ayushmanCardNo || "");
             if (p.dob) {
               const birthDate = dayjs(p.dob).toDate();
               const today = new Date();
@@ -174,10 +181,6 @@ const EditAppointmentComponent = () => {
               setAgeDays(days.toString());
             } else if (p.age != null) {
               setAgeYears(String(p.age));
-            }
-            if (p.emergencyContacts?.length) {
-              setEmergencyContactName(p.emergencyContacts[0].name || "");
-              setEmergencyPhone(p.emergencyContacts[0].number || "");
             }
           }
         } catch {
@@ -217,7 +220,7 @@ const EditAppointmentComponent = () => {
     }
   }, [selectedDoctor, doctors]);
 
-  // Recalculate Total from doctor's visit type charge; use appointmentType when "Day care" (same as new appointment)
+  // Recalculate Total from doctor's visitTypes (new shape: visitType, appointmentType, charge)
   const updateTotalFromDoctorCharge = useCallback(() => {
     if (!selectedDoctor?.value) {
       return;
@@ -227,17 +230,25 @@ const EditAppointmentComponent = () => {
     if (!visitTypes?.length) {
       return;
     }
-    // When Day care is selected, look up charge by "Day care"; otherwise by visit type (New → OPD fallback)
-    const chargeKey =
-      appointmentType === "Day care"
-        ? "Day care"
-        : (visitType?.value && visitType.value !== "Select" ? visitType.value : null);
-    if (!chargeKey) {
-      return;
-    }
-    let match = visitTypes.find((vt) => vt.type === chargeKey);
-    if (!match && chargeKey === "New") {
-      match = visitTypes.find((vt) => vt.type === "OPD");
+    const selectedVisit = visitType?.value && visitType.value !== "Select" ? visitType.value : null;
+    const aptTypeNorm = (v: string) => (v || "").toLowerCase().replace(/\s/g, "");
+
+    let match = visitTypes.find((vt: IVisitTypeCharge) => {
+      if (vt.visitType != null && vt.appointmentType != null) {
+        if (appointmentType === "Day care") {
+          return vt.visitType === "New" && (vt.appointmentType === "Day care" || vt.appointmentType === "Day Care");
+        }
+        return (vt.appointmentType === "OPD" || aptTypeNorm(vt.appointmentType) === "opd") && vt.visitType === selectedVisit;
+      }
+      if (vt.type != null) {
+        if (appointmentType === "Day care") return vt.type === "Day care";
+        return vt.type === (selectedVisit || "New") || (selectedVisit === "New" && vt.type === "OPD");
+      }
+      return false;
+    });
+
+    if (!match && selectedVisit === "New" && appointmentType !== "Day care") {
+      match = visitTypes.find((vt: IVisitTypeCharge) => vt.appointmentType === "OPD" && vt.visitType === "New");
     }
     if (match != null) {
       setTotal(match.charge);
@@ -279,6 +290,9 @@ const EditAppointmentComponent = () => {
       setAgeDays("");
     }
   };
+
+  const canEditDoctorDetails =
+    visitStatus === "Scheduled" || visitStatus === "No Show";
 
   const getDobValue = () => {
     if (!dob) return undefined;
@@ -471,17 +485,17 @@ const EditAppointmentComponent = () => {
                   </div>
                   <div className="col-md-4">
                     <div className="mb-3">
-                      <label className="form-label mb-1 fw-medium">Emergency Contact Name</label>
-                      <input type="text" className="form-control bg-light" value={emergencyContactName} readOnly disabled />
+                      <label className="form-label mb-1 fw-medium">Aadhar No</label>
+                      <input type="text" className="form-control bg-light" value={aadharNo} readOnly disabled />
                     </div>
                   </div>
                   <div className="col-md-3">
                     <div className="mb-3">
-                      <label className="form-label mb-1 fw-medium">Emergency Contact Phone</label>
+                      <label className="form-label mb-1 fw-medium">Ayushman No</label>
                       <input
                         type="text"
                         className="form-control bg-light"
-                        value={emergencyPhone}
+                        value={ayushmanNo}
                         readOnly
                         disabled
                       />
@@ -498,13 +512,26 @@ const EditAppointmentComponent = () => {
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Doctor</label>
-                        <CommonSelect options={doctorOptions} className="select" value={selectedDoctor} onChange={handleEditDoctorChange} disabled />
+                        <CommonSelect
+                          options={doctorOptions}
+                          className="select"
+                          value={selectedDoctor}
+                          onChange={handleEditDoctorChange}
+                          disabled
+                        />
                       </div>
                     </div>
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Date of Appointment</label>
-                        <DatePicker className="form-control w-100" format="DD-MM-YYYY" getPopupContainer={getModalContainer} value={visitDate} onChange={setVisitDate} />
+                        <DatePicker
+                          className="form-control w-100"
+                          format="DD-MM-YYYY"
+                          getPopupContainer={getModalContainer}
+                          value={visitDate}
+                          onChange={setVisitDate}
+                          disabled={!canEditDoctorDetails}
+                        />
                       </div>
                     </div>
                     <div className="col-md-6">
@@ -515,7 +542,7 @@ const EditAppointmentComponent = () => {
                           className="select"
                           value={sessionSlot}
                           onChange={setSessionSlot}
-                          disabled={!selectedDoctor}
+                          disabled={!canEditDoctorDetails || !selectedDoctor}
                           placeholder={!selectedDoctor ? "Select doctor first" : undefined}
                         />
                       </div>
@@ -523,7 +550,14 @@ const EditAppointmentComponent = () => {
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Time</label>
-                        <TimePicker className="w-100" format="HH:mm" getPopupContainer={getModalContainer} value={visitTime} onChange={setVisitTime} />
+                        <TimePicker
+                          className="w-100"
+                          format="HH:mm"
+                          getPopupContainer={getModalContainer}
+                          value={visitTime}
+                          onChange={setVisitTime}
+                          disabled={!canEditDoctorDetails}
+                        />
                       </div>
                     </div>
                     <div className="col-md-4">
@@ -539,6 +573,7 @@ const EditAppointmentComponent = () => {
                                 id={`edit-apt-${type.value}`}
                                 value={type.value}
                                 checked={appointmentType === type.value}
+                                disabled={!canEditDoctorDetails}
                                 onChange={(e) => {
                                   const newType = e.target.value;
                                   setAppointmentType(newType);
@@ -566,6 +601,7 @@ const EditAppointmentComponent = () => {
                                 id={`edit-visitType-${type.value}`}
                                 value={type.value}
                                 checked={visitType?.value === type.value}
+                                disabled={!canEditDoctorDetails}
                                 onChange={(e) => {
                                   const opt = Visit_Type.find((v) => v.value === e.target.value);
                                   if (opt) setVisitType(opt);
