@@ -20,6 +20,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
+import { getDayNameInIST } from "@/core/utils/dayjsIST";
 
 interface IVisitTypeCharge {
   visitType?: string;
@@ -29,12 +30,19 @@ interface IVisitTypeCharge {
   type?: string;
 }
 
+interface IWeeklyScheduleDay {
+  dayOfWeek: string;
+  mr?: boolean;
+  slots?: unknown[];
+}
+
 interface IDoctor {
   _id: string;
   name: string;
   department?: string;
   sessions?: string[];
   visitTypes?: IVisitTypeCharge[];
+  weeklySchedule?: IWeeklyScheduleDay[];
 }
 
 interface IPatient {
@@ -96,10 +104,32 @@ const NewAppointmentComponent = () => {
   const [amountReceived, setAmountReceived] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
+  const [discountPassword, setDiscountPassword] = useState<string>("");
+  const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
 
   // Calculate final amount and balance
   const finalAmount = total - discount;
   const balance = finalAmount - amountReceived;
+
+  // MR option is disabled when doctor has mr: false for the selected visit day (day computed in IST)
+  const isMrDisabledForSelectedDay = useMemo(() => {
+    if (!selectedDoctor?.value || !visitDate) return true;
+    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
+    if (!doctor?.weeklySchedule?.length) return true;
+    const dayName = getDayNameInIST(visitDate);
+    if (!dayName) return true;
+    const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
+    return daySchedule?.mr !== true;
+  }, [selectedDoctor?.value, visitDate, doctors]);
+
+  // When MR is disabled for the selected day and currently selected, switch to New
+  useEffect(() => {
+    if (visitType?.value === "MR" && isMrDisabledForSelectedDay) {
+      const newOpt = Visit_Type.find((v) => v.value === "New") || Visit_Type[0];
+      if (newOpt) setVisitType(newOpt);
+    }
+  }, [isMrDisabledForSelectedDay, visitType?.value]);
 
   const fetchDoctorsWithSearch = useCallback(async (search: string) => {
     if (!API_BASE_URL) return;
@@ -475,10 +505,23 @@ const NewAppointmentComponent = () => {
         return;
       }
 
+      if (discount > 0 && discountFieldChanged) {
+        setDiscountPassword("");
+        setShowDiscountPasswordDialog(true);
+        return;
+      }
 
-      setLoading(true);
+      doCreateAppointment(undefined);
+    } catch (err) {
+      setError("Validation failed.");
+    }
+  };
 
-      // Helper to create transaction when amount received > 0
+  const doCreateAppointment = async (discountPwd: string | undefined) => {
+    if (!API_BASE_URL || !selectedDoctor?.value || !sessionSlot?.value || !name.trim() || !phone || !visitDate) return;
+    setLoading(true);
+    setError("");
+    try {
       const createTransactionIfAmountReceived = async (visitId: string) => {
         const amount = Number(amountReceived) || 0;
         if (amount <= 0) return;
@@ -490,9 +533,13 @@ const NewAppointmentComponent = () => {
         });
       };
 
-      // Check if existing patient is selected
+      const discountNum = Number(discount) || 0;
+      const visitPayloadBase = {
+        discount: discountNum,
+        ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
+      };
+
       if (selectedPatient) {
-        // For existing patients, use /hospital/visits endpoint
         const appointmentData = {
           patientId: selectedPatient._id,
           doctorId: selectedDoctor.value,
@@ -502,6 +549,7 @@ const NewAppointmentComponent = () => {
           visitDate: formatVisitDate(),
           visitTime: visitTime ? formatVisitTime() : undefined,
           sessionSlot: sessionSlot?.value !== "Select" ? sessionSlot?.value : "",
+          ...visitPayloadBase,
         };
 
         console.log("Submitting appointment for existing patient:", appointmentData);
@@ -555,6 +603,7 @@ const NewAppointmentComponent = () => {
         visitDate: formatVisitDate(),
         visitTime: formatVisitTime(),
         sessionSlot: sessionSlot?.value !== "Select" ? sessionSlot?.value : "",
+        ...visitPayloadBase,
       };
 
       console.log("Submitting appointment for new patient:", appointmentData);
@@ -635,8 +684,73 @@ const NewAppointmentComponent = () => {
     }
   };
 
+  const handleDiscountPasswordConfirm = () => {
+    if (!discountPassword.trim()) {
+      alert("Please enter the discount password.");
+      return;
+    }
+    setShowDiscountPasswordDialog(false);
+    doCreateAppointment(discountPassword.trim());
+    setDiscountPassword("");
+  };
+
+  const handleDiscountPasswordCancel = () => {
+    setShowDiscountPasswordDialog(false);
+    setDiscountPassword("");
+  };
+
   return (
     <>
+      {/* Discount password dialog */}
+      {showDiscountPasswordDialog && (
+        <div
+          className="modal fade show d-block"
+          id="discount-password-modal"
+          tabIndex={-1}
+          aria-labelledby="discount-password-label"
+          aria-modal="true"
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="discount-password-label">
+                  Discount password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={handleDiscountPasswordCancel}
+                />
+              </div>
+              <div className="modal-body">
+                <label htmlFor="discount-password-input" className="form-label">
+                  Enter password to apply discount
+                </label>
+                <input
+                  id="discount-password-input"
+                  type="password"
+                  className="form-control"
+                  value={discountPassword}
+                  onChange={(e) => setDiscountPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={(e) => e.key === "Enter" && handleDiscountPasswordConfirm()}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={handleDiscountPasswordCancel}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleDiscountPasswordConfirm}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <style dangerouslySetInnerHTML={{
         __html: `
           .page-wrapper input::placeholder,
@@ -1066,7 +1180,10 @@ const NewAppointmentComponent = () => {
                             <div className="d-flex gap-3 flex-wrap">
                               {Visit_Type.filter((v) => v.value !== "Select").map((type) => {
                                 const isDayCare = appointmentType === "Day care";
-                                const isDisabled = isDayCare && type.value !== "New";
+                                const isMrOption = type.value === "MR";
+                                const isDisabled =
+                                  (isDayCare && type.value !== "New") ||
+                                  (isMrOption && isMrDisabledForSelectedDay);
                                 return (
                                   <div key={type.value} className="form-check">
                                     <input
@@ -1082,8 +1199,8 @@ const NewAppointmentComponent = () => {
                                         if (opt) setVisitType(opt);
                                       }}
                                     />
-                                    <label 
-                                      className={`form-check-label ${isDisabled ? "text-muted" : ""}`} 
+                                    <label
+                                      className={`form-check-label ${isDisabled ? "text-muted" : ""}`}
                                       htmlFor={`visitType-${type.value}`}
                                     >
                                       {type.label}
@@ -1211,7 +1328,10 @@ const NewAppointmentComponent = () => {
                           className="form-control"
                           placeholder="0"
                           value={discount || ""}
-                          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            setDiscount(parseFloat(e.target.value) || 0);
+                            setDiscountFieldChanged(true);
+                          }}
                           min="0"
                         />
                       </div>

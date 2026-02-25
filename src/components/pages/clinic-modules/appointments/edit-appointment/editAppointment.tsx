@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { all_routes } from "../../../../../routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { getDayNameInIST } from "@/core/utils/dayjsIST";
 import { DatePicker, TimePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import {
@@ -25,12 +26,19 @@ interface IVisitTypeCharge {
   type?: string;
 }
 
+interface IWeeklyScheduleDay {
+  dayOfWeek: string;
+  mr?: boolean;
+  slots?: unknown[];
+}
+
 interface IDoctor {
   _id: string;
   name: string;
   department?: string;
   sessions?: string[];
   visitTypes?: IVisitTypeCharge[];
+  weeklySchedule?: IWeeklyScheduleDay[];
 }
 
 const EditAppointmentComponent = () => {
@@ -65,7 +73,29 @@ const EditAppointmentComponent = () => {
   const [amountPaidFromApi, setAmountPaidFromApi] = useState<number>(0); // amount already paid (from visit)
   const finalAmount = total - discount;
   const balance = finalAmount - amountReceived;
-  
+  const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
+  const [discountPassword, setDiscountPassword] = useState<string>("");
+  const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
+
+  // MR option is disabled when doctor has mr: false for the selected visit day (day computed in IST)
+  const isMrDisabledForSelectedDay = useMemo(() => {
+    if (!selectedDoctor?.value || !visitDate) return true;
+    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
+    if (!doctor?.weeklySchedule?.length) return true;
+    const dayName = getDayNameInIST(visitDate);
+    if (!dayName) return true;
+    const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
+    return daySchedule?.mr !== true;
+  }, [selectedDoctor?.value, visitDate, doctors]);
+
+  // When MR is disabled for the selected day and currently selected, switch to New
+  useEffect(() => {
+    if (visitType?.value === "MR" && isMrDisabledForSelectedDay) {
+      const newOpt = Visit_Type.find((v) => v.value === "New") || Visit_Type[0];
+      if (newOpt) setVisitType(newOpt);
+    }
+  }, [isMrDisabledForSelectedDay, visitType?.value]);
+
   // Patient fields
   const [phone, setPhone] = useState<string>("");
   const [title, setTitle] = useState<Option | null>(Title[0] || null);
@@ -307,9 +337,20 @@ const EditAppointmentComponent = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!visitId || !API_BASE_URL) return;
+    if (discount > 0 && discountFieldChanged) {
+      setDiscountPassword("");
+      setShowDiscountPasswordDialog(true);
+      return;
+    }
+    doEditSubmit(undefined);
+  };
+
+  const doEditSubmit = async (discountPwd: string | undefined) => {
+    if (!visitId || !API_BASE_URL) return;
     setLoading(true);
     setError("");
     try {
+      const discountNum = Number(discount) || 0;
       const payload: Record<string, unknown> = {
         visitDate: visitDate ? dayjs(visitDate).format("YYYY-MM-DD") : undefined,
         visitTime: visitTime ? (dayjs.isDayjs(visitTime) ? visitTime.format("HH:mm") : dayjs(visitTime).format("HH:mm")) : undefined,
@@ -317,6 +358,8 @@ const EditAppointmentComponent = () => {
         visitType: visitType?.value !== "Select" ? visitType?.value : undefined,
         appointmentType: appointmentType === "Day care" ? "Day Care" : appointmentType,
         reason: reason || undefined,
+        discount: discountNum,
+        ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
       const remainingAmount = Math.max(0, amountReceived - amountPaidFromApi);
       if (remainingAmount > 0) {
@@ -338,6 +381,21 @@ const EditAppointmentComponent = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDiscountPasswordConfirm = () => {
+    if (!discountPassword.trim()) {
+      alert("Please enter the discount password.");
+      return;
+    }
+    setShowDiscountPasswordDialog(false);
+    doEditSubmit(discountPassword.trim());
+    setDiscountPassword("");
+  };
+
+  const handleDiscountPasswordCancel = () => {
+    setShowDiscountPasswordDialog(false);
+    setDiscountPassword("");
   };
 
   if (loading && !visitDate) {
@@ -371,6 +429,55 @@ const EditAppointmentComponent = () => {
 
   return (
     <div className="page-wrapper">
+      {showDiscountPasswordDialog && (
+        <div
+          className="modal fade show d-block"
+          id="discount-password-modal-edit"
+          tabIndex={-1}
+          aria-labelledby="discount-password-label-edit"
+          aria-modal="true"
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="discount-password-label-edit">
+                  Discount password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={handleDiscountPasswordCancel}
+                />
+              </div>
+              <div className="modal-body">
+                <label htmlFor="discount-password-input-edit" className="form-label">
+                  Enter password to apply discount
+                </label>
+                <input
+                  id="discount-password-input-edit"
+                  type="password"
+                  className="form-control"
+                  value={discountPassword}
+                  onChange={(e) => setDiscountPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={(e) => e.key === "Enter" && handleDiscountPasswordConfirm()}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={handleDiscountPasswordCancel}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleDiscountPasswordConfirm}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="content">
         {/* Header */}
         <div className="mb-4">
@@ -592,26 +699,34 @@ const EditAppointmentComponent = () => {
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Visit Type</label>
                         <div className="d-flex gap-3 flex-wrap">
-                          {Visit_Type.filter((v) => v.value !== "Select").map((type) => (
-                            <div key={type.value} className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="radio"
-                                name="editVisitType"
-                                id={`edit-visitType-${type.value}`}
-                                value={type.value}
-                                checked={visitType?.value === type.value}
-                                disabled={!canEditDoctorDetails}
-                                onChange={(e) => {
-                                  const opt = Visit_Type.find((v) => v.value === e.target.value);
-                                  if (opt) setVisitType(opt);
-                                }}
-                              />
-                              <label className="form-check-label" htmlFor={`edit-visitType-${type.value}`}>
-                                {type.label}
-                              </label>
-                            </div>
-                          ))}
+                          {Visit_Type.filter((v) => v.value !== "Select").map((type) => {
+                            const isMrOption = type.value === "MR";
+                            const disabled =
+                              !canEditDoctorDetails || (isMrOption && isMrDisabledForSelectedDay);
+                            return (
+                              <div key={type.value} className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="editVisitType"
+                                  id={`edit-visitType-${type.value}`}
+                                  value={type.value}
+                                  checked={visitType?.value === type.value}
+                                  disabled={disabled}
+                                  onChange={(e) => {
+                                    const opt = Visit_Type.find((v) => v.value === e.target.value);
+                                    if (opt) setVisitType(opt);
+                                  }}
+                                />
+                                <label
+                                  className={`form-check-label ${disabled ? "text-muted" : ""}`}
+                                  htmlFor={`edit-visitType-${type.value}`}
+                                >
+                                  {type.label}
+                                </label>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -706,7 +821,10 @@ const EditAppointmentComponent = () => {
                           className="form-control"
                           placeholder="0"
                           value={discount || ""}
-                          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            setDiscount(parseFloat(e.target.value) || 0);
+                            setDiscountFieldChanged(true);
+                          }}
                           min="0"
                         />
                       </div>

@@ -41,8 +41,7 @@ const CreatePatientComponent = () => {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [aadharS3Url, setAadharS3Url] = useState<string>("");
   const [otherDocsS3Urls, setOtherDocsS3Urls] = useState<string[]>([]);
-  const [emergencyContactName, setEmergencyContactName] = useState<string>("");
-  const [emergencyPhone, setEmergencyPhone] = useState<string>("");
+  const [ayushmanCardNo, setAyushmanCardNo] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'aadhar' | 'doc') => {
@@ -146,14 +145,6 @@ const CreatePatientComponent = () => {
       // For now, using placeholder URLs if files are selected
       // You'll need to implement file upload to S3 before calling this API
       
-      const emergencyContacts = [];
-      if (emergencyContactName && emergencyPhone) {
-        emergencyContacts.push({
-          name: emergencyContactName,
-          number: emergencyPhone,
-        });
-      }
-
       const patientData = {
         title: title?.value || "",
         name: name,
@@ -167,7 +158,7 @@ const CreatePatientComponent = () => {
         aadharNo: aadharNumber || undefined,
         aadharS3Url: aadharS3Url || undefined,
         otherDocsS3Urls: otherDocsS3Urls.length > 0 ? otherDocsS3Urls : undefined,
-        emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
+        ayushmanCardNo: ayushmanCardNo || undefined,
       };
 
       const response = await axios.post(`${API_BASE_URL}/hospital/patients`, patientData);
@@ -442,22 +433,6 @@ const CreatePatientComponent = () => {
                     </h6>
                     <div className="mb-3">
                       <div className="row">
-                        <div className="col-md-12">
-                          <div className="mb-3">
-                            <label className="form-label mb-2 fw-medium">Aadhar Number</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              placeholder="Enter Aadhar Number"
-                              value={aadharNumber}
-                              onChange={(e) => setAadharNumber(e.target.value)}
-                              maxLength={12}
-                              style={{ maxWidth: "400px" }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="row">
                         <div className="col-md-6 mb-3">
                           <label className="form-label mb-2 fw-medium">Aadhar Card</label>
                             <div
@@ -549,32 +524,35 @@ const CreatePatientComponent = () => {
                       </div>
                     </div>
                     <h6 className="fw-bold text-primary mb-3 border-top pt-3">
-                      Emergency Contact
+                      ID Numbers
                     </h6>
                     <div className="row">
                       <div className="col-md-6">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Name
+                            Aadhar Number
                           </label>
-                          <input 
-                            type="text" 
-                            className="form-control" 
-                            placeholder="Enter emergency contact name"
-                            value={emergencyContactName}
-                            onChange={(e) => setEmergencyContactName(e.target.value)}
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter Aadhar Number"
+                            value={aadharNumber}
+                            onChange={(e) => setAadharNumber(e.target.value)}
+                            maxLength={12}
                           />
                         </div>
                       </div>
                       <div className="col-md-6">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
-                            Phone No
+                            Ayushman Card Number
                           </label>
-                          <PhoneInput
-                            defaultCountry="IN"
-                            value={emergencyPhone}
-                            onChange={(value) => setEmergencyPhone(value || "")}
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter Ayushman Card Number"
+                            value={ayushmanCardNo}
+                            onChange={(e) => setAyushmanCardNo(e.target.value)}
                           />
                         </div>
                       </div>

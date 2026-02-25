@@ -326,6 +326,7 @@ const AppointmentsComponent = () => {
               Appointment_Type: visit.appointmentType || "",
               Status: visit.status || "Scheduled",
               Price: visit.price || 0,
+              _discount: (visit as { discount?: number }).discount ?? 0,
               PaymentStatus: (visit as any).paymentStatus || "Unpaid",
               Age: ageDisplay,
               Sex: patient?.gender,
@@ -446,10 +447,11 @@ const AppointmentsComponent = () => {
       render: (text: number, record: any) => {
         const paymentStatus = record.PaymentStatus || "Unpaid";
         const isPaid = paymentStatus === "Paid";
+        const amount = (record.Price ?? 0) - (record._discount ?? 0);
         return (
           <div className="d-flex align-items-center gap-2">
             <span className="fw-semibold text-dark">
-              ₹{record.Price?.toFixed(2) || "0.00"}
+              ₹{amount.toFixed(2)}
             </span>
             <span 
               className={`d-inline-flex align-items-center justify-content-center rounded-circle ${isPaid ? "bg-success" : "bg-warning"}`}

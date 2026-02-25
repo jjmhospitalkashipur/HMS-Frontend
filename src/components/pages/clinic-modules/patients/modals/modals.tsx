@@ -40,8 +40,7 @@ const Modals = () => {
   const [aadharNumber, setAadharNumber] = useState<string>("");
   const [aadharFile, setAadharFile] = useState<File | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
-  const [emergencyContactName, setEmergencyContactName] = useState<string>("");
-  const [emergencyPhone, setEmergencyPhone] = useState<string>("");
+  const [ayushmanCardNo, setAyushmanCardNo] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   // Reset form function
@@ -60,8 +59,7 @@ const Modals = () => {
     setAadharNumber("");
     setAadharFile(null);
     setDocFile(null);
-    setEmergencyContactName("");
-    setEmergencyPhone("");
+    setAyushmanCardNo("");
   };
 
   const fetchPatientData = useCallback(async (id: string) => {
@@ -85,6 +83,7 @@ const Modals = () => {
         setBloodGroup(Blood_Group.find(bg => bg.value === patient.bloodGroup) || Blood_Group[0] || null);
         setAddress(patient.address || "");
         setAadharNumber(patient.aadharNo || "");
+        setAyushmanCardNo(patient.ayushmanCardNo || "");
 
         // Set age from patient.age or calculate from dob
         if (patient.age) {
@@ -100,12 +99,6 @@ const Modals = () => {
           setAgeDays(days.toString());
         }
 
-        // Set emergency contacts
-        if (patient.emergencyContacts && patient.emergencyContacts.length > 0) {
-          const contact = patient.emergencyContacts[0];
-          setEmergencyContactName(contact.name || "");
-          setEmergencyPhone(contact.number || "");
-        }
       }
     } catch (error: any) {
       console.error("Error fetching patient data:", error);
@@ -263,14 +256,6 @@ const Modals = () => {
 
       setLoading(true);
 
-      const emergencyContacts = [];
-      if (emergencyContactName && emergencyPhone) {
-        emergencyContacts.push({
-          name: emergencyContactName,
-          number: emergencyPhone,
-        });
-      }
-
       const patientData = {
         title: title?.value || "",
         name: name,
@@ -282,7 +267,7 @@ const Modals = () => {
         bloodGroup: bloodGroup?.value && bloodGroup.value !== "Select" ? bloodGroup.value : undefined,
         address: address,
         aadharNo: aadharNumber || undefined,
-        emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
+        ayushmanCardNo: ayushmanCardNo || undefined,
       };
 
       const response = await axios.patch(`${API_BASE_URL}/hospital/patients/${patientId}`, patientData);
@@ -511,22 +496,6 @@ const Modals = () => {
               </h6>
               <div className="mb-3">
                 <div className="row">
-                  <div className="col-md-12">
-                    <div className="mb-3">
-                      <label className="form-label mb-2 fw-medium">Aadhar Number</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Enter Aadhar Number"
-                        value={aadharNumber}
-                        onChange={(e) => setAadharNumber(e.target.value)}
-                        maxLength={12}
-                        style={{ maxWidth: "400px" }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label mb-2 fw-medium">Aadhar Card</label>
                     <div
@@ -620,32 +589,35 @@ const Modals = () => {
                 </div>
               </div>
               <h6 className="fw-bold text-primary mb-3 border-top pt-3">
-                Emergency Contact
+                ID Numbers
               </h6>
               <div className="row">
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label mb-1 fw-medium">
-                      Name
+                      Aadhar Number
                     </label>
                     <input 
                       type="text" 
                       className="form-control" 
-                      placeholder="Enter emergency contact name"
-                      value={emergencyContactName}
-                      onChange={(e) => setEmergencyContactName(e.target.value)}
+                      placeholder="Enter Aadhar Number"
+                      value={aadharNumber}
+                      onChange={(e) => setAadharNumber(e.target.value)}
+                      maxLength={12}
                     />
                   </div>
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label mb-1 fw-medium">
-                      Phone No
+                      Ayushman Card Number
                     </label>
-                    <PhoneInput
-                      defaultCountry="IN"
-                      value={emergencyPhone}
-                      onChange={(value) => setEmergencyPhone(value || "")}
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Enter Ayushman Card Number"
+                      value={ayushmanCardNo}
+                      onChange={(e) => setAyushmanCardNo(e.target.value)}
                     />
                   </div>
                 </div>

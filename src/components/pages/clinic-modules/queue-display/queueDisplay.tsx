@@ -31,7 +31,27 @@ interface IQueueDisplay {
   sessionSlot: string;
   date: string;
   totalPatients: number;
+  emergencyCount?: number;
+  regularCount?: number;
+  currentTime?: string;
   queue: IQueuePatient[];
+}
+
+const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
+  (visit?.visitType ?? "").toLowerCase() === "emergency";
+
+function sortAndComputeQueue(queue: IQueuePatient[]) {
+  const sorted = [...queue].sort((a, b) => {
+    const aEmergency = isEmergencyVisit(a);
+    const bEmergency = isEmergencyVisit(b);
+    if (aEmergency && !bEmergency) return -1;
+    if (!aEmergency && bEmergency) return 1;
+    return (a.tokenNumber ?? 0) - (b.tokenNumber ?? 0);
+  });
+  const emergencyCount = sorted.filter((v) => isEmergencyVisit(v)).length;
+  const totalPatients = sorted.length;
+  const regularCount = totalPatients - emergencyCount;
+  return { queue: sorted, totalPatients, emergencyCount, regularCount };
 }
 
 /** Normalize SSE visit to IQueuePatient */
@@ -56,9 +76,19 @@ function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
 
 /** Build IQueueDisplay from SSE initial/session-change payload */
 function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
-  const queue = Array.isArray(data.queue)
+  const rawQueue = Array.isArray(data.queue)
     ? (data.queue as Record<string, unknown>[]).map(toQueuePatient)
     : [];
+  const {
+    queue,
+    totalPatients: computedTotal,
+    emergencyCount: computedEmergency,
+    regularCount: computedRegular,
+  } = sortAndComputeQueue(rawQueue);
+  const apiTotal = Number(data.totalPatients);
+  const apiEmergency = Number((data as any).emergencyCount);
+  const apiRegular = Number((data as any).regularCount);
+
   return {
     doctorId: (data.doctorId as string) ?? "",
     doctorName: (data.doctorName as string) ?? "—",
@@ -67,7 +97,10 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     designation: (data.designation as string) ?? null,
     sessionSlot: (data.sessionSlot as string) ?? "Morning",
     date: (data.date as string) ?? "",
-    totalPatients: Number(data.totalPatients) ?? queue.length,
+    totalPatients: Number.isFinite(apiTotal) ? apiTotal : computedTotal,
+    emergencyCount: Number.isFinite(apiEmergency) ? apiEmergency : computedEmergency,
+    regularCount: Number.isFinite(apiRegular) ? apiRegular : computedRegular,
+    currentTime: (data as any).currentTime as string | undefined,
     queue,
   };
 }
@@ -144,7 +177,8 @@ const QueueDisplayComponent = () => {
 
         switch (type) {
           case "initial":
-          case "session-change": {
+          case "session-change":
+          case "date-change": {
             setDisplay(displayFromSSE(data));
             setLoading(false);
             setError("");
@@ -160,22 +194,62 @@ const QueueDisplayComponent = () => {
                   (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
                 );
                 if (exists) return prev;
-                return { ...prev, queue: [...prev.queue, newPatient] };
+                const {
+                  queue,
+                  totalPatients,
+                  emergencyCount,
+                  regularCount,
+                } = sortAndComputeQueue([...prev.queue, newPatient]);
+                return {
+                  ...prev,
+                  queue,
+                  totalPatients,
+                  emergencyCount,
+                  regularCount,
+                };
               });
             }
             break;
           }
           case "status-change": {
-            const visitId = data.visitId as string;
-            const newStatus = data.newStatus as string;
-            if (!visitId) break;
+            const visit = data.visit as Record<string, unknown>;
+            if (!visit) break;
+            const updated = toQueuePatient(visit);
+            const visitId = (updated.visitId as string) || (updated._id as string);
+            const newStatus = updated.status;
+            if (!visitId || !newStatus) break;
+            const normalized = newStatus.toLowerCase();
+            const shouldRemove =
+              normalized === "completed" ||
+              normalized === "cancelled" ||
+              normalized === "canceled" ||
+              normalized === "no show" ||
+              normalized === "no_show";
+
             setDisplay((prev) => {
               if (!prev) return prev;
+              let nextQueue: IQueuePatient[];
+              if (shouldRemove) {
+                nextQueue = prev.queue.filter(
+                  (p) => (p.visitId || p._id) !== visitId
+                );
+              } else {
+                nextQueue = prev.queue.map((p) =>
+                  (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
+                );
+              }
+              const {
+                queue,
+                totalPatients,
+                emergencyCount,
+                regularCount,
+              } = sortAndComputeQueue(nextQueue);
               return {
                 ...prev,
-                queue: prev.queue.map((p) =>
-                  (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
-                ),
+                queue,
+                totalPatients,
+                emergencyCount,
+                regularCount,
               };
             });
             break;
@@ -201,7 +275,19 @@ const QueueDisplayComponent = () => {
               } else {
                 nextQueue.push(merged);
               }
-              return { ...prev, queue: nextQueue };
+              const {
+                queue,
+                totalPatients,
+                emergencyCount,
+                regularCount,
+              } = sortAndComputeQueue(nextQueue);
+              return {
+                ...prev,
+                queue,
+                totalPatients,
+                emergencyCount,
+                regularCount,
+              };
             });
             break;
           }
@@ -210,9 +296,21 @@ const QueueDisplayComponent = () => {
             if (!visitId) break;
             setDisplay((prev) => {
               if (!prev) return prev;
+              const nextQueue = prev.queue.filter(
+                (p) => (p.visitId || p._id) !== visitId
+              );
+              const {
+                queue,
+                totalPatients,
+                emergencyCount,
+                regularCount,
+              } = sortAndComputeQueue(nextQueue);
               return {
                 ...prev,
-                queue: prev.queue.filter((p) => (p.visitId || p._id) !== visitId),
+                queue,
+                totalPatients,
+                emergencyCount,
+                regularCount,
               };
             });
             break;
@@ -222,9 +320,19 @@ const QueueDisplayComponent = () => {
             if (Array.isArray(queue)) {
               setDisplay((prev) => {
                 if (!prev) return prev;
+                const normalizedQueue = queue.map(toQueuePatient);
+                const {
+                  queue: sortedQueue,
+                  totalPatients,
+                  emergencyCount,
+                  regularCount,
+                } = sortAndComputeQueue(normalizedQueue);
                 return {
                   ...prev,
-                  queue: queue.map(toQueuePatient),
+                  queue: sortedQueue,
+                  totalPatients,
+                  emergencyCount,
+                  regularCount,
                 };
               });
             }
@@ -379,6 +487,8 @@ const QueueDisplayComponent = () => {
                     const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
                     const isConsulting = normalizedStatus === "consulting" || normalizedStatus === "in progress";
                     const isMR = entry.visitType?.toLowerCase() === "mr";
+                    const isEmergency = isEmergencyVisit(entry);
+                    const tokenLabel = isEmergency ? `E-${entry.tokenNumber}` : entry.tokenNumber;
                     return (
                       <tr key={entry._id} style={statusDisplay.rowStyle}>
                         <td className={`fw-semibold align-middle text-center ${statusDisplay.textClass}`} style={{
@@ -386,7 +496,7 @@ const QueueDisplayComponent = () => {
                           padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
                           fontSize: "clamp(1rem, 1.8vw, 5.5rem)"
                         }}>
-                          {entry.tokenNumber}
+                          {tokenLabel}
                         </td>
                         <td className={`align-middle text-center ${statusDisplay.textClass}`} style={{
                           ...statusDisplay.rowStyle,

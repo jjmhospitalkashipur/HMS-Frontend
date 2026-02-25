@@ -31,6 +31,19 @@ interface IQueueDisplay {
   queue: IQueuePatient[];
 }
 
+const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
+  (visit?.visitType ?? "").toLowerCase() === "emergency";
+
+function sortQueue(queue: IQueuePatient[]): IQueuePatient[] {
+  return [...queue].sort((a, b) => {
+    const aEmergency = isEmergencyVisit(a);
+    const bEmergency = isEmergencyVisit(b);
+    if (aEmergency && !bEmergency) return -1;
+    if (!aEmergency && bEmergency) return 1;
+    return (a.tokenNumber ?? 0) - (b.tokenNumber ?? 0);
+  });
+}
+
 function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
   const patient = (visit.patient as Record<string, unknown>) ?? {};
   return {
@@ -51,15 +64,16 @@ function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
 }
 
 function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
-  const queue = Array.isArray(data.queue)
+  const rawQueue = Array.isArray(data.queue)
     ? (data.queue as Record<string, unknown>[]).map(toQueuePatient)
     : [];
+  const queue = sortQueue(rawQueue);
   return {
     doctorId: (data.doctorId as string) ?? "",
     doctorName: (data.doctorName as string) ?? "—",
     sessionSlot: (data.sessionSlot as string) ?? "Morning",
     date: (data.date as string) ?? "",
-    totalPatients: Number(data.totalPatients) ?? queue.length,
+    totalPatients: Number(data.totalPatients) || queue.length,
     queue,
   };
 }
@@ -164,7 +178,8 @@ const QueueDisplayMultiComponent = () => {
           const type = ((data.eventType ?? data.type) as string)?.trim().toLowerCase() ?? "";
           switch (type) {
             case "initial":
-            case "session-change": {
+            case "session-change":
+            case "date-change": {
               setDisplays((prev) => ({ ...prev, [streamId]: displayFromSSE(data) }));
               break;
             }
@@ -179,28 +194,50 @@ const QueueDisplayMultiComponent = () => {
                     (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
                   );
                   if (exists) return prev;
+                  const nextQueue = sortQueue([...current.queue, newPatient]);
                   return {
                     ...prev,
-                    [streamId]: { ...current, queue: [...current.queue, newPatient] },
+                    [streamId]: { ...current, queue: nextQueue, totalPatients: nextQueue.length },
                   };
                 });
               }
               break;
             }
             case "status-change": {
-              const visitId = data.visitId as string;
-              const newStatus = data.newStatus as string;
-              if (!visitId) break;
+              const visit = data.visit as Record<string, unknown>;
+              if (!visit) break;
+              const updated = toQueuePatient(visit);
+              const visitId = (updated.visitId as string) || (updated._id as string);
+              const newStatus = updated.status;
+              if (!visitId || !newStatus) break;
+              const normalized = newStatus.toLowerCase();
+              const shouldRemove =
+                normalized === "completed" ||
+                normalized === "cancelled" ||
+                normalized === "canceled" ||
+                normalized === "no show" ||
+                normalized === "no_show";
+
               setDisplays((prev) => {
                 const current = prev[streamId];
                 if (!current) return prev;
+                let nextQueue: IQueuePatient[];
+                if (shouldRemove) {
+                  nextQueue = current.queue.filter(
+                    (p) => (p.visitId || p._id) !== visitId
+                  );
+                } else {
+                  nextQueue = current.queue.map((p) =>
+                    (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
+                  );
+                }
+                const sorted = sortQueue(nextQueue);
                 return {
                   ...prev,
                   [streamId]: {
                     ...current,
-                    queue: current.queue.map((p) =>
-                      (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
-                    ),
+                    queue: sorted,
+                    totalPatients: sorted.length,
                   },
                 };
               });
@@ -226,7 +263,11 @@ const QueueDisplayMultiComponent = () => {
                 const nextQueue = [...current.queue];
                 if (idx >= 0) nextQueue[idx] = merged;
                 else nextQueue.push(merged);
-                return { ...prev, [streamId]: { ...current, queue: nextQueue } };
+                const sorted = sortQueue(nextQueue);
+                return {
+                  ...prev,
+                  [streamId]: { ...current, queue: sorted, totalPatients: sorted.length },
+                };
               });
               break;
             }
@@ -236,11 +277,16 @@ const QueueDisplayMultiComponent = () => {
               setDisplays((prev) => {
                 const current = prev[streamId];
                 if (!current) return prev;
+                const nextQueue = current.queue.filter(
+                  (p) => (p.visitId || p._id) !== visitId
+                );
+                const sorted = sortQueue(nextQueue);
                 return {
                   ...prev,
                   [streamId]: {
                     ...current,
-                    queue: current.queue.filter((p) => (p.visitId || p._id) !== visitId),
+                    queue: sorted,
+                    totalPatients: sorted.length,
                   },
                 };
               });
@@ -252,7 +298,16 @@ const QueueDisplayMultiComponent = () => {
                 setDisplays((prev) => {
                   const current = prev[streamId];
                   if (!current) return prev;
-                  return { ...prev, [streamId]: { ...current, queue: queue.map(toQueuePatient) } };
+                  const normalizedQueue = queue.map(toQueuePatient);
+                  const sorted = sortQueue(normalizedQueue);
+                  return {
+                    ...prev,
+                    [streamId]: {
+                      ...current,
+                      queue: sorted,
+                      totalPatients: sorted.length,
+                    },
+                  };
                 });
               }
               break;
@@ -436,7 +491,7 @@ const QueueDisplayMultiComponent = () => {
                                 fontSize: "clamp(0.75rem, 1.3vw, 3.5rem)",
                               }}
                             >
-                              {entry.tokenNumber}
+                              {isEmergencyVisit(entry) ? `E-${entry.tokenNumber}` : entry.tokenNumber}
                             </td>
                             <td
                               className={`align-middle fw-medium text-center ${statusDisplay.textClass}`}
