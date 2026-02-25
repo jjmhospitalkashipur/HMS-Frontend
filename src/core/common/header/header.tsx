@@ -1,6 +1,6 @@
 "use client";
 
-
+import "@/core/api/axiosAuth";
 import ImageWithBasePath from "../../imageWithBasePath";
 import { useEffect, useState } from "react";
 import { updateTheme } from "../../redux/themeSlice";
@@ -8,10 +8,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { setMobileSidebar } from "../../redux/sidebarSlice";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
+import { usePathname, useRouter } from "next/navigation";
 
 const Header = () => {
 
   const dispatch = useDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
   const themeSettings = useSelector((state: any) => state.theme.themeSettings);
   const [isHiddenLayoutActive, setIsHiddenLayoutActive] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -27,8 +30,33 @@ const Header = () => {
     } catch {
       // no-op if storage is unavailable
     }
-    setIsMounted(true);
   }, []);
+
+  // Redirect to login when no auth token (user not logged in)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const publicPaths = new Set<string>([
+      all_routes.login,
+      all_routes.loginCover,
+      all_routes.loginbasic,
+      all_routes.loginillustration,
+    ]);
+
+    const isPublic =
+      publicPaths.has(pathname) ||
+      pathname.startsWith("/auth") ||
+      pathname.startsWith("/(auth)");
+
+    if (isPublic) {
+      return;
+    }
+
+    const token = window.localStorage.getItem("authToken");
+    if (!token) {
+      router.replace(all_routes.login);
+    }
+  }, [pathname, router]);
 
   useEffect(() => {
     const htmlElement: any = document.documentElement;
@@ -512,7 +540,20 @@ const Header = () => {
                 </Link>
                 {/* Item*/}
                 <div className="pt-2 mt-2 border-top">
-                  <Link href={all_routes.login}className="dropdown-item text-danger">
+                  <Link
+                    href={all_routes.login}
+                    className="dropdown-item text-danger"
+                    onClick={() => {
+                      try {
+                        if (typeof window !== "undefined") {
+                          window.localStorage.removeItem("authToken");
+                          window.localStorage.removeItem("authUser");
+                        }
+                      } catch {
+                        // ignore storage errors
+                      }
+                    }}
+                  >
                     <i className="ti ti-logout me-1 fs-17 align-middle" />
                     <span className="align-middle">Log Out</span>
                   </Link>

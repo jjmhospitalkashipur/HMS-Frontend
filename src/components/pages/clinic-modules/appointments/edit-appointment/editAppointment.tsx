@@ -7,7 +7,6 @@ import { all_routes } from "../../../../../routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import { getDayNameInIST } from "@/core/utils/dayjsIST";
 import { DatePicker, TimePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import {
@@ -77,12 +76,14 @@ const EditAppointmentComponent = () => {
   const [discountPassword, setDiscountPassword] = useState<string>("");
   const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
 
-  // MR option is disabled when doctor has mr: false for the selected visit day (day computed in IST)
+  // MR option is disabled when doctor has mr: false for the selected visit day
   const isMrDisabledForSelectedDay = useMemo(() => {
     if (!selectedDoctor?.value || !visitDate) return true;
     const doctor = doctors.find((d) => d._id === selectedDoctor.value);
     if (!doctor?.weeklySchedule?.length) return true;
-    const dayName = getDayNameInIST(visitDate);
+    const dayName = dayjs.isDayjs(visitDate)
+      ? visitDate.format("dddd")
+      : dayjs(visitDate).format("dddd");
     if (!dayName) return true;
     const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
     return daySchedule?.mr !== true;
@@ -166,7 +167,10 @@ const EditAppointmentComponent = () => {
           if (sessions?.length) {
             const opts = sessions.map((s: string) => ({ value: s, label: s }));
             setSessionOptions(opts);
-            setSessionSlot(opts.find((o: Option) => o.value === v.sessionSlot) || opts[0] || null);
+            const matchedSession = v.sessionSlot
+              ? opts.find((o: Option) => o.value === v.sessionSlot)
+              : null;
+            setSessionSlot(matchedSession || null);
           } else {
             setSessionOptions([]);
             setSessionSlot(null);
@@ -243,7 +247,9 @@ const EditAppointmentComponent = () => {
     if (doc?.sessions?.length) {
       const opts = doc.sessions.map((s) => ({ value: s, label: s }));
       setSessionOptions(opts);
-      setSessionSlot((prev) => (prev && opts.some((o: Option) => o.value === prev?.value) ? prev : opts[0] || null));
+      setSessionSlot((prev) =>
+        prev && opts.some((o: Option) => o.value === prev.value) ? prev : null
+      );
     } else {
       setSessionOptions([]);
       setSessionSlot(null);

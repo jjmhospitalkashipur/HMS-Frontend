@@ -130,9 +130,7 @@ const DoctorsListComponent = () => {
       sorter: false,
       showSorterTooltip: false,
       render: (text: string) => (
-        <Link href={all_routes.doctorsDetails} className="text-dark fw-semibold">
-          {text}
-        </Link>
+        <span className="text-dark fw-semibold">{text}</span>
       ),
     },
     {

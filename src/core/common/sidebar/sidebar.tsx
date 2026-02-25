@@ -18,6 +18,10 @@ const Sidebar = () => {
   const [subOpen, setSubopen] = useState<any>("");
   const [subsidebar, setSubsidebar] = useState("");
   const [isSidebarOpened, setIsSidebarOpened] = useState(false);
+  const [sidebarUserName, setSidebarUserName] = useState("Unknown User");
+  const [sidebarUserRole, setSidebarUserRole] = useState("Unknown Role");
+  const [sidebarUserInitials, setSidebarUserInitials] = useState("JA");
+  const [sidebarUserRoleRaw, setSidebarUserRoleRaw] = useState<string | null>(null);
   const dispatch = useDispatch();
 
   const toggleSidebar = (title: any) => {
@@ -140,6 +144,33 @@ const Sidebar = () => {
     }
   }, [themeSettings,Location]);
 
+  // Load logged-in user info from localStorage (set on login)
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { name?: string; username?: string; role?: string } | null;
+      if (!parsed) return;
+      const name = (parsed.name || parsed.username || "").trim();
+      const role = (parsed.role || "").trim();
+      if (name) {
+        setSidebarUserName(name);
+        const parts = name.split(" ").filter(Boolean);
+        const initials =
+          (parts[0]?.[0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] || "" : "");
+        setSidebarUserInitials(initials.toUpperCase() || "U");
+      }
+      if (role) {
+        setSidebarUserRoleRaw(role);
+        setSidebarUserRole(role.charAt(0) + role.slice(1).toLowerCase());
+      } else {
+        setSidebarUserRoleRaw(null);
+      }
+    } catch {
+      // ignore parse/storage errors
+    }
+  }, []);
+
   
 
   return (
@@ -187,7 +218,14 @@ const Sidebar = () => {
                 </Link>
               </div>
               <ul>
-                {SidebarData?.map((mainLabel, index) => (
+                {SidebarData?.map((mainLabel, index) => {
+                  const isAdministrationSection = mainLabel?.tittle === "Administration";
+                  const isAdmin =
+                    (sidebarUserRoleRaw || "").toUpperCase() === "ADMIN";
+                  if (isAdministrationSection && !isAdmin) {
+                    return null;
+                  }
+                  return (
                   <React.Fragment key={`main-${index}`}>
                     <li className="menu-title">
                       <span>{mainLabel?.tittle}</span>
@@ -352,19 +390,39 @@ const Sidebar = () => {
                       </ul>
                     </li>
                   </React.Fragment>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           </OverlayScrollbarsComponent>
           <div className="sidebar-footer sidebar-profile-block">
-            <div className="d-flex align-items-center gap-2 p-2 rounded-2 bg-light">
-              <span className="avatar rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center bg-primary text-white fs-14 fw-semibold sidebar-profile-avatar" style={{ width: 36, height: 36 }}>
-                JA
-              </span>
-              <div className="min-w-0 flex-grow-1 sidebar-profile-text">
-                <p className="fs-13 fw-semibold text-dark mb-0 text-truncate">Jimmy Anderson</p>
-                <p className="fs-12 text-muted mb-0">Administrator</p>
+            <div className="d-flex align-items-center justify-content-between gap-2 p-2 rounded-2 bg-light">
+              <div className="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
+                <span className="avatar rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center bg-primary text-white fs-14 fw-semibold sidebar-profile-avatar" style={{ width: 36, height: 36 }}>
+                  {sidebarUserInitials}
+                </span>
+                <div className="min-w-0 flex-grow-1 sidebar-profile-text">
+                  <p className="fs-13 fw-semibold text-dark mb-0 text-truncate">{sidebarUserName}</p>
+                  <p className="fs-12 text-muted mb-0 text-truncate">{sidebarUserRole}</p>
+                </div>
               </div>
+              <Link
+                href={all_routes.login}
+                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                title="Log Out"
+                onClick={() => {
+                  try {
+                    if (typeof window !== "undefined") {
+                      window.localStorage.removeItem("authToken");
+                      window.localStorage.removeItem("authUser");
+                    }
+                  } catch {
+                    // ignore storage errors
+                  }
+                }}
+              >
+                <i className="ti ti-logout fs-16" />
+              </Link>
             </div>
           </div>
         </div>

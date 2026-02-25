@@ -442,41 +442,6 @@ const Modals = () => {
     const scheduleModal = document.getElementById("schedule_details");
     if (!scheduleModal) return;
 
-    const handleScheduleModalShow = () => {
-      let foundDoctorId: string | null = null;
-      
-      // Try to get doctor ID from clicked element
-      const clickedElement = (window as any).lastClickedElement;
-      if (clickedElement) {
-        const doctorIdAttr = clickedElement.getAttribute("data-doctor-id");
-        if (doctorIdAttr) {
-          foundDoctorId = doctorIdAttr;
-        }
-      }
-
-      // Fallback: search for data-doctor-id in the document
-      if (!foundDoctorId) {
-        const allLinks = document.querySelectorAll('[data-doctor-id]');
-        allLinks.forEach((link) => {
-          const trigger = link as HTMLElement;
-          if (trigger.getAttribute("data-bs-target") === "#schedule_details") {
-            const doctorIdAttr = trigger.getAttribute("data-doctor-id");
-            if (doctorIdAttr) {
-              foundDoctorId = doctorIdAttr;
-            }
-          }
-        });
-      }
-
-      if (foundDoctorId) {
-        setScheduleDoctorId(foundDoctorId);
-        setActiveScheduleTab("Monday"); // Reset to Monday when opening modal
-        fetchDoctorInfoForSchedule(foundDoctorId);
-        // Reset schedule data when opening modal
-        setScheduleData(null);
-      }
-    };
-
     // Track tab changes using Bootstrap's shown.bs.tab event
     const handleTabShown = (e: Event) => {
       const target = e.target as HTMLElement;
@@ -487,29 +452,50 @@ const Modals = () => {
       }
     };
 
-    // Track clicks on schedule links
-    const handleScheduleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const link = target.closest('[data-doctor-id]');
-      if (link) {
-        (window as any).lastClickedElement = link;
-      }
-    };
-
     // Listen for tab shown events
     const tabButtons = scheduleModal.querySelectorAll('[data-bs-toggle="pill"]');
     tabButtons.forEach(button => {
       button.addEventListener('shown.bs.tab', handleTabShown);
     });
 
-    scheduleModal.addEventListener("show.bs.modal", handleScheduleModalShow);
+    // Handle clicks on schedule buttons to load the correct doctor
+    const handleScheduleClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('[data-bs-target="#schedule_details"][data-doctor-id]') as HTMLElement | null;
+      if (!link) return;
+      const foundDoctorId = link.getAttribute("data-doctor-id");
+      if (!foundDoctorId) return;
+
+      // Clear previous schedule/doctor data immediately so popup doesn't show stale info
+      setScheduleLoading(true);
+      setDoctorInfo(null);
+      setMrMaxVisitsPerDay("");
+      setMondaySlots([]);
+      setTuesdaySlots([]);
+      setWednesdaySlots([]);
+      setThursdaySlots([]);
+      setFridaySlots([]);
+      setSaturdaySlots([]);
+      setSundaySlots([]);
+      setMondayMr(false);
+      setTuesdayMr(false);
+      setWednesdayMr(false);
+      setThursdayMr(false);
+      setFridayMr(false);
+      setSaturdayMr(false);
+      setSundayMr(false);
+      setScheduleData(null);
+      setScheduleDoctorId(foundDoctorId);
+      setActiveScheduleTab("Monday"); // Reset to Monday when opening modal
+      fetchDoctorInfoForSchedule(foundDoctorId);
+    };
+
     document.addEventListener("click", handleScheduleClick, true);
 
     return () => {
       tabButtons.forEach(button => {
         button.removeEventListener('shown.bs.tab', handleTabShown);
       });
-      scheduleModal.removeEventListener("show.bs.modal", handleScheduleModalShow);
       document.removeEventListener("click", handleScheduleClick, true);
     };
   }, [fetchDoctorInfoForSchedule]);

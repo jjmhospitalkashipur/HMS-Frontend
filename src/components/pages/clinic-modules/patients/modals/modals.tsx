@@ -107,58 +107,23 @@ const Modals = () => {
     }
   }, []);
 
-  // Listen for modal open event to get patientId
+  // Listen for clicks on edit buttons to get patientId (avoids stale globals/datasets)
   useEffect(() => {
-    const editModal = document.getElementById("edit_patient");
-    if (!editModal) return;
-
     const handleEditClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const link = target.closest('[data-bs-target="#edit_patient"]') as HTMLElement;
-      if (link) {
-        const patientIdAttr = link.getAttribute("data-patient-id");
-        if (patientIdAttr) {
-          (editModal as any).dataset.patientId = patientIdAttr;
-          (window as any).__currentEditPatientId = patientIdAttr;
-        }
-      }
-    };
+      const link = target.closest('[data-bs-target="#edit_patient"][data-patient-id]') as HTMLElement | null;
+      if (!link) return;
+      const patientIdAttr = link.getAttribute("data-patient-id");
+      if (!patientIdAttr) return;
 
-    const handleModalShow = () => {
       resetForm();
-      
-      let foundPatientId: string | null = null;
-      
-      if ((window as any).__currentEditPatientId) {
-        foundPatientId = (window as any).__currentEditPatientId;
-      }
-      
-      if (!foundPatientId) {
-        foundPatientId = (editModal as any).dataset?.patientId || null;
-      }
-      
-      if (!foundPatientId) {
-        const triggerElements = document.querySelectorAll('[data-bs-target="#edit_patient"]');
-        triggerElements.forEach((trigger) => {
-          const patientIdAttr = trigger.getAttribute("data-patient-id");
-          if (patientIdAttr) {
-            foundPatientId = patientIdAttr;
-          }
-        });
-      }
-
-      if (foundPatientId) {
-        setPatientId(foundPatientId);
-        fetchPatientData(foundPatientId);
-      }
+      setPatientId(patientIdAttr);
+      fetchPatientData(patientIdAttr);
     };
 
     document.addEventListener("click", handleEditClick, true);
-    editModal.addEventListener("show.bs.offcanvas", handleModalShow);
-    
     return () => {
       document.removeEventListener("click", handleEditClick, true);
-      editModal.removeEventListener("show.bs.offcanvas", handleModalShow);
     };
   }, [fetchPatientData]);
 

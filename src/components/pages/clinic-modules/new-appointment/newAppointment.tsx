@@ -20,7 +20,6 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
-import { getDayNameInIST } from "@/core/utils/dayjsIST";
 
 interface IVisitTypeCharge {
   visitType?: string;
@@ -112,12 +111,14 @@ const NewAppointmentComponent = () => {
   const finalAmount = total - discount;
   const balance = finalAmount - amountReceived;
 
-  // MR option is disabled when doctor has mr: false for the selected visit day (day computed in IST)
+  // MR option is disabled when doctor has mr: false for the selected visit day
   const isMrDisabledForSelectedDay = useMemo(() => {
     if (!selectedDoctor?.value || !visitDate) return true;
     const doctor = doctors.find((d) => d._id === selectedDoctor.value);
     if (!doctor?.weeklySchedule?.length) return true;
-    const dayName = getDayNameInIST(visitDate);
+    const dayName = dayjs.isDayjs(visitDate)
+      ? visitDate.format("dddd")
+      : dayjs(visitDate).format("dddd");
     if (!dayName) return true;
     const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
     return daySchedule?.mr !== true;
@@ -294,7 +295,7 @@ const NewAppointmentComponent = () => {
         setShowPatientDropdown(false);
       }
     } catch (error) {
-      console.error("Error searching patients:", error);
+      // Swallow patient search errors to avoid noisy console AxiosError
       setPatientSearchResults([]);
       setShowPatientDropdown(false);
     } finally {
@@ -477,13 +478,6 @@ const NewAppointmentComponent = () => {
         return;
       }
 
-      if (!sessionSlot?.value) {
-        const errorMsg = "Please select a session slot";
-        setError(errorMsg);
-        alert(errorMsg);
-        return;
-      }
-
       if (!name.trim()) {
         const errorMsg = "Please enter patient name";
         setError(errorMsg);
@@ -518,7 +512,7 @@ const NewAppointmentComponent = () => {
   };
 
   const doCreateAppointment = async (discountPwd: string | undefined) => {
-    if (!API_BASE_URL || !selectedDoctor?.value || !sessionSlot?.value || !name.trim() || !phone || !visitDate) return;
+    if (!API_BASE_URL || !selectedDoctor?.value || !name.trim() || !phone || !visitDate) return;
     setLoading(true);
     setError("");
     try {
@@ -538,6 +532,10 @@ const NewAppointmentComponent = () => {
         discount: discountNum,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
+      const sessionSlotValue =
+        sessionSlot?.value && sessionSlot.value !== "Select"
+          ? sessionSlot.value
+          : undefined;
 
       if (selectedPatient) {
         const appointmentData = {
@@ -548,7 +546,7 @@ const NewAppointmentComponent = () => {
           reason: reason || undefined,
           visitDate: formatVisitDate(),
           visitTime: visitTime ? formatVisitTime() : undefined,
-          sessionSlot: sessionSlot?.value !== "Select" ? sessionSlot?.value : "",
+          sessionSlot: sessionSlotValue,
           ...visitPayloadBase,
         };
 
@@ -602,7 +600,7 @@ const NewAppointmentComponent = () => {
         reason: reason || undefined,
         visitDate: formatVisitDate(),
         visitTime: formatVisitTime(),
-        sessionSlot: sessionSlot?.value !== "Select" ? sessionSlot?.value : "",
+        sessionSlot: sessionSlotValue,
         ...visitPayloadBase,
       };
 
@@ -1107,7 +1105,7 @@ const NewAppointmentComponent = () => {
                         <div className="col-md-6">
                           <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
-                              Session Slot<span className="text-danger ms-1">*</span>
+                              Session Slot
                             </label>
                             <CommonSelect
                               options={sessionOptions}
