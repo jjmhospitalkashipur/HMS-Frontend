@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import { API_BASE_URL } from "@/environment";
 import { Maximize, Minimize, Ambulance } from "tabler-icons-react";
 
@@ -145,6 +146,8 @@ const QueueDisplayComponent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelayRef = useRef(2000);
 
   const toggleFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -165,194 +168,157 @@ const QueueDisplayComponent = () => {
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
 
-    setError("");
-    const streamUrl = `${API_BASE_URL}/hospital/visits/display/stream/${doctorId}`;
-    const es = new EventSource(streamUrl);
-    eventSourceRef.current = es;
+    let destroyed = false;
 
-    es.onmessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data) as Record<string, unknown>;
-        const type = ((data.eventType ?? data.type) as string)?.trim().toLowerCase() ?? "";
+    const connect = () => {
+      if (destroyed) return;
+      const streamUrl = `${API_BASE_URL}/hospital/visits/display/stream/${doctorId}`;
+      const es = new EventSource(streamUrl);
+      eventSourceRef.current = es;
 
-        switch (type) {
-          case "initial":
-          case "session-change":
-          case "date-change": {
-            setDisplay(displayFromSSE(data));
-            setLoading(false);
-            setError("");
-            break;
-          }
-          case "new-visit": {
-            const visit = data.visit as Record<string, unknown>;
-            if (visit) {
+      es.onmessage = (event: MessageEvent) => {
+        if (destroyed) return;
+        // Reset backoff on successful message
+        reconnectDelayRef.current = 2000;
+        try {
+          const data = JSON.parse(event.data) as Record<string, unknown>;
+          const type = ((data.eventType ?? data.type) as string)?.trim().toLowerCase() ?? "";
+
+          switch (type) {
+            case "initial":
+            case "session-change":
+            case "date-change": {
+              setDisplay(displayFromSSE(data));
+              setLoading(false);
+              setError("");
+              break;
+            }
+            case "new-visit": {
+              const visit = data.visit as Record<string, unknown>;
+              if (visit) {
+                setDisplay((prev) => {
+                  if (!prev) return prev;
+                  const newPatient = toQueuePatient(visit);
+                  const exists = prev.queue.some(
+                    (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
+                  );
+                  if (exists) return prev;
+                  const { queue, totalPatients, emergencyCount, regularCount } =
+                    sortAndComputeQueue([...prev.queue, newPatient]);
+                  return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                });
+              }
+              break;
+            }
+            case "status-change": {
+              const visit = data.visit as Record<string, unknown>;
+              if (!visit) break;
+              const updated = toQueuePatient(visit);
+              const visitId = (updated.visitId as string) || (updated._id as string);
+              const newStatus = updated.status;
+              if (!visitId || !newStatus) break;
+              const normalized = newStatus.toLowerCase();
+              const shouldRemove =
+                normalized === "completed" ||
+                normalized === "cancelled" ||
+                normalized === "canceled" ||
+                normalized === "no show" ||
+                normalized === "no_show";
               setDisplay((prev) => {
                 if (!prev) return prev;
-                const newPatient = toQueuePatient(visit);
-                const exists = prev.queue.some(
-                  (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
-                );
-                if (exists) return prev;
-                const {
-                  queue,
-                  totalPatients,
-                  emergencyCount,
-                  regularCount,
-                } = sortAndComputeQueue([...prev.queue, newPatient]);
-                return {
-                  ...prev,
-                  queue,
-                  totalPatients,
-                  emergencyCount,
-                  regularCount,
-                };
+                const nextQueue = shouldRemove
+                  ? prev.queue.filter((p) => (p.visitId || p._id) !== visitId)
+                  : prev.queue.map((p) =>
+                      (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
+                    );
+                const { queue, totalPatients, emergencyCount, regularCount } =
+                  sortAndComputeQueue(nextQueue);
+                return { ...prev, queue, totalPatients, emergencyCount, regularCount };
               });
+              break;
             }
-            break;
-          }
-          case "status-change": {
-            const visit = data.visit as Record<string, unknown>;
-            if (!visit) break;
-            const updated = toQueuePatient(visit);
-            const visitId = (updated.visitId as string) || (updated._id as string);
-            const newStatus = updated.status;
-            if (!visitId || !newStatus) break;
-            const normalized = newStatus.toLowerCase();
-            const shouldRemove =
-              normalized === "completed" ||
-              normalized === "cancelled" ||
-              normalized === "canceled" ||
-              normalized === "no show" ||
-              normalized === "no_show";
-
-            setDisplay((prev) => {
-              if (!prev) return prev;
-              let nextQueue: IQueuePatient[];
-              if (shouldRemove) {
-                nextQueue = prev.queue.filter(
+            case "visit-updated": {
+              const visit = data.visit as Record<string, unknown>;
+              if (!visit) break;
+              const updated = toQueuePatient(visit);
+              const matchId = (updated.visitId as string) || (updated._id as string);
+              if (!matchId) break;
+              setDisplay((prev) => {
+                if (!prev) return prev;
+                const idx = prev.queue.findIndex(
+                  (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
+                );
+                const existing = idx >= 0 ? prev.queue[idx] : null;
+                const merged =
+                  existing && !(visit.patient as Record<string, unknown>)
+                    ? { ...updated, patient: { ...updated.patient, ...existing.patient } }
+                    : { ...updated };
+                const nextQueue = [...prev.queue];
+                if (idx >= 0) nextQueue[idx] = merged;
+                else nextQueue.push(merged);
+                const { queue, totalPatients, emergencyCount, regularCount } =
+                  sortAndComputeQueue(nextQueue);
+                return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+              });
+              break;
+            }
+            case "visit-deleted": {
+              const visitId = data.visitId as string;
+              if (!visitId) break;
+              setDisplay((prev) => {
+                if (!prev) return prev;
+                const nextQueue = prev.queue.filter(
                   (p) => (p.visitId || p._id) !== visitId
                 );
-              } else {
-                nextQueue = prev.queue.map((p) =>
-                  (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
-                );
-              }
-              const {
-                queue,
-                totalPatients,
-                emergencyCount,
-                regularCount,
-              } = sortAndComputeQueue(nextQueue);
-              return {
-                ...prev,
-                queue,
-                totalPatients,
-                emergencyCount,
-                regularCount,
-              };
-            });
-            break;
-          }
-          case "visit-updated": {
-            const visit = data.visit as Record<string, unknown>;
-            if (!visit) break;
-            const updated = toQueuePatient(visit);
-            const matchId = (updated.visitId as string) || (updated._id as string);
-            if (!matchId) break;
-            setDisplay((prev) => {
-              if (!prev) return prev;
-              const idx = prev.queue.findIndex(
-                (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
-              );
-              const existing = idx >= 0 ? prev.queue[idx] : null;
-              const merged = existing && !(visit.patient as Record<string, unknown>)
-                ? { ...updated, patient: { ...updated.patient, ...existing.patient } }
-                : { ...updated };
-              const nextQueue = [...prev.queue];
-              if (idx >= 0) {
-                nextQueue[idx] = merged;
-              } else {
-                nextQueue.push(merged);
-              }
-              const {
-                queue,
-                totalPatients,
-                emergencyCount,
-                regularCount,
-              } = sortAndComputeQueue(nextQueue);
-              return {
-                ...prev,
-                queue,
-                totalPatients,
-                emergencyCount,
-                regularCount,
-              };
-            });
-            break;
-          }
-          case "visit-deleted": {
-            const visitId = data.visitId as string;
-            if (!visitId) break;
-            setDisplay((prev) => {
-              if (!prev) return prev;
-              const nextQueue = prev.queue.filter(
-                (p) => (p.visitId || p._id) !== visitId
-              );
-              const {
-                queue,
-                totalPatients,
-                emergencyCount,
-                regularCount,
-              } = sortAndComputeQueue(nextQueue);
-              return {
-                ...prev,
-                queue,
-                totalPatients,
-                emergencyCount,
-                regularCount,
-              };
-            });
-            break;
-          }
-          case "queue-refresh": {
-            const queue = data.queue as Record<string, unknown>[] | undefined;
-            if (Array.isArray(queue)) {
-              setDisplay((prev) => {
-                if (!prev) return prev;
-                const normalizedQueue = queue.map(toQueuePatient);
-                const {
-                  queue: sortedQueue,
-                  totalPatients,
-                  emergencyCount,
-                  regularCount,
-                } = sortAndComputeQueue(normalizedQueue);
-                return {
-                  ...prev,
-                  queue: sortedQueue,
-                  totalPatients,
-                  emergencyCount,
-                  regularCount,
-                };
+                const { queue, totalPatients, emergencyCount, regularCount } =
+                  sortAndComputeQueue(nextQueue);
+                return { ...prev, queue, totalPatients, emergencyCount, regularCount };
               });
+              break;
             }
-            break;
+            case "queue-refresh": {
+              const rawQ = data.queue as Record<string, unknown>[] | undefined;
+              if (Array.isArray(rawQ)) {
+                setDisplay((prev) => {
+                  if (!prev) return prev;
+                  const { queue: sortedQueue, totalPatients, emergencyCount, regularCount } =
+                    sortAndComputeQueue(rawQ.map(toQueuePatient));
+                  return { ...prev, queue: sortedQueue, totalPatients, emergencyCount, regularCount };
+                });
+              }
+              break;
+            }
+            default:
+              break;
           }
-          default:
-            break;
+        } catch (err) {
+          console.error("SSE parse error:", err);
         }
-      } catch (err) {
-        console.error("SSE parse error:", err);
-      }
+      };
+
+      es.onerror = () => {
+        if (destroyed) return;
+        es.close();
+        eventSourceRef.current = null;
+        setLoading((prev) => prev);
+        setError("Connection lost. Reconnecting…");
+        // Exponential backoff: 2s → 4s → 8s → max 30s
+        const delay = Math.min(reconnectDelayRef.current, 30000);
+        reconnectDelayRef.current = delay * 2;
+        reconnectTimerRef.current = setTimeout(connect, delay);
+      };
     };
 
-    es.onerror = () => {
-      if (loading && !display) setError("Connection lost. Reconnecting…");
-      setLoading(false);
-    };
+    setError("");
+    connect();
 
     return () => {
-      es.close();
+      destroyed = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
   }, [doctorId]);
@@ -432,18 +398,19 @@ const QueueDisplayComponent = () => {
           padding: "clamp(1rem, 2vw, 4rem)"
         }}>
           <div
-            className="bg-light d-inline-flex align-items-center justify-content-center mb-3 flex-shrink-0 overflow-hidden rounded-2 mx-auto"
+            className="bg-light mb-3 flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
             style={{ 
               width: "clamp(200px, 25vw, 550px)", 
               height: "clamp(240px, 30vw, 660px)",
-              aspectRatio: "320/380"
             }}
           >
-            <img
+            <Image
               src="/assets/img/IMG_3366.jpeg"
               alt="Doctor"
-              className="w-100 h-100"
+              fill
+              sizes="(max-width: 768px) 200px, 25vw"
               style={{ objectFit: "cover", objectPosition: "top" }}
+              priority={false}
             />
           </div>
           <h2 className="fw-bold text-dark mb-1" style={{ fontSize: "clamp(1rem, 1.8vw, 5rem)" }}>{doctorName}</h2>
