@@ -82,6 +82,7 @@ interface ITransformedAppointment {
 
 const AppointmentsComponent = () => {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"all" | "today">("all");
   const [data, setData] = useState<ITransformedAppointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -155,6 +156,11 @@ const AppointmentsComponent = () => {
     return statusUpdates[record.id] || record.Status;
   };
 
+  const handleTabChange = (tab: "all" | "today") => {
+    setActiveTab(tab);
+    setPage(1);
+  };
+
   const handlePaginationChange = (newPage: number, newPageSize: number) => {
     setPage(newPage);
     setLimit(newPageSize);
@@ -162,7 +168,7 @@ const AppointmentsComponent = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedDate, appliedCreatedFrom, appliedCreatedTo, page, limit]);
+  }, [activeTab, appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedDate, appliedCreatedFrom, appliedCreatedTo, page, limit]);
 
   useEffect(() => {
     if (!API_BASE_URL) return;
@@ -232,7 +238,9 @@ const AppointmentsComponent = () => {
       if (appliedVisitType) params.visitType = appliedVisitType;
       if (appliedAppointmentType) params.appointmentType = appliedAppointmentType;
       if (appliedDoctorId) params.doctorId = appliedDoctorId;
-      if (appliedDate) params.date = appliedDate;
+      // Today tab always overrides date filter with today's date
+      const effectiveDate = activeTab === "today" ? dayjs().format("YYYY-MM-DD") : appliedDate;
+      if (effectiveDate) params.date = effectiveDate;
       if (appliedCreatedFrom) params.createdFrom = appliedCreatedFrom;
       if (appliedCreatedTo) params.createdTo = appliedCreatedTo;
 
@@ -669,20 +677,35 @@ const AppointmentsComponent = () => {
             </div>
           </div>
           {/* End Page Header */}
-          {/*  Start Filter */}
-          <div className=" d-flex align-items-center justify-content-between flex-wrap">
-            <div className="d-flex align-items-center gap-2">
-              <div className="search-set mb-3">
-                <div className="d-flex align-items-center flex-wrap gap-2">
-                  <div className="table-search d-flex align-items-center mb-0">
-                    <div className="search-input">
-                      <SearchInput value={searchText} onChange={handleSearch} />
-                    </div>
-                  </div>
-                </div>
+          {/*  Tabs + Search + Filter row */}
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            {/* Tabs */}
+            <ul className="nav nav-tabs border-0 mb-0 flex-shrink-0">
+              <li className="nav-item">
+                <button
+                  type="button"
+                  className={`nav-link${activeTab === "all" ? " active" : ""}`}
+                  onClick={() => handleTabChange("all")}
+                >
+                  All Appointments
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  type="button"
+                  className={`nav-link${activeTab === "today" ? " active" : ""}`}
+                  onClick={() => handleTabChange("today")}
+                >
+                  Today&apos;s Appointments
+                </button>
+              </li>
+            </ul>
+            {/* Search + Filter */}
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <div className="search-input">
+                <SearchInput value={searchText} onChange={handleSearch} />
               </div>
-            </div>
-            <div className="d-flex table-dropdown mb-3 right-content align-items-center flex-wrap row-gap-3">
+              <div className="d-flex table-dropdown right-content align-items-center flex-wrap row-gap-3">
               <div className="dropdown me-2">
                 <Link
                   href="#"
@@ -804,6 +827,7 @@ const AppointmentsComponent = () => {
                   </form>
                 </div>
               </div>
+            </div>
             </div>
           </div>
           {/*  End Filter */}

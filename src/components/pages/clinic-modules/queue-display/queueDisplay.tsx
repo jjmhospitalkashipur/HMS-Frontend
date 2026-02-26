@@ -405,7 +405,7 @@ const QueueDisplayComponent = () => {
             }}
           >
             <Image
-              src="/assets/img/IMG_3366.jpeg"
+              src="/assets/img/Photo3.jpg"
               alt="Doctor"
               fill
               sizes="(max-width: 768px) 200px, 25vw"
@@ -414,8 +414,7 @@ const QueueDisplayComponent = () => {
             />
           </div>
           <h2 className="fw-bold text-dark mb-1" style={{ fontSize: "clamp(1rem, 1.8vw, 5rem)" }}>{doctorName}</h2>
-          <p className="text-secondary mb-1" style={{ fontSize: "clamp(0.875rem, 1.4vw, 3.5rem)" }}>{departmentOrSpecialization}</p>
-          <p className="mb-0 fw-bold" style={{ fontSize: "clamp(0.875rem, 1.4vw, 3.5rem)" }}>{designation}</p>
+          <p className="text-secondary mb-0" style={{ fontSize: "clamp(0.875rem, 1.4vw, 3.5rem)" }}>{departmentOrSpecialization}</p>
         </div>
 
         {/* Right: Queue table - height constrained so scroll is inside this block */}
