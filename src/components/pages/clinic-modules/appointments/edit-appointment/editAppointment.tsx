@@ -271,19 +271,19 @@ const EditAppointmentComponent = () => {
 
     let match = visitTypes.find((vt: IVisitTypeCharge) => {
       if (vt.visitType != null && vt.appointmentType != null) {
-        if (appointmentType === "Day care") {
+        if (appointmentType === "Day Care") {
           return vt.visitType === "New" && (vt.appointmentType === "Day care" || vt.appointmentType === "Day Care");
         }
         return (vt.appointmentType === "OPD" || aptTypeNorm(vt.appointmentType) === "opd") && vt.visitType === selectedVisit;
       }
       if (vt.type != null) {
-        if (appointmentType === "Day care") return vt.type === "Day care";
+        if (appointmentType === "Day Care") return vt.type === "Day Care";
         return vt.type === (selectedVisit || "New") || (selectedVisit === "New" && vt.type === "OPD");
       }
       return false;
     });
 
-    if (!match && selectedVisit === "New" && appointmentType !== "Day care") {
+    if (!match && selectedVisit === "New" && appointmentType !== "Day Care") {
       match = visitTypes.find((vt: IVisitTypeCharge) => vt.appointmentType === "OPD" && vt.visitType === "New");
     }
     if (match != null) {
@@ -362,7 +362,7 @@ const EditAppointmentComponent = () => {
         visitTime: visitTime ? (dayjs.isDayjs(visitTime) ? visitTime.format("HH:mm") : dayjs(visitTime).format("HH:mm")) : undefined,
         sessionSlot: sessionSlot?.value,
         visitType: visitType?.value !== "Select" ? visitType?.value : undefined,
-        appointmentType: appointmentType === "Day care" ? "Day Care" : appointmentType,
+        appointmentType: appointmentType,
         reason: reason || undefined,
         discount: discountNum,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
@@ -690,7 +690,7 @@ const EditAppointmentComponent = () => {
                                 onChange={(e) => {
                                   const newType = e.target.value;
                                   setAppointmentType(newType);
-                                  if (newType !== "Day care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
+                                  if (newType !== "Day Care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
                                     setPaymentMode("Cash");
                                   }
                                 }}
@@ -784,7 +784,7 @@ const EditAppointmentComponent = () => {
                             />
                             <label className="form-check-label" htmlFor="edit-card">Card</label>
                           </div>
-                          {appointmentType === "Day care" && (
+                          {appointmentType === "Day Care" && (
                             <>
                               <div className="form-check">
                                 <input

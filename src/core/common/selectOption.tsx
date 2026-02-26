@@ -198,7 +198,7 @@ export const Title = [
 ];
 export const Appointment_Type = [
   { value: "OPD", label: "OPD" },
-  { value: "Day care", label: "Day care" },
+  { value: "Day Care", label: "Day Care" },
 
 ];
 export const Primary_Doctor = [

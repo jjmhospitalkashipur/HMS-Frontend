@@ -228,19 +228,19 @@ const NewAppointmentComponent = () => {
 
     let match = visitTypes.find((vt: IVisitTypeCharge) => {
       if (vt.visitType != null && vt.appointmentType != null) {
-        if (appointmentType === "Day care") {
+        if (appointmentType === "Day Care") {
           return vt.visitType === "New" && (vt.appointmentType === "Day care" || vt.appointmentType === "Day Care");
         }
         return (vt.appointmentType === "OPD" || aptTypeNorm(vt.appointmentType) === "opd") && vt.visitType === selectedVisit;
       }
       if (vt.type != null) {
-        if (appointmentType === "Day care") return vt.type === "Day care";
+        if (appointmentType === "Day Care") return vt.type === "Day Care";
         return vt.type === (selectedVisit || "New") || (selectedVisit === "New" && vt.type === "OPD");
       }
       return false;
     });
 
-    if (!match && selectedVisit === "New" && appointmentType !== "Day care") {
+    if (!match && selectedVisit === "New" && appointmentType !== "Day Care") {
       match = visitTypes.find((vt: IVisitTypeCharge) => vt.appointmentType === "OPD" && vt.visitType === "New");
     }
     setTotal(match?.charge ?? 0);
@@ -252,7 +252,7 @@ const NewAppointmentComponent = () => {
 
   // When Day Care is selected, set visit type to "New" and date to today
   useEffect(() => {
-    if (appointmentType === "Day care") {
+    if (appointmentType === "Day Care") {
       const newVisitType = Visit_Type.find((v) => v.value === "New");
       if (newVisitType && visitType?.value !== "New") {
         setVisitType(newVisitType);
@@ -1157,7 +1157,7 @@ const NewAppointmentComponent = () => {
                                     onChange={(e) => {
                                       const newType = e.target.value;
                                       setAppointmentType(newType);
-                                      if (newType !== "Day care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
+                                      if (newType !== "Day Care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
                                         setPaymentMode("Cash");
                                       }
                                     }}
@@ -1177,7 +1177,7 @@ const NewAppointmentComponent = () => {
                             </label>
                             <div className="d-flex gap-3 flex-wrap">
                               {Visit_Type.filter((v) => v.value !== "Select").map((type) => {
-                                const isDayCare = appointmentType === "Day care";
+                                const isDayCare = appointmentType === "Day Care";
                                 const isMrOption = type.value === "MR";
                                 const isDisabled =
                                   (isDayCare && type.value !== "New") ||
@@ -1279,7 +1279,7 @@ const NewAppointmentComponent = () => {
                               Card
                             </label>
                           </div>
-                          {appointmentType === "Day care" && (
+                          {appointmentType === "Day Care" && (
                             <>
                               <div className="form-check">
                                 <input
