@@ -440,10 +440,10 @@ const QueueDisplayComponent = () => {
             }}
           >
             <img
-              src="/assets/img/statisdoc.png"
+              src="/assets/img/IMG_3366.jpeg"
               alt="Doctor"
               className="w-100 h-100"
-              style={{ objectFit: "cover" }}
+              style={{ objectFit: "cover", objectPosition: "top" }}
             />
           </div>
           <h2 className="fw-bold text-dark mb-1" style={{ fontSize: "clamp(1rem, 1.8vw, 5rem)" }}>{doctorName}</h2>
