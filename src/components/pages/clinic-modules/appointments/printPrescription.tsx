@@ -10,6 +10,9 @@ interface IPrintPrescriptionProps {
     Phone?: string;
     Doctor?: string;
     role?: string;
+    _department?: string;
+    _visitDate?: string;
+    _visitTime?: string;
     Visit?: string;
     Appointment_Type?: string;
     UHD_No?: string;
@@ -183,22 +186,24 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
               <tr>
                 <td className="info-label-cell">Patient Name:</td>
                 <td className="info-value-cell">{appointmentData.Patient || "—"}</td>
-                <td className="info-label-cell">Date / Time:</td>
-                <td className="info-value-cell">{formatDateTime(appointmentData.Date_Time) || "—"}</td>
+                <td className="info-label-cell">Date:</td>
+                <td className="info-value-cell">{appointmentData._visitDate || formatDateTime(appointmentData.Date_Time)?.split(" - ")[0] || "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Age / Gender:</td>
-                <td className="info-value-cell" colSpan={3}>
+                <td className="info-value-cell">
                   {appointmentData.Age != null || appointmentData.Sex
                     ? `${appointmentData.Age ?? "—"} Yrs / ${appointmentData.Sex ?? "—"}`
                     : "—"}
                 </td>
+                <td className="info-label-cell">Time:</td>
+                <td className="info-value-cell">{appointmentData._visitTime || formatDateTime(appointmentData.Date_Time)?.split(" - ")[1] || "—"}</td>
               </tr>
               <tr>
                 <td className="info-label-cell">Ref. Consultant:</td>
                 <td className="info-value-cell-full" colSpan={3}>
                   {appointmentData.Doctor ? `Dr. ${appointmentData.Doctor.replace(/^Dr\.\s*/i, "")}` : "—"}
-                  {appointmentData.role ? ` (${appointmentData.role})` : ""}
+                  {appointmentData._department ? ` (${appointmentData._department})` : appointmentData.role ? ` (${appointmentData.role})` : ""}
                 </td>
               </tr>
             </tbody>

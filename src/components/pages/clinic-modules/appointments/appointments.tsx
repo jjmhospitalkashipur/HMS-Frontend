@@ -252,8 +252,8 @@ const AppointmentsComponent = () => {
         const visits: IVisit[] = response.data.data.visits;
         const pagination = response.data?.data?.pagination;
         if (pagination && typeof pagination === "object") {
-          const { currentPage: p = 1, limit: l = 10, count = visits.length, hasMore = false } = pagination;
-          setTotalCount(hasMore ? p * l + 1 : (p - 1) * l + count);
+          const { currentPage: p = 1, limit: l = 10, count = visits.length, hasMore = false, totalCount: apiTotal } = pagination;
+          setTotalCount(typeof apiTotal === "number" ? apiTotal : (hasMore ? p * l + 1 : (p - 1) * l + count));
         } else {
           const total = response.data?.data?.total ?? response.data?.data?.count;
           setTotalCount(typeof total === "number" ? total : visits.length);
@@ -266,6 +266,7 @@ const AppointmentsComponent = () => {
               | {
                   _id?: string;
                   name?: string;
+                  title?: string;
                   phone?: string;
                   organisationName?: string;
                   organisation_name?: string;
@@ -308,6 +309,7 @@ const AppointmentsComponent = () => {
                   designation: embeddedDoctor.designation,
                 }
               : null;
+            const doctorDepartment = embeddedDoctor?.department || "";
 
             const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
             const visitTime = visit.visitTime || "";
@@ -325,11 +327,14 @@ const AppointmentsComponent = () => {
               Case_ID: visit.visitId || visit._id,
               Token_No: visit.tokenNumber || 0,
               Date_Time: dateTime,
-              Patient: patient?.name || "Unknown Patient",
+              Patient: [embeddedPatient?.title, patient?.name].filter(Boolean).join(" ") || "Unknown Patient",
               Phone: patient?.phone || "",
               Organisation_name: patient?.organisationName || "",
               Doctor: doctor?.name || "Unknown Doctor",
               role: doctor?.designation || "",
+              _department: doctorDepartment,
+              _visitDate: visitDate,
+              _visitTime: visitTime,
               Visit: visit.visitType || "",
               Appointment_Type: visit.appointmentType || "",
               Status: visit.status || "Scheduled",
@@ -573,20 +578,6 @@ const AppointmentsComponent = () => {
           >
             <i className="ti ti-download fs-16" />
           </Link>
-          <Link
-            href="#"
-            className="text-danger"
-            onClick={(e) => {
-              e.stopPropagation();
-              const triggerButton = document.querySelector('#cancel_modal_trigger') as HTMLElement;
-              if (triggerButton) {
-                triggerButton.setAttribute('data-visit-id', record.id);
-                triggerButton.click();
-              }
-            }}
-          >
-            <i className="ti ti-x fs-16" />
-          </Link>
         </div>
       ),
     },
@@ -609,13 +600,6 @@ const AppointmentsComponent = () => {
         id="view_details_trigger"
         data-bs-toggle="offcanvas"
         data-bs-target="#view_details"
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
-      <button
-        id="cancel_modal_trigger"
-        data-bs-toggle="modal"
-        data-bs-target="#cancel_modal"
         style={{ display: 'none' }}
         aria-hidden="true"
       />

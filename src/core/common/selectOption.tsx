@@ -10,6 +10,7 @@ export const Designation = [
   { value: "Orthopedic Surgeon", label: "Orthopedic Surgeon" },
   { value: "Pediatrician", label: "Pediatrician" },
   { value: "Gynecologist", label: "Gynecologist" },
+  { value: "Nephrologist", label: "Nephrologist" },
   { value: "Senior Consultant", label: "Senior Consultant" },
 ];
 export const Department = [

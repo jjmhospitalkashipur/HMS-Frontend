@@ -59,51 +59,47 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body {
                 margin: 0;
-                padding: 20px;
+                padding: 2px 14px;
                 font-family: Tahoma, Arial, sans-serif;
-                font-size: 14px;
+                font-size: 16px;
                 color: #000;
                 background: #fff;
                 line-height: 1.4;
               }
-              .receipt-container { width: 100%; max-width: 900px; margin: 0 auto; padding: 0; background: #fff; }
-              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #000; }
-              .header-left { display: flex; align-items: flex-start; gap: 12px; }
-              .logo-placeholder { width: 50px; height: 50px; background-color: #0066cc; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; flex-shrink: 0; border: 2px solid #0066cc; }
-              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 4px 0; color: #000; }
-              .header-info .subtitle { font-size: 14px; font-weight: normal; color: #000; margin: 0; }
-              .header-info .certification { font-size: 12px; color: #000; margin-top: 4px; }
+              .receipt-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 0 60px; background: #fff; }
+              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; }
+              .header-left { display: flex; align-items: center; gap: 10px; }
+              .logo-img { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
+              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 2px 0; color: #000; }
+              .header-info .certification { font-size: 12px; color: #000; margin-top: 2px; }
               .header-right { text-align: right; }
-              .header-right .address { font-size: 13px; color: #000; margin-bottom: 6px; line-height: 1.4; }
-              .header-right .contact { font-size: 13px; color: #000; line-height: 1.6; }
-              .content-box { border: 1px solid #000; padding: 12px; margin-bottom: 25px; }
-              .patient-details-box { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
+              .header-right .address { font-size: 14px; color: #000; margin-bottom: 4px; line-height: 1.4; }
+              .header-right .contact { font-size: 14px; color: #000; line-height: 1.6; }
+              .content-box { border: 1px solid #000; padding: 8px 12px 0 12px; margin-bottom: 12px; }
+              .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ccc; }
               .patient-row { display: flex; padding: 3px 0; }
-              .patient-label { font-weight: 600; color: #000; padding-right: 8px; }
-              .patient-value { font-weight: 500; color: #000; flex: 1; }
-              .patient-pair { display: flex; width: 50%; }
-              .patient-pair:first-child { padding-right: 15px; }
-              .patient-pair:last-child { padding-left: 15px; }
+              .patient-label { font-weight: 600; color: #000; white-space: nowrap; padding-right: 6px; flex-shrink: 0; }
+              .patient-value { font-weight: 500; color: #000; flex: 1; min-width: 0; }
+              .patient-pair { display: flex; width: 50%; align-items: baseline; min-width: 0; }
+              .patient-pair:first-child { padding-right: 12px; }
+              .patient-pair:last-child { padding-left: 12px; }
               .patient-row-full { display: flex; }
-              .patient-row-full .patient-label { width: auto; min-width: 140px; }
-              .patient-row-full .patient-value-full { flex: 1; }
+              .patient-row-full .patient-label { white-space: nowrap; flex-shrink: 0; }
+              .patient-row-full .patient-value-full { flex: 1; min-width: 0; }
               .transactions-section { margin-bottom: 0; }
-              .summary-section { padding-bottom: 15px; }
-              .transaction-header { display: flex; padding: 10px 0; border-bottom: 2px solid #000; font-weight: bold; font-size: 13px; }
-              .transaction-header .col-code { width: 15%; }
-              .transaction-header .col-transactions { width: 60%; }
+              .transaction-header { display: flex; padding: 8px 0; border-bottom: 2px solid #000; font-weight: bold; font-size: 15px; }
+              .transaction-header .col-type { width: 75%; }
               .transaction-header .col-rate { width: 25%; text-align: right; }
-              .transaction-row { display: flex; padding: 10px 0; border-bottom: 1px solid #000; font-size: 13px; }
-              .transaction-row .col-code { width: 15%; }
-              .transaction-row .col-transactions { width: 60%; }
+              .transaction-row { display: flex; padding: 8px 0; border-bottom: 1px solid #000; font-size: 15px; font-weight: 600; }
+              .transaction-row .col-type { width: 75%; }
               .transaction-row .col-rate { width: 25%; text-align: right; }
-              .summary-section { margin-top: 20px; }
-              .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #000; }
-              .summary-row.total-paid { font-weight: bold; border-bottom: 2px solid #000; padding-top: 10px; padding-bottom: 10px; margin-top: 6px; }
-              .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #000; }
+              .summary-section { margin-top: 10px; }
+              .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; font-weight: 600; border-bottom: 1px solid #000; }
+              .summary-row.total-paid { font-weight: bold; border-bottom: none; margin-top: 0; padding-bottom: 8px; }
+              .footer { margin-top: 10px; display: flex; justify-content: space-between; font-size: 11px; color: #000; }
               .payment-no-data { text-align: center; padding: 24px; color: #000; font-size: 14px; border: 1px solid #000; }
               @media print {
-                @page { margin: 12mm; size: A4; }
+                @page { margin: 8mm 10mm 10mm 10mm; size: A4; }
                 body { padding: 0; background: white !important; }
               }
             </style>
@@ -135,22 +131,21 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
   };
 
   const patientName = [receiptData.patientTitle, receiptData.patientName].filter(Boolean).join(" ").trim() || "—";
-  const ageGender = receiptData.age != null || receiptData.gender
-    ? `${receiptData.age ?? "—"} Yrs / ${receiptData.gender ?? "—"}`
-    : "—";
   const doctorDisplay = receiptData.doctorName
     ? `Dr. ${receiptData.doctorName.replace(/^Dr\.\s*/i, "")}${receiptData.doctorDepartment ? ` (${receiptData.doctorDepartment})` : ""}`
     : "—";
-  const dateTime = receiptData.visitDate && receiptData.visitTime
-    ? `${dayjs(receiptData.visitDate).format("DD MMM YYYY")} - ${formatTime(receiptData.visitTime)}`
-    : receiptData.visitDate
-      ? dayjs(receiptData.visitDate).format("DD MMM YYYY")
-      : "—";
+  const visitDate = receiptData.visitDate ? dayjs(receiptData.visitDate).format("DD MMM YYYY") : "—";
+  const visitTime = receiptData.visitTime ? formatTime(receiptData.visitTime) : "—";
   const transactions = receiptData.transactions ?? [];
   const totalAmount = receiptData.totalAmount ?? transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const discount = receiptData.discount ?? 0;
   const finalAmount = totalAmount - discount;
   const totalPaid = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  // Use absolute URL for logo so it renders in print window
+  const logoUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/JJM Logo.png`
+    : "/JJM Logo.png";
 
   return (
     <div style={{ display: "none" }}>
@@ -158,7 +153,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
         {/* Header */}
         <div className="header">
           <div className="header-left">
-            <div className="logo-placeholder">JJM</div>
+            <img src={logoUrl} alt="JJM Hospital" className="logo-img" />
             <div className="header-info">
               <h2>JJM Hospital</h2>
               <div className="certification">ISO 9001:2000 Certified</div>
@@ -170,65 +165,41 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               Kashipur, Uttarakhand 244713
             </div>
             <div className="contact">
-              Phone: +91 5947-274390<br />
-              Mob: +91 63955 62348
+              Phone: +91 5947-274390,+91 63955 62348<br />
             </div>
           </div>
         </div>
 
-        {/* Content Box - wraps patient details and transactions */}
+        {/* Content Box */}
         <div className="content-box">
           {/* Patient Details */}
           <div className="patient-details-box">
-            <div className="patient-row">
-              <div className="patient-pair">
-                <div className="patient-label">Token No.:</div>
-                <div className="patient-value">{receiptData.tokenNumber ?? "—"}</div>
-              </div>
-              <div className="patient-pair">
-                <div className="patient-label">Date / Time:</div>
-                <div className="patient-value">{dateTime}</div>
-              </div>
-            </div>
             <div className="patient-row">
               <div className="patient-pair">
                 <div className="patient-label">Patient Name:</div>
                 <div className="patient-value">{patientName}</div>
               </div>
               <div className="patient-pair">
-                <div className="patient-label">Visit ID:</div>
-                <div className="patient-value">{receiptData.visitId ?? "—"}</div>
-              </div>
-            </div>
-            <div className="patient-row">
-              <div className="patient-pair">
-                <div className="patient-label">Age / Gender:</div>
-                <div className="patient-value">{ageGender}</div>
-              </div>
-              <div className="patient-pair">
-                <div className="patient-label">Phone No.:</div>
-                <div className="patient-value">{receiptData.phone ?? "—"}</div>
-              </div>
-            </div>
-            <div className="patient-row">
-              <div className="patient-pair">
                 <div className="patient-label">MRD No.:</div>
                 <div className="patient-value">{receiptData.mrd ?? "—"}</div>
               </div>
+            </div>
+            <div className="patient-row">
+              <div className="patient-pair">
+                <div className="patient-label">Date:</div>
+                <div className="patient-value">{visitDate}</div>
+              </div>
+              <div className="patient-pair">
+                <div className="patient-label">Time:</div>
+                <div className="patient-value">{visitTime}</div>
+              </div>
+            </div>
+            <div className="patient-row">
               <div className="patient-pair">
                 <div className="patient-label">Case ID:</div>
                 <div className="patient-value">{receiptData.appointmentId ?? "—"}</div>
               </div>
-            </div>
-            <div className="patient-row">
-              <div className="patient-pair">
-                <div className="patient-label">Visit Type:</div>
-                <div className="patient-value">{receiptData.visitType ?? "—"}</div>
-              </div>
-              <div className="patient-pair">
-                <div className="patient-label">Status:</div>
-                <div className="patient-value">{receiptData.status ?? "—"}</div>
-              </div>
+              <div className="patient-pair" />
             </div>
             <div className="patient-row patient-row-full">
               <div className="patient-label">Ref. Consultant:</div>
@@ -238,26 +209,23 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
 
           {/* Transactions Section */}
           <div className="transactions-section">
-          <div className="transaction-header">
-            <div className="col-code">Code</div>
-            <div className="col-transactions">Transactions</div>
-            <div className="col-rate">Rate</div>
-          </div>
-          {transactions.length === 0 ? (
-            <div className="payment-no-data">No payment transactions found</div>
-          ) : (
-            transactions.map((txn, index) => (
-              <div key={txn._id} className="transaction-row">
-                <div className="col-code">{txn.transactionId ?? `TXN${index + 1}`}</div>
-                <div className="col-transactions">
-                  {txn.transactionDate
-                    ? `${dayjs(txn.transactionDate).format("DD MMM YYYY")}${txn.createdAt ? ` ${dayjs(txn.createdAt).format("HH:mm")}` : ""} - ${txn.paymentMode ?? "—"}`
-                    : `${txn.paymentMode ?? "—"}`}
+            <div className="transaction-header">
+              <div className="col-type">Type</div>
+              <div className="col-rate">Amount</div>
+            </div>
+            {transactions.length === 0 ? (
+              <div className="payment-no-data">No payment transactions found</div>
+            ) : (
+              transactions.map((txn, index) => (
+                <div key={txn._id} className="transaction-row">
+                  <div className="col-type">
+                    {receiptData.appointmentType ?? "—"}
+                    {receiptData.visitType ? ` (${receiptData.visitType})` : ""}
+                  </div>
+                  <div className="col-rate">₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}</div>
                 </div>
-                <div className="col-rate">₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}</div>
-              </div>
-            ))
-          )}
+              ))
+            )}
           </div>
 
           {/* Summary Section */}

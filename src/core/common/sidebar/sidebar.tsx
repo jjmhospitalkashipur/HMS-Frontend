@@ -225,6 +225,15 @@ const Sidebar = () => {
                   if (isAdministrationSection && !isAdmin) {
                     return null;
                   }
+                  // Filter out Dashboard item for non-admin users
+                  const filteredMainLabel = isAdmin
+                    ? mainLabel
+                    : {
+                        ...mainLabel,
+                        submenuItems: mainLabel?.submenuItems?.filter(
+                          (item: any) => item?.label !== "Dashboard"
+                        ),
+                      };
                   return (
                   <React.Fragment key={`main-${index}`}>
                     <li className="menu-title">
@@ -232,7 +241,7 @@ const Sidebar = () => {
                     </li>
                     <li>
                       <ul>
-                        {mainLabel?.submenuItems?.map((title: any, i) => {
+                        {filteredMainLabel?.submenuItems?.map((title: any, i) => {
                           let link_array: any = [];
                           if ("submenuItems" in title) {
                             title.submenuItems?.forEach((link: any) => {

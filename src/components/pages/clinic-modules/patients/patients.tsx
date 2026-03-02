@@ -77,8 +77,8 @@ const PatientsComponent = () => {
 
         const pagination = response.data?.data?.pagination;
         if (pagination && typeof pagination === "object") {
-          const { currentPage: p = 1, limit: l = 10, count = list.length, hasMore = false } = pagination;
-          setTotalCount(hasMore ? p * l + 1 : (p - 1) * l + count);
+          const { currentPage: p = 1, limit: l = 10, count = list.length, hasMore = false, totalCount: apiTotal } = pagination;
+          setTotalCount(typeof apiTotal === "number" ? apiTotal : (hasMore ? p * l + 1 : (p - 1) * l + count));
         } else {
           const total = response.data?.data?.total ?? response.data?.data?.count;
           setTotalCount(typeof total === "number" ? total : list.length);

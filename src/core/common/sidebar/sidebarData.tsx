@@ -44,17 +44,6 @@ export const SidebarData = [
         materialicons: "start",
         dot: true,
       },
-      {
-        label: "Procedures",
-        link: routes.procedures,
-        submenu: false,
-        showSubRoute: false,
-        icon: "map-pin",
-        base: "frontent",
-        materialicons: "start",
-        dot: true,
-        submenuItems: [],
-      },
       // {
       //   label: "Applications",
       //   link: "index",
@@ -277,6 +266,17 @@ export const SidebarData = [
     showAsTab: true,
     separateRoute: false,
     submenuItems: [
+      {
+        label: "Procedures",
+        link: routes.procedures,
+        submenu: false,
+        showSubRoute: false,
+        icon: "map-pin",
+        base: "frontent",
+        materialicons: "start",
+        dot: true,
+        submenuItems: [],
+      },
       {
         label: "Doctors",
         link: routes.doctorsList,

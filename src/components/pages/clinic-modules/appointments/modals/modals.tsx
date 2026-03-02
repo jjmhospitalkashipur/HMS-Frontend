@@ -67,8 +67,6 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
   const [reason, setReason] = useState<string>("");
   const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
   const [editLoading, setEditLoading] = useState<boolean>(false);
-  const [cancelVisitId, setCancelVisitId] = useState<string | null>(null);
-  const [cancelLoading, setCancelLoading] = useState<boolean>(false);
   // Patient (same fields as add appointment)
   const [phone, setPhone] = useState<string>("");
   const [title, setTitle] = useState<Option | null>(Title[0] || null);
@@ -241,17 +239,6 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
     return () => editEl.removeEventListener("show.bs.offcanvas", handleShow);
   }, [fetchVisitForEdit, fetchDoctors, resetEditForm]);
 
-  useEffect(() => {
-    const cancelModalEl = document.getElementById("cancel_modal");
-    if (!cancelModalEl) return;
-    const handleShow = () => {
-      const trigger = document.querySelector("#cancel_modal_trigger") as HTMLElement;
-      const visitId = trigger?.getAttribute?.("data-visit-id") || null;
-      setCancelVisitId(visitId);
-    };
-    cancelModalEl.addEventListener("show.bs.modal", handleShow);
-    return () => cancelModalEl.removeEventListener("show.bs.modal", handleShow);
-  }, []);
 
   useEffect(() => {
     if (!selectedDoctor?.value) {
@@ -343,26 +330,6 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
     return undefined;
   };
 
-  const handleCancelConfirm = async () => {
-    if (!cancelVisitId || !API_BASE_URL) return;
-    setCancelLoading(true);
-    try {
-      const res = await axios.patch(`${API_BASE_URL}/hospital/visits/${cancelVisitId}`, { status: "Cancelled" });
-      if (res.data?.code === 200 || (res.status >= 200 && res.status < 300)) {
-        const modalEl = document.getElementById("cancel_modal");
-        if (modalEl) {
-          const inst = (window as any).bootstrap?.Modal?.getInstance(modalEl);
-          inst?.hide();
-        }
-        setCancelVisitId(null);
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error("Error cancelling visit:", err);
-    } finally {
-      setCancelLoading(false);
-    }
-  };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "N/A";
@@ -814,53 +781,6 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
       </div>
       {/* End Edit Appointment */}
       {/* Start Cancel Modal  */}
-      <div className="modal fade" id="cancel_modal">
-        <div className="modal-dialog modal-dialog-centered modal-sm">
-          <div className="modal-content">
-            <div className="modal-body text-center position-relative">
-              <ImageWithBasePath
-                src="assets/img/bg/delete-modal-bg-01.png"
-                alt=""
-                className="img-fluid position-absolute top-0 start-0 z-0"
-              />
-              <ImageWithBasePath
-                src="assets/img/bg/delete-modal-bg-02.png"
-                alt=""
-                className="img-fluid position-absolute bottom-0 end-0 z-0"
-              />
-              <div className="mb-3 position-relative z-1">
-                <span className="avatar avatar-lg bg-danger text-white">
-                  <i className="ti ti-x fs-24" />
-                </span>
-              </div>
-              <h5 className="fw-bold mb-1 position-relative z-1">
-                Cancel Appointment
-              </h5>
-              <p className="mb-3 position-relative z-1">
-                Are you sure want to cancel?
-              </p>
-              <div className="d-flex justify-content-center">
-                <button
-                  type="button"
-                  className="btn btn-light position-relative z-1 me-3"
-                  data-bs-dismiss="modal"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger position-relative z-1"
-                  onClick={handleCancelConfirm}
-                  disabled={cancelLoading || !cancelVisitId}
-                >
-                  {cancelLoading ? "Updating..." : "Yes, Cancel"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* End Cancel Modal  */}
     </>
   );
 };

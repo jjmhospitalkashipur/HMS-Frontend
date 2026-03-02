@@ -354,7 +354,7 @@ const QueueDisplayMultiComponent = () => {
     <div
       ref={containerRef}
       className="w-100 d-flex flex-column bg-white position-relative"
-      style={{ minHeight: "50vh", height: "50vh" }}
+      style={{ minHeight: "63vh", height: "63vh" }}
     >
       <button
         type="button"

@@ -69,7 +69,8 @@ const LoginComponent = () => {
         // ignore storage errors
       }
 
-      router.push(all_routes.dashboard);
+      const role = (user?.role || "").toUpperCase();
+      router.push(role === "ADMIN" ? all_routes.dashboard : all_routes.appointments);
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
