@@ -65,9 +65,9 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                   * { margin: 0; padding: 0; box-sizing: border-box; }
                   body {
                     margin: 0;
-                    padding: 20px;
+                    padding: 14px;
                     font-family: Tahoma, Arial, sans-serif;
-                    font-size: 14px;
+                    font-size: 13px;
                     color: #000;
                     background: #fff;
                     line-height: 1.4;
@@ -79,24 +79,24 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     padding: 0;
                     background: #fff;
                   }
-                  .letterhead-space { height: 80px; width: 100%; margin-bottom: 20px; }
+                  .letterhead-space { height: 60px; width: 100%; margin-bottom: 12px; }
                   .patient-card {
                     border-radius: 12px;
-                    padding: 8px;
-                    margin-bottom: 20px;
+                    padding: 6px 8px;
+                    margin-bottom: 12px;
                   }
                   .patient-info-table {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 14px;
-                    line-height: 1.4;
+                    font-size: 13px;
+                    line-height: 1.3;
                     margin: 0;
                   }
                   .patient-info-table td {
-                    padding: 6px 8px;
+                    padding: 4px 6px;
                     border: 1px solid #000;
                     vertical-align: middle;
-                    font-size: 13px;
+                    font-size: 12px;
                   }
                   .info-label-cell {
                     background-color: #f8f9fa;
@@ -167,6 +167,41 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
     return dateTimeString;
   };
 
+  const getBaseDate = () => {
+    if (!appointmentData.Date_Time) return null;
+
+    // Original Date cell was based on the first part before " - "
+    const raw = formatDateTime(appointmentData.Date_Time);
+    const firstPart = raw.split(" - ")[0] || "";
+    if (!firstPart) return null;
+
+    const d = new Date(firstPart);
+    if (Number.isNaN(d.getTime())) return null;
+    return d;
+  };
+
+  const baseDate = getBaseDate();
+
+  const displayDate =
+    baseDate?.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    }) || "";
+
+  const validUpto =
+    baseDate &&
+    (() => {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + 6);
+      return d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+      });
+    })() ||
+    "";
+
   return (
     <div style={{ display: "none" }}>
       <div ref={printRef} className="prescription-container">
@@ -185,22 +220,28 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
               </tr>
               <tr>
                 <td className="info-label-cell">Patient Name:</td>
-                <td className="info-value-cell">{appointmentData.Patient || "—"}</td>
-                <td className="info-label-cell">Date:</td>
-                <td className="info-value-cell">{appointmentData._visitDate || formatDateTime(appointmentData.Date_Time)?.split(" - ")[0] || "—"}</td>
-              </tr>
-              <tr>
+                <td className="info-value-cell">
+                  {appointmentData.Patient || "—"}
+                </td>
                 <td className="info-label-cell">Age / Gender:</td>
                 <td className="info-value-cell">
                   {appointmentData.Age != null || appointmentData.Sex
-                    ? `${appointmentData.Age ?? "—"} Yrs / ${appointmentData.Sex ?? "—"}`
+                    ? `${appointmentData.Age ?? "—"} Years/${appointmentData.Sex ?? "—"}`
                     : "—"}
                 </td>
-                <td className="info-label-cell">Time:</td>
-                <td className="info-value-cell">{appointmentData._visitTime || formatDateTime(appointmentData.Date_Time)?.split(" - ")[1] || "—"}</td>
               </tr>
               <tr>
-                <td className="info-label-cell">Ref. Consultant:</td>
+                <td className="info-label-cell">Date:</td>
+                <td className="info-value-cell">
+                  {displayDate || "—"}
+                </td>
+                <td className="info-label-cell">Valid upto:</td>
+                <td className="info-value-cell">
+                  {validUpto || "—"}
+                </td>
+              </tr>
+              <tr>
+                <td className="info-label-cell">Consultant:</td>
                 <td className="info-value-cell-full" colSpan={3}>
                   {appointmentData.Doctor ? `Dr. ${appointmentData.Doctor.replace(/^Dr\.\s*/i, "")}` : "—"}
                   {appointmentData._department ? ` (${appointmentData._department})` : appointmentData.role ? ` (${appointmentData.role})` : ""}

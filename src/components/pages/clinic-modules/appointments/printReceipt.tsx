@@ -75,17 +75,13 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               .header-right { text-align: right; }
               .header-right .address { font-size: 14px; color: #000; margin-bottom: 4px; line-height: 1.4; }
               .header-right .contact { font-size: 14px; color: #000; line-height: 1.6; }
-              .content-box { border: 1px solid #000; padding: 8px 12px 0 12px; margin-bottom: 12px; }
-              .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ccc; }
-              .patient-row { display: flex; padding: 3px 0; }
-              .patient-label { font-weight: 600; color: #000; white-space: nowrap; padding-right: 6px; flex-shrink: 0; }
-              .patient-value { font-weight: 500; color: #000; flex: 1; min-width: 0; }
-              .patient-pair { display: flex; width: 50%; align-items: baseline; min-width: 0; }
-              .patient-pair:first-child { padding-right: 12px; }
-              .patient-pair:last-child { padding-left: 12px; }
-              .patient-row-full { display: flex; }
-              .patient-row-full .patient-label { white-space: nowrap; flex-shrink: 0; }
-              .patient-row-full .patient-value-full { flex: 1; min-width: 0; }
+              .content-box { border: none; padding: 8px 12px 0 12px; margin-bottom: 12px; }
+              .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; }
+              .patient-info-table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
+              .patient-info-table td { border: 1px solid #000; padding: 4px 8px; vertical-align: middle; }
+              .info-label-cell { background-color: #f8f9fa; font-weight: 600; white-space: nowrap; width: 18%; }
+              .info-value-cell { background-color: #ffffff; font-weight: 500; width: 40%; }
+              .info-value-cell-narrow { width: 24%; }
               .transactions-section { margin-bottom: 0; }
               .transaction-header { display: flex; padding: 8px 0; border-bottom: 2px solid #000; font-weight: bold; font-size: 15px; }
               .transaction-header .col-type { width: 75%; }
@@ -165,7 +161,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               Kashipur, Uttarakhand 244713
             </div>
             <div className="contact">
-              Phone: +91 5947-274390,+91 63955 62348<br />
+              Phone: +91 9634844075<br />
             </div>
           </div>
         </div>
@@ -174,37 +170,22 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
         <div className="content-box">
           {/* Patient Details */}
           <div className="patient-details-box">
-            <div className="patient-row">
-              <div className="patient-pair">
-                <div className="patient-label">Patient Name:</div>
-                <div className="patient-value">{patientName}</div>
-              </div>
-              <div className="patient-pair">
-                <div className="patient-label">MRD No.:</div>
-                <div className="patient-value">{receiptData.mrd ?? "—"}</div>
-              </div>
-            </div>
-            <div className="patient-row">
-              <div className="patient-pair">
-                <div className="patient-label">Date:</div>
-                <div className="patient-value">{visitDate}</div>
-              </div>
-              <div className="patient-pair">
-                <div className="patient-label">Time:</div>
-                <div className="patient-value">{visitTime}</div>
-              </div>
-            </div>
-            <div className="patient-row">
-              <div className="patient-pair">
-                <div className="patient-label">Case ID:</div>
-                <div className="patient-value">{receiptData.appointmentId ?? "—"}</div>
-              </div>
-              <div className="patient-pair" />
-            </div>
-            <div className="patient-row patient-row-full">
-              <div className="patient-label">Ref. Consultant:</div>
-              <div className="patient-value-full">{doctorDisplay}</div>
-            </div>
+            <table className="patient-info-table">
+              <tbody>
+                <tr>
+                  <td className="info-label-cell">MRD No.:</td>
+                  <td className="info-value-cell">{receiptData.mrd ?? "—"}</td>
+                  <td className="info-label-cell">Date:</td>
+                  <td className="info-value-cell info-value-cell-narrow">{visitDate}</td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Patient Name:</td>
+                  <td className="info-value-cell">{patientName}</td>
+                  <td className="info-label-cell">Case ID:</td>
+                  <td className="info-value-cell info-value-cell-narrow">{receiptData.appointmentId ?? "—"}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           {/* Transactions Section */}
@@ -214,7 +195,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               <div className="col-rate">Amount</div>
             </div>
             {transactions.length === 0 ? (
-              <div className="payment-no-data">No payment transactions found</div>
+              <div className="payment-no-data">No Entries Found</div>
             ) : (
               transactions.map((txn, index) => (
                 <div key={txn._id} className="transaction-row">
@@ -234,16 +215,20 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               <span>Total:</span>
               <span>₹{totalAmount.toFixed(2)}</span>
             </div>
-            <div className="summary-row">
-              <span>Discount:</span>
-              <span>₹{discount.toFixed(2)}</span>
-            </div>
-            <div className="summary-row">
-              <span>Final Amount:</span>
-              <span>₹{finalAmount.toFixed(2)}</span>
-            </div>
+            {discount > 0 && (
+              <>
+                <div className="summary-row">
+                  <span>Discount:</span>
+                  <span>₹{discount.toFixed(2)}</span>
+                </div>
+                <div className="summary-row">
+                  <span>Final Amount:</span>
+                  <span>₹{finalAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div className="summary-row total-paid">
-              <span>Total Paid Amount:</span>
+              <span> Paid Amount:</span>
               <span>₹{totalPaid.toFixed(2)}</span>
             </div>
           </div>

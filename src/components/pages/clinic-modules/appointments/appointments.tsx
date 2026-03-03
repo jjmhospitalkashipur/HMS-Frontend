@@ -82,7 +82,7 @@ interface ITransformedAppointment {
 
 const AppointmentsComponent = () => {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"all" | "today">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "today">("today");
   const [data, setData] = useState<ITransformedAppointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -140,6 +140,8 @@ const AppointmentsComponent = () => {
           ...prev,
           [visitId]: newStatus,
         }));
+        // Refresh list without full-page loader
+        fetchAppointments(false);
       } else {
         console.error("Failed to update status:", response.data);
         alert("Failed to update status. Please try again.");
@@ -222,9 +224,11 @@ const AppointmentsComponent = () => {
     setAppliedCreatedTo(null);
   };
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (showLoader: boolean = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       setError("");
       
       if (!API_BASE_URL) {
@@ -364,7 +368,9 @@ const AppointmentsComponent = () => {
       console.error("Error fetching appointments:", error);
       setError(error.response?.data?.message || "An error occurred while fetching appointments");
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   };
 
@@ -617,14 +623,14 @@ const AppointmentsComponent = () => {
             <div className="text-end d-flex">
               {/* dropdown*/}
               <div className="dropdown me-1">
-                <Link
+                {/* <Link
                   href="#"
                   className="btn btn-md fs-14 fw-normal border bg-white rounded text-dark d-inline-flex align-items-center"
                   data-bs-toggle="dropdown"
                 >
                   Export
                   <i className="ti ti-chevron-down ms-2" />
-                </Link>
+                </Link> */}
                 <ul className="dropdown-menu p-2">
                   <li>
                     <Link className="dropdown-item" href="#">

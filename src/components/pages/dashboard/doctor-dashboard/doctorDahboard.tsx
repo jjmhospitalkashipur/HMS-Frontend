@@ -458,7 +458,7 @@ const DoctorDashboardComponent = () => {
                               Checked Out
                             </span>
                           </td>
-                          <td className="fw-semibold text-dark">$400</td>
+                          <td className="fw-semibold text-dark">₹400</td>
                           <td>
                             <Link
                               href="#"
@@ -526,7 +526,7 @@ const DoctorDashboardComponent = () => {
                               Checked in
                             </span>
                           </td>
-                          <td className="fw-semibold text-dark">$370</td>
+                          <td className="fw-semibold text-dark">₹370</td>
                           <td>
                             <Link
                               href="#"
@@ -594,7 +594,7 @@ const DoctorDashboardComponent = () => {
                               Cancelled
                             </span>
                           </td>
-                          <td className="fw-semibold text-dark">$450</td>
+                          <td className="fw-semibold text-dark">₹450</td>
                           <td>
                             <Link
                               href="#"
@@ -662,7 +662,7 @@ const DoctorDashboardComponent = () => {
                               Schedule
                             </span>
                           </td>
-                          <td className="fw-semibold text-dark">$310</td>
+                          <td className="fw-semibold text-dark">₹310</td>
                           <td>
                             <Link
                               href="#"
@@ -730,7 +730,7 @@ const DoctorDashboardComponent = () => {
                               Schedule
                             </span>
                           </td>
-                          <td className="fw-semibold text-dark">$400</td>
+                          <td className="fw-semibold text-dark">₹400</td>
                           <td>
                             <Link
                               href="#"

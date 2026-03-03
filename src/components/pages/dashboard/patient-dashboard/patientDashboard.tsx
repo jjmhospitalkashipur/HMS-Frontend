@@ -755,7 +755,7 @@ const PatientDahboardComponent = () => {
                             <h6 className="fs-14 fw-semibold">
                               Consultation Fees
                             </h6>
-                            <p className="fs-13">$450</p>
+                            <p className="fs-13">₹450</p>
                           </td>
                           <td className="pe-0 text-end">
                             <span className="badge fs-13 py-1 badge-soft-success border border-success rounded text-success fw-medium">
@@ -787,7 +787,7 @@ const PatientDahboardComponent = () => {
                             <h6 className="fs-14 fw-semibold">
                               Consultation Fees
                             </h6>
-                            <p className="fs-13">$350</p>
+                            <p className="fs-13">₹350</p>
                           </td>
                           <td className="pe-0 text-end">
                             <span className="badge fs-13 py-1 badge-soft-success border border-success rounded text-success fw-medium">
@@ -819,7 +819,7 @@ const PatientDahboardComponent = () => {
                             <h6 className="fs-14 fw-semibold">
                               Consultation Fees
                             </h6>
-                            <p className="fs-13">$400</p>
+                            <p className="fs-13">₹400</p>
                           </td>
                           <td className="pe-0 text-end">
                             <span className="badge fs-13 py-1 badge-soft-danger border border-danger rounded text-danger fw-medium">
@@ -851,7 +851,7 @@ const PatientDahboardComponent = () => {
                             <h6 className="fs-14 fw-semibold">
                               Consultation Fees
                             </h6>
-                            <p className="fs-13">$550</p>
+                            <p className="fs-13">₹550</p>
                           </td>
                           <td className="pe-0 text-end">
                             <span className="badge fs-13 py-1 badge-soft-success border border-success rounded text-success fw-medium">
@@ -883,7 +883,7 @@ const PatientDahboardComponent = () => {
                             <h6 className="fs-14 fw-semibold">
                               Consultation Fees
                             </h6>
-                            <p className="fs-13">$600</p>
+                            <p className="fs-13">₹600</p>
                           </td>
                           <td className="pe-0 text-end">
                             <span className="badge fs-13 py-1 badge-soft-success border border-success rounded text-success fw-medium">
@@ -968,7 +968,7 @@ const PatientDahboardComponent = () => {
                         </div>
                       </td>
                       <td>27 May 2025 - 09:30 AM</td>
-                      <td className="fw-semibold text-dark">$400</td>
+                      <td className="fw-semibold text-dark">₹400</td>
                       <td>Online</td>
                       <td>
                         <span className="badge bg-success fw-medium">
@@ -1036,7 +1036,7 @@ const PatientDahboardComponent = () => {
                         </div>
                       </td>
                       <td>26 May 2025 - 10:15 AM</td>
-                      <td className="fw-semibold text-dark">$370</td>
+                      <td className="fw-semibold text-dark">₹370</td>
                       <td>Online</td>
                       <td>
                         <span className="badge bg-warning fw-medium">
@@ -1104,7 +1104,7 @@ const PatientDahboardComponent = () => {
                         </div>
                       </td>
                       <td>25 May 2025 - 02:40 PM</td>
-                      <td className="fw-semibold text-dark">$450</td>
+                      <td className="fw-semibold text-dark">₹450</td>
                       <td>In-Person</td>
                       <td>
                         <span className="badge bg-danger fw-medium">
@@ -1172,7 +1172,7 @@ const PatientDahboardComponent = () => {
                         </div>
                       </td>
                       <td>24 May 2025 - 11:30 AM</td>
-                      <td className="fw-semibold text-dark">$310</td>
+                      <td className="fw-semibold text-dark">₹310</td>
                       <td>In-Person</td>
                       <td>
                         <span className="badge bg-info fw-medium">
@@ -1240,7 +1240,7 @@ const PatientDahboardComponent = () => {
                         </div>
                       </td>
                       <td>23 May 2025 - 04:10 PM</td>
-                      <td className="fw-semibold text-dark">$400</td>
+                      <td className="fw-semibold text-dark">₹400</td>
                       <td>Online</td>
                       <td>
                         <span className="badge bg-info fw-medium">

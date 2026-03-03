@@ -378,7 +378,7 @@ const QueueDisplayComponent = () => {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
       {/* Header */}
-      <div className="bg-white border-bottom py-2 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
+      <div className="bg-white border-bottom py-1 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
         <img src="/JJM Logo.png" alt="JJM Hospital" className="flex-shrink-0 me-3" style={{ height: "clamp(40px, 4vw, 150px)", width: "auto", objectFit: "contain" }} />
         <h1 className="mb-0 fw-bold text-dark flex-grow-1 text-center" style={{ fontSize: "clamp(1rem, 2vw, 6rem)" }}>
           JJM Hospital
@@ -386,22 +386,25 @@ const QueueDisplayComponent = () => {
       </div>
       <div className="bg-primary text-white py-1 px-3 px-md-4 px-lg-5 px-xl-6 text-center w-100" style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}>
         <span className="text-nowrap">
-          Appointment / Critical Patients will be given priority in Queue
+          Critical Patients will be given priority in Queue
         </span>
       </div>
 
       {/* Main content: doctor info left, queue right */}
-      <div className="flex-grow-1 d-flex flex-column flex-md-row p-3 p-md-4 p-lg-5 p-xl-6 gap-3 gap-md-4 gap-xl-5 w-100">
+      <div className="d-flex flex-column flex-md-row align-items-stretch p-2 p-md-3 p-lg-4 p-xl-4 gap-3 gap-md-4 gap-xl-4 w-100 overflow-hidden">
         {/* Left: Doctor info */}
-        <div className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1" style={{ 
-          maxWidth: "clamp(300px, 30%, 600px)",
-          padding: "clamp(1rem, 2vw, 4rem)"
-        }}>
+        <div
+          className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1 d-flex flex-column"
+          style={{
+            maxWidth: "clamp(260px, 26%, 520px)",
+            padding: "clamp(0.35rem, 0.9vw, 1.5rem)",
+          }}
+        >
           <div
-            className="bg-light mb-3 flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
+            className="bg-light  flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
             style={{ 
-              width: "clamp(200px, 25vw, 550px)", 
-              height: "clamp(240px, 30vw, 660px)",
+              width: "clamp(180px, 20vw, 420px)", 
+              height: "clamp(220px, 28vw, 560px)",
             }}
           >
             <Image
@@ -417,8 +420,11 @@ const QueueDisplayComponent = () => {
           <p className="text-secondary mb-0" style={{ fontSize: "clamp(0.875rem, 1.4vw, 3.5rem)" }}>{departmentOrSpecialization}</p>
         </div>
 
-        {/* Right: Queue table - height constrained so scroll is inside this block */}
-        <div className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-md-2 d-flex flex-column" style={{ minWidth: "0", flex: "1 1 0%", maxHeight: "min(72vh, 900px)" }}>
+        {/* Right: Queue table - scroll inside table */}
+        <div
+          className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-md-2 d-flex flex-column"
+          style={{ minWidth: "0" }}
+        >
           <div className="table-responsive w-100 overflow-auto flex-grow-1" style={{ maxHeight: "100%" }}>
             <table className="table mb-0 w-100">
               <thead className="table-dark position-sticky top-0 z-1">
@@ -495,6 +501,53 @@ const QueueDisplayComponent = () => {
           </div>
         </div>
       </div>
+
+      {/* Scrolling info strip */}
+      <div
+        className="w-100 py-2 mt-0"
+        style={{ backgroundColor: "#704E8E", overflow: "hidden" }}
+      >
+        <div
+          className="text-white fw-semibold"
+          style={{
+            whiteSpace: "nowrap",
+            display: "inline-block",
+            animation: "qd-strip-scroll 80s linear infinite",
+            fontSize: "clamp(1.6rem, 3vw, 4.5rem)",
+          }}
+        >
+          24×7 इमरजेंसी केयर&nbsp;•&nbsp;
+          अत्याधुनिक मशीनें और एडवांस इक्विपमेंट्स&nbsp;•&nbsp;
+          हमारे क्षेत्र की सबसे बेहतर इक्विप्ड डायलिसिस यूनिट&nbsp;•&nbsp;
+          प्रोफेशनल और समर्पित डॉक्टर्स एवं स्टाफ&nbsp;•&nbsp;
+          मॉडर्न और स्मूथ कंसल्टेशन प्रोसेस&nbsp;•&nbsp;
+          हाई-टेक डायग्नोस्टिक सर्विसेज&nbsp;•&nbsp;
+          इनडोर पेशेंट प्राइवेट रूम्स&nbsp;•&nbsp;
+          एडवांस ICU फैसिलिटी&nbsp;•&nbsp;
+          वेल-इक्विप्ड क्रिटिकल केयर यूनिट&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          24×7 इमरजेंसी केयर&nbsp;•&nbsp;
+          अत्याधुनिक मशीनें और एडवांस इक्विपमेंट्स&nbsp;•&nbsp;
+          हमारे क्षेत्र की सबसे बेहतर इक्विप्ड डायलिसिस यूनिट&nbsp;•&nbsp;
+          प्रोफेशनल और समर्पित डॉक्टर्स एवं स्टाफ&nbsp;•&nbsp;
+          मॉडर्न और स्मूथ कंसल्टेशन प्रोसेस&nbsp;•&nbsp;
+          हाई-टेक डायग्नोस्टिक सर्विसेज&nbsp;•&nbsp;
+          इनडोर पेशेंट प्राइवेट रूम्स&nbsp;•&nbsp;
+          एडवांस ICU फैसिलिटी&nbsp;•&nbsp;
+          वेल-इक्विप्ड क्रिटिकल केयर यूनिट
+        </div>
+      </div>
+
+      {/* Animation keyframes */}
+      <style jsx global>{`
+        @keyframes qd-strip-scroll {
+          0% {
+            transform: translateX(100%);
+          }
+          100% {
+            transform: translateX(-100%);
+          }
+        }
+      `}</style>
     </div>
   );
 };

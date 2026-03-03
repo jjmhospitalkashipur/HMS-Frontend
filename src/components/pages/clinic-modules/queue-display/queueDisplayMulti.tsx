@@ -353,8 +353,7 @@ const QueueDisplayMultiComponent = () => {
   return (
     <div
       ref={containerRef}
-      className="w-100 d-flex flex-column bg-white position-relative"
-      style={{ minHeight: "63vh", height: "63vh" }}
+      className="min-vh-100 w-100 d-flex flex-column bg-white position-relative"
     >
       <button
         type="button"
@@ -367,7 +366,7 @@ const QueueDisplayMultiComponent = () => {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
 
-      <div className="bg-white border-bottom py-2 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
+      <div className="bg-white border-bottom py-1 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
         <img
           src="/JJM Logo.png"
           alt="JJM Hospital"
@@ -386,11 +385,15 @@ const QueueDisplayMultiComponent = () => {
         style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}
       >
         <span className="text-nowrap">
-          Appointment / Critical Patients will be given priority in Queue
+         Critical Patients will be given priority in Queue
         </span>
       </div>
 
-      <div className="flex-grow-1 d-flex p-3 p-md-4 p-lg-5 p-xl-6 gap-2 gap-md-3 w-100 overflow-auto min-h-0">
+      {/* Doctors grid (occupies ~60% of viewport height) */}
+      <div
+        className="d-flex p-2 p-md-3 p-lg-4 p-xl-4 gap-2 gap-md-3 w-100 overflow-auto"
+        style={{ height: "60vh" }}
+      >
         {pageDoctors.map((doc) => {
           const streamId = getStreamId(doc);
           const display = displays[streamId];
@@ -413,19 +416,22 @@ const QueueDisplayMultiComponent = () => {
               style={{
                 minWidth: "0",
                 flex: "1 1 0%",
-                maxHeight: "100%",
                 maxWidth: "20%",
               }}
             >
               <div
-                className="bg-dark text-white text-center py-2 px-2 fw-bold border-bottom"
-                style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}
+                className="bg-dark text-white text-center px-2 fw-bold border-bottom d-flex align-items-center justify-content-center"
+                style={{
+                  fontSize: "clamp(0.75rem, 1.2vw, 3rem)",
+                  minHeight: "clamp(3rem, 5vw, 5rem)", // enough for two rows
+                  paddingTop: "0.25rem",
+                  paddingBottom: "0.25rem",
+                }}
               >
-                {doctorName}
+                <span className="text-wrap">{doctorName}</span>
               </div>
               <div
                 className="table-responsive w-100 overflow-auto flex-grow-1"
-                style={{ maxHeight: "100%" }}
               >
                 <table className="table mb-0 w-100">
                   <thead className="table-dark position-sticky top-0 z-1">
@@ -514,6 +520,52 @@ const QueueDisplayMultiComponent = () => {
           );
         })}
       </div>
+      {/* Scrolling info strip (same as single QD, bigger and broader) */}
+      <div
+        className="w-100 py-3 mt-0"
+        style={{ backgroundColor: "#704E8E", overflow: "hidden" }}
+      >
+        <div
+          className="text-white fw-semibold"
+          style={{
+            whiteSpace: "nowrap",
+            display: "inline-block",
+            animation: "qd-strip-scroll 80s linear infinite",
+            fontSize: "clamp(1.4rem, 2.4vw, 4rem)",
+          }}
+        >
+          24×7 इमरजेंसी केयर&nbsp;•&nbsp;
+          अत्याधुनिक मशीनें और एडवांस इक्विपमेंट्स&nbsp;•&nbsp;
+          हमारे क्षेत्र की सबसे बेहतर इक्विप्ड डायलिसिस यूनिट&nbsp;•&nbsp;
+          प्रोफेशनल और समर्पित डॉक्टर्स एवं स्टाफ&nbsp;•&nbsp;
+          मॉडर्न और स्मूथ कंसल्टेशन प्रोसेस&nbsp;•&nbsp;
+          हाई-टेक डायग्नोस्टिक सर्विसेज&nbsp;•&nbsp;
+          इनडोर पेशेंट प्राइवेट रूम्स&nbsp;•&nbsp;
+          एडवांस ICU फैसिलिटी&nbsp;•&nbsp;
+          वेल-इक्विप्ड क्रिटिकल केयर यूनिट&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          24×7 इमरजेंसी केयर&nbsp;•&nbsp;
+          अत्याधुनिक मशीनें और एडवांस इक्विपमेंट्स&nbsp;•&nbsp;
+          हमारे क्षेत्र की सबसे बेहतर इक्विप्ड डायलिसिस यूनिट&nbsp;•&nbsp;
+          प्रोफेशनल और समर्पित डॉक्टर्स एवं स्टाफ&nbsp;•&nbsp;
+          मॉडर्न और स्मूथ कंसल्टेशन प्रोसेस&nbsp;•&nbsp;
+          हाई-टेक डायग्नोस्टिक सर्विसेज&nbsp;•&nbsp;
+          इनडोर पेशेंट प्राइवेट रूम्स&nbsp;•&nbsp;
+          एडवांस ICU फैसिलिटी&nbsp;•&nbsp;
+          वेल-इक्विप्ड क्रिटिकल केयर यूनिट
+        </div>
+      </div>
+
+      {/* Animation keyframes (shared with single QD) */}
+      <style jsx global>{`
+        @keyframes qd-strip-scroll {
+          0% {
+            transform: translateX(100%);
+          }
+          100% {
+            transform: translateX(-100%);
+          }
+        }
+      `}</style>
     </div>
   );
 };

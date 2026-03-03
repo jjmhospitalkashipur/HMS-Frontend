@@ -63,7 +63,7 @@ const AdDisplayComponent = () => {
         style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}
       >
         <span className="text-nowrap">
-          Appointment / Critical Patients will be given priority in Queue
+          Critical Patients will be given priority in Queue
         </span>
       </div>
 
