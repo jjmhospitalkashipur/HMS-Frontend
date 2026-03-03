@@ -399,7 +399,7 @@ const DashboardComponent = () => {
             {/* col end */}
           </div>
           {/* end row - chart only */}
-          {/* start row - Income By Treatment */}
+          {/* start row - Income By Treatment + Recent Transactions */}
           <div className="row">
             {/* col start */}
             <div className="col-xl-6 col-lg-6 d-flex">
@@ -477,77 +477,6 @@ const DashboardComponent = () => {
               </div>
             </div>
             {/* col end */}
-          </div>
-          {/* end row */}
-          {/* row start */}
-          <div className="row">
-            <div className="col-12 d-flex">
-              <div className="card shadow-sm flex-fill w-100">
-                <div className="card-header d-flex align-items-center justify-content-between">
-                  <h5 className="fw-bold mb-0">All Appointments</h5>
-                  <Link
-                    href={all_routes.appointments}
-                    className="btn fw-normal btn-outline-white"
-                  >
-                    View All
-                  </Link>
-                </div>
-                <div className="card-body">
-                  {/* Table start */}
-                  <div className="table-responsive table-nowrap">
-                    <table className="table border">
-                      <thead className="thead-light">
-                        <tr>
-                          <th>Doctor</th>
-                          <th>Patient</th>
-                          <th>Date &amp; Time</th>
-                          <th>Mode</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentLoading ? (
-                          <tr>
-                            <td colSpan={5} className="text-center py-3">
-                              Loading appointments...
-                            </td>
-                          </tr>
-                        ) : recentAppointments.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="text-center py-3">
-                              No appointments found.
-                            </td>
-                          </tr>
-                        ) : (
-                          recentAppointments.map((item) => (
-                            <tr key={item.id}>
-                              <td>{item.doctorName}</td>
-                              <td>{item.patientName}</td>
-                              <td>{item.dateTime || "—"}</td>
-                              <td>{item.appointmentType || "OPD"}</td>
-                              <td>
-                                <span
-                                  className={`badge fs-13 py-1 rounded fw-medium ${getStatusBadgeClass(
-                                    item.status
-                                  )}`}
-                                >
-                                  {item.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {/* Table end */}
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* row end */}
-          {/* row start - Recent Transactions */}
-          <div className="row">
             {/* col start */}
             <div className="col-xl-6 col-lg-6 d-flex">
               <div className="card shadow-sm flex-fill w-100">
@@ -645,12 +574,12 @@ const DashboardComponent = () => {
                       <div>
                         <h6 className="fs-14 mb-1 text-truncate">
                           <Link href="#" className="fw-semibold">
-                            Purchase Product
+                            Diabetic Check-up
                           </Link>
                         </h6>
                         <p className="mb-0 fs-13 text-truncate">
                           <Link href="#" className="link-primary">
-                            #INV4458
+                            #INV7841
                           </Link>
                         </p>
                       </div>
@@ -663,7 +592,7 @@ const DashboardComponent = () => {
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
                         <ImageWithBasePath
-                          src="assets/img/icons/paypal.svg"
+                          src="assets/img/icons/stripe.svg"
                           alt="img"
                           className="rounded-circle"
                         />
@@ -671,12 +600,12 @@ const DashboardComponent = () => {
                       <div>
                         <h6 className="fs-14 mb-1 text-truncate">
                           <Link href="#" className="fw-semibold">
-                            Online Consultation
+                            Medical Check-up
                           </Link>
                         </h6>
                         <p className="mb-0 fs-13 text-truncate">
                           <Link href="#" className="link-primary">
-                            #INV5456
+                            #INV5458
                           </Link>
                         </p>
                       </div>
@@ -689,7 +618,7 @@ const DashboardComponent = () => {
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
                         <ImageWithBasePath
-                          src="assets/img/icons/stripe.svg"
+                          src="assets/img/icons/paypal.svg"
                           alt="img"
                           className="rounded-circle"
                         />
@@ -697,12 +626,12 @@ const DashboardComponent = () => {
                       <div>
                         <h6 className="fs-14 mb-1 text-truncate">
                           <Link href="#" className="fw-semibold">
-                            Online Consultation
+                            Ortho Check-up
                           </Link>
                         </h6>
                         <p className="mb-0 fs-13 text-truncate">
                           <Link href="#" className="link-primary">
-                            #INV4557
+                            #INV1660
                           </Link>
                         </p>
                       </div>
@@ -716,7 +645,75 @@ const DashboardComponent = () => {
             </div>
             {/* col end */}
           </div>
+          {/* end row */}
+          {/* row start */}
+          <div className="row">
+            <div className="col-12 d-flex">
+              <div className="card shadow-sm flex-fill w-100">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                  <h5 className="fw-bold mb-0">All Appointments</h5>
+                  <Link
+                    href={all_routes.appointments}
+                    className="btn fw-normal btn-outline-white"
+                  >
+                    View All
+                  </Link>
+                </div>
+                <div className="card-body">
+                  {/* Table start */}
+                  <div className="table-responsive table-nowrap">
+                    <table className="table border">
+                      <thead className="thead-light">
+                        <tr>
+                          <th>Doctor</th>
+                          <th>Patient</th>
+                          <th>Date &amp; Time</th>
+                          <th>Mode</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recentLoading ? (
+                          <tr>
+                            <td colSpan={5} className="text-center py-3">
+                              Loading appointments...
+                            </td>
+                          </tr>
+                        ) : recentAppointments.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="text-center py-3">
+                              No appointments found.
+                            </td>
+                          </tr>
+                        ) : (
+                          recentAppointments.map((item) => (
+                            <tr key={item.id}>
+                              <td>{item.doctorName}</td>
+                              <td>{item.patientName}</td>
+                              <td>{item.dateTime || "—"}</td>
+                              <td>{item.appointmentType || "OPD"}</td>
+                              <td>
+                                <span
+                                  className={`badge fs-13 py-1 rounded fw-medium ${getStatusBadgeClass(
+                                    item.status
+                                  )}`}
+                                >
+                                  {item.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Table end */}
+                </div>
+              </div>
+            </div>
+          </div>
           {/* row end */}
+          {/* row start - duplicate Recent Transactions removed (now shown beside Income By Treatment) */}
         </div>
         {/* End Content */}
         {/* Footer Start */}
