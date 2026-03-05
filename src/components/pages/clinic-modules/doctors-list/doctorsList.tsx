@@ -77,7 +77,7 @@ const DoctorsListComponent = () => {
 
   useEffect(() => {
     fetchDoctors();
-  }, [appliedDepartment, appliedStatus, appliedDate, page, limit]);
+  }, [appliedDepartment, appliedStatus, appliedDate, page, limit, searchText]);
 
   const fetchDoctors = async () => {
     try {
@@ -86,6 +86,7 @@ const DoctorsListComponent = () => {
       if (appliedDepartment) params.department = appliedDepartment;
       if (appliedStatus) params.status = appliedStatus.toLowerCase();
       if (appliedDate) params.date = appliedDate;
+      if (searchText.trim()) params.search = searchText.trim();
 
       const response = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
         params,

@@ -58,7 +58,7 @@ const PatientsComponent = () => {
 
   useEffect(() => {
     fetchPatients();
-  }, [appliedDateFrom, appliedDateTo, page, limit]);
+  }, [appliedDateFrom, appliedDateTo, page, limit, searchText]);
 
   const fetchPatients = async () => {
     try {
@@ -66,6 +66,7 @@ const PatientsComponent = () => {
       const params: Record<string, string | number> = { page, limit };
       if (appliedDateFrom) params.createdFrom = appliedDateFrom;
       if (appliedDateTo) params.createdTo = appliedDateTo;
+      if (searchText.trim()) params.search = searchText.trim();
 
       const response = await axios.get(`${API_BASE_URL}/hospital/patients`, {
         params,

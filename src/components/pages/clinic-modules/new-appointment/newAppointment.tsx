@@ -96,6 +96,10 @@ const NewAppointmentComponent = () => {
   const [sessionSlot, setSessionSlot] = useState<Option | null>(null);
   const [reason, setReason] = useState<string>("");
 
+  // Attendant details
+  const [attendantName, setAttendantName] = useState<string>("");
+  const [attendantRelation, setAttendantRelation] = useState<string>("");
+
   // Payment form state
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [total, setTotal] = useState<number>(0);
@@ -547,6 +551,8 @@ const NewAppointmentComponent = () => {
           visitDate: formatVisitDate(),
           visitTime: visitTime ? formatVisitTime() : undefined,
           sessionSlot: sessionSlotValue,
+          attendantName: attendantName || undefined,
+          attendantRelation: attendantRelation || undefined,
           ...visitPayloadBase,
         };
 
@@ -601,6 +607,8 @@ const NewAppointmentComponent = () => {
         visitDate: formatVisitDate(),
         visitTime: formatVisitTime(),
         sessionSlot: sessionSlotValue,
+        attendantName: attendantName || undefined,
+        attendantRelation: attendantRelation || undefined,
         ...visitPayloadBase,
       };
 
@@ -1016,6 +1024,36 @@ const NewAppointmentComponent = () => {
                             onChange={(e) => setAddress(e.target.value)}
                           />
                         </div>
+                        <div className="row g-2">
+                          <div className="col-md-6">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Relation to Patient
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Son, Daughter, etc."
+                                value={attendantRelation}
+                                onChange={(e) => setAttendantRelation(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Attendant Name
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter attendant name"
+                                value={attendantName}
+                                onChange={(e) => setAttendantName(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <div className="col-md-7">
                         <div className="row g-2">
@@ -1047,6 +1085,7 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
+                          {/* Attendant fields moved below address in patient section */}
                         </div>
                       </div>
                     </div>

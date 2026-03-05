@@ -124,6 +124,7 @@ const AppointmentsComponent = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchText, setSearchText] = useState<string>("");
 
   const handleStatusChange = async (record: ITransformedAppointment, newStatus: string) => {
     const visitId = record.id;
@@ -170,7 +171,19 @@ const AppointmentsComponent = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [activeTab, appliedDoctorId, appliedVisitType, appliedAppointmentType, appliedStatus, appliedDate, appliedCreatedFrom, appliedCreatedTo, page, limit]);
+  }, [
+    activeTab,
+    appliedDoctorId,
+    appliedVisitType,
+    appliedAppointmentType,
+    appliedStatus,
+    appliedDate,
+    appliedCreatedFrom,
+    appliedCreatedTo,
+    page,
+    limit,
+    searchText,
+  ]);
 
   useEffect(() => {
     if (!API_BASE_URL) return;
@@ -247,6 +260,7 @@ const AppointmentsComponent = () => {
       if (effectiveDate) params.date = effectiveDate;
       if (appliedCreatedFrom) params.createdFrom = appliedCreatedFrom;
       if (appliedCreatedTo) params.createdTo = appliedCreatedTo;
+      if (searchText.trim()) params.search = searchText.trim();
 
       const response = await axios.get(`${API_BASE_URL}/hospital/visits`, {
         params
@@ -588,10 +602,9 @@ const AppointmentsComponent = () => {
       ),
     },
   ];
-  const [searchText, setSearchText] = useState<string>("");
-
   const handleSearch = (value: string) => {
     setSearchText(value);
+    setPage(1);
   };
 
   const handleRowClick = async (record: any) => {

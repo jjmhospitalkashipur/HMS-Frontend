@@ -111,6 +111,8 @@ const EditAppointmentComponent = () => {
   const [address, setAddress] = useState<string>("");
   const [aadharNo, setAadharNo] = useState<string>("");
   const [ayushmanNo, setAyushmanNo] = useState<string>("");
+  const [attendantName, setAttendantName] = useState<string>("");
+  const [attendantRelation, setAttendantRelation] = useState<string>("");
 
   const fetchDoctors = useCallback(async () => {
     if (!API_BASE_URL) return;
@@ -140,6 +142,8 @@ const EditAppointmentComponent = () => {
         setVisitType(Visit_Type.find((vt) => vt.value === v.visitType) || Visit_Type[0]);
         setAppointmentType(v.appointmentType || "OPD");
         setReason(v.reason || "");
+        setAttendantName((v as any).attendantName || "");
+        setAttendantRelation((v as any).attendantRelation || "");
         const priceNum = v.price != null ? Number(v.price) : 0;
         const discountNum = v.discount != null ? Number(v.discount) : 0;
         const amountPaid = (v as { amountPaid?: number }).amountPaid != null
@@ -364,6 +368,8 @@ const EditAppointmentComponent = () => {
         visitType: visitType?.value !== "Select" ? visitType?.value : undefined,
         appointmentType: appointmentType,
         reason: reason || undefined,
+        attendantName: attendantName || undefined,
+        attendantRelation: attendantRelation || undefined,
         discount: discountNum,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
@@ -612,6 +618,34 @@ const EditAppointmentComponent = () => {
                         readOnly
                         disabled
                       />
+                    </div>
+                  </div>
+                  <div className="col-md-5">
+                    <div className="row g-2">
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Attendant Name</label>
+                          <input
+                            type="text"
+                            className="form-control bg-light"
+                            value={attendantName}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Relation to Patient</label>
+                          <input
+                            type="text"
+                            className="form-control bg-light"
+                            value={attendantRelation}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
