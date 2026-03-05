@@ -391,13 +391,14 @@ const QueueDisplayComponent = () => {
       </div>
 
       {/* Main content: doctor info left, queue right */}
-      <div className="d-flex flex-column flex-md-row align-items-stretch p-2 p-md-3 p-lg-4 p-xl-4 gap-3 gap-md-4 gap-xl-4 w-100 overflow-hidden">
+      <div className="flex-grow-1 d-flex flex-column flex-md-row align-items-stretch p-2 p-md-3 p-lg-4 p-xl-4 gap-3 gap-md-4 gap-xl-4 w-100 overflow-hidden">
         {/* Left: Doctor info */}
         <div
           className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1 d-flex flex-column"
           style={{
-            maxWidth: "clamp(260px, 26%, 520px)",
+            maxWidth: "clamp(240px, 22%, 420px)",
             padding: "clamp(0.35rem, 0.9vw, 1.5rem)",
+            height: "71vh",
           }}
         >
           <div
@@ -416,16 +417,25 @@ const QueueDisplayComponent = () => {
               priority={false}
             />
           </div>
-          <h2 className="fw-bold text-dark mb-1" style={{ fontSize: "clamp(1rem, 1.8vw, 5rem)" }}>{doctorName}</h2>
-          <p className="text-secondary mb-0" style={{ fontSize: "clamp(0.875rem, 1.4vw, 3.5rem)" }}>{departmentOrSpecialization}</p>
+          <h2
+            className="fw-bold text-dark mb-0 mx-auto"
+            style={{
+              fontSize: "clamp(1rem, 1.8vw, 5rem)",
+              maxWidth: "clamp(220px, 20vw, 380px)",
+              lineHeight: 1.2,
+            }}
+          >
+            {doctorName}
+            {departmentOrSpecialization ? ` (${departmentOrSpecialization})` : ""}
+          </h2>
         </div>
 
-        {/* Right: Queue table - scroll inside table */}
+        {/* Right: Queue table */}
         <div
-          className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm order-1 order-md-2 d-flex flex-column"
-          style={{ minWidth: "0" }}
+          className="flex-grow-1 min-w-0 rounded-3 border shadow-sm order-1 order-md-2"
+          style={{ minWidth: "0", height: "71vh" }}
         >
-          <div className="table-responsive w-100 overflow-auto flex-grow-1" style={{ maxHeight: "100%" }}>
+          <div className="table-responsive w-100">
             <table className="table mb-0 w-100">
               <thead className="table-dark position-sticky top-0 z-1">
                 <tr>
@@ -454,7 +464,7 @@ const QueueDisplayComponent = () => {
                     </td>
                   </tr>
                 ) : (
-                  queue.map((entry) => {
+                  queue.slice(0, 8).map((entry) => {
                     const normalizedStatus = entry.status?.toLowerCase() ?? "";
                     const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
                     const isConsulting = normalizedStatus === "consulting" || normalizedStatus === "in progress";
@@ -512,7 +522,7 @@ const QueueDisplayComponent = () => {
           style={{
             whiteSpace: "nowrap",
             display: "inline-block",
-            animation: "qd-strip-scroll 80s linear infinite",
+            animation: "qd-strip-scroll 140s linear infinite",
             fontSize: "clamp(1.6rem, 3vw, 4.5rem)",
           }}
         >
@@ -541,7 +551,7 @@ const QueueDisplayComponent = () => {
       <style jsx global>{`
         @keyframes qd-strip-scroll {
           0% {
-            transform: translateX(100%);
+            transform: translateX(0);
           }
           100% {
             transform: translateX(-100%);

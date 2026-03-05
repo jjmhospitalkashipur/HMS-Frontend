@@ -350,6 +350,51 @@ const QueueDisplayMultiComponent = () => {
     );
   }
 
+  // Build per-doctor summary for UI (name + next upcoming token/MRD)
+  const doctorSummaries = pageDoctors.map((doc) => {
+    const streamId = getStreamId(doc);
+    const display = displays[streamId];
+    const rawName = display?.doctorName?.trim() ?? doc.name?.trim() ?? "";
+    const doctorName = rawName
+      ? rawName.startsWith("Dr.")
+        ? rawName
+        : `Dr. ${rawName}`
+      : "—";
+
+    const allQueue = display?.queue ?? [];
+    const activeQueue = allQueue.filter((entry) => {
+      const normalized = entry.status?.toLowerCase() ?? "";
+      return normalized === "in progress" || normalized === "scheduled";
+    });
+    const nextVisit = activeQueue[0];
+    const nextToken =
+      nextVisit != null
+        ? isEmergencyVisit(nextVisit)
+          ? `E-${nextVisit.tokenNumber}`
+          : String(nextVisit.tokenNumber)
+        : null;
+    const nextMrd = nextVisit?.patient?.mrd ?? null;
+    const nextStatus = nextVisit?.status ?? null;
+    const nextVisitType = nextVisit?.visitType ?? null;
+
+    // Derive OPD label based on doctor name
+    const normalizedName = doctorName.toLowerCase();
+    const isOpd1 = normalizedName.includes("abhishek goel");
+    const opdLabel = isOpd1 ? "OPD 1" : "OPD 2";
+
+    return {
+      id: doc._id,
+      streamId,
+      doctorName,
+      opdLabel,
+      hasDisplay: !!display,
+      nextToken,
+      nextMrd,
+      nextStatus,
+      nextVisitType,
+    };
+  });
+
   return (
     <div
       ref={containerRef}
@@ -389,58 +434,36 @@ const QueueDisplayMultiComponent = () => {
         </span>
       </div>
 
-      {/* Doctors grid (occupies ~60% of viewport height) */}
-      <div
-        className="d-flex p-2 p-md-3 p-lg-4 p-xl-4 gap-2 gap-md-3 w-100 overflow-auto"
-        style={{ height: "60vh" }}
-      >
-        {pageDoctors.map((doc) => {
-          const streamId = getStreamId(doc);
-          const display = displays[streamId];
-          const rawName = display?.doctorName?.trim() ?? doc.name?.trim() ?? "";
-          const doctorName = rawName
-            ? rawName.startsWith("Dr.")
-              ? rawName
-              : `Dr. ${rawName}`
-            : "—";
-          const allQueue = display?.queue ?? [];
-          const queue = allQueue.filter((entry) => {
-            const normalized = entry.status?.toLowerCase() ?? "";
-            return normalized === "in progress" || normalized === "scheduled";
-          });
-
-          return (
-            <div
-              key={doc._id}
-              className="flex-grow-1 min-w-0 rounded-3 border overflow-hidden shadow-sm d-flex flex-column"
-              style={{
-                minWidth: "0",
-                flex: "1 1 0%",
-                maxWidth: "20%",
-              }}
-            >
-              <div
-                className="bg-dark text-white text-center px-2 fw-bold border-bottom d-flex align-items-center justify-content-center"
-                style={{
-                  fontSize: "clamp(0.75rem, 1.2vw, 3rem)",
-                  minHeight: "clamp(3rem, 5vw, 5rem)", // enough for two rows
-                  paddingTop: "0.25rem",
-                  paddingBottom: "0.25rem",
-                }}
-              >
-                <span className="text-wrap">{doctorName}</span>
-              </div>
-              <div
-                className="table-responsive w-100 overflow-auto flex-grow-1"
-              >
+      {/* Main row: Upcoming tokens list on the left (50% width) */}
+      <div className="d-flex flex-grow-1 p-2 p-md-3 p-lg-4 p-xl-4 w-100">
+        <div
+          className="w-100"
+          style={{
+            maxWidth: "50vw",
+          }}
+        >
+          <div className="card shadow-sm w-100 h-100">
+            <div className="card-header d-flex align-items-center justify-content-between">
+              <h5 className="fw-bold mb-0">Upcoming Tokens</h5>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
                 <table className="table mb-0 w-100">
-                  <thead className="table-dark position-sticky top-0 z-1">
+                  <thead className="table-dark">
                     <tr>
+                      <th
+                        style={{
+                          width: "50%",
+                          fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
+                        }}
+                      >
+                        OPD
+                      </th>
                       <th
                         className="text-center"
                         style={{
-                          padding: "clamp(0.35rem, 1vw, 2rem) clamp(0.5rem, 1.2vw, 3rem)",
-                          fontSize: "clamp(0.7rem, 1.2vw, 3rem)",
+                          width: "25%",
+                          fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
                         }}
                       >
                         Token
@@ -448,8 +471,8 @@ const QueueDisplayMultiComponent = () => {
                       <th
                         className="text-center"
                         style={{
-                          padding: "clamp(0.35rem, 1vw, 2rem) clamp(0.5rem, 1.2vw, 3rem)",
-                          fontSize: "clamp(0.7rem, 1.2vw, 3rem)",
+                          width: "25%",
+                          fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
                         }}
                       >
                         MRD No
@@ -457,57 +480,57 @@ const QueueDisplayMultiComponent = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {display === undefined ? (
+                    {doctorSummaries.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={2}
+                          colSpan={3}
                           className="text-center text-muted"
-                          style={{
-                            padding: "clamp(1rem, 2vw, 4rem)",
-                            fontSize: "clamp(0.7rem, 1.2vw, 3rem)",
-                          }}
+                          style={{ fontSize: "clamp(1rem, 1.8vw, 3.6rem)" }}
                         >
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden />
-                          Loading queue…
-                        </td>
-                      </tr>
-                    ) : queue.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="text-center text-muted"
-                          style={{
-                            padding: "clamp(1rem, 2vw, 4rem)",
-                            fontSize: "clamp(0.7rem, 1.2vw, 3rem)",
-                          }}
-                        >
-                          No patients
+                          No doctors found
                         </td>
                       </tr>
                     ) : (
-                      queue.map((entry) => {
-                        const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
+                      doctorSummaries.map((doc) => {
+                        const statusDisplay = doc.nextStatus
+                          ? getStatusDisplay(doc.nextStatus, doc.nextVisitType ?? undefined)
+                          : {
+                              label: "",
+                              rowStyle: {},
+                              textClass: "",
+                            };
                         return (
-                          <tr key={entry._id} style={statusDisplay.rowStyle}>
+                          <tr key={doc.id} style={statusDisplay.rowStyle}>
                             <td
-                              className={`fw-semibold align-middle text-center ${statusDisplay.textClass}`}
                               style={{
                                 ...statusDisplay.rowStyle,
-                                padding: "clamp(0.4rem, 1.2vw, 3rem) clamp(0.5rem, 1.2vw, 3rem)",
-                                fontSize: "clamp(0.75rem, 1.3vw, 3.5rem)",
+                                fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               }}
                             >
-                              {isEmergencyVisit(entry) ? `E-${entry.tokenNumber}` : entry.tokenNumber}
+                              <span
+                                className={`fw-semibold text-truncate d-inline-block ${statusDisplay.textClass}`}
+                                style={{ maxWidth: "100%" }}
+                              >
+                                {doc.opdLabel}
+                              </span>
                             </td>
                             <td
-                              className={`align-middle fw-medium text-center ${statusDisplay.textClass}`}
+                              className={`text-center fw-semibold ${statusDisplay.textClass}`}
                               style={{
                                 ...statusDisplay.rowStyle,
-                                padding: "clamp(0.4rem, 1.2vw, 3rem) clamp(0.5rem, 1.2vw, 3rem)",
-                                fontSize: "clamp(0.75rem, 1.3vw, 3.5rem)",
+                                fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               }}
                             >
-                              {entry.patient?.mrd ?? "—"}
+                              {doc.nextToken ?? "—"}
+                            </td>
+                            <td
+                              className={`text-center ${statusDisplay.textClass}`}
+                              style={{
+                                ...statusDisplay.rowStyle,
+                                fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
+                              }}
+                            >
+                              {doc.nextMrd ?? "—"}
                             </td>
                           </tr>
                         );
@@ -517,8 +540,8 @@ const QueueDisplayMultiComponent = () => {
                 </table>
               </div>
             </div>
-          );
-        })}
+          </div>
+        </div>
       </div>
       {/* Scrolling info strip (same as single QD, bigger and broader) */}
       <div
@@ -530,7 +553,7 @@ const QueueDisplayMultiComponent = () => {
           style={{
             whiteSpace: "nowrap",
             display: "inline-block",
-            animation: "qd-strip-scroll 80s linear infinite",
+            animation: "qd-strip-scroll 140s linear infinite",
             fontSize: "clamp(1.4rem, 2.4vw, 4rem)",
           }}
         >
@@ -559,7 +582,7 @@ const QueueDisplayMultiComponent = () => {
       <style jsx global>{`
         @keyframes qd-strip-scroll {
           0% {
-            transform: translateX(100%);
+            transform: translateX(0);
           }
           100% {
             transform: translateX(-100%);
