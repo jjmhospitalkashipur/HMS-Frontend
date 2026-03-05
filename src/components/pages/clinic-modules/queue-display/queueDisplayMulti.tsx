@@ -117,6 +117,7 @@ const QueueDisplayMultiComponent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const eventSourceRefs = useRef<Record<string, EventSource>>({});
+  const introVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const pageDoctors = doctors.slice(startIndex, endIndex);
   /** Same id as single qd page: readable doctorId for stream URL and state key */
@@ -332,6 +333,20 @@ const QueueDisplayMultiComponent = () => {
     };
   }, [API_BASE_URL, pageStreamIds]);
 
+  // Ensure intro video attempts to autoplay when component mounts
+  useEffect(() => {
+    const video = introVideoRef.current;
+    if (!video) return;
+    // Most browsers require muted videos for autoplay
+    video.muted = true;
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        // Autoplay might be blocked; ignore silently
+      });
+    }
+  }, []);
+
   if (loading && pageDoctors.length === 0) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
@@ -434,8 +449,9 @@ const QueueDisplayMultiComponent = () => {
         </span>
       </div>
 
-      {/* Main row: Upcoming tokens list on the left (50% width) */}
-      <div className="d-flex flex-grow-1 p-2 p-md-3 p-lg-4 p-xl-4 w-100">
+      {/* Main row: Upcoming tokens list on the left (50% width) and video on the right */}
+      <div className="d-flex flex-grow-1 p-2 p-md-3 p-lg-4 p-xl-4 w-100 gap-3">
+        {/* Left: Upcoming tokens (50% width) */}
         <div
           className="w-100"
           style={{
@@ -443,9 +459,7 @@ const QueueDisplayMultiComponent = () => {
           }}
         >
           <div className="card shadow-sm w-100 h-100">
-            <div className="card-header d-flex align-items-center justify-content-between">
-              <h5 className="fw-bold mb-0">Upcoming Tokens</h5>
-            </div>
+           
             <div className="card-body">
               <div className="table-responsive">
                 <table className="table mb-0 w-100">
@@ -540,6 +554,25 @@ const QueueDisplayMultiComponent = () => {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Right: Intro video */}
+        <div className="d-none d-lg-flex flex-grow-1 align-items-start justify-content-center mt-4 pt-4">
+          <div
+            className="rounded-3 border shadow-sm bg-black d-flex align-items-center justify-content-center"
+            style={{ maxHeight: "64vh", maxWidth: "23vw", width: "100%" }}
+          >
+            <video
+              ref={introVideoRef}
+              src="/assets/img/Dr. Abhishek Goel sir (Intro) (2).mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+              style={{ width: "100%", height: "auto" }}
+            />
           </div>
         </div>
       </div>
