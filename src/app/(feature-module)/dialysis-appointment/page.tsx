@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
 import { all_routes } from "@/routes/all_routes";
+import { openDialysisPrintWindow } from "./DialysisPrintView";
 
 const sectionIds = [
   "general-information",
@@ -23,10 +27,382 @@ const DialysisAppointmentPage = () => {
     "treatment-given": useRef<HTMLDivElement>(null),
   };
 
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const searchParams = useSearchParams();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isCentralLineNo, setIsCentralLineNo] = useState(false);
+
+  const handlePrint = () => {
+    if (formRef.current) {
+      openDialysisPrintWindow(formRef.current);
+    }
+  };
+
   const handleScrollTo = (id: (typeof sectionIds)[number]) => {
     const target = sectionRefs[id].current;
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleCentralLineNoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setIsCentralLineNo(event.target.checked);
+  };
+
+  // Prefill: Load the latest session data for this patient.
+  useEffect(() => {
+    const pId = searchParams.get("patientId") ?? searchParams.get("id");
+    if (!pId) return;
+
+    const fetchData = async () => {
+      try {
+        const url = `https://pathlabapi.kilobyte.live/api/v1/hospital/dialysis-session/patient/${pId}`;
+        const response = await axios.get(url);
+        const sessions = response.data?.data?.sessions;
+        if (sessions && sessions.length > 0) {
+          // Take the most recent session
+          populateForm(sessions[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch patient session data", err);
+      }
+    };
+
+    fetchData();
+  }, [searchParams]);
+
+  const populateForm = (session: any) => {
+    if (!formRef.current) return;
+    const form = formRef.current;
+
+    const setVal = (name: string, val: any) => {
+      const el = form.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | null;
+      if (el) {
+        if (el.type === "checkbox" || el.type === "radio") {
+          (el as HTMLInputElement).checked = !!val;
+        } else {
+          el.value = val !== undefined && val !== null ? val.toString() : "";
+        }
+      }
+    };
+
+    const pat = session.patient || {};
+    setVal("patient.name", pat.name);
+    setVal("patient.age", pat.age);
+    setVal("patient.gender", pat.gender);
+
+    const gen = session.generalInformation || {};
+    setVal("general.machineNumber", gen.machineNumber);
+    setVal("general.uhid", gen.uhid);
+    setVal("general.technicianName", gen.technicianName);
+    setVal("general.fiberVolume", gen.fiberVolume);
+    setVal("general.heparinUse", gen.heparinUse);
+    setVal("general.preHdWeightToday", gen.preHdWeightToday);
+    setVal("general.lastPostHdWeight", gen.lastPostHdWeight);
+    setVal("general.weightGain", gen.weightGain);
+    setVal("general.targetWeightLoss", gen.targetWeightLoss);
+    setVal("general.postHdWeightToday", gen.postHdWeightToday);
+    setVal("general.actualWeightLoss", gen.actualWeightLoss);
+    setVal("general.remainingWeightLoss", gen.remainingWeightLoss);
+    setVal("general.targetDryWeight", gen.targetDryWeight);
+
+    // Checkboxes
+    const setCheck = (name: string, val: boolean) => {
+      const el = form.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
+      if (el) el.checked = !!val;
+    };
+
+    setCheck("general.dialyzerUsageSingleUse", gen.dialyzerUsageSingleUse);
+    setCheck("general.dialyzerUsageReuse", gen.dialyzerUsageReuse);
+    setCheck("general.timesReused", gen.timesReused);
+    setCheck("general.vascularAccessPresent", gen.vascularAccessPresent);
+
+    if (gen.centralLineNo) {
+      setIsCentralLineNo(true);
+      setCheck("general.centralLineNo", true);
+    } else {
+      setIsCentralLineNo(false);
+      setCheck("general.centralLineNo", false);
+    }
+    setCheck("general.centralLineYes", gen.centralLineYes);
+
+    // Select central line site radio/check logic if matched
+    if (gen.centralLineIJV) {
+      const el = form.querySelector(`[name="general.centralLineSite"][value="ijv"]`) as HTMLInputElement | null;
+      if (el) el.checked = true;
+    } else if (gen.centralLineFemoral) {
+      const el = form.querySelector(`[name="general.centralLineSite"][value="femoral"]`) as HTMLInputElement | null;
+      if (el) el.checked = true;
+    }
+
+    setCheck("general.avfSelected", gen.avfSelected);
+    setCheck("general.avgSelected", gen.avgSelected);
+    setCheck("general.ijvSelected", gen.ijvSelected);
+    setCheck("general.femoralSelected", gen.femoralSelected);
+    setCheck("general.tunneledCatheter", gen.tunneledCatheter);
+    setCheck("general.avfNeedleSize16G", gen.avfNeedleSize16G);
+    setCheck("general.avfNeedleSize17G", gen.avfNeedleSize17G);
+    setCheck("general.avfNeedleSizeOthers", gen.avfNeedleSizeOthers);
+    setVal("general.avfNeedleSizeOthersValue", gen.avfNeedleSizeOthersValue);
+    setCheck("general.bruitThrillPresent", gen.bruitThrillPresent);
+    setCheck("general.bruitThrillAbsent", gen.bruitThrillAbsent);
+    setCheck("general.bruitThrillNotApplicable", gen.bruitThrillNotApplicable);
+
+    const pre = session.preDialysisAssessment || {};
+    setVal("pre.bpStartHd", pre.bpStartHd);
+    setVal("pre.spo2", pre.spo2);
+    setVal("pre.bodyTemperature", pre.bodyTemperature);
+    setVal("pre.pulse", pre.pulse);
+
+    (session.monitoringReadings || []).forEach((r: any, i: number) => {
+      if (i >= 8) return;
+      setVal(`monitoring.${i}.timeOnHd`, r.timeOnHd);
+      setVal(`monitoring.${i}.pr`, r.pr);
+      setVal(`monitoring.${i}.bp`, r.bp);
+      setVal(`monitoring.${i}.bfr`, r.bfr);
+      setVal(`monitoring.${i}.dfr`, r.dfr);
+      setVal(`monitoring.${i}.ufr`, r.ufr);
+      setVal(`monitoring.${i}.totalUf`, r.totalUf);
+      setVal(`monitoring.${i}.temperature`, r.temperature);
+      setVal(`monitoring.${i}.dyna`, r.dyna);
+      setVal(`monitoring.${i}.heparin`, r.heparin);
+      setVal(`monitoring.${i}.rbs`, r.rbs);
+    });
+
+    const post = session.postDialysisAssessment || {};
+    setVal("post.pulse", post.pulse);
+    setVal("post.bp", post.bp);
+    setVal("post.bodyTemperature", post.bodyTemperature);
+    setVal("post.postHdWeight1", post.postHdWeight);
+    setVal("post.ufRemoved", post.postHdWeightField2);
+    setVal("post.ktVAchieved", post.ktVAchieved);
+
+    // Radios for prolonged bleeding
+    const pb = post.prolongedBleedingField1; // Assuming Field1 is the value
+    if (pb) {
+      const el = form.querySelector(`[name="post.prolongedBleeding"][value="${pb}"]`) as HTMLInputElement | null;
+      if (el) el.checked = true;
+    }
+
+    setCheck("post.bruitThrillPresent", post.bruitThrillAvfAvgField1);
+    setCheck("post.bruitThrillAbsent", post.bruitThrillAvfAvgField2);
+    setCheck("post.bruitThrillNotApplicable", post.bruitThrillAvfAvgField3);
+
+    const comp = session.complications || {};
+    setCheck("comp.hypotension", comp.hypotension);
+    setCheck("comp.fever", comp.fever);
+    setCheck("comp.headache", comp.headache);
+    setCheck("comp.rigor", comp.rigor);
+    setCheck("comp.cramps", comp.cramps);
+    setCheck("comp.rash", comp.rash);
+    setCheck("comp.vomiting", comp.vomiting);
+    setCheck("comp.chestPain", comp.chestPain);
+    setCheck("comp.dyspnea", comp.dyspnea);
+    setCheck("comp.pruritus", comp.pruritus);
+    setCheck("comp.dialyzerReaction", comp.dialyzerReaction);
+    setCheck("comp.seizures", comp.seizures);
+    setVal("comp.other", comp.other);
+
+    const treat = session.treatmentGiven || {};
+    setVal("treat.epoDosage", treat.epoDosage);
+    setVal("treat.epoGivenBy", treat.epoGivenBy);
+    setVal("treat.ivIronDose", treat.ivIronDose);
+
+    if (treat.bloodTransfusionField1) {
+      const el = form.querySelector(`[name="treat.bloodTransfusion"][value="${treat.bloodTransfusionField1}"]`) as HTMLInputElement | null;
+      if (el) el.checked = true;
+    }
+    setVal("treat.numberOfUnits", treat.numberOfUnits);
+    setVal("treat.bloodBankName", treat.bloodBankName);
+    setVal("treat.typeOfBlood", treat.typeOfBlood);
+    setVal("treat.otherTreatmentGivenDrug", treat.otherTreatmentGivenDrug);
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitError(null);
+    setSubmitSuccess(false);
+
+    const formData = new FormData(e.currentTarget);
+    const get = (name: string) => (formData.get(name)?.toString().trim() ?? "");
+    const getNumber = (name: string): number | undefined => {
+      const v = get(name);
+      if (!v) return undefined;
+      const n = Number(v);
+      return Number.isNaN(n) ? undefined : n;
+    };
+    const getBool = (name: string) => formData.get(name) === "on";
+
+    const patientId =
+      searchParams.get("patientId") ??
+      searchParams.get("id") ??
+      get("meta.patientId");
+    const visitId = searchParams.get("visitId") ?? get("meta.visitId");
+    const procedureId = searchParams.get("procedureId") ?? get("meta.procedureId");
+    const centralLineSite = get("general.centralLineSite");
+
+    const generalInformation = {
+      machineNumber: get("general.machineNumber"),
+      uhid: get("general.uhid"),
+      technicianName: get("general.technicianName"),
+      fiberVolume: getNumber("general.fiberVolume"),
+      heparinUse: get("general.heparinUse"),
+      preHdWeightToday: getNumber("general.preHdWeightToday"),
+      lastPostHdWeight: getNumber("general.lastPostHdWeight"),
+      weightGain: getNumber("general.weightGain"),
+      targetWeightLoss: getNumber("general.targetWeightLoss"),
+      postHdWeightToday: getNumber("general.postHdWeightToday"),
+      actualWeightLoss: getNumber("general.actualWeightLoss"),
+      remainingWeightLoss: getNumber("general.remainingWeightLoss"),
+      targetDryWeight: getNumber("general.targetDryWeight"),
+      dialyzerUsageSingleUse: getBool("general.dialyzerUsageSingleUse"),
+      dialyzerUsageReuse: getBool("general.dialyzerUsageReuse"),
+      timesReused: getNumber("general.timesReused"),
+      vascularAccessPresent: getBool("general.vascularAccessPresent"),
+      centralLineYes: getBool("general.centralLineYes"),
+      centralLineNo: getBool("general.centralLineNo"),
+      centralLineIJV: centralLineSite === "ijv",
+      centralLineFemoral: centralLineSite === "femoral",
+      avfSelected: getBool("general.avfSelected"),
+      avgSelected: getBool("general.avgSelected"),
+      ijvSelected: getBool("general.ijvSelected"),
+      femoralSelected: getBool("general.femoralSelected"),
+      tunneledCatheter: getBool("general.tunneledCatheter"),
+      avfNeedleSize16G: getBool("general.avfNeedleSize16G"),
+      avfNeedleSize17G: getBool("general.avfNeedleSize17G"),
+      avfNeedleSizeOthers: getBool("general.avfNeedleSizeOthers"),
+      avfNeedleSizeOthersValue: get("general.avfNeedleSizeOthersValue"),
+      bruitThrillPresent: getBool("general.bruitThrillPresent"),
+      bruitThrillAbsent: getBool("general.bruitThrillAbsent"),
+      bruitThrillNotApplicable: getBool("general.bruitThrillNotApplicable"),
+    };
+
+    const preDialysisAssessment = {
+      bpStartHd: get("pre.bpStartHd"),
+      spo2: getNumber("pre.spo2"),
+      bodyTemperature: getNumber("pre.bodyTemperature"),
+      pulse: getNumber("pre.pulse"),
+    };
+
+    const monitoringReadings = [];
+    for (let i = 0; i < 8; i += 1) {
+      const timeOnHd = get(`monitoring.${i}.timeOnHd`);
+      const pr = get(`monitoring.${i}.pr`);
+      const bp = get(`monitoring.${i}.bp`);
+      const bfr = get(`monitoring.${i}.bfr`);
+      const dfr = get(`monitoring.${i}.dfr`);
+      const ufr = get(`monitoring.${i}.ufr`);
+      const totalUf = get(`monitoring.${i}.totalUf`);
+      const temperature = get(`monitoring.${i}.temperature`);
+      const dyna = get(`monitoring.${i}.dyna`);
+      const heparin = get(`monitoring.${i}.heparin`);
+      const rbs = get(`monitoring.${i}.rbs`);
+
+      const anyValue = [
+        timeOnHd,
+        pr,
+        bp,
+        bfr,
+        dfr,
+        ufr,
+        totalUf,
+        temperature,
+        dyna,
+        heparin,
+        rbs,
+      ].some((v) => v !== "");
+      if (!anyValue) continue;
+
+      monitoringReadings.push({
+        timeOnHd,
+        pr: pr ? Number(pr) : undefined,
+        bp,
+        bfr: bfr ? Number(bfr) : undefined,
+        dfr: dfr ? Number(dfr) : undefined,
+        ufr: ufr ? Number(ufr) : undefined,
+        totalUf: totalUf ? Number(totalUf) : undefined,
+        temperature: temperature ? Number(temperature) : undefined,
+        dyna: dyna ? Number(dyna) : undefined,
+        heparin: heparin ? Number(heparin) : undefined,
+        rbs: rbs ? Number(rbs) : undefined,
+      });
+    }
+
+    const postDialysisAssessment = {
+      pulse: getNumber("post.pulse"),
+      bp: get("post.bp"),
+      bodyTemperature: getNumber("post.bodyTemperature"),
+      postHdWeight: get("post.postHdWeight1"),
+      postHdWeightField2: get("post.postHdWeight2"),
+      ufRemoved: getNumber("post.ufRemoved"),
+      prolongedBleedingField1: get("post.prolongedBleeding"),
+      prolongedBleedingField2: "",
+      bruitThrillAvfAvgField1: getBool("post.bruitThrillPresent") ? "Present" : "",
+      bruitThrillAvfAvgField2: getBool("post.bruitThrillAbsent") ? "Absent" : "",
+      bruitThrillAvfAvgField3: getBool("post.bruitThrillNotApplicable") ? "Not Applicable" : "",
+      ktVAchieved: getNumber("post.ktVAchieved"),
+    };
+
+    const complications = {
+      headache: getBool("comp.headache"),
+      rash: getBool("comp.rash"),
+      dyspnea: getBool("comp.dyspnea"),
+      seizures: getBool("comp.seizures"),
+      fever: getBool("comp.fever"),
+      cramps: getBool("comp.cramps"),
+      chestPain: getBool("comp.chestPain"),
+      dialyzerReaction: getBool("comp.dialyzerReaction"),
+      hypotension: getBool("comp.hypotension"),
+      rigor: getBool("comp.rigor"),
+      vomiting: getBool("comp.vomiting"),
+      pruritus: getBool("comp.pruritus"),
+      other: get("comp.other"),
+    };
+
+    const treatmentGiven = {
+      epoDosage: getNumber("treat.epoDosage"),
+      epoGivenBy: get("treat.epoGivenBy"),
+      patientSignature: get("treat.patientSignature"),
+      ivIronDose: getNumber("treat.ivIronDose"),
+      bloodTransfusionField1: get("treat.bloodTransfusion"),
+      bloodTransfusionField2: "",
+      numberOfUnits: getNumber("treat.numberOfUnits"),
+      bloodBankName: get("treat.bloodBankName"),
+      typeOfBlood: get("treat.typeOfBlood"),
+      otherTreatmentGivenDrug: get("treat.otherTreatmentGivenDrug"),
+    };
+
+    const signatures = {
+      technicianSignature: get("signatures.technicianSignature"),
+      doctorInCharge: get("signatures.doctorInCharge"),
+      patientSignature: get("signatures.patientSignature"),
+    };
+
+    const payload = {
+      patientId,
+      visitId,
+      procedureId,
+      generalInformation,
+      preDialysisAssessment,
+      monitoringReadings,
+      postDialysisAssessment,
+      complications,
+      treatmentGiven,
+      signatures,
+      status: "In Progress",
+    };
+
+    try {
+      setIsSubmitting(true);
+      await axios.post(`${API_BASE_URL}/hospital/dialysis-session`, payload);
+      setSubmitSuccess(true);
+    } catch (error: any) {
+      setSubmitError(error?.response?.data?.message ?? "Failed to save dialysis session.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,683 +475,994 @@ const DialysisAppointmentPage = () => {
           {/* Right: dialysis form sections */}
           <div className="col-md-10 col-lg-10 d-flex">
             <div className="card shadow-sm flex-grow-1 d-flex flex-column min-h-0">
-              <div className="card-body flex-grow-1 overflow-y-auto" style={{ minHeight: "75vh", maxHeight: "85vh" }}>
-                {/* General Information */}
-                <div ref={sectionRefs["general-information"]} id="general-information" className="mb-4">
-                  <h5 className="fw-bold mb-3">General Information</h5>
-                  <div className="border rounded p-3">
-                    <div className="row g-2">
-                      {/* Row 1 */}
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Machine Number</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">UHID</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Technician Name</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Fiber Volume</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-
-                      {/* Row 2 */}
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Heparin Use</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Pre HD Weight Today</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Last Post HD Weight</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Weight Gain</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-
-                      {/* Row 3 */}
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Target Weight Loss</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Post HD Weight Today</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Actual Weight Loss</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Remain Weight Loss</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-
-                      {/* Row 4 */}
-                      <div className="col-12">
-                        <label className="form-label mb-1 fw-medium">Target Dry Weight</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-
-                      {/* Row 5: checkbox rows start */}
-                      <div className="col-md-4 col-12">
-                        <label className="form-label mb-1 fw-medium">Dialyzer Usage Type</label>
-                        <div className="d-flex flex-wrap gap-2">
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="dialyzer-single-use" />
-                            <label
-                              className="form-check-label"
-                              htmlFor="dialyzer-single-use"
-                              style={{ color: "#000" }}
-                            >
-                              Single Use
-                            </label>
-                          </div>
-                          <div className="form-check">
-                            <input className="form-check-input" type="checkbox" id="dialyzer-reuse" />
-                            <label className="form-check-label" htmlFor="dialyzer-reuse" style={{ color: "#000" }}>
-                              Reuse
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-3 col-12">
-                        <label className="form-label mb-1 fw-medium d-block">Vascular Access</label>
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="vascular-access" />
-                          <label
-                            className="form-check-label"
-                            htmlFor="vascular-access"
-                            style={{ color: "#000" }}
-                          >
-                            Present
-                          </label>
-                        </div>
-                      </div>
-                      <div className="col-md-2 col-12">
-                        <label className="form-label mb-1 fw-medium">Times Reused</label>
-                        <input type="text" className="form-control form-control-sm" style={{ maxWidth: "100px" }} />
-                      </div>
-                      <div className="col-md-3 col-12">
-                        <label className="form-label mb-1 fw-medium">Central Line</label>
-                        <div className="d-flex flex-wrap gap-2">
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="central-line-yes" />
-                            <label className="form-check-label" htmlFor="central-line-yes" style={{ color: "#000" }}>
-                              Yes
-                            </label>
-                          </div>
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="central-line-no" />
-                            <label className="form-check-label" htmlFor="central-line-no" style={{ color: "#000" }}>
-                              No
-                            </label>
-                          </div>
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="central-line-ijv" />
-                            <label className="form-check-label" htmlFor="central-line-ijv" style={{ color: "#000" }}>
-                              IJV
-                            </label>
-                          </div>
-                          <div className="form-check">
-                            <input className="form-check-input" type="checkbox" id="central-line-femoral" />
-                            <label
-                              className="form-check-label"
-                              htmlFor="central-line-femoral"
-                              style={{ color: "#000" }}
-                            >
-                              Femoral
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Row 6: checkbox row */}
-                      <div className="col-md-4 col-12">
-                        <label className="form-label mb-1 fw-medium">AVF / AVG / IJV / Femoral</label>
-                        <div className="d-flex flex-wrap gap-2">
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="avf" />
-                            <label className="form-check-label" htmlFor="avf" style={{ color: "#000" }}>
-                              AVF
-                            </label>
-                          </div>
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="avg" />
-                            <label className="form-check-label" htmlFor="avg" style={{ color: "#000" }}>
-                              AVG
-                            </label>
-                          </div>
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="ijv" />
-                            <label className="form-check-label" htmlFor="ijv" style={{ color: "#000" }}>
-                              IJV
-                            </label>
-                          </div>
-                          <div className="form-check">
-                            <input className="form-check-input" type="checkbox" id="femoral" />
-                            <label className="form-check-label" htmlFor="femoral" style={{ color: "#000" }}>
-                              Femoral
-                            </label>
-                          </div>
-                          <div className="form-check">
-                            <input className="form-check-input" type="checkbox" id="tunneled-catheter" />
-                            <label
-                              className="form-check-label"
-                              htmlFor="tunneled-catheter"
-                              style={{ color: "#000" }}
-                            >
-                              Tunneled Catheter
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <label className="form-label mb-1 fw-medium">AVF Needle Size</label>
-                        <div className="d-flex flex-wrap gap-2">
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="needle-16g" />
-                            <label className="form-check-label" htmlFor="needle-16g" style={{ color: "#000" }}>
-                              16G
-                            </label>
-                          </div>
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="needle-17g" />
-                            <label className="form-check-label" htmlFor="needle-17g" style={{ color: "#000" }}>
-                              17G
-                            </label>
-                          </div>
-                          <div className="form-check">
-                            <input className="form-check-input" type="checkbox" id="needle-others" />
-                            <label className="form-check-label" htmlFor="needle-others" style={{ color: "#000" }}>
-                              Others
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <label className="form-label mb-1 fw-medium">Bruit / Thrill</label>
-                        <div className="d-flex flex-wrap gap-2">
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="bruit-present" />
-                            <label className="form-check-label" htmlFor="bruit-present" style={{ color: "#000" }}>
-                              Present
-                            </label>
-                          </div>
-                          <div className="form-check me-2">
-                            <input className="form-check-input" type="checkbox" id="bruit-absent" />
-                            <label className="form-check-label" htmlFor="bruit-absent" style={{ color: "#000" }}>
-                              Absent
-                            </label>
-                          </div>
-                          <div className="form-check">
-                            <input className="form-check-input" type="checkbox" id="bruit-na" />
-                            <label className="form-check-label" htmlFor="bruit-na" style={{ color: "#000" }}>
-                              Not Applicable
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pre-Dialysis Assessment */}
-                <div ref={sectionRefs["pre-dialysis-assessment"]} id="pre-dialysis-assessment" className="mb-4">
-                  <h5 className="fw-bold mb-3">Pre-Dialysis Assessment</h5>
-                  <div className="border rounded p-3">
-                    <div className="row g-2">
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">BP at Start of HD</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">SPO2</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Body Temperature</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-3 col-6">
-                        <label className="form-label mb-1 fw-medium">Pulse</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dialysis Monitoring */}
-                <div ref={sectionRefs["dialysis-monitoring"]} id="dialysis-monitoring" className="mb-4">
-                  <h5 className="fw-bold mb-3">Dialysis Monitoring</h5>
-                  <div className="border rounded p-3">
-                    <div className="table-responsive">
-                      <table className="dialysis-table w-100 text-center">
-                        <thead className="table-light">
-                          <tr>
-                            <th style={{ whiteSpace: "nowrap" }}>Time on HD</th>
-                            <th>PR</th>
-                            <th>BP</th>
-                            <th>BFR</th>
-                            <th>DFR</th>
-                            <th>UFR</th>
-                            <th>Total UF</th>
-                            <th>Temp.</th>
-                            <th>DyNa</th>
-                            <th>Heparin</th>
-                            <th>RBS</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Array.from({ length: 8 }).map((_, index) => (
-                            <tr key={index}>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="Time on HD"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="PR"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="BP"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="BFR"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="DFR"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="UFR"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="Total UF"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="Temperature"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="DyNa"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="Heparin"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                              <td style={{ padding: "2px 4px" }}>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm text-center"
-                                  aria-label="RBS"
-                                  style={{ fontSize: "16px" }}
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Post Dialysis Assessment */}
-                <div ref={sectionRefs["post-dialysis-assessment"]} id="post-dialysis-assessment" className="mb-4">
-                  <h5 className="fw-bold mb-3">Post Dialysis Assessment</h5>
-                  <div className="border rounded p-3">
-                    <div className="row g-2">
-                      {/* Row 1: Pulse, BP, Body Temp */}
-                      <div className="col-md-4 col-12 d-flex align-items-center gap-1">
-                        <label className="form-label mb-1 fw-medium mb-0">Pulse</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-4 col-12 d-flex align-items-center gap-1">
-                        <label className="form-label mb-1 fw-medium mb-0">BP</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-                      <div className="col-md-4 col-12 d-flex align-items-center gap-1">
-                        <label className="form-label mb-1 fw-medium mb-0">Body Temperature</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-
-                      {/* Row 2: Post HD Weight (2 boxes), UF Removed */}
-                      <div className="col-md-8 col-12">
-                        <div className="d-flex align-items-center gap-1">
-                          <label className="form-label mb-1 fw-medium mb-0">Post HD Weight</label>
-                          <input type="text" className="form-control form-control-sm" />
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12 d-flex align-items-center gap-1">
-                        <label className="form-label mb-1 fw-medium mb-0">UF Removed</label>
-                        <input type="text" className="form-control form-control-sm" />
-                      </div>
-
-                      {/* Row 3: Prolonged bleeding (2 boxes) */}
-                      <div className="col-12">
-                        <div className="d-flex align-items-center gap-1">
-                          <label className="form-label mb-1 fw-medium mb-0">
-                            Prolonged Bleeding from Access Site
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-
-                      {/* Row 4: Bruit/Thrill (3 boxes) */}
-                      <div className="col-12">
-                        <div className="d-flex align-items-center gap-1">
-                          <label className="form-label mb-1 fw-medium mb-0">Bruit/Thrill (AVF/AVG)</label>
-                          <input type="text" className="form-control form-control-sm" />
-                          <input type="text" className="form-control form-control-sm" />
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-
-                      {/* Row 5: KT/V Achieved (single long) */}
-                      <div className="col-12">
-                        <div className="d-flex align-items-center gap-1">
-                          <label className="form-label mb-1 fw-medium mb-0">KT / V Achieved</label>
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Complications During Dialysis */}
+              <form
+                ref={formRef}
+                className="flex-grow-1 d-flex flex-column"
+                onSubmit={handleSubmit}
+              >
                 <div
-                  ref={sectionRefs["complications-during-dialysis"]}
-                  id="complications-during-dialysis"
-                  className="mb-4"
+                  className="card-body flex-grow-1 overflow-y-auto"
+                  style={{ minHeight: "75vh", maxHeight: "85vh" }}
                 >
-                  <h5 className="fw-bold mb-3">Complications During Dialysis</h5>
-                  <div className="border rounded p-3">
-                    <div className="row g-2">
-                      {/* All as checkboxes */}
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-hypotension" />
-                          <label className="form-check-label" htmlFor="comp-hypotension" style={{ color: "#000" }}>
-                            Hypotension
-                          </label>
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-fever" />
-                          <label className="form-check-label" htmlFor="comp-fever" style={{ color: "#000" }}>
-                            Fever
-                          </label>
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-headache" />
-                          <label className="form-check-label" htmlFor="comp-headache" style={{ color: "#000" }}>
-                            Headache
-                          </label>
-                        </div>
-                      </div>
+                  <input type="hidden" name="patient.name" />
+                  <input type="hidden" name="patient.age" />
+                  <input type="hidden" name="patient.gender" />
 
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-rigor" />
-                          <label className="form-check-label" htmlFor="comp-rigor" style={{ color: "#000" }}>
-                            Rigor
-                          </label>
+                  {/* General Information */}
+                  <div ref={sectionRefs["general-information"]} id="general-information" className="mb-4">
+                    <h5 className="fw-bold mb-3">General Information</h5>
+                    <div className="border rounded p-3">
+                      <div className="row g-2">
+                        {/* Row 1 – Machine / UHID / Technician */}
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Machine Number</label>
+                          <input
+                            name="general.machineNumber"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-cramps" />
-                          <label className="form-check-label" htmlFor="comp-cramps" style={{ color: "#000" }}>
-                            Cramps
-                          </label>
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">UHID</label>
+                          <input
+                            name="general.uhid"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-rash" />
-                          <label className="form-check-label" htmlFor="comp-rash" style={{ color: "#000" }}>
-                            Rash
-                          </label>
+                        <div className="col-md-4 offset-4 col-12 col-sm-12">
+                          <label className="form-label mb-1 fw-medium">Technician Name</label>
+                          <input
+                            name="general.technicianName"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
 
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-vomiting" />
-                          <label className="form-check-label" htmlFor="comp-vomiting" style={{ color: "#000" }}>
-                            Vomiting
-                          </label>
+                        {/* Row 2 – Dialyzer usage row */}
+                        <div className="col-md-3 col-12 pe-md-0">
+                          <label className="form-label mb-1 fw-medium">Dialyzer Usage Type</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="dialyzer-single-use"
+                                name="general.dialyzerUsageSingleUse"
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="dialyzer-single-use"
+                                style={{ color: "#000" }}
+                              >
+                                Single Use
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="dialyzer-reuse"
+                                name="general.dialyzerUsageReuse"
+                              />
+                              <label className="form-check-label" htmlFor="dialyzer-reuse" style={{ color: "#000" }}>
+                                Reuse
+                              </label>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-chest-pain" />
-                          <label className="form-check-label" htmlFor="comp-chest-pain" style={{ color: "#000" }}>
-                            Chest Pain
-                          </label>
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-dyspnea" />
-                          <label className="form-check-label" htmlFor="comp-dyspnea" style={{ color: "#000" }}>
-                            Dyspnea
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-pruritus" />
-                          <label className="form-check-label" htmlFor="comp-pruritus" style={{ color: "#000" }}>
-                            Pruritus
-                          </label>
-                        </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-dialyzer-reaction" />
+                        <div className="col-md-1 col-12 col-sm-6 ms-md-n2">
                           <label
-                            className="form-check-label"
-                            htmlFor="comp-dialyzer-reaction"
-                            style={{ color: "#000" }}
+                            className="form-label  mb-1 fw-medium"
+                            style={{ whiteSpace: "nowrap", marginLeft: "-24px" }}
                           >
-                            Dialyzer Reaction
+                            Times Reused
                           </label>
+                          <input
+                            name="general.timesReused"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-                      <div className="col-md-4 col-12">
-                        <div className="form-check">
-                          <input className="form-check-input" type="checkbox" id="comp-seizures" />
-                          <label className="form-check-label" htmlFor="comp-seizures" style={{ color: "#000" }}>
-                            Seizures
-                          </label>
+                        <div className="col-md-2 offset-4 col-6">
+                          <label className="form-label mb-1 fw-medium">Fiber Volume</label>
+                          <input
+                            name="general.fiberVolume"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
+                        <div className="col-md-2 col-6">
+                          <label className="form-label mb-1 fw-medium">Heparin Use</label>
+                          <input
+                            name="general.heparinUse"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
 
-                      <div className="col-12 mt-2">
-                        <label className="form-label mb-1 fw-medium">Other Complications During Dialysis</label>
-                        <textarea className="form-control" rows={3} />
+                        {/* Row 3 – Pre / Post weights + gain */}
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Pre HD Weight Today</label>
+                          <input
+                            name="general.preHdWeightToday"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Last Post HD Weight</label>
+                          <input
+                            name="general.lastPostHdWeight"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Weight Gain</label>
+                          <input
+                            name="general.weightGain"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+
+                        {/* Row 4 – Target / Post HD / Actual loss */}
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Target Weight Loss</label>
+                          <input
+                            name="general.targetWeightLoss"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Post HD Weight Today</label>
+                          <input
+                            name="general.postHdWeightToday"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Actual Weight Loss</label>
+                          <input
+                            name="general.actualWeightLoss"
+                            type="text"
+                            className="form-control  form-control-sm"
+                          />
+                        </div>
+
+                        {/* Row 5 – Target dry weight / Remain weight loss / Vascular Access */}
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">Target Dry Weight</label>
+                          <input
+                            name="general.targetDryWeight"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">Remain Weight Loss</label>
+                          <input
+                            name="general.remainingWeightLoss"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-6 offset-1  col-12">
+                          <label className="form-label mb-1 fw-medium">Vascular Access</label>
+                          <div className="d-flex flex-wrap align-items-center gap-3">
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="avf"
+                                name="general.avfSelected"
+                              />
+                              <label className="form-check-label" htmlFor="avf" style={{ color: "#000" }}>
+                                AVF
+                              </label>
+                            </div>
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="avg"
+                                name="general.avgSelected"
+                              />
+                              <label className="form-check-label" htmlFor="avg" style={{ color: "#000" }}>
+                                AVG
+                              </label>
+                            </div>
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="ijv"
+                                name="general.ijvSelected"
+                              />
+                              <label className="form-check-label" htmlFor="ijv" style={{ color: "#000" }}>
+                                IJV
+                              </label>
+                            </div>
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="femoral"
+                                name="general.femoralSelected"
+                              />
+                              <label className="form-check-label" htmlFor="femoral" style={{ color: "#000" }}>
+                                Femoral
+                              </label>
+                            </div>
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="tunneled-catheter"
+                                name="general.tunneledCatheter"
+                              />
+                              <label className="form-check-label" htmlFor="tunneled-catheter" style={{ color: "#000" }}>
+                                Tunneled Catheter
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Row 7: checkbox rows start – Central line */}
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">Central Line</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="central-line-yes"
+                                name="general.centralLineYes"
+                              />
+                              <label className="form-check-label" htmlFor="central-line-yes" style={{ color: "#000" }}>
+                                Yes
+                              </label>
+                            </div>
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="central-line-no"
+                                name="general.centralLineNo"
+                                checked={isCentralLineNo}
+                                onChange={handleCentralLineNoChange}
+                              />
+                              <label className="form-check-label" htmlFor="central-line-no" style={{ color: "#000" }}>
+                                No
+                              </label>
+                            </div>
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="central-line-ijv"
+                                name="general.centralLineSite"
+                                value="ijv"
+                                disabled={isCentralLineNo}
+                              />
+                              <label className="form-check-label" htmlFor="central-line-ijv" style={{ color: "#000" }}>
+                                IJV
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="central-line-femoral"
+                                name="general.centralLineSite"
+                                value="femoral"
+                                disabled={isCentralLineNo}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="central-line-femoral"
+                                style={{ color: "#000" }}
+                              >
+                                Femoral
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">AVF Needle Size</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="needle-16g"
+                                name="general.avfNeedleSize16G"
+                              />
+                              <label className="form-check-label" htmlFor="needle-16g" style={{ color: "#000" }}>
+                                16G
+                              </label>
+                            </div>
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="needle-17g"
+                                name="general.avfNeedleSize17G"
+                              />
+                              <label className="form-check-label" htmlFor="needle-17g" style={{ color: "#000" }}>
+                                17G
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="needle-others"
+                                name="general.avfNeedleSizeOthers"
+                              />
+                              <label className="form-check-label" htmlFor="needle-others" style={{ color: "#000" }}>
+                                Others
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">Bruit / Thrill</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="bruit-present"
+                                name="general.bruitThrillPresent"
+                              />
+                              <label className="form-check-label" htmlFor="bruit-present" style={{ color: "#000" }}>
+                                Present
+                              </label>
+                            </div>
+                            <div className="form-check me-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="bruit-absent"
+                                name="general.bruitThrillAbsent"
+                              />
+                              <label className="form-check-label" htmlFor="bruit-absent" style={{ color: "#000" }}>
+                                Absent
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="bruit-na"
+                                name="general.bruitThrillNotApplicable"
+                              />
+                              <label className="form-check-label" htmlFor="bruit-na" style={{ color: "#000" }}>
+                                Not Applicable
+                              </label>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Treatment Given */}
-                <div ref={sectionRefs["treatment-given"]} id="treatment-given" className="mb-4">
-                  <h5 className="fw-bold mb-3">Treatment Given</h5>
-                  <div className="border rounded p-3">
-                    <div className="row g-2">
-                      {/* Row 1 */}
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            EPO Dosage
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
+                  {/* Pre-Dialysis Assessment */}
+                  <div ref={sectionRefs["pre-dialysis-assessment"]} id="pre-dialysis-assessment" className="mb-4">
+                    <h5 className="fw-bold mb-3">Pre-Dialysis Assessment</h5>
+                    <div className="border rounded p-3">
+                      <div className="row g-2">
+                        <div className="col-md-3 col-6">
+                          <label className="form-label mb-1 fw-medium">BP at Start of HD</label>
+                          <input
+                            name="pre.bpStartHd"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            Blood Transfusion
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
-                          <input type="text" className="form-control form-control-sm" />
+                        <div className="col-md-3 col-6">
+                          <label className="form-label mb-1 fw-medium">SPO2</label>
+                          <input
+                            name="pre.spo2"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-
-                      {/* Row 2 */}
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            EPO Given By
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
+                        <div className="col-md-3 col-6">
+                          <label className="form-label mb-1 fw-medium">Body Temperature</label>
+                          <input
+                            name="pre.bodyTemperature"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            Number of Unit
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
+                        <div className="col-md-3 col-6">
+                          <label className="form-label mb-1 fw-medium">Pulse</label>
+                          <input
+                            name="pre.pulse"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
                         </div>
-                      </div>
-
-                      {/* Row 3 */}
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            Patient Signature
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            Blood Bank Name
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-
-                      {/* Row 4 */}
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            IV Iron Dose
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-                      <div className="col-md-6 col-12">
-                        <div className="d-flex align-items-center gap-2">
-                          <label
-                            className="form-label mb-1 fw-medium mb-0 dialysis-label"
-                            style={{ minWidth: "200px" }}
-                          >
-                            Type of Blood
-                          </label>
-                          <input type="text" className="form-control form-control-sm" />
-                        </div>
-                      </div>
-
-                      {/* Other Treatment */}
-                      <div className="col-12 mt-2">
-                        <label className="form-label mb-1 fw-bold">Other Treatment Given Drug</label>
-                        <textarea className="form-control" rows={4} />
                       </div>
                     </div>
                   </div>
-                </div>
 
-              </div>
-              <div className="card-footer text-end bg-white border-top">
-                <button type="button" className="btn btn-primary dialysis-save-btn">
-                  Save Dialysis Details
-                </button>
-              </div>
+                  {/* Dialysis Monitoring */}
+                  <div ref={sectionRefs["dialysis-monitoring"]} id="dialysis-monitoring" className="mb-4">
+                    <h5 className="fw-bold mb-3">Dialysis Monitoring</h5>
+                    <div className="border rounded p-3">
+                      <div className="table-responsive">
+                        <table className="dialysis-table w-100 text-center">
+                          <thead className="table-light">
+                            <tr>
+                              <th style={{ whiteSpace: "nowrap" }}>Time on HD</th>
+                              <th>PR</th>
+                              <th>BP</th>
+                              <th>BFR</th>
+                              <th>DFR</th>
+                              <th>UFR</th>
+                              <th>Total UF</th>
+                              <th>Temp.</th>
+                              <th>DyNa</th>
+                              <th>Heparin</th>
+                              <th>RBS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Array.from({ length: 8 }).map((_, index) => (
+                              <tr key={index}>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="Time on HD"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.timeOnHd`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="PR"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.pr`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="BP"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.bp`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="BFR"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.bfr`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="DFR"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.dfr`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="UFR"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.ufr`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="Total UF"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.totalUf`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="Temperature"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.temperature`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="DyNa"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.dyna`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="Heparin"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.heparin`}
+                                  />
+                                </td>
+                                <td style={{ padding: "2px 4px" }}>
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    aria-label="RBS"
+                                    style={{ fontSize: "16px" }}
+                                    name={`monitoring.${index}.rbs`}
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Post Dialysis Assessment */}
+                  <div ref={sectionRefs["post-dialysis-assessment"]} id="post-dialysis-assessment" className="mb-4">
+                    <h5 className="fw-bold mb-3">Post Dialysis Assessment</h5>
+                    <div className="border rounded p-3">
+                      <div className="row g-2">
+                        {/* Row 1: Pulse, BP, Body Temp (labels above inputs) */}
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">Pulse</label>
+                          <input name="post.pulse" type="text" className="form-control form-control-sm" />
+                        </div>
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">BP</label>
+                          <input name="post.bp" type="text" className="form-control form-control-sm" />
+                        </div>
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">Body Temperature</label>
+                          <input
+                            name="post.bodyTemperature"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+
+                        {/* Row 2: Post HD Weight (2 boxes), UF Removed */}
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">Post HD Weight</label>
+                          <div className="d-flex gap-2">
+                            <input
+                              name="post.postHdWeight1"
+                              type="text"
+                              className="form-control form-control-sm"
+                            />
+
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">UF Removed</label>
+                          <input name="post.ufRemoved" type="text" className="form-control form-control-sm" />
+                        </div>
+
+                        {/* Row 3: Prolonged bleeding (Yes / No radio), Bruit/Thrill, KT/V (same row) */}
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">Prolonged Bleeding from Access Site</label>
+                          <div className="d-flex flex-wrap gap-3">
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="post-prolonged-yes"
+                                name="post.prolongedBleeding"
+                                value="Yes"
+                              />
+                              <label className="form-check-label" htmlFor="post-prolonged-yes" style={{ color: "#000" }}>
+                                Yes
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="post-prolonged-no"
+                                name="post.prolongedBleeding"
+                                value="No"
+                              />
+                              <label className="form-check-label" htmlFor="post-prolonged-no" style={{ color: "#000" }}>
+                                No
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bruit/Thrill (checkboxes like General Info) */}
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">Bruit/Thrill (AVF/AVG)</label>
+                          <div className="d-flex flex-wrap gap-3">
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="post-bruit-present"
+                                name="post.bruitThrillPresent"
+                              />
+                              <label className="form-check-label" htmlFor="post-bruit-present" style={{ color: "#000" }}>
+                                Present
+                              </label>
+                            </div>
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="post-bruit-absent"
+                                name="post.bruitThrillAbsent"
+                              />
+                              <label className="form-check-label" htmlFor="post-bruit-absent" style={{ color: "#000" }}>
+                                Absent
+                              </label>
+                            </div>
+                            <div className="form-check m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="post-bruit-na"
+                                name="post.bruitThrillNotApplicable"
+                              />
+                              <label className="form-check-label" htmlFor="post-bruit-na" style={{ color: "#000" }}>
+                                Not Applicable
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* KT/V Achieved */}
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">KT / V Achieved</label>
+                          <input
+                            name="post.ktVAchieved"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Complications During Dialysis */}
+                  <div
+                    ref={sectionRefs["complications-during-dialysis"]}
+                    id="complications-during-dialysis"
+                    className="mb-4"
+                  >
+                    <h5 className="fw-bold mb-3">Complications During Dialysis</h5>
+                    <div className="border rounded p-3">
+                      <div className="row g-2">
+                        {/* All as checkboxes */}
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-hypotension"
+                              name="comp.hypotension"
+                            />
+                            <label className="form-check-label" htmlFor="comp-hypotension" style={{ color: "#000" }}>
+                              Hypotension
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-fever"
+                              name="comp.fever"
+                            />
+                            <label className="form-check-label" htmlFor="comp-fever" style={{ color: "#000" }}>
+                              Fever
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-headache"
+                              name="comp.headache"
+                            />
+                            <label className="form-check-label" htmlFor="comp-headache" style={{ color: "#000" }}>
+                              Headache
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-rigor"
+                              name="comp.rigor"
+                            />
+                            <label className="form-check-label" htmlFor="comp-rigor" style={{ color: "#000" }}>
+                              Rigor
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-cramps"
+                              name="comp.cramps"
+                            />
+                            <label className="form-check-label" htmlFor="comp-cramps" style={{ color: "#000" }}>
+                              Cramps
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-rash"
+                              name="comp.rash"
+                            />
+                            <label className="form-check-label" htmlFor="comp-rash" style={{ color: "#000" }}>
+                              Rash
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-vomiting"
+                              name="comp.vomiting"
+                            />
+                            <label className="form-check-label" htmlFor="comp-vomiting" style={{ color: "#000" }}>
+                              Vomiting
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-chest-pain"
+                              name="comp.chestPain"
+                            />
+                            <label className="form-check-label" htmlFor="comp-chest-pain" style={{ color: "#000" }}>
+                              Chest Pain
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-dyspnea"
+                              name="comp.dyspnea"
+                            />
+                            <label className="form-check-label" htmlFor="comp-dyspnea" style={{ color: "#000" }}>
+                              Dyspnea
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-pruritus"
+                              name="comp.pruritus"
+                            />
+                            <label className="form-check-label" htmlFor="comp-pruritus" style={{ color: "#000" }}>
+                              Pruritus
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-dialyzer-reaction"
+                              name="comp.dialyzerReaction"
+                            />
+                            <label
+                              className="form-check-label"
+                              htmlFor="comp-dialyzer-reaction"
+                              style={{ color: "#000" }}
+                            >
+                              Dialyzer Reaction
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-seizures"
+                              name="comp.seizures"
+                            />
+                            <label className="form-check-label" htmlFor="comp-seizures" style={{ color: "#000" }}>
+                              Seizures
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="col-12 mt-2">
+                          <label className="form-label mb-1 fw-medium">Other Complications During Dialysis</label>
+                          <textarea
+                            name="comp.other"
+                            className="form-control"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Treatment Given */}
+                  <div ref={sectionRefs["treatment-given"]} id="treatment-given" className="mb-4">
+                    <h5 className="fw-bold mb-3">Treatment Given</h5>
+                    <div className="border rounded p-3">
+                      <div className="row g-2">
+                        {/* Row 1 – EPO + IV Iron (same row) */}
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">EPO Dosage</label>
+                          <input
+                            name="treat.epoDosage"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">EPO Given By</label>
+                          <input
+                            name="treat.epoGivenBy"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">IV Iron Dose</label>
+                          <input
+                            name="treat.ivIronDose"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+
+                        {/* Row 2 */}
+                        <div className="col-md-2 col-12">
+                          <label className="form-label mb-1 fw-medium">Blood Transfusion</label>
+                          <div className="d-flex flex-wrap gap-3">
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="treat-bt-yes"
+                                name="treat.bloodTransfusion"
+                                value="Yes"
+                              />
+                              <label className="form-check-label" htmlFor="treat-bt-yes" style={{ color: "#000" }}>
+                                Yes
+                              </label>
+                            </div>
+                            <div className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="radio"
+                                id="treat-bt-no"
+                                name="treat.bloodTransfusion"
+                                value="No"
+                              />
+                              <label className="form-check-label" htmlFor="treat-bt-no" style={{ color: "#000" }}>
+                                No
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-3 col-12">
+                          <label className="form-label mb-1 fw-medium">Number of Unit</label>
+                          <input
+                            name="treat.numberOfUnits"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+
+
+                        <div className="col-md-4 col-12">
+                          <label className="form-label mb-1 fw-medium">Blood Bank Name</label>
+                          <input
+                            name="treat.bloodBankName"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+
+                        {/* Row 4 */}
+                        <div className="col-md-3 col-12">
+                          <label className="form-label mb-1 fw-medium">Type of Blood</label>
+                          <input
+                            name="treat.typeOfBlood"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+
+                        {/* Other Treatment */}
+                        <div className="col-12 mt-2">
+                          <label className="form-label mb-1 fw-bold">Other Treatment Given Drug</label>
+                          <textarea
+                            name="treat.otherTreatmentGivenDrug"
+                            className="form-control"
+                            rows={4}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+                <div className="card-footer d-flex align-items-center justify-content-end gap-2 bg-white border-top dialysis-no-print">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={handlePrint}
+                  >
+                    <i className="feather-printer me-1" />
+                    Print
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary dialysis-save-btn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Saving..." : "Save Dialysis Details"}
+                  </button>
+                  {submitError && (
+                    <div className="text-danger mt-2 small w-100 text-end">{submitError}</div>
+                  )}
+                  {submitSuccess && !submitError && (
+                    <div className="text-success mt-2 small w-100 text-end">
+                      Dialysis session saved successfully.
+                    </div>
+                  )}
+                </div>
+              </form>
             </div>
           </div>
         </div>

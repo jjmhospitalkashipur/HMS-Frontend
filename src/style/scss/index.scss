@@ -24,6 +24,30 @@
   .card-footer .btn-primary {
     color: #fff !important;
   }
+
+  .dialysis-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .dialysis-table th {
+    background-color: #f5f5f5;
+    border: 2px solid #000;
+    padding: 4px 6px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .dialysis-table td {
+    border: 2px solid #000;
+    padding: 2px 4px;
+  }
+
+  .dialysis-table input {
+    border: none !important;
+    box-shadow: none !important;
+    background-color: transparent;
+  }
 }
 
 .dialysis-form-row {

@@ -378,10 +378,10 @@ const PatientDetailsComponent = () => {
                       <i className="ti ti-video" />
                     </Link> 
                    </div> */}
-                  <Link
-                    href={all_routes.dialysisAppointment}
-                    className="btn btn-primary"
-                  >
+                <Link
+                  href={`${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}`}
+                  className="btn btn-primary"
+                >
                     <i className="ti ti-droplet me-1" />
                     Dialysis
                   </Link>
