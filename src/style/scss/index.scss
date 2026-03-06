@@ -1,5 +1,35 @@
 @use "./main.scss";
 
+// Dialysis form overrides
+.dialysis-page {
+  *,
+  *::before,
+  *::after {
+    color: #000 !important;
+  }
+
+  input,
+  textarea,
+  select {
+    border-color: #000 !important;
+    border-width: 1.5px;
+  }
+
+  .list-group-item {
+    color: #000 !important;
+    font-weight: 600;
+  }
+
+  .dialysis-save-btn,
+  .card-footer .btn-primary {
+    color: #fff !important;
+  }
+}
+
+.dialysis-form-row {
+  min-height: 85vh;
+}
+
 // Hide Preclinic page footer (2025 © Preclinic, All Rights Reserved)
 .main-wrapper .footer.text-center.bg-white.p-2.border-top,
 .main-wrapper .footer.p-3.bg-white.border-1.border-top,

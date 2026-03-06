@@ -5,7 +5,13 @@ Version: 1.0.0
 Author: Dreams Technologies
 Author URL: https://themeforest.net/user/dreamstechnologies
 */
-/****** Utils ******/
+
+/* Dialysis form tweaks */
+.dialysis-table td,
+.dialysis-table th {
+  padding: 2px 4px !important;
+}
+*** Utils ******/
 /*============================
   2.mixins
 ============================*/

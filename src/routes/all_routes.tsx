@@ -115,6 +115,7 @@ export const all_routes = {
   createPatient: "/create-patient",
   appointments: "/appointments",
   newAppointment: "/new-appointment",
+  dialysisAppointment: "/dialysis-appointment",
   appointmentDetails: "/appointment-details",
   editAppointment: "/edit-appointment",
   appointmentCalendar: "/appointment-calendar",

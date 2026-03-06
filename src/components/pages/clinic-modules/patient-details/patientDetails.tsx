@@ -379,11 +379,11 @@ const PatientDetailsComponent = () => {
                     </Link> 
                    </div> */}
                   <Link
-                    href={all_routes.newAppointment}
+                    href={all_routes.dialysisAppointment}
                     className="btn btn-primary"
                   >
-                    <i className="ti ti-calendar-event me-1" />
-                    Book Apppointment
+                    <i className="ti ti-droplet me-1" />
+                    Dialysis
                   </Link>
                 </div>
               </div>
