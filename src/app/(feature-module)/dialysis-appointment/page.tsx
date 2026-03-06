@@ -17,7 +17,7 @@ const sectionIds = [
   "treatment-given",
 ] as const;
 
-const DialysisAppointmentPage = () => {
+const DialysisAppointmentContent = () => {
   const sectionRefs: Record<(typeof sectionIds)[number], React.RefObject<HTMLDivElement | null>> = {
     "general-information": useRef<HTMLDivElement>(null),
     "pre-dialysis-assessment": useRef<HTMLDivElement>(null),
@@ -1468,6 +1468,14 @@ const DialysisAppointmentPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const DialysisAppointmentPage = () => {
+  return (
+    <React.Suspense fallback={null}>
+      <DialysisAppointmentContent />
+    </React.Suspense>
   );
 };
 
