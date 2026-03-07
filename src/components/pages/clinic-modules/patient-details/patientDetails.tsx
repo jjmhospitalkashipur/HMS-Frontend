@@ -8,7 +8,7 @@ import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
@@ -66,7 +66,24 @@ interface IAppointment {
   Status: string;
 }
 
+interface IDialysisSession {
+  _id: string;
+  sessionId: string;
+  patientId: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  generalInformation?: {
+    actualWeightLoss?: number;
+    postHdWeightToday?: number;
+  };
+  vascularAccess?: {
+    type?: string;
+  };
+}
+
 const PatientDetailsComponent = () => {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const patientId = searchParams.get("id");
   const [searchText, setSearchText] = useState<string>("");
@@ -74,6 +91,9 @@ const PatientDetailsComponent = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [appointments, setAppointments] = useState<IAppointment[]>([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState<boolean>(false);
+  const [dialysisSessions, setDialysisSessions] = useState<IDialysisSession[]>([]);
+  const [dialysisLoading, setDialysisLoading] = useState<boolean>(false);
+  const [dialysisStatusUpdatingId, setDialysisStatusUpdatingId] = useState<string | null>(null);
 
   const handleSearch = (value: string) => {
     setSearchText(value);
@@ -83,6 +103,7 @@ const PatientDetailsComponent = () => {
     if (patientId) {
       fetchPatientDetails();
       fetchAppointments();
+      fetchDialysisSessions();
     }
   }, [patientId]);
 
@@ -165,6 +186,46 @@ const PatientDetailsComponent = () => {
       setAppointments([]);
     } finally {
       setAppointmentsLoading(false);
+    }
+  };
+
+  const fetchDialysisSessions = async () => {
+    if (!patientId || !API_BASE_URL) return;
+    try {
+      setDialysisLoading(true);
+      const response = await axios.get(
+        `${API_BASE_URL}/hospital/dialysis-session/patient/${patientId}`
+      );
+      if (
+        response.data?.code === 200 &&
+        Array.isArray(response.data?.data?.sessions)
+      ) {
+        setDialysisSessions(response.data.data.sessions as IDialysisSession[]);
+      } else {
+        setDialysisSessions([]);
+      }
+    } catch {
+      setDialysisSessions([]);
+    } finally {
+      setDialysisLoading(false);
+    }
+  };
+
+  const handleDialysisStatusChange = async (sessionId: string, newStatus: string) => {
+    if (!API_BASE_URL) return;
+    try {
+      setDialysisStatusUpdatingId(sessionId);
+      await axios.put(
+        `${API_BASE_URL}/hospital/dialysis-session/${sessionId}`,
+        { status: newStatus }
+      );
+      setDialysisSessions((prev) =>
+        prev.map((s) => (s._id === sessionId ? { ...s, status: newStatus } : s))
+      );
+    } catch {
+      // Optionally show toast; keep list unchanged
+    } finally {
+      setDialysisStatusUpdatingId(null);
     }
   };
 
@@ -588,6 +649,16 @@ const PatientDetailsComponent = () => {
                 className="nav-link bg-transparent"
               >
                 <span>Transactions</span>
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link
+                href="#dialysis"
+                data-bs-toggle="tab"
+                aria-expanded="false"
+                className="nav-link bg-transparent"
+              >
+                <span>Dialysis</span>
               </Link>
             </li>
           </ul>
@@ -1770,6 +1841,83 @@ const PatientDetailsComponent = () => {
                 </table>
               </div>
               {/*  End Table */}
+            </div>
+            <div className="tab-pane" id="dialysis">
+              <div className="table-responsive">
+                {dialysisLoading ? (
+                  <p className="text-muted mb-0">Loading dialysis sessions…</p>
+                ) : dialysisSessions.length === 0 ? (
+                  <p className="text-muted mb-0">No dialysis sessions found.</p>
+                ) : (
+                  <table className="table table-nowrap table-hover">
+                    <thead className="thead-light">
+                      <tr>
+                        <th className="no-sort">Session ID</th>
+                        <th>Date</th>
+                        <th>Actual Weight Loss (kg)</th>
+                        <th>Post HD Weight (kg)</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dialysisSessions.map((session) => (
+                        <tr
+                          key={session._id}
+                          role="button"
+                          tabIndex={0}
+                          className="cursor-pointer"
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            router.push(
+                              `${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}&sessionId=${session._id}`
+                            )
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              router.push(
+                                `${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}&sessionId=${session._id}`
+                              );
+                            }
+                          }}
+                        >
+                          <td>
+                            <span className="text-dark fw-medium">
+                              {session.sessionId ?? "—"}
+                            </span>
+                          </td>
+                          <td className="text-dark">
+                            {session.createdAt
+                              ? dayjs(session.createdAt).format("DD MMM YYYY, HH:mm")
+                              : "—"}
+                          </td>
+                          <td className="text-dark">
+                            {session.generalInformation?.actualWeightLoss ?? "—"}
+                          </td>
+                          <td className="text-dark">
+                            {session.generalInformation?.postHdWeightToday ?? "—"}
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <select
+                              className={`form-select form-select-sm ${session.status === "Completed" ? "text-success" : "text-warning"}`}
+                              style={{ width: "auto", minWidth: "7rem" }}
+                              value={session.status ?? ""}
+                              disabled={dialysisStatusUpdatingId === session._id}
+                              onChange={(e) =>
+                                handleDialysisStatusChange(session._id, e.target.value)
+                              }
+                              aria-label="Update status"
+                            >
+                              <option value="In Progress">In Progress</option>
+                              <option value="Completed">Completed</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
           {/* tab content end */}

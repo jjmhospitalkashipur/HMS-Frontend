@@ -12,12 +12,38 @@ import { Calendar, type CalendarProps } from "antd";
 import type { Dayjs } from "dayjs";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
-import ImageWithBasePath from "@/core/imageWithBasePath";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 
+interface IOverviewMetric {
+  total: number;
+  growthRate: string;
+}
+
+interface IDashboardOverviewData {
+  doctors: IOverviewMetric;
+  patients: IOverviewMetric;
+  visits: IOverviewMetric;
+  revenue: IOverviewMetric;
+}
+
+interface IRecentTransaction {
+  _id: string;
+  transactionId: string;
+  visitId: string;
+  transactionType: string;
+  amount: number;
+  paymentMode: string;
+  transactionDate: string;
+  patientName: string;
+  serviceName: string;
+}
+
 const DashboardComponent = () => {
+  const [overview, setOverview] = useState<IDashboardOverviewData | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+
   const [sColChart] = useState<any>({
     chart: {
       width: 80,
@@ -82,6 +108,9 @@ const DashboardComponent = () => {
 
   const [recentLoading, setRecentLoading] = useState(false);
 
+  const [recentTransactions, setRecentTransactions] = useState<IRecentTransaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case "Scheduled":
@@ -100,30 +129,52 @@ const DashboardComponent = () => {
   };
 
   useEffect(() => {
-    const fetchRecentAppointments = async () => {
+    const fetchOverview = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        setOverviewLoading(true);
+        const response = await axios.get(`${API_BASE_URL}/hospital/dashboard/overview`);
+        if (response.data?.code === 200 && response.data?.data) {
+          setOverview(response.data.data as IDashboardOverviewData);
+        } else {
+          setOverview(null);
+        }
+      } catch {
+        setOverview(null);
+      } finally {
+        setOverviewLoading(false);
+      }
+    };
+
+    fetchOverview();
+  }, []);
+
+  useEffect(() => {
+    const fetchRecentVisits = async () => {
       if (!API_BASE_URL) return;
       try {
         setRecentLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/hospital/visits`, {
-          params: { page: 1, limit: 5 },
+        const response = await axios.get(`${API_BASE_URL}/hospital/dashboard/recent-visits`, {
+          params: { limit: 6 },
         });
         if (response.data?.code === 200 && Array.isArray(response.data?.data?.visits)) {
-          const visits = response.data.data.visits as any[];
-          const mapped = visits.map((visit) => {
-            const embeddedPatient = visit.patient || {};
-            const embeddedDoctor = visit.doctor || {};
-            const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
-            const visitTime = visit.visitTime || "";
-            const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
-            return {
-              id: visit._id as string,
-              doctorName: embeddedDoctor.name || "Unknown Doctor",
-              patientName: embeddedPatient.name || "Unknown Patient",
-              dateTime,
-              appointmentType: visit.appointmentType || "OPD",
-              status: visit.status || "Scheduled",
-            };
-          });
+          const visits = response.data.data.visits as Array<{
+            _id: string;
+            visitId?: string;
+            doctorName?: string;
+            patientName?: string;
+            dateTime?: string;
+            appointmentType?: string;
+            status?: string;
+          }>;
+          const mapped = visits.map((visit) => ({
+            id: visit._id,
+            doctorName: visit.doctorName ?? "Unknown Doctor",
+            patientName: visit.patientName ?? "Unknown Patient",
+            dateTime: visit.dateTime ? dayjs(visit.dateTime).format("DD MMM YYYY") : "",
+            appointmentType: visit.appointmentType ?? "OPD",
+            status: visit.status ?? "Scheduled",
+          }));
           setRecentAppointments(mapped);
         } else {
           setRecentAppointments([]);
@@ -135,8 +186,44 @@ const DashboardComponent = () => {
       }
     };
 
-    fetchRecentAppointments();
+    fetchRecentVisits();
   }, []);
+
+  useEffect(() => {
+    const fetchRecentTransactions = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        setTransactionsLoading(true);
+        const response = await axios.get(`${API_BASE_URL}/hospital/dashboard/recent-transactions`, {
+          params: { limit: 5 },
+        });
+        if (response.data?.code === 200 && Array.isArray(response.data?.data?.transactions)) {
+          setRecentTransactions(response.data.data.transactions as IRecentTransaction[]);
+        } else {
+          setRecentTransactions([]);
+        }
+      } catch {
+        setRecentTransactions([]);
+      } finally {
+        setTransactionsLoading(false);
+      }
+    };
+
+    fetchRecentTransactions();
+  }, []);
+
+  const getGrowthBadgeClass = (growthRate: string) => {
+    if (!growthRate) return "bg-secondary";
+    const isPositive = !growthRate.startsWith("-");
+    return isPositive ? "bg-success" : "bg-danger";
+  };
+
+  const formatRevenue = (total: number) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(total);
+
+  const formatTransactionDate = (dateStr: string) =>
+    dateStr ? dayjs(dateStr).format("DD MMM YYYY, HH:mm") : "—";
+
   return (
     <>
       {/* ========================
@@ -172,28 +259,27 @@ const DashboardComponent = () => {
           {/* start row */}
           <div className="row">
             <div className="col-xl-3 col-md-6">
-              <div className="position-relative border card rounded-2 shadow-sm">
-                <ImageWithBasePath
-                  src="./assets/img/bg/bg-01.svg"
-                  alt="img"
-                  className="position-absolute start-0 top-0"
-                />
+              <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-2 justify-content-between">
                     <span className="avatar bg-primary rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
                     <div className="text-end">
-                      <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-success">
-                        +95%
-                      </span>
+                      {overviewLoading ? (
+                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
+                      ) : (
+                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.doctors?.growthRate ?? "")}`}>
+                          {overview?.doctors?.growthRate ?? "—"}
+                        </span>
+                      )}
                       <p className="fs-13 mb-0">in last 7 Days </p>
                     </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <p className="mb-1">Doctors</p>
-                      <h3 className="fw-bold mb-0">247</h3>
+                      <h3 className="fw-bold mb-0">{overviewLoading ? "—" : (overview?.doctors?.total ?? 0)}</h3>
                     </div>
                     <div>
                       <div id="s-col" className="chart-set">
@@ -212,28 +298,27 @@ const DashboardComponent = () => {
             </div>
             {/* end col */}
             <div className="col-xl-3 col-md-6">
-              <div className="position-relative border card rounded-2 shadow-sm">
-                <ImageWithBasePath
-                  src="./assets/img/bg/bg-02.svg"
-                  alt="img"
-                  className="position-absolute start-0 top-0"
-                />
+              <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-2 justify-content-between">
                     <span className="avatar bg-danger rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
                     <div className="text-end">
-                      <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-success">
-                        +25%
-                      </span>
+                      {overviewLoading ? (
+                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
+                      ) : (
+                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.patients?.growthRate ?? "")}`}>
+                          {overview?.patients?.growthRate ?? "—"}
+                        </span>
+                      )}
                       <p className="fs-13 mb-0">in last 7 Days </p>
                     </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <p className="mb-1">Patients</p>
-                      <h3 className="fw-bold mb-0">4178</h3>
+                      <h3 className="fw-bold mb-0">{overviewLoading ? "—" : (overview?.patients?.total ?? 0)}</h3>
                     </div>
                     <div>
                       <div id="s-col-2" className="chart-set">
@@ -246,28 +331,27 @@ const DashboardComponent = () => {
             </div>
             {/* end col */}
             <div className="col-xl-3 col-md-6">
-              <div className="position-relative border card rounded-2 shadow-sm">
-                <ImageWithBasePath
-                  src="./assets/img/bg/bg-03.svg"
-                  alt="img"
-                  className="position-absolute start-0 top-0"
-                />
+              <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-2 justify-content-between">
                     <span className="avatar bg-info rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
                     <div className="text-end">
-                      <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-danger">
-                        -15%
-                      </span>
+                      {overviewLoading ? (
+                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
+                      ) : (
+                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.visits?.growthRate ?? "")}`}>
+                          {overview?.visits?.growthRate ?? "—"}
+                        </span>
+                      )}
                       <p className="fs-13 mb-0">in last 7 Days </p>
                     </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
-                      <p className="mb-1">Appointment</p>
-                      <h3 className="fw-bold mb-0">12178</h3>
+                      <p className="mb-1">Visits</p>
+                      <h3 className="fw-bold mb-0">{overviewLoading ? "—" : (overview?.visits?.total ?? 0)}</h3>
                     </div>
                     <div>
                       <div id="s-col-3" className="chart-set">
@@ -280,28 +364,29 @@ const DashboardComponent = () => {
             </div>
             {/* end col */}
             <div className="col-xl-3 col-md-6">
-              <div className="position-relative border card rounded-2 shadow-sm">
-                <ImageWithBasePath
-                  src="./assets/img/bg/bg-04.svg"
-                  alt="img"
-                  className="position-absolute start-0 top-0"
-                />
+              <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-2 justify-content-between">
                     <span className="avatar bg-success rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
                     <div className="text-end">
-                      <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-success">
-                        +25%
-                      </span>
+                      {overviewLoading ? (
+                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
+                      ) : (
+                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.revenue?.growthRate ?? "")}`}>
+                          {overview?.revenue?.growthRate ?? "—"}
+                        </span>
+                      )}
                       <p className="fs-13 mb-0">in last 7 Days </p>
                     </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between overflow-hidden">
                     <div>
                       <p className="mb-1">Revenue</p>
-                      <h3 className="fw-bold mb-0 text-truncate">₹55,1240</h3>
+                      <h3 className="fw-bold mb-0 text-truncate">
+                        {overviewLoading ? "—" : formatRevenue(overview?.revenue?.total ?? 0)}
+                      </h3>
                     </div>
                     <div>
                       <div id="s-col-4" className="chart-set">
@@ -480,166 +565,42 @@ const DashboardComponent = () => {
             {/* col start */}
             <div className="col-xl-6 col-lg-6 d-flex">
               <div className="card shadow-sm flex-fill w-100">
-                <div className="card-header d-flex align-items-center justify-content-between">
+                <div className="card-header">
                   <h5 className="fw-bold mb-0">Recent Transactions</h5>
-                  <div className="dropdown">
-                    <Link
-                      href="#"
-                      className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
-                      data-bs-toggle="dropdown"
-                    >
-                      Weekly <i className="ti ti-chevron-down ms-1" />
-                    </Link>
-                    <ul className="dropdown-menu">
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Monthly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Weekly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Yearly
-                        </Link>
-                      </li>
-                    </ul>
-                  </div>
                 </div>
                 <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="d-flex align-items-center">
-                      <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/icons/stripe.svg"
-                          alt="img"
-                          className="rounded-circle"
-                        />
-                      </Link>
-                      <div>
-                        <h6 className="fs-14 mb-1 text-truncate">
-                          <Link href="#" className="fw-semibold">
-                            General Check-up
-                          </Link>
-                        </h6>
-                        <p className="mb-0 fs-13 text-truncate">
-                          <Link href="#" className="link-primary">
-                            #INV5889
-                          </Link>
-                        </p>
+                  {transactionsLoading ? (
+                    <p className="mb-0 text-muted">Loading…</p>
+                  ) : recentTransactions.length === 0 ? (
+                    <p className="mb-0 text-muted">No recent transactions</p>
+                  ) : (
+                    recentTransactions.map((txn, index) => (
+                      <div
+                        key={txn._id}
+                        className={`d-flex justify-content-between align-items-center ${index < recentTransactions.length - 1 ? "mb-3" : ""}`}
+                      >
+                        <div className="d-flex align-items-center min-w-0 flex-grow-1 me-2">
+                          <span className="avatar bg-primary rounded-circle flex-shrink-0">
+                            <i className="ti ti-receipt fs-18 text-white" />
+                          </span>
+                          <div className="min-w-0 ms-2">
+                            <h6 className="fs-14 mb-0 text-truncate fw-semibold">
+                              {txn.patientName ?? "—"}
+                            </h6>
+                            <p className="mb-0 fs-13 text-muted text-truncate">
+                              {txn.serviceName ?? "—"} · {txn.transactionId}
+                            </p>
+                            <p className="mb-0 fs-12 text-muted">
+                              {formatTransactionDate(txn.transactionDate)} · {txn.paymentMode}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="badge fw-medium bg-success flex-shrink-0">
+                          {formatRevenue(txn.amount)}
+                        </span>
                       </div>
-                    </div>
-                    <span className="badge fw-medium bg-success flex-shrink-0">
-                      + ₹234
-                    </span>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="d-flex align-items-center">
-                      <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/icons/paypal.svg"
-                          alt="img"
-                          className="rounded-circle"
-                        />
-                      </Link>
-                      <div>
-                        <h6 className="fs-14 mb-1 text-truncate">
-                          <Link href="#" className="fw-semibold">
-                            Online Consultation
-                          </Link>
-                        </h6>
-                        <p className="mb-0 fs-13 text-truncate">
-                          <Link href="#" className="link-primary">
-                            #INV7874
-                          </Link>
-                        </p>
-                      </div>
-                    </div>
-                    <span className="badge fw-medium bg-success flex-shrink-0">
-                      + ₹234
-                    </span>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="d-flex align-items-center">
-                      <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/icons/stripe.svg"
-                          alt="img"
-                          className="rounded-circle"
-                        />
-                      </Link>
-                      <div>
-                        <h6 className="fs-14 mb-1 text-truncate">
-                          <Link href="#" className="fw-semibold">
-                            Diabetic Check-up
-                          </Link>
-                        </h6>
-                        <p className="mb-0 fs-13 text-truncate">
-                          <Link href="#" className="link-primary">
-                            #INV7841
-                          </Link>
-                        </p>
-                      </div>
-                    </div>
-                    <span className="badge fw-medium bg-danger flex-shrink-0">
-                      - ₹69
-                    </span>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="d-flex align-items-center">
-                      <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/icons/stripe.svg"
-                          alt="img"
-                          className="rounded-circle"
-                        />
-                      </Link>
-                      <div>
-                        <h6 className="fs-14 mb-1 text-truncate">
-                          <Link href="#" className="fw-semibold">
-                            Medical Check-up
-                          </Link>
-                        </h6>
-                        <p className="mb-0 fs-13 text-truncate">
-                          <Link href="#" className="link-primary">
-                            #INV5458
-                          </Link>
-                        </p>
-                      </div>
-                    </div>
-                    <span className="badge fw-medium bg-success flex-shrink-0">
-                      + ₹234
-                    </span>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center mb-0">
-                    <div className="d-flex align-items-center">
-                      <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/icons/paypal.svg"
-                          alt="img"
-                          className="rounded-circle"
-                        />
-                      </Link>
-                      <div>
-                        <h6 className="fs-14 mb-1 text-truncate">
-                          <Link href="#" className="fw-semibold">
-                            Ortho Check-up
-                          </Link>
-                        </h6>
-                        <p className="mb-0 fs-13 text-truncate">
-                          <Link href="#" className="link-primary">
-                            #INV1660
-                          </Link>
-                        </p>
-                      </div>
-                    </div>
-                    <span className="badge fw-medium bg-success flex-shrink-0">
-                      + ₹234
-                    </span>
-                  </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

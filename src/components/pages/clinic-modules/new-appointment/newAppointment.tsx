@@ -100,6 +100,68 @@ const NewAppointmentComponent = () => {
   const [attendantName, setAttendantName] = useState<string>("");
   const [attendantRelation, setAttendantRelation] = useState<string>("");
 
+  // Tab: OPD | Daycare (separate forms)
+  const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare">("OPD");
+
+  // Daycare form state (separate from OPD)
+  const [daycarePhone, setDaycarePhone] = useState<string>("");
+  const [daycareTitle, setDaycareTitle] = useState<Option | null>(Title[0] || null);
+  const [daycareName, setDaycareName] = useState<string>("");
+  const [daycareEmail, setDaycareEmail] = useState<string>("");
+  const [daycareGender, setDaycareGender] = useState<Option | null>(Gender[0] || null);
+  const [daycareDob, setDaycareDob] = useState<any>(null);
+  const [daycareAgeYears, setDaycareAgeYears] = useState<string>("");
+  const [daycareAgeMonths, setDaycareAgeMonths] = useState<string>("");
+  const [daycareAgeDays, setDaycareAgeDays] = useState<string>("");
+  const [daycareBloodGroup, setDaycareBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
+  const [daycareAddress, setDaycareAddress] = useState<string>("");
+  const [daycareAadharNo, setDaycareAadharNo] = useState<string>("");
+  const [daycareAyushmanNo, setDaycareAyushmanNo] = useState<string>("");
+  const [daycareSelectedPatient, setDaycareSelectedPatient] = useState<IPatient | null>(null);
+  const [daycarePatientSearchResults, setDaycarePatientSearchResults] = useState<IPatient[]>([]);
+  const [daycareShowPatientDropdown, setDaycareShowPatientDropdown] = useState<boolean>(false);
+  const [daycareSearchingPatients, setDaycareSearchingPatients] = useState<boolean>(false);
+  const [daycareSelectedDoctor, setDaycareSelectedDoctor] = useState<Option | null>(null);
+  const [daycareVisitType, setDaycareVisitType] = useState<Option | null>(Visit_Type.find(v => v.value === "New") || Visit_Type[0] || null);
+  const [daycareAppointmentType, setDaycareAppointmentType] = useState<string>("Day Care");
+  const [daycareVisitDate, setDaycareVisitDate] = useState<any>(dayjs());
+  const [daycareVisitTime, setDaycareVisitTime] = useState<any>(dayjs());
+  const [daycareSessionSlot, setDaycareSessionSlot] = useState<Option | null>(null);
+  const [daycareReason, setDaycareReason] = useState<string>("");
+  const [daycareAttendantName, setDaycareAttendantName] = useState<string>("");
+  const [daycareAttendantRelation, setDaycareAttendantRelation] = useState<string>("");
+  const [daycareBedChargesType, setDaycareBedChargesType] = useState<Option | null>(null);
+  const [daycareDoctorVisitCharges, setDaycareDoctorVisitCharges] = useState<"Yes" | "No">("No");
+  const [daycareAddedProcedures, setDaycareAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  const [daycareAddProcedureSelect, setDaycareAddProcedureSelect] = useState<Option | null>(null);
+  const daycareBedChargesOptions: Option[] = [
+    { value: "private", label: "Private (200/hr)" },
+    { value: "semi", label: "Semi-Private (150/hr)" },
+    { value: "general", label: "General (100/hr)" },
+  ];
+  const daycareProcedureOptions: Option[] = [
+    { value: "nebuliser", label: "Nebuliser" },
+    { value: "dialysis", label: "Dialysis - I" },
+    { value: "dialysis2", label: "Dialysis - II" },
+  ];
+  const daycareProcedurePriceByValue: Record<string, number> = {
+    nebuliser: 3000,
+    dialysis: 2000,
+    dialysis2: 2500,
+  };
+  const [daycarePaymentMode, setDaycarePaymentMode] = useState<string>("Cash");
+  const [daycareTotal, setDaycareTotal] = useState<number>(0);
+  const [daycareDiscount, setDaycareDiscount] = useState<number>(0);
+  const [daycareAmountReceived, setDaycareAmountReceived] = useState<number>(0);
+  const [daycareLoading, setDaycareLoading] = useState<boolean>(false);
+  const [daycareError, setDaycareError] = useState<string>("");
+  const daycareBedChargesAmount: Record<string, number> = { private: 200, semi: 150, general: 100 };
+  const daycareBedCharges = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
+  const daycareProceduresCharges = daycareAddedProcedures.reduce((sum, p) => sum + p.price, 0);
+  const daycareDocVisitCharges = daycareDoctorVisitCharges === "Yes" ? 700 : 0;
+  const daycareSubtotal = daycareBedCharges + daycareProceduresCharges + daycareDocVisitCharges;
+  const daycareBalance = daycareSubtotal - (daycareDiscount || 0) - (daycareAmountReceived || 0);
+
   // Payment form state
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [total, setTotal] = useState<number>(0);
@@ -195,6 +257,23 @@ const NewAppointmentComponent = () => {
     return sessions.map((s) => ({ value: s, label: s }));
   }, [selectedDoctor, doctors]);
 
+  const daycareSessionOptions = useMemo(() => {
+    if (!daycareSelectedDoctor?.value) return [];
+    const doctor = doctors.find((d) => d._id === daycareSelectedDoctor.value);
+    const sessions = doctor?.sessions;
+    if (!sessions?.length) return [];
+    return sessions.map((s) => ({ value: s, label: s }));
+  }, [daycareSelectedDoctor, doctors]);
+
+  const daycareIsMrDisabledForSelectedDay = useMemo(() => {
+    if (!daycareSelectedDoctor?.value || !daycareVisitDate) return true;
+    const doctor = doctors.find((d) => d._id === daycareSelectedDoctor.value);
+    if (!doctor?.weeklySchedule?.length) return true;
+    const dayName = dayjs.isDayjs(daycareVisitDate) ? daycareVisitDate.format("dddd") : dayjs(daycareVisitDate).format("dddd");
+    const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
+    return daySchedule?.mr !== true;
+  }, [daycareSelectedDoctor?.value, daycareVisitDate, doctors]);
+
   const handleDoctorChange = useCallback((option: Option | null) => {
     setSelectedDoctor(option);
     setSessionSlot(null);
@@ -253,6 +332,48 @@ const NewAppointmentComponent = () => {
   useEffect(() => {
     updateTotalFromDoctorCharge();
   }, [updateTotalFromDoctorCharge]);
+
+  const handleDaycareAddProcedure = useCallback((option: Option | null) => {
+    if (!option?.value) return;
+    const price = daycareProcedurePriceByValue[option.value] ?? 0;
+    setDaycareAddedProcedures((prev) => [...prev, { id: `${Date.now()}-${option.value}`, name: option.label, price }]);
+    setDaycareAddProcedureSelect(null);
+  }, []);
+  const handleDaycareRemoveProcedure = useCallback((id: string) => {
+    setDaycareAddedProcedures((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+  const handleDaycareDoctorChange = useCallback((option: Option | null) => {
+    setDaycareSelectedDoctor(option);
+    setDaycareSessionSlot(null);
+    setDaycareTotal(0);
+  }, []);
+
+  const updateDaycareTotalFromDoctorCharge = useCallback(() => {
+    if (!daycareSelectedDoctor?.value) {
+      setDaycareTotal(0);
+      return;
+    }
+    const doctor = doctors.find((d) => d._id === daycareSelectedDoctor.value);
+    const visitTypes = doctor?.visitTypes;
+    if (!visitTypes?.length) {
+      setDaycareTotal(0);
+      return;
+    }
+    const selectedVisit = daycareVisitType?.value && daycareVisitType.value !== "Select" ? daycareVisitType.value : null;
+    const aptTypeNorm = (v: string) => (v || "").toLowerCase().replace(/\s/g, "");
+    let match = visitTypes.find((vt: IVisitTypeCharge) => {
+      if (vt.visitType != null && vt.appointmentType != null) {
+        return vt.visitType === "New" && (vt.appointmentType === "Day care" || vt.appointmentType === "Day Care");
+      }
+      if (vt.type != null) return vt.type === "Day Care";
+      return false;
+    });
+    setDaycareTotal(match?.charge ?? 0);
+  }, [daycareSelectedDoctor, daycareVisitType, doctors]);
+
+  useEffect(() => {
+    updateDaycareTotalFromDoctorCharge();
+  }, [updateDaycareTotalFromDoctorCharge]);
 
   // When Day Care is selected, set visit type to "New" and date to today
   useEffect(() => {
@@ -332,6 +453,48 @@ const NewAppointmentComponent = () => {
     return () => clearTimeout(searchTimeout);
   }, [phone, searchPatients]);
 
+  const searchDaycarePatients = useCallback(async (searchText: string) => {
+    try {
+      if (!API_BASE_URL) return;
+      const searchQuery = searchText.trim();
+      setDaycareSearchingPatients(true);
+      const response = await axios.get(`${API_BASE_URL}/hospital/patients`, {
+        params: { limit: 20, page: 1, search: searchQuery },
+      });
+      if (response.data?.code === 200 && response.data?.data?.patients) {
+        const patients = response.data.data.patients;
+        setDaycarePatientSearchResults(patients);
+        setDaycareShowPatientDropdown(patients.length > 0 && !daycareSelectedPatient);
+      } else {
+        setDaycarePatientSearchResults([]);
+        setDaycareShowPatientDropdown(false);
+      }
+    } catch {
+      setDaycarePatientSearchResults([]);
+      setDaycareShowPatientDropdown(false);
+    } finally {
+      setDaycareSearchingPatients(false);
+    }
+  }, [daycareSelectedPatient]);
+
+  useEffect(() => {
+    if (!daycarePhone || daycarePhone.trim().length === 0) {
+      setDaycarePatientSearchResults([]);
+      setDaycareShowPatientDropdown(false);
+      setDaycareSelectedPatient(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      if (daycarePhone.trim().length >= 2) searchDaycarePatients(daycarePhone.trim());
+      else {
+        setDaycarePatientSearchResults([]);
+        setDaycareShowPatientDropdown(false);
+        setDaycareSelectedPatient(null);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [daycarePhone, searchDaycarePatients]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -346,6 +509,19 @@ const NewAppointmentComponent = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showPatientDropdown]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.daycare-patient-search-container')) {
+        setDaycareShowPatientDropdown(false);
+      }
+    };
+    if (daycareShowPatientDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [daycareShowPatientDropdown]);
 
   const handleDobChange = (date: any) => {
     setDob(date);
@@ -416,6 +592,76 @@ const NewAppointmentComponent = () => {
     setAyushmanNo((patient as any).ayushmanCardNo || "");
   };
 
+  const handleDaycarePatientSelect = async (patient: IPatient) => {
+    setDaycareSelectedPatient(patient);
+    setDaycareShowPatientDropdown(false);
+    setDaycareName(patient.name || "");
+    setDaycareEmail(patient.email || "");
+    setDaycarePhone(patient.phone || "");
+    if (patient.title) {
+      const titleOption = Title.find((t) => t.value === patient.title);
+      if (titleOption) setDaycareTitle(titleOption);
+    }
+    if (patient.gender) {
+      const genderOption = Gender.find((g) => g.value === patient.gender);
+      if (genderOption) setDaycareGender(genderOption);
+    }
+    if (patient.bloodGroup) {
+      const bloodGroupOption = Blood_Group.find((bg) => bg.value === patient.bloodGroup);
+      if (bloodGroupOption) setDaycareBloodGroup(bloodGroupOption);
+    }
+    if (patient.dob) {
+      const dobDate = dayjs(patient.dob);
+      setDaycareDob(dobDate);
+      handleDaycareDobChange(dobDate);
+    }
+    if (patient.age) setDaycareAgeYears(patient.age.toString());
+    setDaycareAddress(patient.address || "");
+    setDaycareAadharNo((patient as any).aadharNo || "");
+    setDaycareAyushmanNo((patient as any).ayushmanCardNo || "");
+  };
+
+  const handleDaycareDobChange = (date: any) => {
+    setDaycareDob(date);
+    if (date) {
+      const birthDate = dayjs.isDayjs(date) ? date.toDate() : new Date(date);
+      const today = new Date();
+      let years = today.getFullYear() - birthDate.getFullYear();
+      let months = today.getMonth() - birthDate.getMonth();
+      let days = today.getDate() - birthDate.getDate();
+      if (days < 0) {
+        months--;
+        const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        days += lastMonth.getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      setDaycareAgeYears(years.toString());
+      setDaycareAgeMonths(months.toString());
+      setDaycareAgeDays(days.toString());
+    } else {
+      setDaycareAgeYears("");
+      setDaycareAgeMonths("");
+      setDaycareAgeDays("");
+    }
+  };
+
+  const handleDaycareTitleChange = useCallback((option: Option | null) => {
+    setDaycareTitle(option);
+    if (!option?.value) return;
+    if (option.value === "Mr.") {
+      const male = Gender.find((g) => g.value === "Male");
+      if (male) setDaycareGender(male);
+    } else if (option.value === "Mrs." || option.value === "Ms.") {
+      const female = Gender.find((g) => g.value === "Female");
+      if (female) setDaycareGender(female);
+    } else if (option.value === "Dr." || option.value === "Prof.") {
+      setDaycareGender(Gender.find((g) => g.value === "Select") ?? Gender[0]);
+    }
+  }, []);
+
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
@@ -460,6 +706,92 @@ const NewAppointmentComponent = () => {
       return visitTime.format("HH:mm");
     }
     return dayjs(visitTime).format("HH:mm");
+  };
+
+  const calculateDaycareAge = (): number => {
+    if (daycareAgeYears) return parseInt(daycareAgeYears, 10);
+    if (daycareDob) {
+      const birthDate = dayjs.isDayjs(daycareDob) ? daycareDob.toDate() : new Date(daycareDob);
+      const today = new Date();
+      let years = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) years--;
+      return years;
+    }
+    return 0;
+  };
+
+  const formatDaycareDob = (): string => {
+    if (!daycareDob) return "";
+    return dayjs.isDayjs(daycareDob) ? daycareDob.format("YYYY-MM-DD") : dayjs(daycareDob).format("YYYY-MM-DD");
+  };
+
+  const formatDaycareVisitDate = (): string => {
+    if (!daycareVisitDate) return "";
+    return dayjs.isDayjs(daycareVisitDate) ? daycareVisitDate.format("YYYY-MM-DD") : dayjs(daycareVisitDate).format("YYYY-MM-DD");
+  };
+
+  const formatDaycareVisitTime = (): string => {
+    if (!daycareVisitTime) return "";
+    return dayjs.isDayjs(daycareVisitTime) ? daycareVisitTime.format("HH:mm") : dayjs(daycareVisitTime).format("HH:mm");
+  };
+
+  const handleDaycareSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDaycareError("");
+    if (!API_BASE_URL) {
+      setDaycareError("API configuration error. Please contact support.");
+      return;
+    }
+    if (!daycareSelectedDoctor?.value || !daycareName.trim() || !daycarePhone || !daycareVisitDate) {
+      setDaycareError("Please fill required fields: Doctor, Patient name, Phone, Visit date.");
+      return;
+    }
+    setDaycareLoading(true);
+    try {
+      if (daycareSelectedPatient) {
+        await axios.post(`${API_BASE_URL}/hospital/visits`, {
+          patientId: daycareSelectedPatient._id,
+          doctorId: daycareSelectedDoctor.value,
+          visitType: daycareVisitType?.value !== "Select" ? daycareVisitType?.value : "",
+          appointmentType: "Day Care",
+          visitDate: formatDaycareVisitDate(),
+          visitTime: formatDaycareVisitTime(),
+          sessionSlot: daycareSessionSlot?.value && daycareSessionSlot.value !== "Select" ? daycareSessionSlot.value : undefined,
+          attendantName: daycareAttendantName || undefined,
+          attendantRelation: daycareAttendantRelation || undefined,
+        });
+      } else {
+        await axios.post(`${API_BASE_URL}/hospital/visits/with-patient`, {
+          patient: {
+            title: daycareTitle?.value || "",
+            name: daycareName.trim(),
+            phone: daycarePhone,
+            email: daycareEmail || undefined,
+            age: calculateDaycareAge(),
+            gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
+            bloodGroup: daycareBloodGroup?.value !== "Select" ? daycareBloodGroup?.value : undefined,
+            address: daycareAddress || undefined,
+            aadharNo: daycareAadharNo || undefined,
+            ayushmanCardNo: daycareAyushmanNo || undefined,
+            dob: formatDaycareDob() || undefined,
+          },
+          doctorId: daycareSelectedDoctor.value,
+          visitType: daycareVisitType?.value !== "Select" ? daycareVisitType?.value : "",
+          appointmentType: "Day Care",
+          visitDate: formatDaycareVisitDate(),
+          visitTime: formatDaycareVisitTime(),
+          sessionSlot: daycareSessionSlot?.value && daycareSessionSlot.value !== "Select" ? daycareSessionSlot.value : undefined,
+          attendantName: daycareAttendantName || undefined,
+          attendantRelation: daycareAttendantRelation || undefined,
+        });
+      }
+      router.push(all_routes.appointments);
+    } catch (err: any) {
+      setDaycareError(err?.response?.data?.message || "Failed to create Daycare appointment.");
+    } finally {
+      setDaycareLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -781,6 +1113,21 @@ const NewAppointmentComponent = () => {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
+          .page-wrapper .nav-tabs.nav-bordered .nav-link {
+            color: #6c757d;
+            border: 1px solid transparent;
+            border-radius: 0.25rem 0.25rem 0 0;
+          }
+          .page-wrapper .nav-tabs.nav-bordered .nav-link:hover {
+            color: #0d6efd;
+          }
+          .page-wrapper .nav-tabs.nav-bordered .nav-link.active {
+            color: #0d6efd;
+            font-weight: 600;
+            background-color: #e7f1ff;
+            border-color: #dee2e6 #dee2e6 #fff;
+            border-bottom-color: #fff;
+          }
         `
       }} />
       {/* ========================
@@ -793,7 +1140,7 @@ const NewAppointmentComponent = () => {
           <div className="row">
             <div className="col-12">
               {/* page header start */}
-              <div className="mb-4">
+              <div className="mb-1">
                 <h6 className="fw-bold mb-0 d-flex align-items-center">
                   <Link href={all_routes.appointments} className="text-dark">
                     <i className="ti ti-chevron-left me-1" />
@@ -814,6 +1161,40 @@ const NewAppointmentComponent = () => {
                   />
                 </div>
               )}
+              {daycareError && appointmentTab === "Daycare" && (
+                <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                  <strong>Error:</strong> {daycareError}
+                  <button type="button" className="btn-close" onClick={() => setDaycareError("")} aria-label="Close" />
+                </div>
+              )}
+              <ul className="nav nav-tabs nav-bordered mt-0">
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appointmentTab === "OPD"}
+                    className={`nav-link ${appointmentTab === "OPD" ? "active" : ""} bg-transparent border-0`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setAppointmentTab("OPD")}
+                  >
+                    OPD
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appointmentTab === "Daycare"}
+                    className={`nav-link ${appointmentTab === "Daycare" ? "active" : ""} bg-transparent border-0`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setAppointmentTab("Daycare")}
+                  >
+                    Daycare
+                  </button>
+                </li>
+              </ul>
+              <div className="tab-content">
+                <div className={`tab-pane ${appointmentTab === "OPD" ? "show active" : ""}`} id="opd">
               {/* Patient Details Card */}
               <form onSubmit={handleSubmit}>
               <div className="card mb-3">
@@ -1421,6 +1802,258 @@ const NewAppointmentComponent = () => {
                 </button>
               </div>
               </form>
+                </div>
+                <div className={`tab-pane ${appointmentTab === "Daycare" ? "show active" : ""}`} id="daycare">
+                  <form onSubmit={handleDaycareSubmit}>
+                    <div className="card mb-3">
+                      <div className="card-body">
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                          <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
+                          {daycareSelectedPatient && (
+                            <span className="badge badge-soft-success border border-success fw-medium">Existing Patient</span>
+                          )}
+                        </div>
+                        <div className="row">
+                          <div className="col-md-3">
+                            <div className="mb-3 position-relative daycare-patient-search-container">
+                              <label className="form-label mb-1 fw-medium">Phone Number<span className="text-danger ms-1">*</span></label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                value={daycarePhone}
+                                onChange={(e) => { setDaycarePhone(e.target.value || ""); setDaycareSelectedPatient(null); }}
+                                placeholder="Enter phone number or name"
+                                required
+                              />
+                              {daycareShowPatientDropdown && daycarePatientSearchResults.length > 0 && (
+                                <div className="dropdown-menu show position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto" }}>
+                                  {daycarePatientSearchResults.map((patient) => (
+                                    <button key={patient._id} type="button" className="dropdown-item d-flex align-items-center justify-content-between" onClick={() => handleDaycarePatientSelect(patient)} onMouseDown={(e) => e.preventDefault()}>
+                                      <div><div className="fw-medium text-dark">{patient.name}</div><div className="fs-13 text-muted">{patient.phone}</div></div>
+                                      <i className="ti ti-arrow-right fs-12 text-muted" />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {daycareSearchingPatients && !daycareShowPatientDropdown && (
+                                <div className="position-absolute top-100 start-0 w-100 mt-1 p-2 bg-white border rounded shadow-sm">
+                                  <div className="text-center text-muted fs-13"><i className="ti ti-loader-2 fs-14 me-1" style={{ animation: "spin 1s linear infinite" }} /> Searching...</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="col-md-2">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Title<span className="text-danger ms-1">*</span></label>
+                              <CommonSelect options={Title} className="select" value={daycareTitle} onChange={handleDaycareTitleChange} />
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Name<span className="text-danger ms-1">*</span></label>
+                              <input type="text" className="form-control" placeholder="Enter patient name..." value={daycareName} onChange={(e) => setDaycareName(e.target.value)} required />
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Gender<span className="text-danger ms-1">*</span></label>
+                              <CommonSelect options={Gender} className="select" value={daycareGender} onChange={setDaycareGender} />
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Email Address</label>
+                              <input type="email" className="form-control" placeholder="Enter email address" value={daycareEmail} onChange={(e) => setDaycareEmail(e.target.value)} />
+                            </div>
+                          </div>
+                          <div className="col-md-2">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Date of Birth</label>
+                              <div className="input-icon-end position-relative">
+                                <DatePicker className="form-control datetimepicker" format={{ format: "DD-MM-YYYY", type: "mask" }} getPopupContainer={getModalContainer} placeholder="Select DOB" suffixIcon={null} value={daycareDob} onChange={handleDaycareDobChange} />
+                                <span className="input-icon-addon"><i className="ti ti-calendar" /></span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Age<span className="text-danger ms-1">*</span></label>
+                              <div className="row g-2">
+                                <div className="col-4"><input type="text" className="form-control" placeholder="Years" value={daycareAgeYears} onChange={(e) => setDaycareAgeYears(e.target.value)} /></div>
+                                <div className="col-4"><input type="text" className="form-control" placeholder="Months" value={daycareAgeMonths} onChange={(e) => setDaycareAgeMonths(e.target.value)} /></div>
+                                <div className="col-4"><input type="text" className="form-control" placeholder="Days" value={daycareAgeDays} onChange={(e) => setDaycareAgeDays(e.target.value)} /></div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Blood Group</label>
+                              <CommonSelect options={Blood_Group} className="select" value={daycareBloodGroup} onChange={setDaycareBloodGroup} />
+                            </div>
+                          </div>
+                          <div className="col-md-5">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Address</label>
+                              <input type="text" className="form-control" placeholder="Enter address" value={daycareAddress} onChange={(e) => setDaycareAddress(e.target.value)} />
+                            </div>
+                            <div className="row g-2">
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Relation to Patient</label>
+                                  <input type="text" className="form-control" placeholder="Son, Daughter, etc." value={daycareAttendantRelation} onChange={(e) => setDaycareAttendantRelation(e.target.value)} />
+                                </div>
+                              </div>
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Attendant Name</label>
+                                  <input type="text" className="form-control" placeholder="Enter attendant name" value={daycareAttendantName} onChange={(e) => setDaycareAttendantName(e.target.value)} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-7">
+                            <div className="row g-2">
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Aadhar No</label>
+                                  <input type="text" className="form-control" placeholder="Enter Aadhar number" value={daycareAadharNo} onChange={(e) => setDaycareAadharNo(e.target.value)} />
+                                </div>
+                              </div>
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Ayushman No</label>
+                                  <input type="text" className="form-control" placeholder="Enter Ayushman card number" value={daycareAyushmanNo} onChange={(e) => setDaycareAyushmanNo(e.target.value)} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="row mb-3">
+                      <div className="col-lg-7 pe-3">
+                        <div className="card h-100">
+                          <div className="card-body p-3">
+                            <h6 className="fw-bold text-primary mb-2">Day Care Details</h6>
+                            <div className="row">
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Consulting Doc<span className="text-danger ms-1">*</span></label>
+                                  <CommonSelect options={doctorOptions} value={daycareSelectedDoctor} onChange={handleDaycareDoctorChange} onInputChange={handleDoctorInputChange} isLoading={doctorSearchLoading} placeholder="Search doctor..." />
+                                </div>
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Bed Charges Type</label>
+                                  <CommonSelect options={daycareBedChargesOptions} value={daycareBedChargesType} onChange={setDaycareBedChargesType} placeholder="Select..." />
+                                </div>
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Doctor Visit Charges</label>
+                                  <div className="d-flex gap-3 flex-wrap">
+                                    <div className="form-check">
+                                      <input className="form-check-input" type="radio" name="daycareDoctorVisitCharges" id="daycareDvcYes" value="Yes" checked={daycareDoctorVisitCharges === "Yes"} onChange={() => setDaycareDoctorVisitCharges("Yes")} />
+                                      <label className="form-check-label" htmlFor="daycareDvcYes">Yes</label>
+                                    </div>
+                                    <div className="form-check">
+                                      <input className="form-check-input" type="radio" name="daycareDoctorVisitCharges" id="daycareDvcNo" value="No" checked={daycareDoctorVisitCharges === "No"} onChange={() => setDaycareDoctorVisitCharges("No")} />
+                                      <label className="form-check-label" htmlFor="daycareDvcNo">No</label>
+                                    </div>
+                                  </div>
+                                </div>
+                               
+                              </div>
+                              <div className="col-md-6">
+                                <div className="mb-2">
+                                  <label className="form-label mb-1 fw-medium">Add Procedures</label>
+                                  <CommonSelect options={daycareProcedureOptions} value={daycareAddProcedureSelect} onChange={handleDaycareAddProcedure} placeholder="Select procedure..." />
+                                </div>
+                                <div className="mt-2">
+                                  <div className="border rounded overflow-hidden">
+                                    <div className="d-flex border-bottom bg-light px-2 py-1 fw-medium text-dark" style={{ fontSize: "0.95rem" }}>
+                                      <span className="col-1 text-nowrap">S.No</span>
+                                      <span className="col text-nowrap ps-3">Procedure</span>
+                                      <span className="col text-end pe-4 text-nowrap">Price</span>
+                                    </div>
+                                    <div className="text-dark" style={{ maxHeight: "170px", overflowY: "auto", fontSize: "0.95rem" }}>
+                                      {daycareAddedProcedures.length === 0 ? (
+                                        <div className="px-2 py-3 text-center">No procedures added</div>
+                                      ) : (
+                                        daycareAddedProcedures.map((proc, idx) => (
+                                          <div key={proc.id} className="d-flex align-items-center border-bottom px-2 py-2">
+                                            <span className="col-1">{idx + 1}</span>
+                                            <span className="col ps-3">{proc.name}</span>
+                                            <span className="col d-flex align-items-center justify-content-end gap-1">
+                                              <span>{proc.price}</span>
+                                              <button type="button" className="btn btn-link p-0 text-danger min-w-0" aria-label="Remove procedure" onClick={() => handleDaycareRemoveProcedure(proc.id)}>
+                                                <i className="ti ti-trash ps-1 fs-16" />
+                                              </button>
+                                            </span>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-lg-5 ps-3">
+                        <div className="card h-100">
+                          <div className="card-body p-3">
+                            <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
+                            <div className="mb-3 d-flex align-items-center flex-wrap gap-2">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Payment Mode</label>
+                              <div className="d-flex gap-3 flex-wrap">
+                                <div className="form-check"><input className="form-check-input" type="radio" name="daycarePaymentMode" value="Cash" checked={daycarePaymentMode === "Cash"} onChange={(e) => setDaycarePaymentMode(e.target.value)} /><label className="form-check-label">Cash</label></div>
+                                <div className="form-check"><input className="form-check-input" type="radio" name="daycarePaymentMode" value="UPI" checked={daycarePaymentMode === "UPI"} onChange={(e) => setDaycarePaymentMode(e.target.value)} /><label className="form-check-label">UPI</label></div>
+                                <div className="form-check"><input className="form-check-input" type="radio" name="daycarePaymentMode" value="Card" checked={daycarePaymentMode === "Card"} onChange={(e) => setDaycarePaymentMode(e.target.value)} /><label className="form-check-label">Card</label></div>
+                              </div>
+                            </div>
+                            <div className="border rounded overflow-hidden">
+                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom bg-light">
+                                <span className="fw-medium">Bed Charges</span>
+                                <span className="text-end">{daycareBedCharges}</span>
+                              </div>
+                              {daycareAddedProcedures.length > 0 && (
+                                <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                                  <span className="fw-medium">Procedures Charges</span>
+                                  <span className="text-end">{daycareProceduresCharges}</span>
+                                </div>
+                              )}
+                              {daycareDoctorVisitCharges === "Yes" && (
+                                <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                                  <span className="fw-medium">Doc Visit Charges</span>
+                                  <span className="text-end">{daycareDocVisitCharges}</span>
+                                </div>
+                              )}
+                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                                <span className="fw-medium">SubTotal</span>
+                                <span className="text-end">{daycareSubtotal}</span>
+                              </div>
+                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom gap-2">
+                                <span className="fw-medium">Discount</span>
+                                <input type="number" className="form-control form-control-sm text-end" style={{ maxWidth: "100px" }} value={daycareDiscount || ""} onChange={(e) => setDaycareDiscount(parseFloat(e.target.value) || 0)} min="0" />
+                              </div>
+                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom gap-2">
+                                <span className="fw-medium">Amount Received</span>
+                                <input type="number" className="form-control form-control-sm text-end" style={{ maxWidth: "100px" }} placeholder="0" value={daycareAmountReceived || ""} onChange={(e) => setDaycareAmountReceived(parseFloat(e.target.value) || 0)} min="0" />
+                              </div>
+                              <div className="d-flex justify-content-between align-items-center px-2 py-2 fw-bold" style={{ backgroundColor: "#FFF7DB" }}>
+                                <span>Balance</span>
+                                <span className="text-end">{Math.round(daycareBalance)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="d-flex align-items-center justify-content-end mt-3">
+                      <Link href={all_routes.appointments} className="btn font-weight-bold fs-15 fw-medium rounded btn-light me-2">Cancel</Link>
+                      <button type="submit" className="btn font-weight-bold fs-15 fw-medium rounded btn-primary" disabled={daycareLoading}>{daycareLoading ? "Creating..." : "Create Daycare Appointment"}</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
             </div>
           </div>
           {/* row end */}

@@ -1,7 +1,7 @@
 "use client";
 
 import Modals from "./modals/modals";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import { ServiceListData } from "@/core/json/servicesData";
@@ -10,9 +10,29 @@ import Slider from "rc-slider";
 import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
 import { all_routes } from "@/routes/all_routes";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import dayjs from "dayjs";
+
+interface IDialysisSessionRow {
+  _id: string;
+  sessionId: string;
+  patientId?: string;
+  status?: string;
+  createdAt?: string;
+  patient?: { name?: string };
+}
 
 const ProceduresComponent = () => {
   const data = ServiceListData;
+  const [dialysisSessions, setDialysisSessions] = useState<IDialysisSessionRow[]>([]);
+  const [dialysisLoading, setDialysisLoading] = useState(false);
+  const [dialysisPage, setDialysisPage] = useState(1);
+  const [dialysisTotal, setDialysisTotal] = useState(0);
+  const [dialysisSearchInput, setDialysisSearchInput] = useState("");
+  const [dialysisSearch, setDialysisSearch] = useState("");
+  const [dialysisStatusFilter, setDialysisStatusFilter] = useState<string>("");
+  const dialysisLimit = 10;
   const columns = [
     {
       title: "Procedure Name",
@@ -89,6 +109,47 @@ const ProceduresComponent = () => {
     setSliderValueDefault(value);
   };
 
+  // Debounce dialysis search (server-side)
+  useEffect(() => {
+    const t = setTimeout(() => setDialysisSearch(dialysisSearchInput.trim()), 400);
+    return () => clearTimeout(t);
+  }, [dialysisSearchInput]);
+
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setDialysisPage(1);
+  }, [dialysisSearch, dialysisStatusFilter]);
+
+  useEffect(() => {
+    const fetchDialysis = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        setDialysisLoading(true);
+        const params: Record<string, string | number> = {
+          page: dialysisPage,
+          limit: dialysisLimit,
+        };
+        if (dialysisSearch) params.search = dialysisSearch;
+        if (dialysisStatusFilter) params.status = dialysisStatusFilter;
+        const res = await axios.get(`${API_BASE_URL}/hospital/dialysis-sessions`, {
+          params,
+        });
+        if (res.data?.code === 200 && Array.isArray(res.data?.data?.sessions)) {
+          setDialysisSessions(res.data.data.sessions as IDialysisSessionRow[]);
+          const pagination = res.data.data?.pagination;
+          if (pagination?.totalCount != null) setDialysisTotal(pagination.totalCount);
+        } else {
+          setDialysisSessions([]);
+        }
+      } catch {
+        setDialysisSessions([]);
+      } finally {
+        setDialysisLoading(false);
+      }
+    };
+    fetchDialysis();
+  }, [dialysisPage, dialysisSearch, dialysisStatusFilter]);
+
   return (
     <>
       <div className="page-wrapper">
@@ -134,6 +195,30 @@ const ProceduresComponent = () => {
               </Link>
             </div>
           </div>
+          <ul className="nav nav-tabs nav-bordered mb-3">
+            <li className="nav-item">
+              <Link
+                href="#procedures"
+                data-bs-toggle="tab"
+                aria-expanded="true"
+                className="nav-link active bg-transparent"
+              >
+                <span>Procedures</span>
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link
+                href="#dialysis"
+                data-bs-toggle="tab"
+                aria-expanded="false"
+                className="nav-link bg-transparent"
+              >
+                <span>Dialysis</span>
+              </Link>
+            </li>
+          </ul>
+          <div className="tab-content">
+            <div className="tab-pane show active" id="procedures">
           <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3">
             <div className="search-set mb-3">
               <div className="d-flex align-items-center flex-wrap gap-2">
@@ -288,6 +373,106 @@ const ProceduresComponent = () => {
               Selection={false}
               searchText={searchText}
             />
+          </div>
+            </div>
+            <div className="tab-pane" id="dialysis">
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div className="d-flex align-items-center flex-wrap gap-2">
+                  <div className="table-search d-flex align-items-center mb-0">
+                    <div className="search-input">
+                      <SearchInput
+                        value={dialysisSearchInput}
+                        onChange={(value) => setDialysisSearchInput(value)}
+                      />
+                    </div>
+                  </div>
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ width: "auto", minWidth: "10rem" }}
+                    value={dialysisStatusFilter}
+                    onChange={(e) => setDialysisStatusFilter(e.target.value)}
+                    aria-label="Filter by status"
+                  >
+                    <option value="">All statuses</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div className="table-responsive">
+                {dialysisLoading ? (
+                  <p className="text-muted mb-0">Loading dialysis sessions…</p>
+                ) : dialysisSessions.length === 0 ? (
+                  <p className="text-muted mb-0">No dialysis sessions found.</p>
+                ) : (
+                  <table className="table table-nowrap table-hover">
+                    <thead className="thead-light">
+                      <tr>
+                        <th className="no-sort">Patient Name</th>
+                        <th>Session ID</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dialysisSessions.map((session) => (
+                        <tr key={session._id}>
+                          <td className="text-dark">
+                            {session.patient?.name ?? "—"}
+                          </td>
+                          <td className="text-dark fw-medium">
+                            {session.sessionId ?? "—"}
+                          </td>
+                          <td className="text-dark">
+                            {session.createdAt
+                              ? dayjs(session.createdAt).format("DD MMM YYYY, HH:mm")
+                              : "—"}
+                          </td>
+                          <td>
+                            <span
+                              className={`badge fs-13 fw-medium border ${
+                                session.status === "Completed"
+                                  ? "badge-soft-success text-success border-success"
+                                  : session.status === "In Progress"
+                                    ? "badge-soft-warning text-warning border-warning"
+                                    : "badge-soft-secondary text-secondary border-secondary"
+                              }`}
+                            >
+                              {session.status ?? "—"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              {dialysisTotal > dialysisLimit && (
+                <div className="d-flex align-items-center justify-content-between mt-2">
+                  <span className="text-muted small">
+                    Page {dialysisPage} · {dialysisSessions.length} of {dialysisTotal} sessions
+                  </span>
+                  <div className="btn-group btn-group-sm">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      disabled={dialysisPage <= 1 || dialysisLoading}
+                      onClick={() => setDialysisPage((p) => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      disabled={dialysisSessions.length < dialysisLimit || dialysisLoading}
+                      onClick={() => setDialysisPage((p) => p + 1)}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="footer text-center bg-white p-2 border-top">

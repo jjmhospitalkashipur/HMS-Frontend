@@ -2,7 +2,7 @@
 
 import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "@/routes/all_routes";
@@ -29,6 +29,7 @@ const DialysisAppointmentContent = () => {
 
   const formRef = useRef<HTMLFormElement>(null);
 
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -52,27 +53,30 @@ const DialysisAppointmentContent = () => {
     setIsCentralLineNo(event.target.checked);
   };
 
-  // Prefill: Load the latest session data for this patient.
+  const sessionId = searchParams.get("sessionId");
+  const patientIdFromUrl = searchParams.get("patientId") ?? searchParams.get("id");
+  const isEditMode = Boolean(sessionId && API_BASE_URL);
+
+  // Prefill: only in edit mode — load the selected session and populate form. New form stays empty.
   useEffect(() => {
     const pId = searchParams.get("patientId") ?? searchParams.get("id");
-    if (!pId) return;
+    if (!sessionId || !pId || !API_BASE_URL) return;
 
     const fetchData = async () => {
       try {
-        const url = `https://pathlabapi.kilobyte.live/api/v1/hospital/dialysis-session/patient/${pId}`;
-        const response = await axios.get(url);
-        const sessions = response.data?.data?.sessions;
-        if (sessions && sessions.length > 0) {
-          // Take the most recent session
-          populateForm(sessions[0]);
-        }
+        const response = await axios.get(
+          `${API_BASE_URL}/hospital/dialysis-session/patient/${pId}`
+        );
+        const sessions = response.data?.data?.sessions ?? [];
+        const session = sessions.find((s: { _id: string }) => s._id === sessionId);
+        if (session) populateForm(session);
       } catch (err) {
         console.error("Failed to fetch patient session data", err);
       }
     };
 
     fetchData();
-  }, [searchParams]);
+  }, [searchParams, sessionId]);
 
   const populateForm = (session: any) => {
     if (!formRef.current) return;
@@ -381,24 +385,47 @@ const DialysisAppointmentContent = () => {
       patientSignature: get("signatures.patientSignature"),
     };
 
-    const payload = {
-      patientId,
-      visitId,
-      procedureId,
-      generalInformation,
-      preDialysisAssessment,
-      monitoringReadings,
-      postDialysisAssessment,
-      complications,
-      treatmentGiven,
-      signatures,
-      status: "In Progress",
-    };
+    const editId = searchParams.get("sessionId");
+    const payload = editId
+      ? {
+          visitId,
+          generalInformation,
+          preDialysisAssessment,
+          monitoringReadings,
+          postDialysisAssessment,
+          complications,
+          treatmentGiven,
+          signatures,
+          status: "In Progress",
+        }
+      : {
+          patientId,
+          visitId,
+          procedureId,
+          generalInformation,
+          preDialysisAssessment,
+          monitoringReadings,
+          postDialysisAssessment,
+          complications,
+          treatmentGiven,
+          signatures,
+          status: "In Progress",
+        };
 
     try {
       setIsSubmitting(true);
-      await axios.post(`${API_BASE_URL}/hospital/dialysis-session`, payload);
+      if (editId && API_BASE_URL) {
+        await axios.put(
+          `${API_BASE_URL}/hospital/dialysis-session/${editId}`,
+          payload
+        );
+      } else if (API_BASE_URL) {
+        await axios.post(`${API_BASE_URL}/hospital/dialysis-session`, payload);
+      }
       setSubmitSuccess(true);
+      if (patientId) {
+        router.push(`${all_routes.patientDetails}?id=${patientId}`);
+      }
     } catch (error: any) {
       setSubmitError(error?.response?.data?.message ?? "Failed to save dialysis session.");
     } finally {
@@ -410,9 +437,18 @@ const DialysisAppointmentContent = () => {
     <div className="page-wrapper">
       <div className="content dialysis-page">
         <div className="d-flex align-items-center justify-content-between mb-3">
-          <h4 className="fw-bold mb-0">Dialysis Form</h4>
-          <Link href={all_routes.appointments} className="btn btn-outline-primary">
-            Back to Appointments
+          <h4 className="fw-bold mb-0">
+            {isEditMode ? "Edit Dialysis Session" : "Dialysis Form"}
+          </h4>
+          <Link
+            href={
+              isEditMode && patientIdFromUrl
+                ? `${all_routes.patientDetails}?id=${patientIdFromUrl}`
+                : all_routes.appointments
+            }
+            className="btn btn-outline-primary"
+          >
+            {isEditMode ? "Back to Patient Details" : "Back to Appointments"}
           </Link>
         </div>
 
@@ -1453,14 +1489,6 @@ const DialysisAppointmentContent = () => {
                   >
                     {isSubmitting ? "Saving..." : "Save Dialysis Details"}
                   </button>
-                  {submitError && (
-                    <div className="text-danger mt-2 small w-100 text-end">{submitError}</div>
-                  )}
-                  {submitSuccess && !submitError && (
-                    <div className="text-success mt-2 small w-100 text-end">
-                      Dialysis session saved successfully.
-                    </div>
-                  )}
                 </div>
               </form>
             </div>

@@ -218,6 +218,11 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
       margin-bottom: 5px;
     }
 
+    /* Push content to the right (match form UI) ── */
+    .push-right {
+      margin-left: auto;
+    }
+
     /* ── Label + control stacked ── */
     .cell {
       display: flex;
@@ -287,7 +292,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
       display: flex;
       align-items: center;
       gap: 3px;
-      font-size: 12pt;
+      font-size: 10pt;
       white-space: nowrap;
     }
 
@@ -375,7 +380,10 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     ${row(
     cell("Machine Number", field(v.machineNumber, "150px"), "150px"),
     cell("UHID", field(v.uhid, "150px"), "150px"),
-    cell("Technician Name", field(v.technicianName, "220px"), "220px")
+    `<div class="cell push-right" style="min-width: 220px;">
+      <div class="lbl">Technician Name</div>
+      ${field(v.technicianName, "220px")}
+    </div>`
   )}
 
     ${row(
@@ -387,8 +395,10 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
         </div>
       </div>`,
     cell("Times Reused", field(v.timesReused, "100px"), "100px"),
-    cell("Fiber Volume", field(v.fiberVolume, "120px"), "120px"),
-    cell("Heparin Use", field(v.heparinUse, "120px"), "120px")
+    `<div class="push-right" style="display: flex; gap: 12px; align-items: flex-end;">
+      ${cell("Fiber Volume", field(v.fiberVolume, "120px"), "120px")}
+      ${cell("Heparin Use", field(v.heparinUse, "120px"), "120px")}
+    </div>`
   )}
 
     ${row(
