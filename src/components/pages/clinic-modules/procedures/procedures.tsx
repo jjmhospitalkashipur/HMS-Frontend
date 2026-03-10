@@ -13,7 +13,6 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import { Modal } from "bootstrap";
 
 interface IProcedureRow {
   _id: string;
@@ -205,16 +204,17 @@ const ProceduresComponent = () => {
     setDeleteLoading(true);
     try {
       const res = await axios.delete(`${API_BASE_URL}/hospital/procedures/${id}`);
-      if (res?.status >= 200 && res?.status < 300 || res?.data?.code === 200) {
+      if ((res?.status >= 200 && res?.status < 300) || res?.data?.code === 200) {
         setProcedureToDelete(null);
         const modalEl = document.getElementById("delete_procedure");
         if (modalEl) {
-          try {
-            const instance = Modal.getInstance(modalEl);
-            if (instance) instance.hide();
-            else document.getElementById("delete_procedure_cancel")?.click();
-          } catch {
-            document.getElementById("delete_procedure_cancel")?.click();
+          const bsModal = (window as any).bootstrap?.Modal?.getInstance
+            ? (window as any).bootstrap.Modal.getInstance(modalEl)
+            : null;
+          if (bsModal && typeof bsModal.hide === "function") {
+            bsModal.hide();
+          } else {
+            (document.getElementById("delete_procedure_cancel") as HTMLElement | null)?.click();
           }
         }
         fetchProcedures();
