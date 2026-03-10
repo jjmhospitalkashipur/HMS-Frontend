@@ -35,6 +35,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "Daycare Appointments",
+        link: routes.daycareAppointments,
+        submenu: false,
+        showSubRoute: false,
+        icon: "calendar-time",
+        base: "DaycareAppointments",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Patients",
         link: routes.patients,
         submenu: false,

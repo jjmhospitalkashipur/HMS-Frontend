@@ -4,15 +4,28 @@ import Modals from "./modals/modals";
 import { useState, useEffect } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
-import { ServiceListData } from "@/core/json/servicesData";
 import { Department, Service_Name, StatusActive } from "@/core/common/selectOption";
 import Slider from "rc-slider";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CommonSelect from "@/core/common/common-select/commonSelect";
 import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { Modal } from "bootstrap";
+
+interface IProcedureRow {
+  _id: string;
+  procedureId?: string;
+  procedureName?: string;
+  category?: string;
+  price?: number;
+  basePrice?: number;
+  status?: string;
+  nursingCharges?: number;
+  roomCharges?: number;
+}
 
 interface IDialysisSessionRow {
   _id: string;
@@ -24,7 +37,12 @@ interface IDialysisSessionRow {
 }
 
 const ProceduresComponent = () => {
-  const data = ServiceListData;
+  const router = useRouter();
+  const [procedures, setProcedures] = useState<IProcedureRow[]>([]);
+  const [proceduresLoading, setProceduresLoading] = useState(false);
+  const [proceduresTotal, setProceduresTotal] = useState(0);
+  const [procedureToDelete, setProcedureToDelete] = useState<{ id: string } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [dialysisSessions, setDialysisSessions] = useState<IDialysisSessionRow[]>([]);
   const [dialysisLoading, setDialysisLoading] = useState(false);
   const [dialysisPage, setDialysisPage] = useState(1);
@@ -34,6 +52,11 @@ const ProceduresComponent = () => {
   const [dialysisStatusFilter, setDialysisStatusFilter] = useState<string>("");
   const dialysisLimit = 10;
   const columns = [
+    {
+      title: "Procedure ID",
+      dataIndex: "ProcedureId",
+      sorter: (a: any, b: any) => (a.ProcedureId ?? "").localeCompare(b.ProcedureId ?? ""),
+    },
     {
       title: "Procedure Name",
       dataIndex: "ServiceName",
@@ -67,37 +90,37 @@ const ProceduresComponent = () => {
     },
     {
       title: "",
-      render: () => (
-        <div className="action-item">
-          <Link href="#" data-bs-toggle="dropdown">
-            <i className="ti ti-dots-vertical" />
+      render: (_: unknown, record: { ProcedureId?: string; key?: string }) => (
+        <div className="d-flex align-items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Link
+            href="#"
+            className="btn btn-link p-0 text-primary"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#edit_procedure"
+            data-procedure-id={record.key}
+            aria-label="Edit"
+          >
+            <i className="ti ti-edit fs-16" />
           </Link>
-          <ul className="dropdown-menu p-2">
-            <li>
-              <Link
-                href="#"
-                className="dropdown-item d-flex align-items-center"
-                data-bs-toggle="modal"
-                data-bs-target="#edit_procedure"
-              >
-                Edit
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="#"
-                className="dropdown-item d-flex align-items-center"
-                data-bs-toggle="modal"
-                data-bs-target="#delete_procedure"
-              >
-                Delete
-              </Link>
-            </li>
-          </ul>
+          <button
+            type="button"
+            className="btn btn-link p-0 text-danger"
+            aria-label="Delete"
+            onClick={() => setProcedureToDelete(record.key ? { id: record.key } : null)}
+            data-bs-toggle="modal"
+            data-bs-target="#delete_procedure"
+          >
+            <i className="ti ti-trash fs-16" />
+          </button>
         </div>
       ),
     },
   ];
+
+  const handleProcedureRowClick = (record: { key?: string }) => {
+    if (record?.key) router.push(`${all_routes.procedureDetails}?id=${record.key}`);
+  };
+
   const [searchText, setSearchText] = useState<string>("");
 
   const handleSearch = (value: string) => {
@@ -150,6 +173,68 @@ const ProceduresComponent = () => {
     fetchDialysis();
   }, [dialysisPage, dialysisSearch, dialysisStatusFilter]);
 
+  const fetchProcedures = async () => {
+    if (!API_BASE_URL) return;
+    try {
+      setProceduresLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { limit: 20 },
+      });
+      if (res.data?.code === 200) {
+        const list = res.data?.data?.procedures ?? [];
+        setProcedures(list as IProcedureRow[]);
+        const count = res.data?.data?.count;
+        setProceduresTotal(count != null ? count : list.length);
+      } else {
+        setProcedures([]);
+      }
+    } catch {
+      setProcedures([]);
+    } finally {
+      setProceduresLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProcedures();
+  }, []);
+
+  const handleDeleteProcedure = async () => {
+    const id = procedureToDelete?.id;
+    if (!id || !API_BASE_URL) return;
+    setDeleteLoading(true);
+    try {
+      const res = await axios.delete(`${API_BASE_URL}/hospital/procedures/${id}`);
+      if (res?.status >= 200 && res?.status < 300 || res?.data?.code === 200) {
+        setProcedureToDelete(null);
+        const modalEl = document.getElementById("delete_procedure");
+        if (modalEl) {
+          try {
+            const instance = Modal.getInstance(modalEl);
+            if (instance) instance.hide();
+            else document.getElementById("delete_procedure_cancel")?.click();
+          } catch {
+            document.getElementById("delete_procedure_cancel")?.click();
+          }
+        }
+        fetchProcedures();
+      }
+    } catch {
+      // keep modal open on error
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const proceduresDataSource = procedures.map((p) => ({
+    key: p._id,
+    ProcedureId: p.procedureId ?? "—",
+    ServiceName: p.procedureName ?? "—",
+    Department: p.category ?? "—",
+    Price: p.price != null || p.basePrice != null ? `₹${p.price ?? p.basePrice}` : "—",
+    Status: p.status ?? "Active",
+  }));
+
   return (
     <>
       <div className="page-wrapper">
@@ -159,7 +244,7 @@ const ProceduresComponent = () => {
               <h4 className="fw-bold mb-0">
                 Procedures
                 <span className="badge badge-soft-primary border border-primary fs-13 fw-medium ms-2">
-                  Total Procedures : 565
+                  Total Procedures : {proceduresLoading ? "…" : proceduresTotal}
                 </span>
               </h4>
             </div>
@@ -367,12 +452,17 @@ const ProceduresComponent = () => {
             </div>
           </div>
           <div className="table-responsive">
-            <Datatable
-              columns={columns}
-              dataSource={data}
-              Selection={false}
-              searchText={searchText}
-            />
+            {proceduresLoading ? (
+              <p className="text-muted mb-0">Loading procedures…</p>
+            ) : (
+              <Datatable
+                columns={columns}
+                dataSource={proceduresDataSource}
+                Selection={false}
+                searchText={searchText}
+                onRowClick={handleProcedureRowClick}
+              />
+            )}
           </div>
             </div>
             <div className="tab-pane" id="dialysis">
@@ -486,7 +576,11 @@ const ProceduresComponent = () => {
         </div>
       </div>
 
-      <Modals />
+      <Modals
+        onDeleteConfirm={handleDeleteProcedure}
+        deleteLoading={deleteLoading}
+        onEditSuccess={fetchProcedures}
+      />
     </>
   );
 };

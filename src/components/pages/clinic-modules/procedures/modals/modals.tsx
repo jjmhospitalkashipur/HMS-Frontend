@@ -1,12 +1,182 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import type { Option } from "@/core/common/common-select/commonSelect";
 import { Department } from "@/core/common/selectOption";
 import ImageWithBasePath from "@/core/imageWithBasePath";
-import { all_routes } from "../../../../../routes/all_routes";
+import { all_routes } from "@/routes/all_routes";
 import Link from "next/link";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
 
-const Modals = () => {
+const CATEGORY_OPTIONS: Option[] = [
+  { value: "Diagnostic", label: "Diagnostic" },
+  { value: "Surgical", label: "Surgical" },
+  { value: "Therapeutic", label: "Therapeutic" },
+  { value: "Preventive", label: "Preventive" },
+];
+
+const STATUS_OPTIONS: Option[] = [
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
+];
+
+const YES_NO_OPTIONS: Option[] = [
+  { value: "true", label: "Yes" },
+  { value: "false", label: "No" },
+];
+
+interface IModalsProps {
+  onDeleteConfirm?: () => void;
+  deleteLoading?: boolean;
+  onEditSuccess?: () => void;
+}
+
+const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps) => {
+  const [procedureId, setProcedureId] = useState<string | null>(null);
+  const [procedureName, setProcedureName] = useState("");
+  const [department, setDepartment] = useState<Option | null>(Department[0] ?? null);
+  const [category, setCategory] = useState<Option | null>(CATEGORY_OPTIONS[0]);
+  const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
+  const [price, setPrice] = useState("");
+  const [dayCareBilling, setDayCareBilling] = useState<Option | null>(YES_NO_OPTIONS[1]);
+  const [consumables, setConsumables] = useState<Option | null>(YES_NO_OPTIONS[1]);
+  const [nursingCharges, setNursingCharges] = useState("");
+  const [roomCharges, setRoomCharges] = useState("");
+  const [description, setDescription] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editFetchLoading, setEditFetchLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const resetEditForm = useCallback(() => {
+    setProcedureName("");
+    setDepartment(Department[0] ?? null);
+    setCategory(CATEGORY_OPTIONS[0]);
+    setStatus(STATUS_OPTIONS[0]);
+    setPrice("");
+    setDayCareBilling(YES_NO_OPTIONS[1]);
+    setConsumables(YES_NO_OPTIONS[1]);
+    setNursingCharges("");
+    setRoomCharges("");
+    setDescription("");
+    setProcedureId(null);
+    setEditError("");
+  }, []);
+
+  const fetchProcedure = useCallback(async (id: string) => {
+    if (!API_BASE_URL) return;
+    try {
+      setEditFetchLoading(true);
+      setEditError("");
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures/${id}`);
+      const data = res.data?.data?.procedure ?? res.data?.data;
+      if (!data) {
+        setEditError("Procedure not found.");
+        return;
+      }
+      setProcedureName(data.procedureName ?? "");
+      setDepartment(
+        Department.find((d) => d.value === (data.department ?? data.category)) ?? Department[0] ?? null
+      );
+      setCategory(
+        CATEGORY_OPTIONS.find((c) => c.value === data.category) ?? CATEGORY_OPTIONS[0]
+      );
+      setStatus(
+        STATUS_OPTIONS.find((s) => s.value === data.status) ?? STATUS_OPTIONS[0]
+      );
+      setPrice(data.price != null || data.basePrice != null ? String(data.price ?? data.basePrice) : "");
+      setDayCareBilling(data.dayCareBilling ? YES_NO_OPTIONS[0] : YES_NO_OPTIONS[1]);
+      setConsumables(data.consumables ? YES_NO_OPTIONS[0] : YES_NO_OPTIONS[1]);
+      setNursingCharges(data.nursingCharges != null ? String(data.nursingCharges) : "");
+      setRoomCharges(data.roomCharges != null ? String(data.roomCharges) : "");
+      setDescription(data.description ?? "");
+    } catch {
+      setEditError("Failed to load procedure.");
+    } finally {
+      setEditFetchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleEditClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest(
+        '[data-bs-target="#edit_procedure"][data-procedure-id]'
+      ) as HTMLElement | null;
+      if (!link) return;
+      const id = link.getAttribute("data-procedure-id");
+      if (!id) return;
+      resetEditForm();
+      setProcedureId(id);
+      fetchProcedure(id);
+    };
+    document.addEventListener("click", handleEditClick);
+    return () => document.removeEventListener("click", handleEditClick);
+  }, [fetchProcedure, resetEditForm]);
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError("");
+    if (!procedureId || !API_BASE_URL) return;
+    if (!procedureName.trim()) {
+      setEditError("Procedure name is required.");
+      return;
+    }
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      setEditError("Please enter a valid price.");
+      return;
+    }
+    setEditLoading(true);
+    try {
+      const payload = {
+        procedureName: procedureName.trim(),
+        department: department?.value ?? "",
+        category: category?.value ?? "Diagnostic",
+        status: status?.value ?? "Active",
+        price: priceNum,
+        dayCareBilling: dayCareBilling?.value === "true",
+        consumables: consumables?.value === "true",
+        nursingCharges: parseFloat(nursingCharges) || 0,
+        roomCharges: parseFloat(roomCharges) || 0,
+        metaData: "",
+        description: description.trim() || undefined,
+      };
+      const res = await axios.patch(
+        `${API_BASE_URL}/hospital/procedures/${procedureId}`,
+        payload
+      );
+      const statusOk = res && res.status >= 200 && res.status < 300;
+      const codeOk = res?.data && (res.data.code === 200 || res.data.code === "200");
+      const msgOk = res?.data?.message?.toLowerCase?.().includes("success");
+      if (statusOk || codeOk || msgOk) {
+        setEditError("");
+        const offcanvasEl = document.getElementById("edit_procedure");
+        if (offcanvasEl) {
+          const offcanvasApi = (window as any).bootstrap?.Offcanvas;
+          const instance = offcanvasApi?.getInstance
+            ? offcanvasApi.getInstance(offcanvasEl)
+            : null;
+          if (instance && typeof instance.hide === "function") {
+            instance.hide();
+          } else {
+            const closeBtn = offcanvasEl.querySelector<HTMLElement>("[data-bs-dismiss=\"offcanvas\"]");
+            closeBtn?.click();
+          }
+        }
+        onEditSuccess?.();
+      } else {
+        setEditError(res?.data?.message ?? "Failed to update procedure.");
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message ?? "Failed to update procedure.";
+      setEditError(msg);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   return (
     <>
       {/* Start Add Modal */}
@@ -66,71 +236,199 @@ const Modals = () => {
         </div>
       </div>
       {/* End Add Modal */}
-      {/* Start Edit Modal */}
-      <div id="edit_procedure" className="modal fade">
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h4 className="text-dark modal-title fw-bold">Edit Procedure</h4>
-              <button
-                type="button"
-                className="btn-close btn-close-modal custom-btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              >
-                <i className="ti ti-x" />
-              </button>
+      {/* Start Edit Procedure Offcanvas */}
+      <div
+        className="offcanvas offcanvas-offset offcanvas-end offcanvas-large"
+        tabIndex={-1}
+        id="edit_procedure"
+        style={{ width: "900px" }}
+      >
+        <div className="offcanvas-header d-block pb-0 px-0">
+          <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
+            <h5 className="offcanvas-title fs-18 fw-bold">Edit Procedure</h5>
+            <button
+              type="button"
+              className="btn-close custom-btn-close opacity-100"
+              data-bs-dismiss="offcanvas"
+              aria-label="Close"
+            >
+              <i className="ti ti-x fs-16 text-dark" />
+            </button>
+          </div>
+        </div>
+        <div className="offcanvas-body p-0">
+          <form onSubmit={handleEditSubmit}>
+            <div className="p-3 pb-0">
+              {editError && (
+                <div className="alert alert-danger mb-3" role="alert">
+                  {editError}
+                </div>
+              )}
+              {editFetchLoading ? (
+                <p className="text-muted mb-0">Loading procedure…</p>
+              ) : (
+                <>
+                  <div className="row">
+                    <div className="col-lg-4">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">
+                          Procedure Name<span className="text-danger ms-1">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={procedureName}
+                          onChange={(e) => setProcedureName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-lg-3">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">
+                          Department<span className="text-danger ms-1">*</span>
+                        </label>
+                        <CommonSelect
+                          options={Department}
+                          className="select"
+                          value={department}
+                          onChange={setDepartment}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-lg-3">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">
+                          Category<span className="text-danger ms-1">*</span>
+                        </label>
+                        <CommonSelect
+                          options={CATEGORY_OPTIONS}
+                          className="select"
+                          value={category}
+                          onChange={setCategory}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-lg-2">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Status</label>
+                        <CommonSelect
+                          options={STATUS_OPTIONS}
+                          className="select"
+                          value={status}
+                          onChange={setStatus}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-lg-2">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">
+                          Price<span className="text-danger ms-1">*</span>
+                        </label>
+                        <div className="input-group">
+                          <input
+                            type="number"
+                            className="form-control"
+                            min="0"
+                            step="0.01"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                          />
+                          <span className="input-group-text bg-transparent text-dark fs-14">₹</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-lg-2">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Day Care Billing</label>
+                        <CommonSelect
+                          options={YES_NO_OPTIONS}
+                          className="select"
+                          value={dayCareBilling}
+                          onChange={setDayCareBilling}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-lg-3">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Nursing Charges</label>
+                        <div className="input-group">
+                          <input
+                            type="number"
+                            className="form-control"
+                            min="0"
+                            step="0.01"
+                            value={nursingCharges}
+                            onChange={(e) => setNursingCharges(e.target.value)}
+                          />
+                          <span className="input-group-text bg-transparent text-dark fs-14">₹</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-lg-3">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Room Charges</label>
+                        <div className="input-group">
+                          <input
+                            type="number"
+                            className="form-control"
+                            min="0"
+                            step="0.01"
+                            value={roomCharges}
+                            onChange={(e) => setRoomCharges(e.target.value)}
+                          />
+                          <span className="input-group-text bg-transparent text-dark fs-14">₹</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-lg-2">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Consumables</label>
+                        <CommonSelect
+                          options={YES_NO_OPTIONS}
+                          className="select"
+                          value={consumables}
+                          onChange={setConsumables}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Description</label>
+                        <textarea
+                          className="form-control"
+                          rows={4}
+                          placeholder="Enter procedure description"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-            <form>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">
-                    Procedure Name<span className="text-danger ms-1">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    defaultValue="General Consultation"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">
-                    Department<span className="text-danger ms-1">*</span>
-                  </label>
-                  <CommonSelect
-                    options={Department}
-                    className="select"
-                    defaultValue={Department[1]}
-                  />
-                </div>
-                <div className="mb-0">
-                  <label className="form-label">
-                    Price<span className="text-danger ms-1">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    defaultValue="$200"
-                  />
-                </div>
-              </div>
-              <div className="modal-footer d-flex align-items-center gap-1">
+            <div className="offcanvas-footer mb-1 p-3 border-1 border-top">
+              <div className="d-flex justify-content-end gap-2">
                 <button
                   type="button"
-                  className="btn btn-white border"
-                  data-bs-dismiss="modal"
+                  className="btn btn-light"
+                  data-bs-dismiss="offcanvas"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Save Changes
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={editLoading || editFetchLoading}
+                >
+                  {editLoading ? "Saving…" : "Save Changes"}
                 </button>
               </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       </div>
-      {/* End Edit Modal */}
+      {/* End Edit Procedure Offcanvas */}
       {/* Start Delete Modal */}
       <div className="modal fade" id="delete_procedure">
         <div className="modal-dialog modal-dialog-centered modal-sm">
@@ -154,19 +452,23 @@ const Modals = () => {
               <h5 className="fw-bold mb-1">Delete Confirmation</h5>
               <p className="mb-3">Are you sure want to delete?</p>
               <div className="d-flex justify-content-center">
-                <Link
-                  href="#"
+                <button
+                  type="button"
+                  id="delete_procedure_cancel"
                   className="btn btn-light position-relative z-1 me-3"
                   data-bs-dismiss="modal"
+                  aria-label="Cancel"
                 >
                   Cancel
-                </Link>
-                <Link
-                  href={all_routes.procedures}
+                </button>
+                <button
+                  type="button"
                   className="btn btn-danger position-relative z-1"
+                  onClick={() => onDeleteConfirm?.()}
+                  disabled={deleteLoading}
                 >
-                  Yes, Delete
-                </Link>
+                  {deleteLoading ? "Deleting…" : "Yes, Delete"}
+                </button>
               </div>
             </div>
           </div>

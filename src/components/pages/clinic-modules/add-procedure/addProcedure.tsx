@@ -1,11 +1,97 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Department } from "@/core/common/selectOption";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import type { Option } from "@/core/common/common-select/commonSelect";
 import { all_routes } from "../../../../routes/all_routes";
 import Link from "next/link";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+
+const CATEGORY_OPTIONS: Option[] = [
+  { value: "Diagnostic", label: "Diagnostic" },
+  { value: "Surgical", label: "Surgical" },
+  { value: "Therapeutic", label: "Therapeutic" },
+  { value: "Preventive", label: "Preventive" },
+];
+
+const STATUS_OPTIONS: Option[] = [
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
+];
+
+const YES_NO_OPTIONS: Option[] = [
+  { value: "true", label: "Yes" },
+  { value: "false", label: "No" },
+];
 
 const AddProcedureComponent = () => {
+  const router = useRouter();
+  const [procedureName, setProcedureName] = useState("");
+  const [department, setDepartment] = useState<Option | null>(Department[0] ?? null);
+  const [category, setCategory] = useState<Option | null>(CATEGORY_OPTIONS[0]);
+  const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
+  const [price, setPrice] = useState("");
+  const [dayCareBilling, setDayCareBilling] = useState<Option | null>(YES_NO_OPTIONS[1]);
+  const [consumables, setConsumables] = useState<Option | null>(YES_NO_OPTIONS[1]);
+  const [nursingCharges, setNursingCharges] = useState("");
+  const [roomCharges, setRoomCharges] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess(false);
+    if (!API_BASE_URL) {
+      setError("API configuration error.");
+      return;
+    }
+    if (!procedureName.trim()) {
+      setError("Procedure name is required.");
+      return;
+    }
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      setError("Please enter a valid price.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        procedureName: procedureName.trim(),
+        department: department?.value ?? "",
+        category: category?.value ?? "Diagnostic",
+        status: status?.value ?? "Active",
+        price: priceNum,
+        dayCareBilling: dayCareBilling?.value === "true",
+        consumables: consumables?.value === "true",
+        nursingCharges: parseFloat(nursingCharges) || 0,
+        roomCharges: parseFloat(roomCharges) || 0,
+        metaData: "",
+        description: description.trim() || undefined,
+      };
+      const res = await axios.post(`${API_BASE_URL}/hospital/procedures`, payload);
+      const isSuccess =
+        (res?.status >= 200 && res?.status < 300) || res?.data?.code === 200;
+      if (isSuccess) {
+        setError("");
+        setSuccess(true);
+        router.push(all_routes.procedures);
+      } else {
+        setError(res?.data?.message ?? "Failed to add procedure.");
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? "Failed to add procedure.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="page-wrapper">
@@ -29,7 +115,17 @@ const AddProcedureComponent = () => {
                       New Procedure
                     </h5>
                   </div>
-                  <form>
+                  {error && (
+                    <div className="alert alert-danger mb-3" role="alert">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="alert alert-success mb-3" role="alert">
+                      Procedure added successfully. Redirecting…
+                    </div>
+                  )}
+                  <form onSubmit={handleSubmit}>
                     <div className="pb-0">
                       <div className="row">
                         <div className="col-lg-4">
@@ -38,7 +134,12 @@ const AddProcedureComponent = () => {
                               Procedure Name
                               <span className="text-danger ms-1">*</span>
                             </label>
-                            <input type="text" className="form-control" />
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={procedureName}
+                              onChange={(e) => setProcedureName(e.target.value)}
+                            />
                           </div>
                         </div>
                         <div className="col-lg-3">
@@ -50,7 +151,8 @@ const AddProcedureComponent = () => {
                             <CommonSelect
                               options={Department}
                               className="select"
-                              defaultValue={Department[0]}
+                              value={department}
+                              onChange={setDepartment}
                             />
                           </div>
                         </div>
@@ -61,14 +163,10 @@ const AddProcedureComponent = () => {
                               <span className="text-danger ms-1">*</span>
                             </label>
                             <CommonSelect
-                              options={[
-                                { value: "diagnostic", label: "Diagnostic" },
-                                { value: "surgical", label: "Surgical" },
-                                { value: "therapeutic", label: "Therapeutic" },
-                                { value: "preventive", label: "Preventive" },
-                              ]}
+                              options={CATEGORY_OPTIONS}
                               className="select"
-                              defaultValue={{ value: "diagnostic", label: "Diagnostic" }}
+                              value={category}
+                              onChange={setCategory}
                             />
                           </div>
                         </div>
@@ -76,12 +174,10 @@ const AddProcedureComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">Status</label>
                             <CommonSelect
-                              options={[
-                                { value: "active", label: "Active" },
-                                { value: "inactive", label: "Inactive" },
-                              ]}
+                              options={STATUS_OPTIONS}
                               className="select"
-                              defaultValue={{ value: "active", label: "Active" }}
+                              value={status}
+                              onChange={setStatus}
                             />
                           </div>
                         </div>
@@ -92,7 +188,14 @@ const AddProcedureComponent = () => {
                               <span className="text-danger ms-1">*</span>
                             </label>
                             <div className="input-group">
-                              <input type="text" className="form-control" />
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                              />
                               <span className="input-group-text bg-transparent text-dark fs-14">
                                 ₹
                               </span>
@@ -101,27 +204,12 @@ const AddProcedureComponent = () => {
                         </div>
                         <div className="col-lg-2">
                           <div className="mb-3">
-                            <label className="form-label">
-                              Day Care Billing
-                            </label>
-                            <div className="input-group">
-                              <input type="text" className="form-control" />
-                              <span className="input-group-text bg-transparent text-dark fs-14">
-                                ₹
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-lg-2">
-                          <div className="mb-3">
-                            <label className="form-label">Consumables</label>
+                            <label className="form-label">Day Care Billing</label>
                             <CommonSelect
-                              options={[
-                                { value: "yes", label: "Yes" },
-                                { value: "no", label: "No" },
-                              ]}
+                              options={YES_NO_OPTIONS}
                               className="select"
-                              defaultValue={{ value: "no", label: "No" }}
+                              value={dayCareBilling}
+                              onChange={setDayCareBilling}
                             />
                           </div>
                         </div>
@@ -129,7 +217,14 @@ const AddProcedureComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">Nursing Charges</label>
                             <div className="input-group">
-                              <input type="text" className="form-control" />
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={nursingCharges}
+                                onChange={(e) => setNursingCharges(e.target.value)}
+                              />
                               <span className="input-group-text bg-transparent text-dark fs-14">
                                 ₹
                               </span>
@@ -140,20 +235,28 @@ const AddProcedureComponent = () => {
                           <div className="mb-3">
                             <label className="form-label">Room Charges</label>
                             <div className="input-group">
-                              <input type="text" className="form-control" />
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={roomCharges}
+                                onChange={(e) => setRoomCharges(e.target.value)}
+                              />
                               <span className="input-group-text bg-transparent text-dark fs-14">
                                 ₹
                               </span>
                             </div>
                           </div>
                         </div>
-                        <div className="col-lg-12">
+                        <div className="col-lg-2">
                           <div className="mb-3">
-                            <label className="form-label">Meta Data</label>
-                            <textarea
-                              className="form-control"
-                              rows={3}
-                              placeholder="Enter metadata information"
+                            <label className="form-label">Consumables</label>
+                            <CommonSelect
+                              options={YES_NO_OPTIONS}
+                              className="select"
+                              value={consumables}
+                              onChange={setConsumables}
                             />
                           </div>
                         </div>
@@ -164,6 +267,8 @@ const AddProcedureComponent = () => {
                               className="form-control"
                               rows={4}
                               placeholder="Enter procedure description"
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
                             />
                           </div>
                         </div>
@@ -179,8 +284,9 @@ const AddProcedureComponent = () => {
                       <button
                         type="submit"
                         className="btn btn-primary btm-md"
+                        disabled={loading}
                       >
-                        Add Procedure
+                        {loading ? "Adding…" : "Add Procedure"}
                       </button>
                     </div>
                   </form>

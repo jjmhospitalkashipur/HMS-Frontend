@@ -40,6 +40,24 @@ interface IRecentTransaction {
   serviceName: string;
 }
 
+interface IVisitStatsSummary {
+  all: number;
+  scheduled: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
+}
+
+interface IVisitStatsPeriodData {
+  period: string;
+  scheduled: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
+}
+
 const DashboardComponent = () => {
   const [overview, setOverview] = useState<IDashboardOverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
@@ -110,6 +128,10 @@ const DashboardComponent = () => {
 
   const [recentTransactions, setRecentTransactions] = useState<IRecentTransaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(true);
+
+  const [visitStatsSummary, setVisitStatsSummary] = useState<IVisitStatsSummary>({ all: 0, scheduled: 0, inProgress: 0, completed: 0, cancelled: 0, noShow: 0 });
+  const [visitStatsPeriodData, setVisitStatsPeriodData] = useState<IVisitStatsPeriodData[]>([]);
+  const [visitStatsPeriod, setVisitStatsPeriod] = useState<"month" | "week" | "year">("month");
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -211,6 +233,34 @@ const DashboardComponent = () => {
 
     fetchRecentTransactions();
   }, []);
+
+  useEffect(() => {
+    const fetchVisitStatistics = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        const response = await axios.get(`${API_BASE_URL}/hospital/dashboard/visit-statistics`, {
+          params: { period: visitStatsPeriod },
+        });
+        if (response.data?.code === 200 && response.data?.data) {
+          const { summary, periodData } = response.data.data;
+          if (summary) setVisitStatsSummary(summary);
+          if (Array.isArray(periodData)) setVisitStatsPeriodData(periodData);
+        }
+      } catch {
+        // keep defaults
+      }
+    };
+    fetchVisitStatistics();
+  }, [visitStatsPeriod]);
+
+  const visitStatsCategories = visitStatsPeriodData.map((d) => d.period);
+  const visitStatsSeries: ApexAxisChartSeries = [
+    { name: "Completed", data: visitStatsPeriodData.map((d) => d.completed) },
+    { name: "Scheduled", data: visitStatsPeriodData.map((d) => d.scheduled) },
+    { name: "In Progress", data: visitStatsPeriodData.map((d) => d.inProgress) },
+    { name: "Cancelled", data: visitStatsPeriodData.map((d) => d.cancelled) },
+    { name: "No Show", data: visitStatsPeriodData.map((d) => d.noShow) },
+  ];
 
   const getGrowthBadgeClass = (growthRate: string) => {
     if (!growthRate) return "bg-secondary";
@@ -409,73 +459,61 @@ const DashboardComponent = () => {
                 <div className="card-header d-flex align-items-center justify-content-between">
                   <h5 className="fw-bold mb-0">Appointment Statistics</h5>
                   <div className="dropdown">
-                    <Link
-                      href="#"
+                    <button
+                      type="button"
                       className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
                       data-bs-toggle="dropdown"
                     >
-                      Monthly <i className="ti ti-chevron-down ms-1" />
-                    </Link>
+                      {visitStatsPeriod === "month" ? "Monthly" : visitStatsPeriod === "week" ? "Weekly" : "Yearly"} <i className="ti ti-chevron-down ms-1" />
+                    </button>
                     <ul className="dropdown-menu">
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Monthly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Weekly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Yearly
-                        </Link>
-                      </li>
+                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("month")}>Monthly</button></li>
+                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("week")}>Weekly</button></li>
+                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("year")}>Yearly</button></li>
                     </ul>
                   </div>
                 </div>
                 <div className="card-body pb-0">
                   <div className="row row-gap-3 mb-2">
-                    <div className="col-md-3 col-sm-6">
+                    <div className="col-md-2 col-sm-6">
                       <div className="bg-light border p-2 text-center rounded-2">
-                        <p className="mb-1 text-truncate">
-                          <i className="ti ti-point-filled me-1 text-primary" />
-                          All
-                        </p>
-                        <h5 className="fw-bold mb-0">6314</h5>
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-primary" />All</p>
+                        <h5 className="fw-bold mb-0">{visitStatsSummary.all}</h5>
                       </div>
                     </div>
-                    <div className="col-md-3 col-sm-6">
+                    <div className="col-md-2 col-sm-6">
                       <div className="bg-light border p-2 text-center rounded-2">
-                        <p className="mb-1">
-                          <i className="ti ti-point-filled me-1 text-danger" />
-                          Cancelled
-                        </p>
-                        <h5 className="fw-bold mb-0">456</h5>
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-info" />Scheduled</p>
+                        <h5 className="fw-bold mb-0">{visitStatsSummary.scheduled}</h5>
                       </div>
                     </div>
-                    <div className="col-md-3 col-sm-6">
+                    <div className="col-md-2 col-sm-6">
                       <div className="bg-light border p-2 text-center rounded-2">
-                        <p className="mb-1">
-                          <i className="ti ti-point-filled me-1 text-warning" />
-                          Reschedule
-                        </p>
-                        <h5 className="fw-bold mb-0">745</h5>
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-warning" />In Progress</p>
+                        <h5 className="fw-bold mb-0">{visitStatsSummary.inProgress}</h5>
                       </div>
                     </div>
-                    <div className="col-md-3 col-sm-6">
+                    <div className="col-md-2 col-sm-6">
                       <div className="bg-light border p-2 text-center rounded-2">
-                        <p className="mb-1">
-                          <i className="ti ti-point-filled me-1 text-success" />
-                          Completed
-                        </p>
-                        <h5 className="fw-bold mb-0">4578</h5>
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-success" />Completed</p>
+                        <h5 className="fw-bold mb-0">{visitStatsSummary.completed}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-danger" />Cancelled</p>
+                        <h5 className="fw-bold mb-0">{visitStatsSummary.cancelled}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-secondary" />No Show</p>
+                        <h5 className="fw-bold mb-0">{visitStatsSummary.noShow}</h5>
                       </div>
                     </div>
                   </div>
                   <div className="chart-set" id="s-col-19">
-                    <SCol19Chart />
+                    <SCol19Chart categories={visitStatsCategories} series={visitStatsSeries} />
                   </div>
                 </div>
               </div>

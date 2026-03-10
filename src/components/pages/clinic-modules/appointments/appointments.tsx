@@ -440,13 +440,24 @@ const AppointmentsComponent = () => {
       ),
     },
     {
+      title: "Age",
+      dataIndex: "Age",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: any) => (
+        <span className="text-dark">
+          {text ?? "—"}
+        </span>
+      ),
+    },
+    {
       title: "Doctor",
       dataIndex: "Doctor",
       sorter: false,
       showSorterTooltip: false,
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
-          <div>
+          <div style={{ maxWidth: 180 }}>
             <h6 className="fs-14 mb-1 text-truncate">
               <Link 
                 href={`${all_routes.doctordetails}?id=${record._doctorId || ""}`} 

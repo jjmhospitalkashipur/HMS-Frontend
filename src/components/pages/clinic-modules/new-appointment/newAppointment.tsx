@@ -139,16 +139,9 @@ const NewAppointmentComponent = () => {
     { value: "semi", label: "Semi-Private (150/hr)" },
     { value: "general", label: "General (100/hr)" },
   ];
-  const daycareProcedureOptions: Option[] = [
-    { value: "nebuliser", label: "Nebuliser" },
-    { value: "dialysis", label: "Dialysis - I" },
-    { value: "dialysis2", label: "Dialysis - II" },
-  ];
-  const daycareProcedurePriceByValue: Record<string, number> = {
-    nebuliser: 3000,
-    dialysis: 2000,
-    dialysis2: 2500,
-  };
+  const [daycareProceduresOptions, setDaycareProceduresOptions] = useState<Option[]>([]);
+  const [daycareProceduresLoading, setDaycareProceduresLoading] = useState(false);
+  const [daycareProcedurePriceById, setDaycareProcedurePriceById] = useState<Record<string, number>>({});
   const [daycarePaymentMode, setDaycarePaymentMode] = useState<string>("Cash");
   const [daycareTotal, setDaycareTotal] = useState<number>(0);
   const [daycareDiscount, setDaycareDiscount] = useState<number>(0);
@@ -335,10 +328,15 @@ const NewAppointmentComponent = () => {
 
   const handleDaycareAddProcedure = useCallback((option: Option | null) => {
     if (!option?.value) return;
-    const price = daycareProcedurePriceByValue[option.value] ?? 0;
-    setDaycareAddedProcedures((prev) => [...prev, { id: `${Date.now()}-${option.value}`, name: option.label, price }]);
+    // Only allow procedures coming from fetched list (prevents dummy/wrong ids)
+    if (daycareProcedurePriceById[option.value] == null) return;
+    const price = daycareProcedurePriceById[option.value] ?? 0;
+    setDaycareAddedProcedures((prev) => {
+      if (prev.some((p) => p.id === option.value)) return prev;
+      return [...prev, { id: option.value, name: option.label, price }];
+    });
     setDaycareAddProcedureSelect(null);
-  }, []);
+  }, [daycareProcedurePriceById]);
   const handleDaycareRemoveProcedure = useCallback((id: string) => {
     setDaycareAddedProcedures((prev) => prev.filter((p) => p.id !== id));
   }, []);
@@ -374,6 +372,47 @@ const NewAppointmentComponent = () => {
   useEffect(() => {
     updateDaycareTotalFromDoctorCharge();
   }, [updateDaycareTotalFromDoctorCharge]);
+
+  // Fetch procedures for Daycare (used for procedureIds)
+  useEffect(() => {
+    const fetchProcedures = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        setDaycareProceduresLoading(true);
+        const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+          params: { limit: 50 },
+        });
+        if (res.data?.code === 200 && Array.isArray(res.data?.data?.procedures)) {
+          const list = res.data.data.procedures as Array<{
+            _id: string;
+            procedureName?: string;
+            price?: number;
+            basePrice?: number;
+          }>;
+          setDaycareProceduresOptions(
+            list.map((p) => ({
+              value: p._id,
+              label: p.procedureName ?? "—",
+            }))
+          );
+          const priceMap: Record<string, number> = {};
+          list.forEach((p) => {
+            priceMap[p._id] = (p.price ?? p.basePrice ?? 0) as number;
+          });
+          setDaycareProcedurePriceById(priceMap);
+        } else {
+          setDaycareProceduresOptions([]);
+          setDaycareProcedurePriceById({});
+        }
+      } catch {
+        setDaycareProceduresOptions([]);
+        setDaycareProcedurePriceById({});
+      } finally {
+        setDaycareProceduresLoading(false);
+      }
+    };
+    fetchProcedures();
+  }, []);
 
   // When Day Care is selected, set visit type to "New" and date to today
   useEffect(() => {
@@ -743,49 +782,61 @@ const NewAppointmentComponent = () => {
       setDaycareError("API configuration error. Please contact support.");
       return;
     }
-    if (!daycareSelectedDoctor?.value || !daycareName.trim() || !daycarePhone || !daycareVisitDate) {
-      setDaycareError("Please fill required fields: Doctor, Patient name, Phone, Visit date.");
+    if (!daycareSelectedDoctor?.value || !daycareName.trim() || !daycarePhone) {
+      setDaycareError("Please fill required fields: Doctor, Patient name, Phone.");
       return;
     }
     setDaycareLoading(true);
     try {
-      if (daycareSelectedPatient) {
-        await axios.post(`${API_BASE_URL}/hospital/visits`, {
-          patientId: daycareSelectedPatient._id,
+      const bedChargesTypeLabel = daycareBedChargesType?.label?.split("(")[0]?.trim() ?? "";
+      const procedureIds = Array.from(
+        new Set(
+          daycareAddedProcedures
+            .map((p) => p.id)
+            .filter((id) => Boolean(id) && daycareProcedurePriceById[id] != null)
+        )
+      );
+      const doctorVisitCharges = daycareDoctorVisitCharges === "Yes";
+
+      const createDaycareAppointment = async (patientId: string) => {
+        await axios.post(`${API_BASE_URL}/hospital/daycare-appointments`, {
+          patientId,
           doctorId: daycareSelectedDoctor.value,
-          visitType: daycareVisitType?.value !== "Select" ? daycareVisitType?.value : "",
-          appointmentType: "Day Care",
-          visitDate: formatDaycareVisitDate(),
-          visitTime: formatDaycareVisitTime(),
-          sessionSlot: daycareSessionSlot?.value && daycareSessionSlot.value !== "Select" ? daycareSessionSlot.value : undefined,
-          attendantName: daycareAttendantName || undefined,
-          attendantRelation: daycareAttendantRelation || undefined,
+          bedChargesType: bedChargesTypeLabel || undefined,
+          procedureIds,
+          doctorVisitCharges,
+          discount: daycareDiscount || 0,
         });
+      };
+
+      if (daycareSelectedPatient?._id) {
+        await createDaycareAppointment(daycareSelectedPatient._id);
       } else {
-        await axios.post(`${API_BASE_URL}/hospital/visits/with-patient`, {
-          patient: {
-            title: daycareTitle?.value || "",
-            name: daycareName.trim(),
-            phone: daycarePhone,
-            email: daycareEmail || undefined,
-            age: calculateDaycareAge(),
-            gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
-            bloodGroup: daycareBloodGroup?.value !== "Select" ? daycareBloodGroup?.value : undefined,
-            address: daycareAddress || undefined,
-            aadharNo: daycareAadharNo || undefined,
-            ayushmanCardNo: daycareAyushmanNo || undefined,
-            dob: formatDaycareDob() || undefined,
-          },
-          doctorId: daycareSelectedDoctor.value,
-          visitType: daycareVisitType?.value !== "Select" ? daycareVisitType?.value : "",
-          appointmentType: "Day Care",
-          visitDate: formatDaycareVisitDate(),
-          visitTime: formatDaycareVisitTime(),
-          sessionSlot: daycareSessionSlot?.value && daycareSessionSlot.value !== "Select" ? daycareSessionSlot.value : undefined,
-          attendantName: daycareAttendantName || undefined,
-          attendantRelation: daycareAttendantRelation || undefined,
-        });
+        // Create patient first, then create daycare appointment
+        const patientPayload = {
+          title: daycareTitle?.value || "",
+          name: daycareName.trim(),
+          phone: daycarePhone,
+          email: daycareEmail || undefined,
+          dob: formatDaycareDob() || undefined,
+          age: calculateDaycareAge(),
+          gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
+          bloodGroup: daycareBloodGroup?.value !== "Select" ? daycareBloodGroup?.value : undefined,
+          address: daycareAddress || undefined,
+          aadharNo: daycareAadharNo || undefined,
+          ayushmanCardNo: daycareAyushmanNo || undefined,
+        };
+        const patientRes = await axios.post(`${API_BASE_URL}/hospital/patients`, patientPayload);
+        const newPatientId =
+          patientRes?.data?.data?.patient?._id ??
+          patientRes?.data?.data?.patientId ??
+          patientRes?.data?.data?._id;
+        if (!newPatientId) {
+          throw new Error("Failed to create patient.");
+        }
+        await createDaycareAppointment(newPatientId);
       }
+
       router.push(all_routes.appointments);
     } catch (err: any) {
       setDaycareError(err?.response?.data?.message || "Failed to create Daycare appointment.");
@@ -1963,7 +2014,7 @@ const NewAppointmentComponent = () => {
                               <div className="col-md-6">
                                 <div className="mb-2">
                                   <label className="form-label mb-1 fw-medium">Add Procedures</label>
-                                  <CommonSelect options={daycareProcedureOptions} value={daycareAddProcedureSelect} onChange={handleDaycareAddProcedure} placeholder="Select procedure..." />
+                                  <CommonSelect options={daycareProceduresOptions} value={daycareAddProcedureSelect} onChange={handleDaycareAddProcedure} placeholder="Select procedure..." isLoading={daycareProceduresLoading} />
                                 </div>
                                 <div className="mt-2">
                                   <div className="border rounded overflow-hidden">

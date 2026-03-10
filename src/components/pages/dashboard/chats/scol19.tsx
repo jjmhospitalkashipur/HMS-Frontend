@@ -1,13 +1,21 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useMemo } from "react";
 
-// Dynamically import ApexCharts (to avoid SSR issues)
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-const SCol19Chart = () => {
-  const [chartOptions] = useState<any>({
+interface ISCol19ChartProps {
+  categories?: string[];
+  series?: ApexAxisChartSeries;
+}
+
+const SCol19Chart = ({ categories, series }: ISCol19ChartProps) => {
+  const defaultCategories = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const seriesColors = ["#28a745", "#1E90FF", "#ffc107", "#dc3545", "#6c757d"];
+
+  const chartOptions = useMemo<any>(() => ({
     chart: {
       type: "bar",
       height: 250,
@@ -29,78 +37,56 @@ const SCol19Chart = () => {
       width: 0,
       colors: ["#fff"],
     },
-    colors: ["#00D1D1", "#1E90FF", "#3B28CC"],
+    colors: seriesColors,
     xaxis: {
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
-      labels: {
-        style: {
-          fontSize: "14px",
-        },
-      },
-      axisBorder: {
-        show: false,
-      },
-      axisTicks: {
-        show: false,
-      },
+      categories: categories ?? defaultCategories,
+      labels: { style: { fontSize: "14px" } },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
       tickPlacement: "between",
     },
     yaxis: {
       labels: {
-        style: {
-          fontSize: "14px",
-        },
-        formatter: (val: number) => `${val / 1000}K`,
+        style: { fontSize: "14px" },
         offsetX: -10,
       },
     },
-    legend: {
-      position: "bottom",
-    },
+    legend: { position: "bottom" },
     grid: {
       show: true,
       strokeDashArray: 4,
-      padding: {
-        left: 0,
-        right: -10,
+      padding: { left: 0, right: -10 },
+    },
+    tooltip: {
+      enabled: true,
+      shared: true,
+      intersect: false,
+      custom: ({ series: s, dataPointIndex, w }: { series: number[][]; dataPointIndex: number; w: any }) => {
+        const cats = w.globals.categoryLabels ?? w.globals.labels ?? [];
+        const label = cats[dataPointIndex] ?? "";
+        let html = `<div style="padding:8px 12px;font-size:13px"><strong>${label}</strong>`;
+        s.forEach((seriesData: number[], idx: number) => {
+          const name = w.globals.seriesNames[idx] ?? "";
+          const color = seriesColors[idx] ?? "#000";
+          html += `<div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span>${name}: <strong>${seriesData[dataPointIndex] ?? 0}</strong></div>`;
+        });
+        html += `</div>`;
+        return html;
       },
     },
-    tooltip: { enabled: true },
-  });
+  }), [categories]);
 
-  const [series] = useState([
-    {
-      name: "Completed",
-      data: [
-        800, 1000, 1200, 1300, 1500, 700, 900, 1000, 1600, 1500, 1200, 1100,
-      ],
-    },
-    {
-      name: "Ongoing",
-      data: [700, 900, 1100, 1000, 1100, 600, 800, 950, 1300, 1200, 1000, 950],
-    },
-    {
-      name: "Rescheduled",
-      data: [600, 700, 1100, 1100, 1900, 500, 700, 850, 1500, 1600, 900, 850],
-    },
-  ]);
+  const defaultSeries: ApexAxisChartSeries = [
+    { name: "Completed", data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "Scheduled", data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "In Progress", data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "Cancelled", data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "No Show", data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  ];
 
   return (
     <div id="s-col-19">
-      <Chart options={chartOptions} series={series} type="bar" height={250} />
+      <Chart options={chartOptions} series={series ?? defaultSeries} type="bar" height={250} />
     </div>
   );
 };
