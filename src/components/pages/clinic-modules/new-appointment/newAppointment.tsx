@@ -797,6 +797,7 @@ const NewAppointmentComponent = () => {
         )
       );
       const doctorVisitCharges = daycareDoctorVisitCharges === "Yes";
+      const appointmentDate = formatDaycareVisitDate() || undefined;
 
       const createDaycareAppointment = async (patientId: string) => {
         await axios.post(`${API_BASE_URL}/hospital/daycare-appointments`, {
@@ -806,19 +807,27 @@ const NewAppointmentComponent = () => {
           procedureIds,
           doctorVisitCharges,
           discount: daycareDiscount || 0,
+          appointmentDate,
+          transaction:
+            daycareAmountReceived && daycareAmountReceived > 0
+              ? {
+                  transactionType: "Advance",
+                  amount: daycareAmountReceived,
+                  paymentMode: daycarePaymentMode,
+                }
+              : undefined,
         });
       };
 
       if (daycareSelectedPatient?._id) {
         await createDaycareAppointment(daycareSelectedPatient._id);
       } else {
-        // Create patient first, then create daycare appointment
+        // New patient: create daycare appointment with embedded patient
         const patientPayload = {
           title: daycareTitle?.value || "",
           name: daycareName.trim(),
           phone: daycarePhone,
           email: daycareEmail || undefined,
-          dob: formatDaycareDob() || undefined,
           age: calculateDaycareAge(),
           gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
           bloodGroup: daycareBloodGroup?.value !== "Select" ? daycareBloodGroup?.value : undefined,
@@ -826,15 +835,24 @@ const NewAppointmentComponent = () => {
           aadharNo: daycareAadharNo || undefined,
           ayushmanCardNo: daycareAyushmanNo || undefined,
         };
-        const patientRes = await axios.post(`${API_BASE_URL}/hospital/patients`, patientPayload);
-        const newPatientId =
-          patientRes?.data?.data?.patient?._id ??
-          patientRes?.data?.data?.patientId ??
-          patientRes?.data?.data?._id;
-        if (!newPatientId) {
-          throw new Error("Failed to create patient.");
-        }
-        await createDaycareAppointment(newPatientId);
+
+        await axios.post(`${API_BASE_URL}/hospital/daycare-appointments/with-patient`, {
+          patient: patientPayload,
+          doctorId: daycareSelectedDoctor.value,
+          bedChargesType: bedChargesTypeLabel || undefined,
+          procedureIds,
+          doctorVisitCharges,
+          discount: daycareDiscount || 0,
+          appointmentDate,
+          transaction:
+            daycareAmountReceived && daycareAmountReceived > 0
+              ? {
+                  transactionType: "Advance",
+                  amount: daycareAmountReceived,
+                  paymentMode: daycarePaymentMode,
+                }
+              : undefined,
+        });
       }
 
       router.push(all_routes.appointments);
