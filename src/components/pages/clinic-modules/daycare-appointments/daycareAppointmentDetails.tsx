@@ -76,6 +76,10 @@ const DaycareAppointmentDetailsComponent = () => {
   const [daycare, setDaycare] = useState<IDaycareAppointmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<string>("Cash");
+  const [amount, setAmount] = useState<string>("0");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -160,6 +164,50 @@ const DaycareAppointmentDetailsComponent = () => {
     (daycare.procedures && daycare.procedures.length
       ? daycare.procedures[0].price ?? 0
       : 0);
+
+  const handleAddTransaction = async () => {
+    if (!daycare || !API_BASE_URL || submitting) return;
+
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    if (!paymentMode || paymentMode === "Select") {
+      alert("Please select a payment mode");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await axios.post(`${API_BASE_URL}/hospital/transactions`, {
+        visitId: daycare._id,
+        transactionType: "Payment",
+        amount: amountNum,
+        paymentMode,
+      });
+      if (res.data?.code === 200 || (res.status >= 200 && res.status < 300)) {
+        setShowAddTransaction(false);
+        setAmount("0");
+        setPaymentMode("Cash");
+        await fetchDaycareDetails();
+      } else {
+        alert(res.data?.message || "Failed to add transaction");
+      }
+    } catch (err: any) {
+      console.error("Error adding daycare transaction:", err);
+      alert(err?.response?.data?.message || "Failed to add transaction. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowAddTransaction(false);
+    setAmount("0");
+    setPaymentMode("Cash");
+  };
 
   return (
     <div className="page-wrapper">
@@ -281,7 +329,7 @@ const DaycareAppointmentDetailsComponent = () => {
             </div>
           </div>
 
-          {/* Right column: Payment History only */}
+          {/* Right column: Payment History with Add Transaction */}
           <div className="col-lg-5 ps-3">
             <div className="card">
               <div className="card-body p-3">
@@ -326,11 +374,116 @@ const DaycareAppointmentDetailsComponent = () => {
                     </table>
                   </div>
                 )}
+
+                <div className="mt-3 d-flex justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setShowAddTransaction(true)}
+                  >
+                    <i className="ti ti-plus me-1" />
+                    Add Transaction
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      {/* Add Transaction Modal */}
+      {showAddTransaction && daycare && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            onClick={handleCloseModal}
+            style={{ zIndex: 1050 }}
+          />
+          <div
+            className="modal fade show"
+            style={{ display: "block", zIndex: 1055 }}
+            tabIndex={-1}
+            role="dialog"
+          >
+            <div className="modal-dialog modal-dialog-centered" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title fw-bold">Add Transaction</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={handleCloseModal}
+                    aria-label="Close"
+                  />
+                </div>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label mb-2 fw-medium text-dark">
+                      Mode<span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      value={paymentMode}
+                      onChange={(e) => setPaymentMode(e.target.value)}
+                    >
+                      <option value="Select">Select</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="UPI">UPI</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label mb-2 fw-medium text-dark">
+                      Amount Received<span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="mb-0">
+                    <label className="form-label mb-2 fw-medium text-dark">Due</label>
+                    <div className="text-dark fs-15">₹{dueAmount.toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    onClick={handleCloseModal}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleAddTransaction}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <span
+                          className="spinner-border spinner-border-sm me-2"
+                          role="status"
+                          aria-hidden="true"
+                        />
+                        Adding...
+                      </>
+                    ) : (
+                      "Add"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

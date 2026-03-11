@@ -131,6 +131,7 @@ const NewAppointmentComponent = () => {
   const [daycareAttendantName, setDaycareAttendantName] = useState<string>("");
   const [daycareAttendantRelation, setDaycareAttendantRelation] = useState<string>("");
   const [daycareBedChargesType, setDaycareBedChargesType] = useState<Option | null>(null);
+  const [daycareBedChargesHours, setDaycareBedChargesHours] = useState<number>(1);
   const [daycareDoctorVisitCharges, setDaycareDoctorVisitCharges] = useState<"Yes" | "No">("No");
   const [daycareAddedProcedures, setDaycareAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
   const [daycareAddProcedureSelect, setDaycareAddProcedureSelect] = useState<Option | null>(null);
@@ -149,7 +150,8 @@ const NewAppointmentComponent = () => {
   const [daycareLoading, setDaycareLoading] = useState<boolean>(false);
   const [daycareError, setDaycareError] = useState<string>("");
   const daycareBedChargesAmount: Record<string, number> = { private: 200, semi: 150, general: 100 };
-  const daycareBedCharges = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
+  const daycareBedChargesRate = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
+  const daycareBedCharges = daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
   const daycareProceduresCharges = daycareAddedProcedures.reduce((sum, p) => sum + p.price, 0);
   const daycareDocVisitCharges = daycareDoctorVisitCharges === "Yes" ? 700 : 0;
   const daycareSubtotal = daycareBedCharges + daycareProceduresCharges + daycareDocVisitCharges;
@@ -799,28 +801,40 @@ const NewAppointmentComponent = () => {
       const doctorVisitCharges = daycareDoctorVisitCharges === "Yes";
       const appointmentDate = formatDaycareVisitDate() || undefined;
 
-      const createDaycareAppointment = async (patientId: string) => {
-        await axios.post(`${API_BASE_URL}/hospital/daycare-appointments`, {
-          patientId,
-          doctorId: daycareSelectedDoctor.value,
-          bedChargesType: bedChargesTypeLabel || undefined,
-          procedureIds,
-          doctorVisitCharges,
-          discount: daycareDiscount || 0,
-          appointmentDate,
-          transaction:
-            daycareAmountReceived && daycareAmountReceived > 0
-              ? {
-                  transactionType: "Advance",
-                  amount: daycareAmountReceived,
-                  paymentMode: daycarePaymentMode,
-                }
-              : undefined,
+      const addDaycareTransactionIfAmountReceived = async (visitId: string) => {
+        const amount = Number(daycareAmountReceived) || 0;
+        if (amount <= 0) return;
+        await axios.post(`${API_BASE_URL}/hospital/transactions`, {
+          visitId,
+          transactionType: "Payment",
+          amount,
+          paymentMode: daycarePaymentMode,
         });
       };
 
       if (daycareSelectedPatient?._id) {
-        await createDaycareAppointment(daycareSelectedPatient._id);
+        const response = await axios.post(`${API_BASE_URL}/hospital/daycare-appointments`, {
+          patientId: daycareSelectedPatient._id,
+          doctorId: daycareSelectedDoctor.value,
+          bedChargesType: bedChargesTypeLabel || undefined,
+          bedChargesHours: daycareBedChargesHours || 1,
+          bedChargesRate: daycareBedChargesRate || 0,
+          procedureIds,
+          doctorVisitCharges,
+          discount: daycareDiscount || 0,
+          appointmentDate,
+        });
+        const visitId =
+          response?.data?.data?._id ??
+          response?.data?.data?.daycareAppointment?._id ??
+          response?.data?._id;
+        if (visitId && daycareAmountReceived > 0) {
+          try {
+            await addDaycareTransactionIfAmountReceived(visitId);
+          } catch (txErr) {
+            console.error("Daycare created but transaction failed:", txErr);
+          }
+        }
       } else {
         // New patient: create daycare appointment with embedded patient
         const patientPayload = {
@@ -836,26 +850,34 @@ const NewAppointmentComponent = () => {
           ayushmanCardNo: daycareAyushmanNo || undefined,
         };
 
-        await axios.post(`${API_BASE_URL}/hospital/daycare-appointments/with-patient`, {
-          patient: patientPayload,
-          doctorId: daycareSelectedDoctor.value,
-          bedChargesType: bedChargesTypeLabel || undefined,
-          procedureIds,
-          doctorVisitCharges,
-          discount: daycareDiscount || 0,
-          appointmentDate,
-          transaction:
-            daycareAmountReceived && daycareAmountReceived > 0
-              ? {
-                  transactionType: "Advance",
-                  amount: daycareAmountReceived,
-                  paymentMode: daycarePaymentMode,
-                }
-              : undefined,
-        });
+        const response = await axios.post(
+          `${API_BASE_URL}/hospital/daycare-appointments/with-patient`,
+          {
+            patient: patientPayload,
+            doctorId: daycareSelectedDoctor.value,
+            bedChargesType: bedChargesTypeLabel || undefined,
+            bedChargesHours: daycareBedChargesHours || 1,
+            bedChargesRate: daycareBedChargesRate || 0,
+            procedureIds,
+            doctorVisitCharges,
+            discount: daycareDiscount || 0,
+            appointmentDate,
+          }
+        );
+        const visitId =
+          response?.data?.data?._id ??
+          response?.data?.data?.daycareAppointment?._id ??
+          response?.data?._id;
+        if (visitId && daycareAmountReceived > 0) {
+          try {
+            await addDaycareTransactionIfAmountReceived(visitId);
+          } catch (txErr) {
+            console.error("Daycare created but transaction failed:", txErr);
+          }
+        }
       }
 
-      router.push(all_routes.appointments);
+      router.push(all_routes.daycareAppointments);
     } catch (err: any) {
       setDaycareError(err?.response?.data?.message || "Failed to create Daycare appointment.");
     } finally {
@@ -2011,8 +2033,30 @@ const NewAppointmentComponent = () => {
                                   <CommonSelect options={doctorOptions} value={daycareSelectedDoctor} onChange={handleDaycareDoctorChange} onInputChange={handleDoctorInputChange} isLoading={doctorSearchLoading} placeholder="Search doctor..." />
                                 </div>
                                 <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Bed Charges Type</label>
-                                  <CommonSelect options={daycareBedChargesOptions} value={daycareBedChargesType} onChange={setDaycareBedChargesType} placeholder="Select..." />
+                                  <div className="d-flex align-items-end gap-2 flex-wrap">
+                                    <div style={{ width: "62%", minWidth: 0 }}>
+                                      <label className="form-label mb-1 fw-medium d-block">Bed Charges Type</label>
+                                      <CommonSelect options={daycareBedChargesOptions} value={daycareBedChargesType} onChange={setDaycareBedChargesType} placeholder="Select..." />
+                                    </div>
+                                    <div style={{ width: "35%", minWidth: 0 }}>
+                                      <label className="form-label mb-1 fw-medium d-block">Hours</label>
+                                      <input
+                                        type="number"
+                                        className="form-control"
+                                        min={0}
+                                        step={1}
+                                        value={daycareBedChargesHours === 0 ? "" : daycareBedChargesHours}
+                                        onChange={(e) => {
+                                          if (e.target.value === "") {
+                                            setDaycareBedChargesHours(0);
+                                            return;
+                                          }
+                                          const v = parseFloat(e.target.value);
+                                          if (!Number.isNaN(v) && v >= 0) setDaycareBedChargesHours(v);
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
                                 <div className="mb-3">
                                   <label className="form-label mb-1 fw-medium">Doctor Visit Charges</label>

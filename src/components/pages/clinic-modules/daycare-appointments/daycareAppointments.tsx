@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Datatable from "@/core/common/dataTable";
@@ -72,8 +72,7 @@ const DaycareAppointmentsComponent = () => {
   const [error, setError] = useState<string>("");
   const [searchText, setSearchText] = useState<string>("");
 
-  useEffect(() => {
-    const fetchDaycareAppointments = async () => {
+  const fetchDaycareAppointments = useCallback(async () => {
       if (!API_BASE_URL) return;
       try {
         setLoading(true);
@@ -118,10 +117,11 @@ const DaycareAppointmentsComponent = () => {
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchDaycareAppointments();
   }, []);
+
+  useEffect(() => {
+    fetchDaycareAppointments();
+  }, [fetchDaycareAppointments]);
 
   const columns = [
     {
@@ -184,6 +184,22 @@ const DaycareAppointmentsComponent = () => {
       dataIndex: "Payment_Status",
       sorter: false,
       showSorterTooltip: false,
+    },
+    {
+      title: "",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (_: any, record: IRow) => (
+        <div className="d-flex align-items-center gap-2">
+          <Link
+            className="text-primary"
+            href={`${all_routes.editDaycareAppointment}/${record.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <i className="ti ti-edit fs-16" />
+          </Link>
+        </div>
+      ),
     },
   ];
 
