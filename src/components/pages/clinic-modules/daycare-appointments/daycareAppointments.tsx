@@ -78,8 +78,18 @@ const DaycareAppointmentsComponent = () => {
         setLoading(true);
         setError("");
         const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments`);
-        if (res.data?.code === 200 && Array.isArray(res.data?.data)) {
-          const list = res.data.data as IDaycareAppointment[];
+        if (res.data?.code === 200 && res.data?.data) {
+          const raw = res.data.data as any;
+          const list: IDaycareAppointment[] = Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw.appointments)
+            ? (raw.appointments as IDaycareAppointment[])
+            : [];
+          if (!list.length) {
+            setRows([]);
+            setError("");
+            return;
+          }
           const mapped: IRow[] = list.map((item) => {
             const dateStr = item.appointmentDate
               ? dayjs(item.appointmentDate).format("DD MMM YYYY")
