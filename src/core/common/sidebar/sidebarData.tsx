@@ -24,6 +24,7 @@ export const SidebarData = [
         materialicons: "start",
         dot: true,
       },
+  
       {
         label: "Appointments",
         link: routes.appointments,
@@ -51,6 +52,16 @@ export const SidebarData = [
         showSubRoute: false,
         icon: "user-heart",
         base: "Patients",
+        materialicons: "start",
+        dot: true,
+      },
+      {
+        label: "Pathlab",
+        link: "https://pathlab.kilobyte.live/dashboard",
+        submenu: false,
+        showSubRoute: false,
+        icon: "flask",
+        base: "Pathlab",
         materialicons: "start",
         dot: true,
       },

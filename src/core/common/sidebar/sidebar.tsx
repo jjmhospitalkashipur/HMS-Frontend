@@ -255,6 +255,11 @@ const Sidebar = () => {
                           }
                           title.links = link_array;
 
+                          const isExternalMain =
+                            !title?.submenu &&
+                            typeof title?.link === "string" &&
+                            title.link.startsWith("http");
+
                           return (
                             <li className="submenu" key={`title-${i}`}>
                               <Link
@@ -269,6 +274,8 @@ const Sidebar = () => {
                                     handleLayoutClick(title?.label);
                                   }
                                 }}
+                                target={isExternalMain ? "_blank" : undefined}
+                                rel={isExternalMain ? "noopener noreferrer" : undefined}
                                 className={`${
                                   subOpen === title?.label
                                     ? "subdrop"
