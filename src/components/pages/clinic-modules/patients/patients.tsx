@@ -111,14 +111,26 @@ const PatientsComponent = () => {
       sorter: false,
       showSorterTooltip: false,
       render: (text: any, record: IPatient) => (
-        <span className="text-dark fw-semibold">
-          {record.title ? `${record.title} ${record.name}` : record.name}
-        </span>
+        <div className="text-dark">
+          <div className="fw-semibold">
+            {record.title ? `${record.title} ${record.name}` : record.name}
+          </div>
+          <div className="fs-13 text-muted">
+            {[record.age ? `${record.age}` : "", record.gender || ""].filter(Boolean).join(", ")}
+          </div>
+        </div>
       ),
     },
     {
       title: "Phone",
       dataIndex: "phone",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (text: any) => <span className="text-dark">{text}</span>,
+    },
+    {
+      title: "Address",
+      dataIndex: "address",
       sorter: false,
       showSorterTooltip: false,
       render: (text: any) => <span className="text-dark">{text}</span>,
@@ -131,18 +143,21 @@ const PatientsComponent = () => {
       render: (text: any) => <span className="text-dark">{text}</span>,
     },
     {
-      title: "Age",
-      dataIndex: "age",
+      title: "Joined Date",
+      dataIndex: "createdAt",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any) => <span className="text-dark">{text}</span>,
-    },
-    {
-      title: "Gender",
-      dataIndex: "gender",
-      sorter: false,
-      showSorterTooltip: false,
-      render: (text: any) => <span className="text-dark">{text}</span>,
+      render: (_: any, record: IPatient) =>
+        record.createdAt ? (
+          <div className="text-dark">
+            <div>{dayjs(record.createdAt).format("DD MMM YYYY")}</div>
+            <div className="fs-13 text-muted">
+              {dayjs(record.createdAt).format("hh:mm A")}
+            </div>
+          </div>
+        ) : (
+          <span className="text-dark">-</span>
+        ),
     },
     {
       title: "",

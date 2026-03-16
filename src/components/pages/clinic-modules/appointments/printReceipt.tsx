@@ -200,8 +200,11 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               transactions.map((txn, index) => (
                 <div key={txn._id} className="transaction-row">
                   <div className="col-type">
-                    {receiptData.appointmentType ?? "—"}
-                    {receiptData.visitType ? ` (${receiptData.visitType})` : ""}
+                    {txn.transactionType
+                      ? txn.transactionType
+                      : `${receiptData.appointmentType ?? "—"}${
+                          receiptData.visitType ? ` (${receiptData.visitType})` : ""
+                        }`}
                   </div>
                   <div className="col-rate">₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}</div>
                 </div>

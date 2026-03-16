@@ -32,7 +32,7 @@ interface IDialysisSessionRow {
   patientId?: string;
   status?: string;
   createdAt?: string;
-  patient?: { name?: string };
+  patient?: { name?: string; age?: number; gender?: string; phone?: string };
 }
 
 const ProceduresComponent = () => {
@@ -49,27 +49,31 @@ const ProceduresComponent = () => {
   const [dialysisSearchInput, setDialysisSearchInput] = useState("");
   const [dialysisSearch, setDialysisSearch] = useState("");
   const [dialysisStatusFilter, setDialysisStatusFilter] = useState<string>("");
-  const dialysisLimit = 10;
+  const dialysisLimit = 100;
   const columns = [
     {
       title: "Procedure ID",
       dataIndex: "ProcedureId",
-      sorter: (a: any, b: any) => (a.ProcedureId ?? "").localeCompare(b.ProcedureId ?? ""),
+      sorter: false,
+      showSorterTooltip: false,
     },
     {
       title: "Procedure Name",
       dataIndex: "ServiceName",
-      sorter: (a: any, b: any) => a.ServiceName.length - b.ServiceName.length,
+      sorter: false,
+      showSorterTooltip: false,
     },
     {
       title: "Department",
       dataIndex: "Department",
-      sorter: (a: any, b: any) => a.Department.length - b.Department.length,
+      sorter: false,
+      showSorterTooltip: false,
     },
     {
       title: "Price",
       dataIndex: "Price",
-      sorter: (a: any, b: any) => a.Price.length - b.Price.length,
+      sorter: false,
+      showSorterTooltip: false,
     },
     {
       title: "Status",
@@ -85,7 +89,8 @@ const ProceduresComponent = () => {
           {text}
         </span>
       ),
-      sorter: (a: any, b: any) => a.Status.length - b.Status.length,
+      sorter: false,
+      showSorterTooltip: false,
     },
     {
       title: "",
@@ -495,73 +500,96 @@ const ProceduresComponent = () => {
                 ) : dialysisSessions.length === 0 ? (
                   <p className="text-muted mb-0">No dialysis sessions found.</p>
                 ) : (
-                  <table className="table table-nowrap table-hover">
-                    <thead className="thead-light">
-                      <tr>
-                        <th className="no-sort">Patient Name</th>
-                        <th>Session ID</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dialysisSessions.map((session) => (
-                        <tr key={session._id}>
-                          <td className="text-dark">
-                            {session.patient?.name ?? "—"}
-                          </td>
-                          <td className="text-dark fw-medium">
-                            {session.sessionId ?? "—"}
-                          </td>
-                          <td className="text-dark">
-                            {session.createdAt
-                              ? dayjs(session.createdAt).format("DD MMM YYYY, HH:mm")
-                              : "—"}
-                          </td>
-                          <td>
-                            <span
-                              className={`badge fs-13 fw-medium border ${
-                                session.status === "Completed"
-                                  ? "badge-soft-success text-success border-success"
-                                  : session.status === "In Progress"
-                                    ? "badge-soft-warning text-warning border-warning"
-                                    : "badge-soft-secondary text-secondary border-secondary"
-                              }`}
-                            >
-                              {session.status ?? "—"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <Datatable
+                    columns={[
+                      {
+                        title: "Session ID",
+                        dataIndex: "sessionId",
+                        sorter: false,
+                        showSorterTooltip: false,
+                      },
+                      {
+                        title: "Patient",
+                        dataIndex: "patientName",
+                        sorter: false,
+                        showSorterTooltip: false,
+                        render: (_: any, record: any) => (
+                          <div className="text-dark">
+                            <div className="fw-semibold fs-14 text-truncate">
+                              {record.patientName}
+                            </div>
+                            {record.meta && (
+                              <div className="fs-13 text-muted text-truncate">
+                                {record.meta}
+                              </div>
+                            )}
+                          </div>
+                        ),
+                      },
+                      {
+                        title: "Phone",
+                        dataIndex: "phone",
+                        sorter: false,
+                        showSorterTooltip: false,
+                      },
+                      {
+                        title: "Date",
+                        dataIndex: "date",
+                        sorter: false,
+                        showSorterTooltip: false,
+                        render: (_: any, record: any) => (
+                          <div className="text-dark">
+                            <div>{record.date}</div>
+                            {record.time && (
+                              <div className="fs-13 text-muted">{record.time}</div>
+                            )}
+                          </div>
+                        ),
+                      },
+                      {
+                        title: "Status",
+                        dataIndex: "status",
+                        sorter: false,
+                        showSorterTooltip: false,
+                        render: (text: string) => (
+                          <span
+                            className={`badge fs-13 fw-medium border ${
+                              text === "Completed"
+                                ? "badge-soft-success text-success border-success"
+                                : text === "In Progress"
+                                  ? "badge-soft-warning text-warning border-warning"
+                                  : "badge-soft-secondary text-secondary border-secondary"
+                            }`}
+                          >
+                            {text || "—"}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    dataSource={dialysisSessions.map((session) => ({
+                      key: session._id,
+                      sessionId: session.sessionId ?? "—",
+                      patientName: session.patient?.name ?? "—",
+                      meta: [
+                        session.patient?.age != null ? `${session.patient.age}` : "",
+                        session.patient?.gender || "",
+                      ]
+                        .filter(Boolean)
+                        .join(", "),
+                      phone: session.patient?.phone ?? "—",
+                      date: session.createdAt
+                        ? dayjs(session.createdAt).format("DD MMM YYYY")
+                        : "—",
+                      time: session.createdAt
+                        ? dayjs(session.createdAt).format("hh:mm A")
+                        : "",
+                      status: session.status ?? "—",
+                    }))}
+                    Selection={false}
+                    searchText={dialysisSearch}
+                  />
                 )}
               </div>
-              {dialysisTotal > dialysisLimit && (
-                <div className="d-flex align-items-center justify-content-between mt-2">
-                  <span className="text-muted small">
-                    Page {dialysisPage} · {dialysisSessions.length} of {dialysisTotal} sessions
-                  </span>
-                  <div className="btn-group btn-group-sm">
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      disabled={dialysisPage <= 1 || dialysisLoading}
-                      onClick={() => setDialysisPage((p) => Math.max(1, p - 1))}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      disabled={dialysisSessions.length < dialysisLimit || dialysisLoading}
-                      onClick={() => setDialysisPage((p) => p + 1)}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

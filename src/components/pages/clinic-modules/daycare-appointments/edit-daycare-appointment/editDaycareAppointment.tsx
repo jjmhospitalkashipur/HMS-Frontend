@@ -7,6 +7,18 @@ import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { Title, Gender, Blood_Group } from "@/core/common/selectOption";
 import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
+interface IVisitTypeCharge {
+  visitType?: string;
+  appointmentType?: string;
+  charge: number;
+  type?: string;
+}
+
+interface IDoctor {
+  _id: string;
+  name: string;
+  visitTypes?: IVisitTypeCharge[];
+}
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 
@@ -81,6 +93,7 @@ const EditDaycareAppointmentComponent = () => {
   const [patient, setPatient] = useState<IDaycarePatient | null>(null);
 
   const [doctorOptions, setDoctorOptions] = useState<Option[]>([]);
+  const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [doctorSearchLoading, setDoctorSearchLoading] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
 
@@ -104,7 +117,8 @@ const EditDaycareAppointmentComponent = () => {
   const bedChargesRate = bedChargesType?.value ? (BED_CHARGES_RATE[bedChargesType.value] ?? 0) : 0;
   const bedChargesTotal = bedChargesRate * (bedChargesHours > 0 ? bedChargesHours : 1);
   const proceduresTotal = addedProcedures.reduce((sum, p) => sum + p.price, 0);
-  const docVisitAmount = doctorVisitCharges === "Yes" ? 700 : 0;
+  const [daycareDoctorCharge, setDaycareDoctorCharge] = useState<number>(0);
+  const docVisitAmount = doctorVisitCharges === "Yes" ? daycareDoctorCharge : 0;
   const subtotal = bedChargesTotal + proceduresTotal + docVisitAmount;
   const netTotal = subtotal - (discount || 0);
   const balance = netTotal - (amountReceived || 0);
@@ -118,9 +132,10 @@ const EditDaycareAppointmentComponent = () => {
           params: { limit: 50, search: search || undefined },
         });
         const list = res.data?.data?.doctors ?? res.data?.data ?? [];
-        const arr = Array.isArray(list) ? list : [];
+        const arr = Array.isArray(list) ? (list as IDoctor[]) : [];
+        setDoctors(arr);
         setDoctorOptions(
-          arr.map((d: { _id: string; name?: string }) => ({ value: d._id, label: d.name ?? "—" }))
+          arr.map((d) => ({ value: d._id, label: d.name ?? "—" }))
         );
       } catch {
         setDoctorOptions([]);
@@ -191,11 +206,10 @@ const EditDaycareAppointmentComponent = () => {
         if (data.doctor) {
           setSelectedDoctor({ value: data.doctor._id, label: data.doctor.name ?? "" });
         } else if (data.doctorId) {
-          // try to hydrate label from already-fetched doctor options
-          const match = doctorOptions.find((d) => d.value === data.doctorId);
+          const match = doctors.find((d) => d._id === data.doctorId);
           setSelectedDoctor({
             value: data.doctorId,
-            label: match?.label ?? "",
+            label: match?.name ?? "",
           });
         } else {
           setSelectedDoctor(null);
@@ -225,6 +239,13 @@ const EditDaycareAppointmentComponent = () => {
           data.appointmentDate ? dayjs(data.appointmentDate).format("YYYY-MM-DD") : ""
         );
 
+        // doctor charge for daycare (from API if present)
+        const apiDoctorCharge =
+          (data as any).doctorChargesAmount != null
+            ? Number((data as any).doctorChargesAmount)
+            : 0;
+        setDaycareDoctorCharge(apiDoctorCharge);
+
         const txTotal = Array.isArray(data.transactions)
           ? data.transactions.reduce((sum, t) => sum + (Number(t?.amount) || 0), 0)
           : 0;
@@ -250,6 +271,27 @@ const EditDaycareAppointmentComponent = () => {
     fetchProcedures();
     fetchDaycare(id);
   }, [id, fetchDoctors, fetchProcedures, fetchDaycare]);
+
+  // If no doctor charge came from API, try to derive it from doctor's visitTypes (same logic as create)
+  useEffect(() => {
+    if (!selectedDoctor?.value || daycareDoctorCharge > 0) return;
+    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
+    const visitTypes = doctor?.visitTypes;
+    if (!visitTypes?.length) return;
+    const match = visitTypes.find((vt) => {
+      if (vt.visitType != null && vt.appointmentType != null) {
+        return (
+          vt.visitType === "New" &&
+          (vt.appointmentType === "Day care" || vt.appointmentType === "Day Care")
+        );
+      }
+      if (vt.type != null) return vt.type === "Day Care";
+      return false;
+    });
+    if (match?.charge != null) {
+      setDaycareDoctorCharge(match.charge);
+    }
+  }, [selectedDoctor?.value, doctors, daycareDoctorCharge]);
 
   const handleAddProcedure = (option: Option | null) => {
     if (!option?.value || procedurePriceById[option.value] == null) return;

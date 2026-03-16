@@ -7,6 +7,10 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import PrintReceipt, {
+  type IReceiptData,
+  type IReceiptTransaction,
+} from "@/components/pages/clinic-modules/appointments/printReceipt";
 
 interface IDaycarePatient {
   _id: string;
@@ -50,6 +54,7 @@ interface IDaycareAppointmentDetail {
   patientId: string;
   doctorId: string;
   bedChargesType?: string;
+  bedChargesHours?: number;
   bedChargesTotal?: number;
   procedures?: IDaycareProcedure[];
   procedureChargesTotal?: number;
@@ -77,6 +82,7 @@ const DaycareAppointmentDetailsComponent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [showPrintReceipt, setShowPrintReceipt] = useState(false);
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [amount, setAmount] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
@@ -164,6 +170,8 @@ const DaycareAppointmentDetailsComponent = () => {
     (daycare.procedures && daycare.procedures.length
       ? daycare.procedures[0].price ?? 0
       : 0);
+  const bedChargesPrice = daycare.bedChargesTotal ?? 0;
+  const doctorChargesPrice = daycare.doctorChargesAmount ?? 0;
 
   const handleAddTransaction = async () => {
     if (!daycare || !API_BASE_URL || submitting) return;
@@ -219,6 +227,14 @@ const DaycareAppointmentDetailsComponent = () => {
               Daycare Appointments
             </Link>
           </h6>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm d-inline-flex align-items-center"
+            onClick={() => setShowPrintReceipt(true)}
+          >
+            <i className="ti ti-receipt me-1" />
+            Print Receipt
+          </button>
         </div>
 
         <div className="row">
@@ -285,6 +301,44 @@ const DaycareAppointmentDetailsComponent = () => {
                       </label>
                       <div className="fw-bold text-dark">
                         ₹{(proceduresPrice ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row g-2 mb-1">
+                  <div className="col-md-4">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
+                        Bed Charges
+                      </label>
+                      <div className="fw-bold text-dark">
+                        ₹{bedChargesPrice.toFixed(2)}
+                        {daycare.bedChargesHours != null && daycare.bedChargesHours > 0 && (
+                          <span className="fs-13 text-muted ms-1">
+                            ({daycare.bedChargesHours} hrs)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
+                        Doctor Visit Charges
+                      </label>
+                      <div className="fw-bold text-dark">
+                        ₹{doctorChargesPrice.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
+                        Total Amount
+                      </label>
+                      <div className="fw-bold text-dark">
+                        ₹{baseTotal.toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -390,6 +444,77 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </div>
       </div>
+      {/* Print Receipt */}
+      {showPrintReceipt && daycare && (() => {
+        const ageDisplay =
+          daycare.patient?.age != null
+            ? daycare.patient.age
+            : undefined;
+
+        const charges: IReceiptTransaction[] = [];
+        if (daycare.bedChargesTotal && daycare.bedChargesTotal > 0) {
+          charges.push({
+            _id: `${daycare._id}-bed`,
+            transactionId: "",
+            transactionType: `Bed Charges (${daycare.bedChargesType ?? "N/A"})`,
+            amount: daycare.bedChargesTotal,
+            paymentMode: "",
+            transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+            createdAt: daycare.createdAt,
+          });
+        }
+        if (daycare.procedureChargesTotal && daycare.procedureChargesTotal > 0) {
+          charges.push({
+            _id: `${daycare._id}-proc`,
+            transactionId: "",
+            transactionType: "Procedure Charges",
+            amount: daycare.procedureChargesTotal,
+            paymentMode: "",
+            transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+            createdAt: daycare.createdAt,
+          });
+        }
+        if (daycare.doctorVisitCharges && daycare.doctorChargesAmount && daycare.doctorChargesAmount > 0) {
+          charges.push({
+            _id: `${daycare._id}-doc`,
+            transactionId: "",
+            transactionType: "Doctor Visit Charges",
+            amount: daycare.doctorChargesAmount,
+            paymentMode: "",
+            transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+            createdAt: daycare.createdAt,
+          });
+        }
+
+        const receiptData: IReceiptData = {
+          visitId: daycare.daycareId,
+          appointmentId: daycare.appointmentId,
+          visitDate: daycare.appointmentDate,
+          visitTime: undefined,
+          visitType: "Day Care",
+          appointmentType: "Day Care",
+          status: daycare.status,
+          patientName: daycare.patient?.name,
+          patientTitle: daycare.patient?.title,
+          mrd: daycare.patient?.mrd,
+          age: ageDisplay != null ? String(ageDisplay) : undefined,
+          gender: daycare.patient?.gender,
+          phone: daycare.patient?.phone,
+          doctorName: daycare.doctor?.name,
+          doctorDepartment: daycare.doctor?.department,
+          transactions: charges,
+          totalAmount: daycare.totalPrice ?? daycare.subtotal ?? 0,
+          discount: daycare.discount ?? 0,
+          dueAmount: dueAmount,
+        };
+        return (
+          <PrintReceipt
+            receiptData={receiptData}
+            onClose={() => setShowPrintReceipt(false)}
+          />
+        );
+      })()}
+
       {/* Add Transaction Modal */}
       {showAddTransaction && daycare && (
         <>

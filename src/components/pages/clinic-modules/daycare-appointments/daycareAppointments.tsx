@@ -26,6 +26,8 @@ interface IDaycareProcedure {
 interface IDaycarePatient {
   _id: string;
   name?: string;
+  age?: number;
+  gender?: string;
 }
 
 interface IDaycareAppointment {
@@ -55,10 +57,14 @@ interface IRow {
   id: string;
   Daycare_ID: string;
   Date: string;
+  Time?: string;
   Patient: string;
+  Age?: number;
+  Gender?: string;
   Doctor: string;
+  DoctorDesignation?: string;
   Department: string;
-  Bed_Type: string;
+  DepartmentName?: string;
   Procedures: string;
   Total: number;
   Status: string;
@@ -94,9 +100,16 @@ const DaycareAppointmentsComponent = () => {
             const dateStr = item.appointmentDate
               ? dayjs(item.appointmentDate).format("DD MMM YYYY")
               : "";
+            const timeStr = item.appointmentDate
+              ? dayjs(item.appointmentDate).format("hh:mm A")
+              : "";
             const doctorName = item.doctor?.name ?? "";
-            const dept = item.doctor?.department ?? "";
+            const doctorDesignation = item.doctor?.designation ?? "";
+            const dept = item.bedChargesType || "";
+            const deptName = item.doctor?.department || "";
             const patientName = item.patient?.name ?? "";
+            const age = item.patient?.age;
+            const gender = item.patient?.gender;
             const proceduresLabel =
               item.procedures && item.procedures.length
                 ? item.procedures.map((p) => p.procedureName || "").filter(Boolean).join(", ")
@@ -106,10 +119,14 @@ const DaycareAppointmentsComponent = () => {
               id: item._id,
               Daycare_ID: item.daycareId,
               Date: dateStr,
+              Time: timeStr,
               Patient: patientName,
+              Age: age,
+              Gender: gender,
               Doctor: doctorName,
+              DoctorDesignation: doctorDesignation,
               Department: dept,
-              Bed_Type: item.bedChargesType || "",
+              DepartmentName: deptName,
               Procedures: proceduresLabel,
               Total: item.totalPrice ?? 0,
               Status: item.status || "",
@@ -145,30 +162,73 @@ const DaycareAppointmentsComponent = () => {
       dataIndex: "Date",
       sorter: false,
       showSorterTooltip: false,
+      render: (text: string, record: IRow) => (
+        <div className="text-dark">
+          <div>{text}</div>
+          {record.Time && <div className="fs-13 text-muted">{record.Time}</div>}
+        </div>
+      ),
     },
     {
       title: "Patient",
       dataIndex: "Patient",
       sorter: false,
       showSorterTooltip: false,
+      render: (text: string, record: IRow) => {
+        const meta = [record.Age != null ? `${record.Age}` : "", record.Gender || ""]
+          .filter(Boolean)
+          .join(", ");
+        return (
+          <div className="text-dark">
+            <div className="fw-semibold">{text}</div>
+            {meta && <div className="fs-13 text-muted">{meta}</div>}
+          </div>
+        );
+      },
     },
     {
       title: "Doctor",
       dataIndex: "Doctor",
       sorter: false,
       showSorterTooltip: false,
+      render: (text: any, record: IRow) => (
+        <div className="d-flex align-items-center">
+          <div style={{ maxWidth: 180 }}>
+            <h6 className="fs-14 mb-0 text-truncate">
+              <span className="fw-semibold text-dark">{text}</span>
+            </h6>
+            {record.DoctorDesignation && (
+              <p className="mb-0 fs-13 text-muted text-truncate">
+                {record.DoctorDesignation}
+              </p>
+            )}
+          </div>
+        </div>
+      ),
     },
     {
       title: "Department",
       dataIndex: "Department",
       sorter: false,
       showSorterTooltip: false,
-    },
-    {
-      title: "Bed Type",
-      dataIndex: "Bed_Type",
-      sorter: false,
-      showSorterTooltip: false,
+      render: (text: string, record: IRow) => {
+        const hasBedType = Boolean(text);
+        const hasDeptName = Boolean(record.DepartmentName);
+        if (!hasBedType && !hasDeptName) return "-";
+        return (
+          <div className="text-dark">
+           {hasDeptName && (
+              <div className="fs-15 mt-1">{record.DepartmentName}</div>
+            )}
+            {hasBedType && (
+              <span className="badge badge-soft-primary border border-primary px-2 py-1 fs-12 me-1">
+                {text}
+              </span>
+            )}
+           
+          </div>
+        );
+      },
     },
     {
       title: "Procedures",
@@ -181,19 +241,23 @@ const DaycareAppointmentsComponent = () => {
       dataIndex: "Total",
       sorter: false,
       showSorterTooltip: false,
-      render: (value: number) => `₹${value ?? 0}`,
-    },
-    {
-      title: "Status",
-      dataIndex: "Status",
-      sorter: false,
-      showSorterTooltip: false,
-    },
-    {
-      title: "Payment Status",
-      dataIndex: "Payment_Status",
-      sorter: false,
-      showSorterTooltip: false,
+      render: (value: number, record: IRow) => {
+        const paymentStatus = record.Payment_Status || "Unpaid";
+        const isPaid = paymentStatus === "Paid";
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <span className="fw-semibold text-dark">₹{(value ?? 0).toFixed(2)}</span>
+            <span
+              className={`d-inline-flex align-items-center justify-content-center rounded-circle ${
+                isPaid ? "bg-success" : "bg-warning"
+              }`}
+              style={{ width: "15px", height: "15px", minWidth: "15px" }}
+            >
+              <i className="ti ti-check fs-10 text-white" />
+            </span>
+          </div>
+        );
+      },
     },
     {
       title: "",

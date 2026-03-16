@@ -153,7 +153,7 @@ const NewAppointmentComponent = () => {
   const daycareBedChargesRate = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
   const daycareBedCharges = daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
   const daycareProceduresCharges = daycareAddedProcedures.reduce((sum, p) => sum + p.price, 0);
-  const daycareDocVisitCharges = daycareDoctorVisitCharges === "Yes" ? 700 : 0;
+  const daycareDocVisitCharges = daycareDoctorVisitCharges === "Yes" ? daycareTotal : 0;
   const daycareSubtotal = daycareBedCharges + daycareProceduresCharges + daycareDocVisitCharges;
   const daycareBalance = daycareSubtotal - (daycareDiscount || 0) - (daycareAmountReceived || 0);
 

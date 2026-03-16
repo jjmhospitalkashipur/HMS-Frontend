@@ -545,6 +545,7 @@ export const Visit_Type = [
   { value: "New", label: "New" },
   { value: "Emergency", label: "Emergency" },
   { value: "Follow-up", label: "Follow-up" },
+  { value: "Follow-up-report", label: "Follow-up report" },
   { value: "MR", label: "MR" },
 ];
 export const Sessions = [

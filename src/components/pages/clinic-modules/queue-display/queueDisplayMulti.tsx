@@ -565,7 +565,7 @@ const QueueDisplayMultiComponent = () => {
           >
             <video
               ref={introVideoRef}
-              src="/assets/img/Dr. Abhishek Goel sir (Intro) (2).mp4"
+              src="/assets/img/WhatsApp Video 2026-03-07 at 10.17.04 AM.mp4"
               autoPlay
               loop
               muted
