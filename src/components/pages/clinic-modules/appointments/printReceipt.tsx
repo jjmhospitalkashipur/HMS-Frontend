@@ -35,6 +35,7 @@ export interface IReceiptData {
   totalAmount?: number;
   discount?: number;
   dueAmount?: number;
+  paidAmount?: number;
 }
 
 interface IPrintReceiptProps {
@@ -133,10 +134,16 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
   const visitDate = receiptData.visitDate ? dayjs(receiptData.visitDate).format("DD MMM YYYY") : "—";
   const visitTime = receiptData.visitTime ? formatTime(receiptData.visitTime) : "—";
   const transactions = receiptData.transactions ?? [];
-  const totalAmount = receiptData.totalAmount ?? transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+  // Treat totalAmount as the gross/subtotal before discount when provided
+  const totalAmount =
+    receiptData.totalAmount ??
+    transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const discount = receiptData.discount ?? 0;
   const finalAmount = totalAmount - discount;
-  const totalPaid = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalPaid =
+    receiptData.paidAmount != null
+      ? Number(receiptData.paidAmount) || 0
+      : transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 
   // Use absolute URL for logo so it renders in print window
   const logoUrl = typeof window !== "undefined"

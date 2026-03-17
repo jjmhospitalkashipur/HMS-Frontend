@@ -528,7 +528,7 @@ const AppointmentsComponent = () => {
             case "Scheduled":
               return "badge-soft-primary text-primary";
             case "In Progress":
-              return "badge-soft-warning text-warning";
+              return "badge-soft-warning text-dark";
             case "Completed":
               return "badge-soft-success text-success";
             case "Cancelled":

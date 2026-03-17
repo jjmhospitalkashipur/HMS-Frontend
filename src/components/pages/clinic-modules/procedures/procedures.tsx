@@ -242,6 +242,16 @@ const ProceduresComponent = () => {
 
   return (
     <>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          .page-wrapper .datatable .ant-table-tbody > tr > td,
+          .page-wrapper .datatable .ant-table-thead > tr > th {
+            color: #000 !important;
+          }
+        `,
+        }}
+      />
       <div className="page-wrapper">
         <div className="content">
           <div className="d-flex align-items-sm-center flex-sm-row flex-column gap-2 mb-3 pb-3 border-bottom">
@@ -255,14 +265,7 @@ const ProceduresComponent = () => {
             </div>
             <div className="text-end d-flex">
               <div className="dropdown me-1">
-                <Link
-                  href="#"
-                  className="btn btn-md fs-14 fw-normal border bg-white rounded text-dark d-inline-flex align-items-center"
-                  data-bs-toggle="dropdown"
-                >
-                  Export
-                  <i className="ti ti-chevron-down ms-2" />
-                </Link>
+                
                 <ul className="dropdown-menu p-2">
                   <li>
                     <Link className="dropdown-item" href="#">

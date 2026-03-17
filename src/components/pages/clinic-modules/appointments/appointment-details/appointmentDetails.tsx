@@ -9,7 +9,7 @@ import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import PrintReceipt from "../printReceipt";
-import type { IReceiptData } from "../printReceipt";
+import type { IReceiptData, IReceiptTransaction } from "../printReceipt";
 
 interface IVisit {
   _id: string;
@@ -72,6 +72,8 @@ interface ITransaction {
   createdAt: string;
   updatedAt: string;
 }
+
+type IVisitWithAmountPaid = IVisit & { amountPaid?: number };
 
 const AppointmentDetailsComponent = () => {
   const params = useParams();
@@ -302,12 +304,17 @@ const AppointmentDetailsComponent = () => {
                     <div className="mb-2">
                       <label className="form-label mb-1 fw-medium text-dark fs-14">Status</label>
                       <div>
-                        <span className={`badge ${
-                          visit.status === "Completed" ? "badge-soft-success" :
-                          visit.status === "Cancelled" ? "badge-soft-danger" :
-                          visit.status === "In Progress" ? "badge-soft-warning" :
-                          "badge-soft-primary"
-                        }`}>
+                        <span
+                          className={`badge ${
+                            visit.status === "Completed"
+                              ? "badge-soft-success"
+                              : visit.status === "Cancelled"
+                              ? "badge-soft-danger"
+                              : visit.status === "In Progress"
+                              ? "badge-soft-warning text-dark"
+                              : "badge-soft-primary"
+                          }`}
+                        >
                           {visit.status || "Scheduled"}
                         </span>
                       </div>
@@ -473,7 +480,21 @@ const AppointmentDetailsComponent = () => {
         </div>
 
         {showPrintReceipt && visit && (() => {
-          const ageDisplay = patient?.dob ? dayjs().diff(dayjs(patient.dob), "year") : patient?.age;
+          const ageDisplay = patient?.dob
+            ? dayjs().diff(dayjs(patient.dob), "year")
+            : patient?.age;
+
+          const visitCharge: IReceiptTransaction = {
+            _id: visit._id,
+            transactionId: "",
+            transactionType: undefined,
+            amount: visit.price || 0,
+            paymentMode: "",
+            referenceNo: undefined,
+            transactionDate: visit.visitDate || visit.createdAt || "",
+            createdAt: visit.createdAt || "",
+          };
+
           const receiptData: IReceiptData = {
             visitId: visit.visitId,
             appointmentId: visit.appointmentId,
@@ -491,20 +512,14 @@ const AppointmentDetailsComponent = () => {
             phone: patient?.phone,
             doctorName: doctor?.name,
             doctorDepartment: doctor?.department,
-            transactions: (visit.transactions || []).map((t) => ({
-              _id: t._id,
-              transactionId: t.transactionId,
-              transactionType: t.transactionType,
-              amount: t.amount,
-              paymentMode: t.paymentMode,
-              referenceNo: t.referenceNo,
-              transactionDate: t.transactionDate,
-              createdAt: t.createdAt,
-            })),
+            // Use visit price as the single charge row
+            transactions: [visitCharge],
             totalAmount: visit.price || 0,
             discount: visit.discount || 0,
             dueAmount: dueAmount,
+            paidAmount: (visit as IVisitWithAmountPaid).amountPaid ?? 0,
           };
+
           return (
             <PrintReceipt
               receiptData={receiptData}

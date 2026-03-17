@@ -441,6 +441,41 @@ const EditAppointmentComponent = () => {
 
   return (
     <div className="page-wrapper">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          .page-wrapper input::placeholder,
+          .page-wrapper textarea::placeholder {
+            color: #000 !important;
+            opacity: 1;
+          }
+          .page-wrapper input::-webkit-input-placeholder,
+          .page-wrapper textarea::-webkit-input-placeholder {
+            color: #000 !important;
+          }
+          .page-wrapper input::-moz-placeholder,
+          .page-wrapper textarea::-moz-placeholder {
+            color: #000 !important;
+            opacity: 1;
+          }
+          .page-wrapper input:-ms-input-placeholder,
+          .page-wrapper textarea:-ms-input-placeholder {
+            color: #000 !important;
+          }
+          /* Darker borders and black text inside appointment cards */
+          .page-wrapper .card .form-control,
+          .page-wrapper .card .ant-picker,
+          .page-wrapper .card .ant-picker-input > input {
+            border-color: #000 !important;
+            color: #000 !important;
+          }
+          .page-wrapper .card,
+          .page-wrapper .card * {
+            color: #000 !important;
+          }
+        `,
+        }}
+      />
       {showDiscountPasswordDialog && (
         <div
           className="modal fade show d-block"

@@ -149,6 +149,9 @@ const NewAppointmentComponent = () => {
   const [daycareAmountReceived, setDaycareAmountReceived] = useState<number>(0);
   const [daycareLoading, setDaycareLoading] = useState<boolean>(false);
   const [daycareError, setDaycareError] = useState<string>("");
+  const [daycareShowDiscountPasswordDialog, setDaycareShowDiscountPasswordDialog] = useState<boolean>(false);
+  const [daycareDiscountPassword, setDaycareDiscountPassword] = useState<string>("");
+  const [daycareDiscountFieldChanged, setDaycareDiscountFieldChanged] = useState<boolean>(false);
   const daycareBedChargesAmount: Record<string, number> = { private: 200, semi: 150, general: 100 };
   const daycareBedChargesRate = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
   const daycareBedCharges = daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
@@ -777,8 +780,7 @@ const NewAppointmentComponent = () => {
     return dayjs.isDayjs(daycareVisitTime) ? daycareVisitTime.format("HH:mm") : dayjs(daycareVisitTime).format("HH:mm");
   };
 
-  const handleDaycareSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doDaycareSubmit = async () => {
     setDaycareError("");
     if (!API_BASE_URL) {
       setDaycareError("API configuration error. Please contact support.");
@@ -812,18 +814,29 @@ const NewAppointmentComponent = () => {
         });
       };
 
+      const daycareDiscountNum = Number(daycareDiscount) || 0;
+      const daycareBasePayload: { discount: number; discountPassword?: string } = {
+        discount: daycareDiscountNum,
+      };
+      if (daycareDiscountNum > 0 && daycareDiscountPassword) {
+        daycareBasePayload.discountPassword = daycareDiscountPassword;
+      }
+
       if (daycareSelectedPatient?._id) {
-        const response = await axios.post(`${API_BASE_URL}/hospital/daycare-appointments`, {
-          patientId: daycareSelectedPatient._id,
-          doctorId: daycareSelectedDoctor.value,
-          bedChargesType: bedChargesTypeLabel || undefined,
-          bedChargesHours: daycareBedChargesHours || 1,
-          bedChargesRate: daycareBedChargesRate || 0,
-          procedureIds,
-          doctorVisitCharges,
-          discount: daycareDiscount || 0,
-          appointmentDate,
-        });
+        const response = await axios.post(
+          `${API_BASE_URL}/hospital/daycare-appointments`,
+          {
+            patientId: daycareSelectedPatient._id,
+            doctorId: daycareSelectedDoctor.value,
+            bedChargesType: bedChargesTypeLabel || undefined,
+            bedChargesHours: daycareBedChargesHours || 1,
+            bedChargesRate: daycareBedChargesRate || 0,
+            procedureIds,
+            doctorVisitCharges,
+            appointmentDate,
+            ...daycareBasePayload,
+          }
+        );
         const visitId =
           response?.data?.data?._id ??
           response?.data?.data?.daycareAppointment?._id ??
@@ -860,8 +873,8 @@ const NewAppointmentComponent = () => {
             bedChargesRate: daycareBedChargesRate || 0,
             procedureIds,
             doctorVisitCharges,
-            discount: daycareDiscount || 0,
             appointmentDate,
+            ...daycareBasePayload,
           }
         );
         const visitId =
@@ -883,6 +896,16 @@ const NewAppointmentComponent = () => {
     } finally {
       setDaycareLoading(false);
     }
+  };
+
+  const handleDaycareSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (daycareDiscount > 0 && daycareDiscountFieldChanged) {
+      setDaycareDiscountPassword("");
+      setDaycareShowDiscountPasswordDialog(true);
+      return;
+    }
+    void doDaycareSubmit();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1128,9 +1151,25 @@ const NewAppointmentComponent = () => {
     setDiscountPassword("");
   };
 
+  const handleDaycareDiscountPasswordConfirm = () => {
+    if (!daycareDiscountPassword.trim()) {
+      alert("Please enter the discount password.");
+      return;
+    }
+    setDaycareShowDiscountPasswordDialog(false);
+    // Re-submit with password applied (skip reopening dialog)
+    setDaycareDiscountFieldChanged(false);
+    void doDaycareSubmit();
+  };
+
+  const handleDaycareDiscountPasswordCancel = () => {
+    setDaycareShowDiscountPasswordDialog(false);
+    setDaycareDiscountPassword("");
+  };
+
   return (
     <>
-      {/* Discount password dialog */}
+      {/* OPD Discount password dialog */}
       {showDiscountPasswordDialog && (
         <div
           className="modal fade show d-block"
@@ -1180,8 +1219,9 @@ const NewAppointmentComponent = () => {
           </div>
         </div>
       )}
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           .page-wrapper input::placeholder,
           .page-wrapper textarea::placeholder {
             color: #000 !important;
@@ -1200,27 +1240,75 @@ const NewAppointmentComponent = () => {
           .page-wrapper textarea:-ms-input-placeholder {
             color: #000 !important;
           }
+          /* Darker borders and black text inside appointment cards */
+          .page-wrapper .card .form-control,
+          .page-wrapper .card .ant-picker,
+          .page-wrapper .card .ant-picker-input > input {
+            border-color: #000 !important;
+            color: #000 !important;
+          }
+          .page-wrapper .card,
+          .page-wrapper .card * {
+            color: #000 !important;
+          }
           @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
-          .page-wrapper .nav-tabs.nav-bordered .nav-link {
-            color: #6c757d;
-            border: 1px solid transparent;
-            border-radius: 0.25rem 0.25rem 0 0;
-          }
-          .page-wrapper .nav-tabs.nav-bordered .nav-link:hover {
-            color: #0d6efd;
-          }
-          .page-wrapper .nav-tabs.nav-bordered .nav-link.active {
-            color: #0d6efd;
-            font-weight: 600;
-            background-color: #e7f1ff;
-            border-color: #dee2e6 #dee2e6 #fff;
-            border-bottom-color: #fff;
-          }
-        `
-      }} />
+          /* OPD / Daycare tabs reuse global nav-tabs styling from appointment list */
+        `,
+        }}
+      />
+      {/* Daycare Discount password dialog */}
+      {daycareShowDiscountPasswordDialog && (
+        <div
+          className="modal fade show d-block"
+          id="daycare-discount-password-modal"
+          tabIndex={-1}
+          aria-labelledby="daycare-discount-password-label"
+          aria-modal="true"
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="daycare-discount-password-label">
+                  Discount password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={handleDaycareDiscountPasswordCancel}
+                />
+              </div>
+              <div className="modal-body">
+                <label htmlFor="daycare-discount-password-input" className="form-label">
+                  Enter password to apply discount
+                </label>
+                <input
+                  id="daycare-discount-password-input"
+                  type="password"
+                  className="form-control"
+                  value={daycareDiscountPassword}
+                  onChange={(e) => setDaycareDiscountPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={(e) => e.key === "Enter" && handleDaycareDiscountPasswordConfirm()}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={handleDaycareDiscountPasswordCancel}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleDaycareDiscountPasswordConfirm}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ========================
 			Start Page Content
 		========================= */}
@@ -1258,14 +1346,13 @@ const NewAppointmentComponent = () => {
                   <button type="button" className="btn-close" onClick={() => setDaycareError("")} aria-label="Close" />
                 </div>
               )}
-              <ul className="nav nav-tabs nav-bordered mt-0">
+              <ul className="nav nav-tabs border-0 mb-0 flex-shrink-0">
                 <li className="nav-item">
                   <button
                     type="button"
                     role="tab"
                     aria-selected={appointmentTab === "OPD"}
-                    className={`nav-link ${appointmentTab === "OPD" ? "active" : ""} bg-transparent border-0`}
-                    style={{ cursor: "pointer" }}
+                    className={`nav-link${appointmentTab === "OPD" ? " active" : ""}`}
                     onClick={() => setAppointmentTab("OPD")}
                   >
                     OPD
@@ -1276,8 +1363,7 @@ const NewAppointmentComponent = () => {
                     type="button"
                     role="tab"
                     aria-selected={appointmentTab === "Daycare"}
-                    className={`nav-link ${appointmentTab === "Daycare" ? "active" : ""} bg-transparent border-0`}
-                    style={{ cursor: "pointer" }}
+                    className={`nav-link${appointmentTab === "Daycare" ? " active" : ""}`}
                     onClick={() => setAppointmentTab("Daycare")}
                   >
                     Daycare
@@ -1500,20 +1586,6 @@ const NewAppointmentComponent = () => {
                           <div className="col-md-6">
                             <div className="mb-3">
                               <label className="form-label mb-1 fw-medium">
-                                Relation to Patient
-                              </label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Son, Daughter, etc."
-                                value={attendantRelation}
-                                onChange={(e) => setAttendantRelation(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">
                                 Attendant Name
                               </label>
                               <input
@@ -1525,39 +1597,48 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
+                          <div className="col-md-6">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Relation to Patient
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Son, Daughter, etc."
+                                value={attendantRelation}
+                                onChange={(e) => setAttendantRelation(e.target.value)}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="col-md-7">
-                        <div className="row g-2">
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">
-                                Aadhar No
-                              </label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Enter Aadhar number"
-                                value={aadharNo}
-                                onChange={(e) => setAadharNo(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">
-                                Ayushman No
-                              </label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Enter Ayushman card number"
-                                value={ayushmanNo}
-                                onChange={(e) => setAyushmanNo(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          {/* Attendant fields moved below address in patient section */}
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Aadhar No
+                          </label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter Aadhar number"
+                            value={aadharNo}
+                            onChange={(e) => setAadharNo(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Ayushman No
+                          </label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter Ayushman card number"
+                            value={ayushmanNo}
+                            onChange={(e) => setAyushmanNo(e.target.value)}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1633,54 +1714,18 @@ const NewAppointmentComponent = () => {
                             <label className="form-label mb-1 fw-medium">
                               Time
                             </label>
-                            <div className="input-icon-end position-relative">
-                              <TimePicker
-                                className="form-control datetimepicker"
-                                format="HH:mm"
-                                getPopupContainer={getModalContainer}
-                                placeholder="HH:mm"
-                                suffixIcon={null}
-                                value={visitTime}
-                                onChange={setVisitTime}
-                              />
-                              <span className="input-icon-addon">
-                                <i className="ti ti-clock text-gray-7" />
-                              </span>
-                            </div>
+                            <input
+                              type="time"
+                              className="form-control"
+                              value={visitTime ? dayjs(visitTime).format("HH:mm") : ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setVisitTime(value ? dayjs(value, "HH:mm") : null);
+                              }}
+                            />
                           </div>
                         </div>
-                        <div className="col-md-6">
-                          <div className="mb-2">
-                            <label className="form-label mb-1 fw-medium">
-                              Appointment Type
-                              <span className="text-danger ms-1">*</span>
-                            </label>
-                            <div className="d-flex gap-3">
-                              {Appointment_Type.map((type) => (
-                                <div key={type.value} className="form-check">
-                                  <input
-                                    className="form-check-input"
-                                    type="radio"
-                                    name="appointmentType"
-                                    id={type.value}
-                                    value={type.value}
-                                    checked={appointmentType === type.value}
-                                    onChange={(e) => {
-                                      const newType = e.target.value;
-                                      setAppointmentType(newType);
-                                      if (newType !== "Day Care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
-                                        setPaymentMode("Cash");
-                                      }
-                                    }}
-                                  />
-                                  <label className="form-check-label" htmlFor={type.value}>
-                                    {type.label}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
+                        {/* Appointment Type removed from OPD form as requested */}
                         <div className="col-md-6">
                           <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
@@ -1899,10 +1944,14 @@ const NewAppointmentComponent = () => {
                     <div className="card mb-3">
                       <div className="card-body">
                         <div className="d-flex align-items-center justify-content-between mb-3">
-                          <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
-                          {daycareSelectedPatient && (
-                            <span className="badge badge-soft-success border border-success fw-medium">Existing Patient</span>
-                          )}
+                          <div className="d-flex align-items-center gap-2">
+                            <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
+                            {daycareSelectedPatient && (
+                              <span className="badge badge-soft-success border border-success fw-medium">
+                                Existing Patient
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="row">
                           <div className="col-md-3">
@@ -1990,32 +2039,40 @@ const NewAppointmentComponent = () => {
                             <div className="row g-2">
                               <div className="col-md-6">
                                 <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Relation to Patient</label>
-                                  <input type="text" className="form-control" placeholder="Son, Daughter, etc." value={daycareAttendantRelation} onChange={(e) => setDaycareAttendantRelation(e.target.value)} />
-                                </div>
-                              </div>
-                              <div className="col-md-6">
-                                <div className="mb-3">
                                   <label className="form-label mb-1 fw-medium">Attendant Name</label>
                                   <input type="text" className="form-control" placeholder="Enter attendant name" value={daycareAttendantName} onChange={(e) => setDaycareAttendantName(e.target.value)} />
                                 </div>
                               </div>
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Relation to Patient</label>
+                                  <input type="text" className="form-control" placeholder="Son, Daughter, etc." value={daycareAttendantRelation} onChange={(e) => setDaycareAttendantRelation(e.target.value)} />
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          <div className="col-md-7">
-                            <div className="row g-2">
-                              <div className="col-md-6">
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Aadhar No</label>
-                                  <input type="text" className="form-control" placeholder="Enter Aadhar number" value={daycareAadharNo} onChange={(e) => setDaycareAadharNo(e.target.value)} />
-                                </div>
-                              </div>
-                              <div className="col-md-6">
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Ayushman No</label>
-                                  <input type="text" className="form-control" placeholder="Enter Ayushman card number" value={daycareAyushmanNo} onChange={(e) => setDaycareAyushmanNo(e.target.value)} />
-                                </div>
-                              </div>
+                          <div className="col-md-4">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Aadhar No</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter Aadhar number"
+                                value={daycareAadharNo}
+                                onChange={(e) => setDaycareAadharNo(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Ayushman No</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter Ayushman card number"
+                                value={daycareAyushmanNo}
+                                onChange={(e) => setDaycareAyushmanNo(e.target.value)}
+                              />
                             </div>
                           </div>
                         </div>
@@ -2027,19 +2084,80 @@ const NewAppointmentComponent = () => {
                           <div className="card-body p-3">
                             <h6 className="fw-bold text-primary mb-2">Day Care Details</h6>
                             <div className="row">
-                              <div className="col-md-6">
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Consulting Doc<span className="text-danger ms-1">*</span></label>
-                                  <CommonSelect options={doctorOptions} value={daycareSelectedDoctor} onChange={handleDaycareDoctorChange} onInputChange={handleDoctorInputChange} isLoading={doctorSearchLoading} placeholder="Search doctor..." />
-                                </div>
+                              <div className="col-md-8">
+                                {/* Consulting Doc + Doctor Visit Charges, matched widths */}
                                 <div className="mb-3">
                                   <div className="d-flex align-items-end gap-2 flex-wrap">
                                     <div style={{ width: "62%", minWidth: 0 }}>
-                                      <label className="form-label mb-1 fw-medium d-block">Bed Charges Type</label>
-                                      <CommonSelect options={daycareBedChargesOptions} value={daycareBedChargesType} onChange={setDaycareBedChargesType} placeholder="Select..." />
+                                      <label className="form-label mb-1 fw-medium d-block">
+                                        Consulting Doc<span className="text-danger ms-1">*</span>
+                                      </label>
+                                      <CommonSelect
+                                        options={doctorOptions}
+                                        value={daycareSelectedDoctor}
+                                        onChange={handleDaycareDoctorChange}
+                                        onInputChange={handleDoctorInputChange}
+                                        isLoading={doctorSearchLoading}
+                                        placeholder="Search doctor..."
+                                      />
                                     </div>
                                     <div style={{ width: "35%", minWidth: 0 }}>
-                                      <label className="form-label mb-1 fw-medium d-block">Hours</label>
+                                      <label className="form-label mb-1 fw-medium d-block">
+                                        Doctor Visit Charges
+                                      </label>
+                                      <div className="d-flex gap-3 flex-wrap">
+                                        <div className="form-check">
+                                          <input
+                                            className="form-check-input"
+                                            type="radio"
+                                            name="daycareDoctorVisitCharges"
+                                            id="daycareDvcYes"
+                                            value="Yes"
+                                            checked={daycareDoctorVisitCharges === "Yes"}
+                                            onChange={() => setDaycareDoctorVisitCharges("Yes")}
+                                            disabled={!daycareSelectedDoctor}
+                                          />
+                                          <label className="form-check-label" htmlFor="daycareDvcYes">
+                                            Yes
+                                          </label>
+                                        </div>
+                                        <div className="form-check">
+                                          <input
+                                            className="form-check-input"
+                                            type="radio"
+                                            name="daycareDoctorVisitCharges"
+                                            id="daycareDvcNo"
+                                            value="No"
+                                            checked={daycareDoctorVisitCharges === "No"}
+                                            onChange={() => setDaycareDoctorVisitCharges("No")}
+                                            disabled={!daycareSelectedDoctor}
+                                          />
+                                          <label className="form-check-label" htmlFor="daycareDvcNo">
+                                            No
+                                          </label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Daycare Charges Type + Hours, same widths */}
+                                <div className="mb-3">
+                                  <div className="d-flex align-items-end gap-2 flex-wrap">
+                                    <div style={{ width: "62%", minWidth: 0 }}>
+                                      <label className="form-label mb-1 fw-medium d-block">
+                                        Daycare Charges Type
+                                      </label>
+                                      <CommonSelect
+                                        options={daycareBedChargesOptions}
+                                        value={daycareBedChargesType}
+                                        onChange={setDaycareBedChargesType}
+                                        placeholder="Select..."
+                                      />
+                                    </div>
+                                    <div style={{ width: "35%", minWidth: 0 }}>
+                                      <label className="form-label mb-1 fw-medium d-block">
+                                        Hours
+                                      </label>
                                       <input
                                         type="number"
                                         className="form-control"
@@ -2058,44 +2176,50 @@ const NewAppointmentComponent = () => {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Doctor Visit Charges</label>
-                                  <div className="d-flex gap-3 flex-wrap">
-                                    <div className="form-check">
-                                      <input className="form-check-input" type="radio" name="daycareDoctorVisitCharges" id="daycareDvcYes" value="Yes" checked={daycareDoctorVisitCharges === "Yes"} onChange={() => setDaycareDoctorVisitCharges("Yes")} />
-                                      <label className="form-check-label" htmlFor="daycareDvcYes">Yes</label>
-                                    </div>
-                                    <div className="form-check">
-                                      <input className="form-check-input" type="radio" name="daycareDoctorVisitCharges" id="daycareDvcNo" value="No" checked={daycareDoctorVisitCharges === "No"} onChange={() => setDaycareDoctorVisitCharges("No")} />
-                                      <label className="form-check-label" htmlFor="daycareDvcNo">No</label>
-                                    </div>
-                                  </div>
-                                </div>
-                               
                               </div>
-                              <div className="col-md-6">
-                                <div className="mb-2">
+                              <div className="col-12">
+                                <div className="mb-3">
                                   <label className="form-label mb-1 fw-medium">Add Procedures</label>
-                                  <CommonSelect options={daycareProceduresOptions} value={daycareAddProcedureSelect} onChange={handleDaycareAddProcedure} placeholder="Select procedure..." isLoading={daycareProceduresLoading} />
+                                  <CommonSelect
+                                    options={daycareProceduresOptions}
+                                    value={daycareAddProcedureSelect}
+                                    onChange={handleDaycareAddProcedure}
+                                    placeholder="Select procedure..."
+                                    isLoading={daycareProceduresLoading}
+                                  />
                                 </div>
-                                <div className="mt-2">
+                                <div className="mt-1">
                                   <div className="border rounded overflow-hidden">
-                                    <div className="d-flex border-bottom bg-light px-2 py-1 fw-medium text-dark" style={{ fontSize: "0.95rem" }}>
+                                    <div
+                                      className="d-flex border-bottom bg-light px-2 py-1 fw-medium text-dark"
+                                      style={{ fontSize: "0.95rem" }}
+                                    >
                                       <span className="col-1 text-nowrap">S.No</span>
                                       <span className="col text-nowrap ps-3">Procedure</span>
                                       <span className="col text-end pe-4 text-nowrap">Price</span>
                                     </div>
-                                    <div className="text-dark" style={{ maxHeight: "170px", overflowY: "auto", fontSize: "0.95rem" }}>
+                                    <div
+                                      className="text-dark"
+                                      style={{ maxHeight: "170px", overflowY: "auto", fontSize: "0.95rem" }}
+                                    >
                                       {daycareAddedProcedures.length === 0 ? (
                                         <div className="px-2 py-3 text-center">No procedures added</div>
                                       ) : (
                                         daycareAddedProcedures.map((proc, idx) => (
-                                          <div key={proc.id} className="d-flex align-items-center border-bottom px-2 py-2">
+                                          <div
+                                            key={proc.id}
+                                            className="d-flex align-items-center border-bottom px-2 py-2"
+                                          >
                                             <span className="col-1">{idx + 1}</span>
                                             <span className="col ps-3">{proc.name}</span>
                                             <span className="col d-flex align-items-center justify-content-end gap-1">
                                               <span>{proc.price}</span>
-                                              <button type="button" className="btn btn-link p-0 text-danger min-w-0" aria-label="Remove procedure" onClick={() => handleDaycareRemoveProcedure(proc.id)}>
+                                              <button
+                                                type="button"
+                                                className="btn btn-link p-0 text-danger min-w-0"
+                                                aria-label="Remove procedure"
+                                                onClick={() => handleDaycareRemoveProcedure(proc.id)}
+                                              >
                                                 <i className="ti ti-trash ps-1 fs-16" />
                                               </button>
                                             </span>
@@ -2145,7 +2269,17 @@ const NewAppointmentComponent = () => {
                               </div>
                               <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom gap-2">
                                 <span className="fw-medium">Discount</span>
-                                <input type="number" className="form-control form-control-sm text-end" style={{ maxWidth: "100px" }} value={daycareDiscount || ""} onChange={(e) => setDaycareDiscount(parseFloat(e.target.value) || 0)} min="0" />
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm text-end"
+                                  style={{ maxWidth: "100px" }}
+                                  value={daycareDiscount || ""}
+                                  onChange={(e) => {
+                                    setDaycareDiscount(parseFloat(e.target.value) || 0);
+                                    setDaycareDiscountFieldChanged(true);
+                                  }}
+                                  min="0"
+                                />
                               </div>
                               <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom gap-2">
                                 <span className="fw-medium">Amount Received</span>

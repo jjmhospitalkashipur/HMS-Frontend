@@ -103,6 +103,16 @@ const ProcedureDetailsContent = () => {
 
   return (
     <div className="page-wrapper">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          .page-wrapper .card .form-label,
+          .page-wrapper .card p {
+            color: #000 !important;
+          }
+        `,
+        }}
+      />
       <div className="content">
         <div className="row">
           <div className="col-12">

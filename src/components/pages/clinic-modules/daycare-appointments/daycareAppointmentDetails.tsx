@@ -74,6 +74,93 @@ interface IDaycareAppointmentDetail {
   transactions?: IDaycareTransaction[];
 }
 
+const buildDaycareReceiptData = (
+  daycare: IDaycareAppointmentDetail,
+  dueAmount: number
+): IReceiptData => {
+  const charges: IReceiptTransaction[] = [];
+
+  const bedTotal = daycare.bedChargesTotal ?? 0;
+  if (bedTotal > 0) {
+    charges.push({
+      _id: `${daycare._id}-bed`,
+      transactionId: "",
+      transactionType: `Bed Charges (${daycare.bedChargesType ?? "N/A"})`,
+      amount: bedTotal,
+      paymentMode: "",
+      transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+      createdAt: daycare.createdAt ?? "",
+    });
+  }
+
+  if (daycare.procedures && daycare.procedures.length > 0) {
+    daycare.procedures.forEach((proc, index) => {
+      const procAmount = proc.price ?? 0;
+      if (procAmount > 0) {
+        charges.push({
+          _id: `${daycare._id}-proc-${index}`,
+          transactionId: "",
+          transactionType: proc.procedureName || "Procedure",
+          amount: procAmount,
+          paymentMode: "",
+          transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+          createdAt: daycare.createdAt ?? "",
+        });
+      }
+    });
+  } else {
+    const procTotal = daycare.procedureChargesTotal ?? 0;
+    if (procTotal > 0) {
+      charges.push({
+        _id: `${daycare._id}-proc`,
+        transactionId: "",
+        transactionType: "Procedure Charges",
+        amount: procTotal,
+        paymentMode: "",
+        transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+        createdAt: daycare.createdAt ?? "",
+      });
+    }
+  }
+
+  const docTotal = daycare.doctorChargesAmount ?? 0;
+  if (daycare.doctorVisitCharges && docTotal > 0) {
+    charges.push({
+      _id: `${daycare._id}-doc`,
+      transactionId: "",
+      transactionType: "Doctor Visit Charges",
+      amount: docTotal,
+      paymentMode: "",
+      transactionDate: daycare.appointmentDate || daycare.createdAt || "",
+      createdAt: daycare.createdAt ?? "",
+    });
+  }
+
+  return {
+    visitId: daycare.daycareId,
+    appointmentId: daycare.appointmentId,
+    visitDate: daycare.appointmentDate,
+    visitTime: undefined,
+    visitType: "Day Care",
+    appointmentType: "Day Care",
+    status: daycare.status,
+    patientName: daycare.patient?.name,
+    patientTitle: daycare.patient?.title,
+    mrd: daycare.patient?.mrd,
+    age: daycare.patient?.age != null ? String(daycare.patient.age) : undefined,
+    gender: daycare.patient?.gender,
+    phone: daycare.patient?.phone,
+    doctorName: daycare.doctor?.name,
+    doctorDepartment: daycare.doctor?.department,
+    transactions: charges,
+    // Use subtotal as gross "Total" on receipt, so discount and final are computed correctly
+    totalAmount: daycare.subtotal ?? daycare.totalPrice ?? 0,
+    discount: daycare.discount ?? 0,
+    dueAmount,
+    paidAmount: daycare.amountPaid ?? 0,
+  };
+};
+
 const DaycareAppointmentDetailsComponent = () => {
   const params = useParams();
   const id = params?.id as string;
@@ -227,6 +314,7 @@ const DaycareAppointmentDetailsComponent = () => {
               Daycare Appointments
             </Link>
           </h6>
+          
           <button
             type="button"
             className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -242,7 +330,22 @@ const DaycareAppointmentDetailsComponent = () => {
           <div className="col-lg-7 pe-3">
             <div className="card mb-3">
               <div className="card-body p-3">
-                <h6 className="fw-bold text-primary mb-3">Daycare Information</h6>
+                <div className="d-flex justify-content-between align-items-center">
+                  <h6 className="fw-bold text-primary mb-3">Daycare Information</h6>
+                  <span
+                    className={`badge ${
+                      daycare.status === "Completed"
+                        ? "badge-soft-success"
+                        : daycare.status === "Cancelled"
+                        ? "badge-soft-danger"
+                        : daycare.status === "In Progress"
+                        ? "badge-soft-warning text-dark"
+                        : "badge-soft-primary"
+                    }`}
+                  >
+                    {daycare.status || "Scheduled"}
+                  </span>
+                </div>
                 <div className="row g-2 mb-3">
                   <div className="col-md-4">
                     <div className="mb-2">
@@ -250,6 +353,14 @@ const DaycareAppointmentDetailsComponent = () => {
                       <div className="fw-bold text-dark">{daycare.daycareId}</div>
                     </div>
                   </div>
+                  {daycare.patient?.mrd && (
+                    <div className="col-md-4">
+                      <div className="mb-2">
+                        <label className="form-label mb-1 fw-medium text-dark fs-14">MRD</label>
+                        <div className="fw-bold text-dark">{daycare.patient.mrd}</div>
+                      </div>
+                    </div>
+                  )}
                   <div className="col-md-4">
                     <div className="mb-2">
                       <label className="form-label mb-1 fw-medium text-dark fs-14">Appointment Date</label>
@@ -260,26 +371,7 @@ const DaycareAppointmentDetailsComponent = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14">Status</label>
-                      <div>
-                        <span
-                          className={`badge ${
-                            daycare.status === "Completed"
-                              ? "badge-soft-success"
-                              : daycare.status === "Cancelled"
-                              ? "badge-soft-danger"
-                              : daycare.status === "In Progress"
-                              ? "badge-soft-warning"
-                              : "badge-soft-primary"
-                          }`}
-                        >
-                          {daycare.status || "Scheduled"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  
                 </div>
                 <div className="row g-2 mb-1">
                   <div className="col-md-4">
@@ -288,25 +380,6 @@ const DaycareAppointmentDetailsComponent = () => {
                       <div className="fw-bold text-dark">{daycare.bedChargesType || "N/A"}</div>
                     </div>
                   </div>
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14">Procedures</label>
-                      <div className="fw-bold text-dark text-truncate">{primaryProceduresLabel}</div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
-                        Procedure Charges
-                      </label>
-                      <div className="fw-bold text-dark">
-                        ₹{(proceduresPrice ?? 0).toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row g-2 mb-1">
                   <div className="col-md-4">
                     <div className="mb-2">
                       <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
@@ -322,6 +395,20 @@ const DaycareAppointmentDetailsComponent = () => {
                       </div>
                     </div>
                   </div>
+                  <div className="col-md-4">
+                    <div className="mb-2">
+                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
+                        Procedure Charges
+                      </label>
+                      <div className="fw-bold text-dark">
+                        ₹{(proceduresPrice ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row g-2 mb-1">
+                 
                   <div className="col-md-4">
                     <div className="mb-2">
                       <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
@@ -346,7 +433,7 @@ const DaycareAppointmentDetailsComponent = () => {
 
                 {doctor && (
                   <>
-                    <h6 className="fw-bold text-primary mb-3">Doctor Details</h6>
+                    <h6 className="fw-bold text-primary ">Doctor Details</h6>
                     <div className="row g-2">
                       <div className="col-md-4">
                         <div className="mb-2">
@@ -378,6 +465,34 @@ const DaycareAppointmentDetailsComponent = () => {
                       )}
                     </div>
                   </>
+                )}
+
+                {daycare.procedures && daycare.procedures.length > 0 && (
+                  <div className="mt-3">
+                    <h6 className="fw-bold text-primary mb-2">Procedures</h6>
+                    <div className="table-responsive">
+                      <table className="table table-sm mb-0 text-dark">
+                        <thead>
+                          <tr>
+                            <th style={{ width: "60px" }} className="text-dark">S.No</th>
+                            <th className="text-dark">Procedure</th>
+                            <th className="text-end text-dark">Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {daycare.procedures.map((proc, index) => (
+                            <tr key={proc.procedureId || `${proc.procedureName}-${index}`}>
+                              <td className="text-dark">{index + 1}</td>
+                              <td className="text-dark">{proc.procedureName || "N/A"}</td>
+                              <td className="text-end text-dark">
+                                ₹{(proc.price ?? 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -445,75 +560,12 @@ const DaycareAppointmentDetailsComponent = () => {
         </div>
       </div>
       {/* Print Receipt */}
-      {showPrintReceipt && daycare && (() => {
-        const ageDisplay =
-          daycare.patient?.age != null
-            ? daycare.patient.age
-            : undefined;
-
-        const charges: IReceiptTransaction[] = [];
-        if (daycare.bedChargesTotal && daycare.bedChargesTotal > 0) {
-          charges.push({
-            _id: `${daycare._id}-bed`,
-            transactionId: "",
-            transactionType: `Bed Charges (${daycare.bedChargesType ?? "N/A"})`,
-            amount: daycare.bedChargesTotal,
-            paymentMode: "",
-            transactionDate: daycare.appointmentDate || daycare.createdAt || "",
-            createdAt: daycare.createdAt,
-          });
-        }
-        if (daycare.procedureChargesTotal && daycare.procedureChargesTotal > 0) {
-          charges.push({
-            _id: `${daycare._id}-proc`,
-            transactionId: "",
-            transactionType: "Procedure Charges",
-            amount: daycare.procedureChargesTotal,
-            paymentMode: "",
-            transactionDate: daycare.appointmentDate || daycare.createdAt || "",
-            createdAt: daycare.createdAt,
-          });
-        }
-        if (daycare.doctorVisitCharges && daycare.doctorChargesAmount && daycare.doctorChargesAmount > 0) {
-          charges.push({
-            _id: `${daycare._id}-doc`,
-            transactionId: "",
-            transactionType: "Doctor Visit Charges",
-            amount: daycare.doctorChargesAmount,
-            paymentMode: "",
-            transactionDate: daycare.appointmentDate || daycare.createdAt || "",
-            createdAt: daycare.createdAt,
-          });
-        }
-
-        const receiptData: IReceiptData = {
-          visitId: daycare.daycareId,
-          appointmentId: daycare.appointmentId,
-          visitDate: daycare.appointmentDate,
-          visitTime: undefined,
-          visitType: "Day Care",
-          appointmentType: "Day Care",
-          status: daycare.status,
-          patientName: daycare.patient?.name,
-          patientTitle: daycare.patient?.title,
-          mrd: daycare.patient?.mrd,
-          age: ageDisplay != null ? String(ageDisplay) : undefined,
-          gender: daycare.patient?.gender,
-          phone: daycare.patient?.phone,
-          doctorName: daycare.doctor?.name,
-          doctorDepartment: daycare.doctor?.department,
-          transactions: charges,
-          totalAmount: daycare.totalPrice ?? daycare.subtotal ?? 0,
-          discount: daycare.discount ?? 0,
-          dueAmount: dueAmount,
-        };
-        return (
-          <PrintReceipt
-            receiptData={receiptData}
-            onClose={() => setShowPrintReceipt(false)}
-          />
-        );
-      })()}
+      {showPrintReceipt && daycare && (
+        <PrintReceipt
+          receiptData={buildDaycareReceiptData(daycare, dueAmount)}
+          onClose={() => setShowPrintReceipt(false)}
+        />
+      )}
 
       {/* Add Transaction Modal */}
       {showAddTransaction && daycare && (
