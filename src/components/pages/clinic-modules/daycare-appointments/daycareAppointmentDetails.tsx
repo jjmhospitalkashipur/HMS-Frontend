@@ -36,6 +36,8 @@ interface IDaycareProcedure {
   procedureId: string;
   procedureName?: string;
   price?: number;
+  isDialysis?: boolean;
+  dialysisSessionId?: string;
 }
 
 interface IDaycareTransaction {
@@ -474,9 +476,14 @@ const DaycareAppointmentDetailsComponent = () => {
                       <table className="table table-sm mb-0 text-dark">
                         <thead>
                           <tr>
-                            <th style={{ width: "60px" }} className="text-dark">S.No</th>
+                            <th style={{ width: "60px" }} className="text-dark">
+                              S.No
+                            </th>
                             <th className="text-dark">Procedure</th>
                             <th className="text-end text-dark">Price</th>
+                            <th className="text-end text-dark" style={{ width: "140px" }}>
+                              Action
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -486,6 +493,18 @@ const DaycareAppointmentDetailsComponent = () => {
                               <td className="text-dark">{proc.procedureName || "N/A"}</td>
                               <td className="text-end text-dark">
                                 ₹{(proc.price ?? 0).toFixed(2)}
+                              </td>
+                              <td className="text-end">
+                                {proc.isDialysis ? (
+                                  <Link
+                                    href={`${all_routes.dialysisAppointment}?patientId=${daycare.patientId || ""}`}
+                                    className="btn btn-sm btn-outline-primary"
+                                  >
+                                    Dialysis
+                                  </Link>
+                                ) : (
+                                  <span className="text-muted fs-13">—</span>
+                                )}
                               </td>
                             </tr>
                           ))}
