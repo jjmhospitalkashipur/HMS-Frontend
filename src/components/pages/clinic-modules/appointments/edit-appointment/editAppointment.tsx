@@ -14,7 +14,6 @@ import {
   Gender,
   Visit_Type,
   Blood_Group,
-  Appointment_Type,
 } from "@/core/common/selectOption";
 
 interface IVisitTypeCharge {
@@ -742,35 +741,7 @@ const EditAppointmentComponent = () => {
                         />
                       </div>
                     </div>
-                    <div className="col-md-4">
-                      <div className="mb-3">
-                        <label className="form-label mb-2 fw-medium">Appointment Type</label>
-                        <div className="d-flex gap-3 flex-wrap">
-                          {Appointment_Type.map((type) => (
-                            <div key={type.value} className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="radio"
-                                name="editAppointmentType"
-                                id={`edit-apt-${type.value}`}
-                                value={type.value}
-                                checked={appointmentType === type.value}
-                                disabled={!canEditDoctorDetails}
-                                onChange={(e) => {
-                                  const newType = e.target.value;
-                                  setAppointmentType(newType);
-                                  if (newType !== "Day Care" && (paymentMode === "Govt backed" || paymentMode === "Insurance")) {
-                                    setPaymentMode("Cash");
-                                  }
-                                }}
-                              />
-                              <label className="form-check-label" htmlFor={`edit-apt-${type.value}`}>{type.label}</label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-8">
+                    <div className="col-12">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Visit Type</label>
                         <div className="d-flex gap-3 flex-wrap">
@@ -853,34 +824,6 @@ const EditAppointmentComponent = () => {
                             />
                             <label className="form-check-label" htmlFor="edit-card">Card</label>
                           </div>
-                          {appointmentType === "Day Care" && (
-                            <>
-                              <div className="form-check">
-                                <input
-                                  className="form-check-input"
-                                  type="radio"
-                                  name="editPaymentMode"
-                                  id="edit-govt-backed"
-                                  value="Govt backed"
-                                  checked={paymentMode === "Govt backed"}
-                                  onChange={(e) => setPaymentMode(e.target.value)}
-                                />
-                                <label className="form-check-label" htmlFor="edit-govt-backed">Govt backed</label>
-                              </div>
-                              <div className="form-check">
-                                <input
-                                  className="form-check-input"
-                                  type="radio"
-                                  name="editPaymentMode"
-                                  id="edit-insurance"
-                                  value="Insurance"
-                                  checked={paymentMode === "Insurance"}
-                                  onChange={(e) => setPaymentMode(e.target.value)}
-                                />
-                                <label className="form-check-label" htmlFor="edit-insurance">Insurance</label>
-                              </div>
-                            </>
-                          )}
                         </div>
                       </div>
                       <div className="mb-2 d-flex align-items-center">

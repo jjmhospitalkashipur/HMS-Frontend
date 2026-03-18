@@ -175,13 +175,16 @@ export const StatusCompleted = [
 ];
 export const Blood_Group = [
   { value: "Select", label: "Select" },
-  { value: "Not Known", label: "Not Known" },
-  { value: "O+", label: "O+" },
-  { value: "O-", label: "O-" },
   { value: "A+", label: "A+" },
-  { value: "A-", label: "A-" },
   { value: "B+", label: "B+" },
+  { value: "O+", label: "O+" },
+  { value: "A-", label: "A-" },
   { value: "B-", label: "B-" },
+  { value: "O-", label: "O-" },
+  { value: "AB+", label: "AB+" },
+  { value: "AB-", label: "AB-" },
+  { value: "HH", label: "HH" },
+  { value: "Not Known", label: "Not Known" },
 ];
 export const Gender = [
   { value: "Select", label: "Select" },

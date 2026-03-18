@@ -1735,8 +1735,7 @@ const NewAppointmentComponent = () => {
                             />
                           </div>
                         </div>
-                        {/* Appointment Type removed from OPD form as requested */}
-                        <div className="col-md-6">
+                        <div className="col-12">
                           <div className="mb-2">
                             <label className="form-label mb-1 fw-medium">
                               Visit Type<span className="text-danger ms-1">*</span>

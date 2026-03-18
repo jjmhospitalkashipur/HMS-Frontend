@@ -115,6 +115,9 @@ const EditDaycareAppointmentComponent = () => {
   const [amountPaidFromApi, setAmountPaidFromApi] = useState<number>(0);
 
   const [discount, setDiscount] = useState<number>(0);
+  const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
+  const [discountPassword, setDiscountPassword] = useState<string>("");
+  const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
   const [appointmentDate, setAppointmentDate] = useState<string>("");
 
   const bedChargesRate = bedChargesType?.value ? (BED_CHARGES_RATE[bedChargesType.value] ?? 0) : 0;
@@ -314,21 +317,17 @@ const EditDaycareAppointmentComponent = () => {
     setAddedProcedures((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!daycareId || !API_BASE_URL) return;
-    if (!selectedDoctor?.value) {
-      setError("Please select a doctor.");
-      return;
-    }
+  const doDaycareSubmit = async (discountPwd: string | undefined) => {
+    if (!daycareId || !API_BASE_URL || !selectedDoctor?.value) return;
     const bedChargesTypeLabel = bedChargesType?.label?.split("(")[0]?.trim() ?? "";
     const procedureIds = addedProcedures
       .map((p) => p.id)
       .filter((pid) => Boolean(pid) && procedurePriceById[pid] != null);
     const uniqueProcedureIds = Array.from(new Set(procedureIds));
+    const discountNum = Number(discount) || 0;
 
     setSubmitLoading(true);
+    setError("");
     try {
       const remainingAmount = Math.max(
         0,
@@ -337,17 +336,16 @@ const EditDaycareAppointmentComponent = () => {
       const payload = {
         ...(patientId && { patientId }),
         doctorId: selectedDoctor.value,
-        // New daycare fields
         daycareChargesType: bedChargesTypeLabel || undefined,
         daycareChargesHours: bedChargesHours || 1,
-        // Legacy fields for backward compatibility
         bedChargesType: bedChargesTypeLabel || undefined,
         bedChargesHours: bedChargesHours || 1,
         bedChargesRate: bedChargesRate || 0,
         procedureIds: uniqueProcedureIds,
         doctorVisitCharges: doctorVisitCharges === "Yes",
-        discount: discount ?? 0,
+        discount: discountNum,
         appointmentDate: appointmentDate || undefined,
+        ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
       const res = await axios.put(
         `${API_BASE_URL}/hospital/daycare-appointments/${daycareId}`,
@@ -379,6 +377,38 @@ const EditDaycareAppointmentComponent = () => {
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!daycareId || !API_BASE_URL) return;
+    if (!selectedDoctor?.value) {
+      setError("Please select a doctor.");
+      return;
+    }
+    if (discount > 0 && discountFieldChanged) {
+      setDiscountPassword("");
+      setShowDiscountPasswordDialog(true);
+      return;
+    }
+    void doDaycareSubmit(undefined);
+  };
+
+  const handleDiscountPasswordConfirm = () => {
+    if (!discountPassword.trim()) {
+      alert("Please enter the discount password.");
+      return;
+    }
+    setShowDiscountPasswordDialog(false);
+    setDiscountFieldChanged(false);
+    void doDaycareSubmit(discountPassword.trim());
+    setDiscountPassword("");
+  };
+
+  const handleDiscountPasswordCancel = () => {
+    setShowDiscountPasswordDialog(false);
+    setDiscountPassword("");
+  };
+
   const patientTitleLabel = patient?.title
     ? Title.find((t) => t.value === patient.title)?.label ?? patient.title
     : "";
@@ -398,6 +428,55 @@ const EditDaycareAppointmentComponent = () => {
 
   return (
     <div className="page-wrapper">
+      {showDiscountPasswordDialog && (
+        <div
+          className="modal fade show d-block"
+          id="edit-daycare-discount-password-modal"
+          tabIndex={-1}
+          aria-labelledby="edit-daycare-discount-password-label"
+          aria-modal="true"
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="edit-daycare-discount-password-label">
+                  Discount password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={handleDiscountPasswordCancel}
+                />
+              </div>
+              <div className="modal-body">
+                <label htmlFor="edit-daycare-discount-password-input" className="form-label">
+                  Enter password to apply discount
+                </label>
+                <input
+                  id="edit-daycare-discount-password-input"
+                  type="password"
+                  className="form-control"
+                  value={discountPassword}
+                  onChange={(e) => setDiscountPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={(e) => e.key === "Enter" && handleDiscountPasswordConfirm()}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={handleDiscountPasswordCancel}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleDiscountPasswordConfirm}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="content">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h4 className="fw-bold mb-0">Edit Daycare Appointment</h4>
@@ -818,7 +897,10 @@ const EditDaycareAppointmentComponent = () => {
                           className="form-control text-end"
                           style={{ maxWidth: "100px", fontSize: "16px" }}
                           value={discount || ""}
-                          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            setDiscount(parseFloat(e.target.value) || 0);
+                            setDiscountFieldChanged(true);
+                          }}
                           min={0}
                         />
                       </div>

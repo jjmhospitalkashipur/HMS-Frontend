@@ -189,7 +189,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                   <td className="info-label-cell">Patient Name:</td>
                   <td className="info-value-cell">{patientName}</td>
                   <td className="info-label-cell">Case ID:</td>
-                  <td className="info-value-cell info-value-cell-narrow">{receiptData.appointmentId ?? "—"}</td>
+                  <td className="info-value-cell info-value-cell-narrow">{receiptData.visitId ?? "—"}</td>
                 </tr>
               </tbody>
             </table>
