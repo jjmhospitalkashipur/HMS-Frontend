@@ -417,7 +417,7 @@ const Modals = ({ onEditSuccess }: IModalsProps) => {
                     <div className="mb-3">
                       <div className="d-flex align-items-end gap-2 flex-wrap">
                         <div style={{ width: "62%", minWidth: 0 }}>
-                          <label className="form-label fw-medium d-block">Bed Charges Type</label>
+                          <label className="form-label fw-medium d-block">Daycare Charges Type</label>
                           <CommonSelect
                             options={BED_CHARGES_OPTIONS}
                             value={bedChargesType}

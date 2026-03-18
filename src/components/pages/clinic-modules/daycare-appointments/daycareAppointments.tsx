@@ -35,6 +35,8 @@ interface IDaycareAppointment {
   daycareId: string;
   patientId: string;
   doctorId: string;
+  daycareChargesType?: string;
+  daycareChargesTotal?: number;
   bedChargesType?: string;
   bedChargesTotal?: number;
   procedures?: IDaycareProcedure[];
@@ -65,7 +67,7 @@ interface IRow {
   DoctorDesignation?: string;
   Department: string;
   DepartmentName?: string;
-  Procedures: string;
+  Procedures: string[];
   Total: number;
   Status: string;
   Payment_Status: string;
@@ -105,15 +107,15 @@ const DaycareAppointmentsComponent = () => {
               : "";
             const doctorName = item.doctor?.name ?? "";
             const doctorDesignation = item.doctor?.designation ?? "";
-            const dept = item.bedChargesType || "";
+            const dept = item.daycareChargesType || item.bedChargesType || "";
             const deptName = item.doctor?.department || "";
             const patientName = item.patient?.name ?? "";
             const age = item.patient?.age;
             const gender = item.patient?.gender;
-            const proceduresLabel =
+            const proceduresList =
               item.procedures && item.procedures.length
-                ? item.procedures.map((p) => p.procedureName || "").filter(Boolean).join(", ")
-                : "";
+                ? item.procedures.map((p) => p.procedureName || "").filter(Boolean)
+                : [];
 
             return {
               id: item._id,
@@ -127,7 +129,7 @@ const DaycareAppointmentsComponent = () => {
               DoctorDesignation: doctorDesignation,
               Department: dept,
               DepartmentName: deptName,
-              Procedures: proceduresLabel,
+              Procedures: proceduresList,
               Total: item.totalPrice ?? 0,
               Status: item.status || "",
               Payment_Status: item.paymentStatus || "",
@@ -235,6 +237,19 @@ const DaycareAppointmentsComponent = () => {
       dataIndex: "Procedures",
       sorter: false,
       showSorterTooltip: false,
+      render: (_: unknown, record: IRow) => {
+        const procedures = record.Procedures ?? [];
+        if (!procedures.length) return "-";
+        return (
+          <div className="d-flex flex-column gap-1 text-dark">
+            {procedures.map((name, idx) => (
+              <span key={`${name}-${idx}`} className="fs-13">
+                {name}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       title: "Total",
@@ -308,7 +323,7 @@ const DaycareAppointmentsComponent = () => {
             </div>
             <div className="text-end d-flex">
               <Link
-                href={all_routes.newAppointment}
+                href={`${all_routes.newAppointment}?tab=daycare`}
                 className="btn btn-primary ms-2 fs-13 btn-md"
               >
                 <i className="ti ti-plus me-1" />

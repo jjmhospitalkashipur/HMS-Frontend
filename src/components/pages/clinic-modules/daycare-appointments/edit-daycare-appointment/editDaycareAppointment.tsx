@@ -66,6 +66,9 @@ interface IDaycareDetail {
   _id: string;
   patientId: string;
   doctorId: string;
+  daycareChargesType?: string;
+  daycareChargesHours?: number;
+  daycareChargesRate?: number;
   bedChargesType?: string;
   bedChargesHours?: number;
   bedChargesRate?: number;
@@ -215,16 +218,20 @@ const EditDaycareAppointmentComponent = () => {
           setSelectedDoctor(null);
         }
 
-        const bt = (data.bedChargesType ?? "").toLowerCase();
+        const bt = (data.daycareChargesType ?? data.bedChargesType ?? "").toLowerCase();
         const bedOption =
           BED_CHARGES_OPTIONS.find(
             (o) =>
               o.value === bt ||
-              o.label.toLowerCase().startsWith((data.bedChargesType ?? "").toLowerCase())
+              o.label.toLowerCase().startsWith((data.daycareChargesType ?? data.bedChargesType ?? "").toLowerCase())
           ) ?? BED_CHARGES_OPTIONS[0];
         setBedChargesType(bedOption);
         setBedChargesHours(
-          data.bedChargesHours != null && data.bedChargesHours > 0 ? data.bedChargesHours : 1
+          (data as any).daycareChargesHours != null && (data as any).daycareChargesHours > 0
+            ? (data as any).daycareChargesHours
+            : data.bedChargesHours != null && data.bedChargesHours > 0
+            ? data.bedChargesHours
+            : 1
         );
         setDoctorVisitCharges(data.doctorVisitCharges ? "Yes" : "No");
 
@@ -330,6 +337,10 @@ const EditDaycareAppointmentComponent = () => {
       const payload = {
         ...(patientId && { patientId }),
         doctorId: selectedDoctor.value,
+        // New daycare fields
+        daycareChargesType: bedChargesTypeLabel || undefined,
+        daycareChargesHours: bedChargesHours || 1,
+        // Legacy fields for backward compatibility
         bedChargesType: bedChargesTypeLabel || undefined,
         bedChargesHours: bedChargesHours || 1,
         bedChargesRate: bedChargesRate || 0,
@@ -619,7 +630,7 @@ const EditDaycareAppointmentComponent = () => {
                           <div className="d-flex align-items-end gap-2 flex-wrap">
                             <div style={{ width: "62%", minWidth: 0 }}>
                               <label className="form-label mb-1 fw-medium d-block">
-                                Bed Charges Type
+                                Daycare Charges Type
                               </label>
                               <CommonSelect
                                 options={BED_CHARGES_OPTIONS}

@@ -58,6 +58,9 @@ interface IDaycareAppointmentDetail {
   bedChargesType?: string;
   bedChargesHours?: number;
   bedChargesTotal?: number;
+  daycareChargesType?: string;
+  daycareChargesHours?: number;
+  daycareChargesTotal?: number;
   procedures?: IDaycareProcedure[];
   procedureChargesTotal?: number;
   doctorVisitCharges?: boolean;
@@ -82,12 +85,15 @@ const buildDaycareReceiptData = (
 ): IReceiptData => {
   const charges: IReceiptTransaction[] = [];
 
-  const bedTotal = daycare.bedChargesTotal ?? 0;
+  const bedTotal =
+    daycare.daycareChargesTotal ??
+    daycare.bedChargesTotal ??
+    0;
   if (bedTotal > 0) {
     charges.push({
       _id: `${daycare._id}-bed`,
       transactionId: "",
-      transactionType: `Bed Charges (${daycare.bedChargesType ?? "N/A"})`,
+      transactionType: `Daycare Charges (${daycare.daycareChargesType ?? daycare.bedChargesType ?? "N/A"})`,
       amount: bedTotal,
       paymentMode: "",
       transactionDate: daycare.appointmentDate || daycare.createdAt || "",
@@ -259,7 +265,10 @@ const DaycareAppointmentDetailsComponent = () => {
     (daycare.procedures && daycare.procedures.length
       ? daycare.procedures[0].price ?? 0
       : 0);
-  const bedChargesPrice = daycare.bedChargesTotal ?? 0;
+  const bedChargesPrice =
+    daycare.daycareChargesTotal ??
+    daycare.bedChargesTotal ??
+    0;
   const doctorChargesPrice = daycare.doctorChargesAmount ?? 0;
 
   const handleAddTransaction = async () => {
@@ -378,20 +387,25 @@ const DaycareAppointmentDetailsComponent = () => {
                 <div className="row g-2 mb-1">
                   <div className="col-md-4">
                     <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14">Bed Type</label>
-                      <div className="fw-bold text-dark">{daycare.bedChargesType || "N/A"}</div>
+                      <label className="form-label mb-1 fw-medium text-dark fs-14">
+                        Daycare Charges Type
+                      </label>
+                      <div className="fw-bold text-dark">
+                        {daycare.daycareChargesType || daycare.bedChargesType || "N/A"}
+                      </div>
                     </div>
                   </div>
                   <div className="col-md-4">
                     <div className="mb-2">
                       <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
-                        Bed Charges
+                        Daycare Charges
                       </label>
                       <div className="fw-bold text-dark">
                         ₹{bedChargesPrice.toFixed(2)}
-                        {daycare.bedChargesHours != null && daycare.bedChargesHours > 0 && (
+                        {(daycare.daycareChargesHours ?? daycare.bedChargesHours) != null &&
+                          (daycare.daycareChargesHours ?? daycare.bedChargesHours)! > 0 && (
                           <span className="fs-13 text-muted ms-1">
-                            ({daycare.bedChargesHours} hrs)
+                            ({daycare.daycareChargesHours ?? daycare.bedChargesHours} hrs)
                           </span>
                         )}
                       </div>

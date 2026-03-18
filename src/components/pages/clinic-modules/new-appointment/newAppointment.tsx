@@ -18,7 +18,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 
 interface IVisitTypeCharge {
@@ -63,6 +63,7 @@ interface IPatient {
 
 const NewAppointmentComponent = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // Patient form state
   const [phone, setPhone] = useState<string>("");
@@ -101,7 +102,10 @@ const NewAppointmentComponent = () => {
   const [attendantRelation, setAttendantRelation] = useState<string>("");
 
   // Tab: OPD | Daycare (separate forms)
-  const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare">("OPD");
+  const tabParam = searchParams?.get("tab")?.toLowerCase();
+  const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare">(
+    tabParam === "daycare" ? "Daycare" : "OPD"
+  );
 
   // Daycare form state (separate from OPD)
   const [daycarePhone, setDaycarePhone] = useState<string>("");
@@ -828,6 +832,10 @@ const NewAppointmentComponent = () => {
           {
             patientId: daycareSelectedPatient._id,
             doctorId: daycareSelectedDoctor.value,
+            // new API fields
+            daycareChargesType: bedChargesTypeLabel || undefined,
+            daycareChargesHours: daycareBedChargesHours || 1,
+            // old fields kept for backward compatibility
             bedChargesType: bedChargesTypeLabel || undefined,
             bedChargesHours: daycareBedChargesHours || 1,
             bedChargesRate: daycareBedChargesRate || 0,
@@ -868,6 +876,8 @@ const NewAppointmentComponent = () => {
           {
             patient: patientPayload,
             doctorId: daycareSelectedDoctor.value,
+            daycareChargesType: bedChargesTypeLabel || undefined,
+            daycareChargesHours: daycareBedChargesHours || 1,
             bedChargesType: bedChargesTypeLabel || undefined,
             bedChargesHours: daycareBedChargesHours || 1,
             bedChargesRate: daycareBedChargesRate || 0,
@@ -2248,7 +2258,7 @@ const NewAppointmentComponent = () => {
                             </div>
                             <div className="border rounded overflow-hidden">
                               <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom bg-light">
-                                <span className="fw-medium">Bed Charges</span>
+                                <span className="fw-medium">Daycare Charges</span>
                                 <span className="text-end">{daycareBedCharges}</span>
                               </div>
                               {daycareAddedProcedures.length > 0 && (
