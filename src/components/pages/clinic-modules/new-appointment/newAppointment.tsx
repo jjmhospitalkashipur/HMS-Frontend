@@ -1845,43 +1845,11 @@ const NewAppointmentComponent = () => {
                               Card
                             </label>
                           </div>
-                          {appointmentType === "Day Care" && (
-                            <>
-                              <div className="form-check">
-                                <input
-                                  className="form-check-input"
-                                  type="radio"
-                                  name="paymentMode"
-                                  id="govt-backed"
-                                  value="Govt backed"
-                                  checked={paymentMode === "Govt backed"}
-                                  onChange={(e) => setPaymentMode(e.target.value)}
-                                />
-                                <label className="form-check-label" htmlFor="govt-backed">
-                                  Govt backed
-                                </label>
-                              </div>
-                              <div className="form-check">
-                                <input
-                                  className="form-check-input"
-                                  type="radio"
-                                  name="paymentMode"
-                                  id="insurance"
-                                  value="Insurance"
-                                  checked={paymentMode === "Insurance"}
-                                  onChange={(e) => setPaymentMode(e.target.value)}
-                                />
-                                <label className="form-check-label" htmlFor="insurance">
-                                  Insurance
-                                </label>
-                              </div>
-                            </>
-                          )}
                         </div>
                       </div>
                       <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Total</label>
-                        <div className="form-control bg-light" style={{ pointerEvents: "none" }}>
+                        <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
                           ₹{total.toFixed(2)}
                         </div>
                       </div>
@@ -1889,7 +1857,7 @@ const NewAppointmentComponent = () => {
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Discount</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className="form-control fs-15"
                           placeholder="0"
                           value={discount || ""}
                           onChange={(e) => {
@@ -1901,7 +1869,7 @@ const NewAppointmentComponent = () => {
                       </div>
                       <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Final Amount</label>
-                        <div className="form-control bg-light" style={{ pointerEvents: "none" }}>
+                        <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
                           ₹{finalAmount.toFixed(2)}
                         </div>
                       </div>
@@ -1909,7 +1877,7 @@ const NewAppointmentComponent = () => {
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Amount Received</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className="form-control fs-15"
                           placeholder="0"
                           value={amountReceived || ""}
                           onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
@@ -1919,7 +1887,7 @@ const NewAppointmentComponent = () => {
                       <div className="mb-2 d-flex align-items-center">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Balance</label>
                         <div
-                          className="form-control d-flex align-items-center justify-content-between"
+                          className="form-control d-flex align-items-center justify-content-between fs-15"
                           style={{
                             pointerEvents: "none",
                             backgroundColor: "#fff3cd",
@@ -2248,56 +2216,98 @@ const NewAppointmentComponent = () => {
                         <div className="card h-100">
                           <div className="card-body p-3">
                             <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
-                            <div className="mb-3 d-flex align-items-center flex-wrap gap-2">
-                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Payment Mode</label>
-                              <div className="d-flex gap-3 flex-wrap">
-                                <div className="form-check"><input className="form-check-input" type="radio" name="daycarePaymentMode" value="Cash" checked={daycarePaymentMode === "Cash"} onChange={(e) => setDaycarePaymentMode(e.target.value)} /><label className="form-check-label">Cash</label></div>
-                                <div className="form-check"><input className="form-check-input" type="radio" name="daycarePaymentMode" value="UPI" checked={daycarePaymentMode === "UPI"} onChange={(e) => setDaycarePaymentMode(e.target.value)} /><label className="form-check-label">UPI</label></div>
-                                <div className="form-check"><input className="form-check-input" type="radio" name="daycarePaymentMode" value="Card" checked={daycarePaymentMode === "Card"} onChange={(e) => setDaycarePaymentMode(e.target.value)} /><label className="form-check-label">Card</label></div>
+                            <div className="mb-2 d-flex align-items-center flex-wrap gap-2">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
+                                Payment Mode
+                              </label>
+                              <div className="d-flex gap-3 flex-wrap ms-auto justify-content-end">
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="daycarePaymentMode"
+                                    id="daycare-cash"
+                                    value="Cash"
+                                    checked={daycarePaymentMode === "Cash"}
+                                    onChange={(e) => setDaycarePaymentMode(e.target.value)}
+                                  />
+                                  <label className="form-check-label" htmlFor="daycare-cash">Cash</label>
+                                </div>
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="daycarePaymentMode"
+                                    id="daycare-upi"
+                                    value="UPI"
+                                    checked={daycarePaymentMode === "UPI"}
+                                    onChange={(e) => setDaycarePaymentMode(e.target.value)}
+                                  />
+                                  <label className="form-check-label" htmlFor="daycare-upi">UPI</label>
+                                </div>
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="daycarePaymentMode"
+                                    id="daycare-card"
+                                    value="Card"
+                                    checked={daycarePaymentMode === "Card"}
+                                    onChange={(e) => setDaycarePaymentMode(e.target.value)}
+                                  />
+                                  <label className="form-check-label" htmlFor="daycare-card">Card</label>
+                                </div>
                               </div>
                             </div>
-                            <div className="border rounded overflow-hidden">
-                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom bg-light">
-                                <span className="fw-medium">Daycare Charges</span>
-                                <span className="text-end">{daycareBedCharges}</span>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Total</label>
+                              <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
+                                ₹{daycareSubtotal.toFixed(2)}
                               </div>
-                              {daycareAddedProcedures.length > 0 && (
-                                <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
-                                  <span className="fw-medium">Procedures Charges</span>
-                                  <span className="text-end">{daycareProceduresCharges}</span>
-                                </div>
-                              )}
-                              {daycareDoctorVisitCharges === "Yes" && (
-                                <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
-                                  <span className="fw-medium">Doc Visit Charges</span>
-                                  <span className="text-end">{daycareDocVisitCharges}</span>
-                                </div>
-                              )}
-                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
-                                <span className="fw-medium">SubTotal</span>
-                                <span className="text-end">{daycareSubtotal}</span>
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Discount</label>
+                              <input
+                                type="number"
+                                className="form-control fs-15"
+                                placeholder="0"
+                                value={daycareDiscount || ""}
+                                onChange={(e) => {
+                                  setDaycareDiscount(parseFloat(e.target.value) || 0);
+                                  setDaycareDiscountFieldChanged(true);
+                                }}
+                                min="0"
+                              />
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Final Amount</label>
+                              <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
+                                ₹{(daycareSubtotal - (daycareDiscount || 0)).toFixed(2)}
                               </div>
-                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom gap-2">
-                                <span className="fw-medium">Discount</span>
-                                <input
-                                  type="number"
-                                  className="form-control form-control-sm text-end"
-                                  style={{ maxWidth: "100px" }}
-                                  value={daycareDiscount || ""}
-                                  onChange={(e) => {
-                                    setDaycareDiscount(parseFloat(e.target.value) || 0);
-                                    setDaycareDiscountFieldChanged(true);
-                                  }}
-                                  min="0"
-                                />
-                              </div>
-                              <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom gap-2">
-                                <span className="fw-medium">Amount Received</span>
-                                <input type="number" className="form-control form-control-sm text-end" style={{ maxWidth: "100px" }} placeholder="0" value={daycareAmountReceived || ""} onChange={(e) => setDaycareAmountReceived(parseFloat(e.target.value) || 0)} min="0" />
-                              </div>
-                              <div className="d-flex justify-content-between align-items-center px-2 py-2 fw-bold" style={{ backgroundColor: "#FFF7DB" }}>
-                                <span>Balance</span>
-                                <span className="text-end">{Math.round(daycareBalance)}</span>
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Amount Received</label>
+                              <input
+                                type="number"
+                                className="form-control fs-15"
+                                placeholder="0"
+                                value={daycareAmountReceived || ""}
+                                onChange={(e) => setDaycareAmountReceived(parseFloat(e.target.value) || 0)}
+                                min="0"
+                              />
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Balance</label>
+                              <div
+                                className="form-control d-flex align-items-center justify-content-between fs-15"
+                                style={{
+                                  pointerEvents: "none",
+                                  backgroundColor: "#fff3cd",
+                                  borderColor: "#ffc107",
+                                }}
+                              >
+                                <span>₹{daycareBalance.toFixed(2)}</span>
+                                <i className="ti ti-alert-triangle text-warning fs-16" />
                               </div>
                             </div>
                           </div>
