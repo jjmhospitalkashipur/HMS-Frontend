@@ -50,12 +50,6 @@ const PatientDahboardComponent = () => {
                       <h3 className="fw-bold mb-0">24</h3>
                     </div>
                   </div>
-                  <div className="d-flex align-items-center">
-                    <span className="badge fw-medium bg-success flex-shrink-0 me-2">
-                      +95%
-                    </span>
-                    <p className="fs-13 mb-0">in last 7 Days </p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -73,12 +67,6 @@ const PatientDahboardComponent = () => {
                       <h3 className="fw-bold mb-0">36</h3>
                     </div>
                   </div>
-                  <div className="d-flex align-items-center">
-                    <span className="badge fw-medium bg-danger flex-shrink-0 me-2">
-                      -15%
-                    </span>
-                    <p className="fs-13 mb-0">in last 7 Days</p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -90,9 +78,6 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div>
                       <p className="mb-1 text-truncate">Blood Pressure</p>
-                      <span className="badge fw-medium bg-success flex-shrink-0 me-2">
-                        +95%
-                      </span>
                     </div>
                     <div className="d-flex align-items-center">
                       <h3 className="fw-bold mb-0 me-1">89</h3>
@@ -113,9 +98,6 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div>
                       <p className="mb-1 text-truncate">Heart Rate</p>
-                      <span className="badge fw-medium bg-success flex-shrink-0 me-2">
-                        +95%
-                      </span>
                     </div>
                     <div className="d-flex align-items-center">
                       <h3 className="fw-bold mb-0 me-1">87</h3>

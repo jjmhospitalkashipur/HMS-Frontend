@@ -8,6 +8,7 @@ import SCol3Chart from "../chats/scol3";
 import SCol4Chart from "../chats/scol4";
 import SCol19Chart from "../chats/scol19";
 import CircleChart from "../chats/circleChart";
+import RevenueChart from "../chats/revenueChart";
 import { Calendar, type CalendarProps } from "antd";
 import type { Dayjs } from "dayjs";
 import Link from "next/link";
@@ -131,7 +132,7 @@ const DashboardComponent = () => {
 
   const [visitStatsSummary, setVisitStatsSummary] = useState<IVisitStatsSummary>({ all: 0, scheduled: 0, inProgress: 0, completed: 0, cancelled: 0, noShow: 0 });
   const [visitStatsPeriodData, setVisitStatsPeriodData] = useState<IVisitStatsPeriodData[]>([]);
-  const [visitStatsPeriod, setVisitStatsPeriod] = useState<"month" | "week" | "year">("month");
+  const [visitStatsPeriod, setVisitStatsPeriod] = useState<"daily" | "week" | "month" | "year">("month");
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -262,12 +263,6 @@ const DashboardComponent = () => {
     { name: "No Show", data: visitStatsPeriodData.map((d) => d.noShow) },
   ];
 
-  const getGrowthBadgeClass = (growthRate: string) => {
-    if (!growthRate) return "bg-secondary";
-    const isPositive = !growthRate.startsWith("-");
-    return isPositive ? "bg-success" : "bg-danger";
-  };
-
   const formatRevenue = (total: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(total);
 
@@ -311,20 +306,10 @@ const DashboardComponent = () => {
             <div className="col-xl-3 col-md-6">
               <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
-                  <div className="d-flex align-items-center mb-2 justify-content-between">
+                  <div className="d-flex align-items-center mb-2">
                     <span className="avatar bg-primary rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
-                    <div className="text-end">
-                      {overviewLoading ? (
-                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
-                      ) : (
-                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.doctors?.growthRate ?? "")}`}>
-                          {overview?.doctors?.growthRate ?? "—"}
-                        </span>
-                      )}
-                      <p className="fs-13 mb-0">in last 7 Days </p>
-                    </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
@@ -350,20 +335,10 @@ const DashboardComponent = () => {
             <div className="col-xl-3 col-md-6">
               <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
-                  <div className="d-flex align-items-center mb-2 justify-content-between">
+                  <div className="d-flex align-items-center mb-2">
                     <span className="avatar bg-danger rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
-                    <div className="text-end">
-                      {overviewLoading ? (
-                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
-                      ) : (
-                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.patients?.growthRate ?? "")}`}>
-                          {overview?.patients?.growthRate ?? "—"}
-                        </span>
-                      )}
-                      <p className="fs-13 mb-0">in last 7 Days </p>
-                    </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
@@ -383,20 +358,10 @@ const DashboardComponent = () => {
             <div className="col-xl-3 col-md-6">
               <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
-                  <div className="d-flex align-items-center mb-2 justify-content-between">
+                  <div className="d-flex align-items-center mb-2">
                     <span className="avatar bg-info rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
-                    <div className="text-end">
-                      {overviewLoading ? (
-                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
-                      ) : (
-                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.visits?.growthRate ?? "")}`}>
-                          {overview?.visits?.growthRate ?? "—"}
-                        </span>
-                      )}
-                      <p className="fs-13 mb-0">in last 7 Days </p>
-                    </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
@@ -416,20 +381,10 @@ const DashboardComponent = () => {
             <div className="col-xl-3 col-md-6">
               <div className="border card rounded-2 shadow-sm">
                 <div className="card-body">
-                  <div className="d-flex align-items-center mb-2 justify-content-between">
+                  <div className="d-flex align-items-center mb-2">
                     <span className="avatar bg-success rounded-circle">
                       <i className="ti ti-calendar-heart fs-24" />
                     </span>
-                    <div className="text-end">
-                      {overviewLoading ? (
-                        <span className="badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 bg-secondary">—</span>
-                      ) : (
-                        <span className={`badge px-2 py-1 fs-12 fw-medium d-inline-flex mb-1 ${getGrowthBadgeClass(overview?.revenue?.growthRate ?? "")}`}>
-                          {overview?.revenue?.growthRate ?? "—"}
-                        </span>
-                      )}
-                      <p className="fs-13 mb-0">in last 7 Days </p>
-                    </div>
                   </div>
                   <div className="d-flex align-items-center justify-content-between overflow-hidden">
                     <div>
@@ -464,11 +419,12 @@ const DashboardComponent = () => {
                       className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
                       data-bs-toggle="dropdown"
                     >
-                      {visitStatsPeriod === "month" ? "Monthly" : visitStatsPeriod === "week" ? "Weekly" : "Yearly"} <i className="ti ti-chevron-down ms-1" />
+                      {visitStatsPeriod === "daily" ? "Daily" : visitStatsPeriod === "week" ? "Weekly" : visitStatsPeriod === "month" ? "Monthly" : "Yearly"} <i className="ti ti-chevron-down ms-1" />
                     </button>
                     <ul className="dropdown-menu">
-                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("month")}>Monthly</button></li>
+                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("daily")}>Daily</button></li>
                       <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("week")}>Weekly</button></li>
+                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("month")}>Monthly</button></li>
                       <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("year")}>Yearly</button></li>
                     </ul>
                   </div>
@@ -522,86 +478,15 @@ const DashboardComponent = () => {
             {/* col end */}
           </div>
           {/* end row - chart only */}
-          {/* start row - Income By Treatment + Recent Transactions */}
-          <div className="row">
-            {/* col start */}
-            <div className="col-xl-6 col-lg-6 d-flex">
-              <div className="card shadow-sm flex-fill w-100">
-                <div className="card-header d-flex align-items-center justify-content-between">
-                  <h5 className="fw-bold mb-0">Income By Treatment</h5>
-                  <div className="dropdown">
-                    <Link
-                      href="#"
-                      className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
-                      data-bs-toggle="dropdown"
-                    >
-                      Weekly <i className="ti ti-chevron-down ms-1" />
-                    </Link>
-                    <ul className="dropdown-menu">
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Monthly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Weekly
-                        </Link>
-                      </li>
-                      <li>
-                        <Link className="dropdown-item" href="#">
-                          Yearly
-                        </Link>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <div className="card-body">
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <div>
-                        <p className="fw-semibold mb-1 text-dark">Cardiology</p>
-                        <p className="mb-0">4,556 Apointments</p>
-                      </div>
-                      <h6 className="fw-bold mb-0">₹5,985</h6>
-                    </div>
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <div>
-                        <p className="fw-semibold mb-1 text-dark">Radiology</p>
-                        <p className="mb-0">4,125 Apointments</p>
-                      </div>
-                      <h6 className="fw-bold mb-0">₹5,194</h6>
-                    </div>
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <div>
-                        <p className="fw-semibold mb-1 text-dark">
-                          Dental Surgery
-                        </p>
-                        <p className="mb-0">1,796 Apointments</p>
-                      </div>
-                      <h6 className="fw-bold mb-0">₹2,716</h6>
-                    </div>
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <div>
-                        <p className="fw-semibold mb-1 text-dark">Orthopaedics</p>
-                        <p className="mb-0">3,827 Apointments</p>
-                      </div>
-                      <h6 className="fw-bold mb-0">₹4,682</h6>
-                    </div>
-                    <div className="d-flex align-items-center justify-content-between mb-0">
-                      <div>
-                        <p className="fw-semibold mb-1 text-dark">
-                          General Medicine
-                        </p>
-                        <p className="mb-0">9,894 Apointments</p>
-                      </div>
-                      <h6 className="fw-bold mb-0">₹9,450</h6>
-                    </div>
-                </div>
-              </div>
+          {/* Revenue Statistics */}
+          <div className="row mb-3">
+            <div className="col-12">
+              <RevenueChart />
             </div>
-            {/* col end */}
-            {/* col start */}
-            <div className="col-xl-6 col-lg-6 d-flex">
+          </div>
+          {/* start row - Recent Transactions */}
+          <div className="row">
+            <div className="col-12 d-flex">
               <div className="card shadow-sm flex-fill w-100">
                 <div className="card-header">
                   <h5 className="fw-bold mb-0">Recent Transactions</h5>
@@ -712,7 +597,6 @@ const DashboardComponent = () => {
             </div>
           </div>
           {/* row end */}
-          {/* row start - duplicate Recent Transactions removed (now shown beside Income By Treatment) */}
         </div>
         {/* End Content */}
         {/* Footer Start */}

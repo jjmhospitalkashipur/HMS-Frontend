@@ -184,12 +184,12 @@ const Sidebar = () => {
       >
         {/* Start Logo - JJM Hospital + collapse button in same row */}
         <div className="sidebar-logo d-flex align-items-center justify-content-between gap-2">
-          <Link href={all_routes.dashboard} className="logo logo-normal d-flex align-items-center gap-2 min-w-0 flex-grow-1 text-decoration-none">
+          <div className="logo logo-normal d-flex align-items-center gap-2 min-w-0 flex-grow-1 text-decoration-none">
             <span className="avatar rounded flex-shrink-0 p-1 overflow-hidden bg-white d-flex align-items-center justify-content-center" style={{ width: 52, height: 52 }}>
               <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
             </span>
             <span className="fs-14 fw-semibold text-dark text-truncate">JJM Hospital</span>
-          </Link>
+          </div>
          
           <button
             className="sidenav-toggle-btn btn border-0 p-0 active flex-shrink-0"

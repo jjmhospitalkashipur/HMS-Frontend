@@ -13,6 +13,29 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 
+interface IPathlabCase {
+  _id: string;
+  caseId: string;
+  status?: string;
+  createdAt?: string;
+  totalAmount?: number;
+  finalAmount?: number;
+  amountStatus?: string;
+}
+
+interface IPatientTransaction {
+  _id: string;
+  transactionId: string;
+  visitId?: string;
+  transactionType: string;
+  amount: number;
+  paymentMode: string;
+  referenceNo?: string;
+  transactionDate: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface IPatient {
   _id: string;
   mrd: string;
@@ -34,6 +57,7 @@ interface IPatient {
   dob?: string;
   createdAt?: string;
   updatedAt?: string;
+  pathlabCases?: IPathlabCase[];
 }
 
 interface IVisit {
@@ -94,6 +118,8 @@ const PatientDetailsComponent = () => {
   const [dialysisSessions, setDialysisSessions] = useState<IDialysisSession[]>([]);
   const [dialysisLoading, setDialysisLoading] = useState<boolean>(false);
   const [dialysisStatusUpdatingId, setDialysisStatusUpdatingId] = useState<string | null>(null);
+  const [patientTransactions, setPatientTransactions] = useState<IPatientTransaction[]>([]);
+  const [patientTransactionsLoading, setPatientTransactionsLoading] = useState<boolean>(false);
 
   const handleSearch = (value: string) => {
     setSearchText(value);
@@ -104,6 +130,7 @@ const PatientDetailsComponent = () => {
       fetchPatientDetails();
       fetchAppointments();
       fetchDialysisSessions();
+      fetchPatientTransactions();
     }
   }, [patientId]);
 
@@ -208,6 +235,31 @@ const PatientDetailsComponent = () => {
       setDialysisSessions([]);
     } finally {
       setDialysisLoading(false);
+    }
+  };
+
+  const fetchPatientTransactions = async () => {
+    if (!patientId || !API_BASE_URL) return;
+    try {
+      setPatientTransactionsLoading(true);
+      const response = await axios.get(
+        `${API_BASE_URL}/hospital/transactions/${patientId}`
+      );
+      if (response.data?.code === 200) {
+        const raw = response.data?.data ?? response.data;
+        const list = Array.isArray(raw?.transactions)
+          ? raw.transactions
+          : Array.isArray(raw)
+          ? raw
+          : [];
+        setPatientTransactions(list as IPatientTransaction[]);
+      } else {
+        setPatientTransactions([]);
+      }
+    } catch {
+      setPatientTransactions([]);
+    } finally {
+      setPatientTransactionsLoading(false);
     }
   };
 
@@ -659,6 +711,16 @@ const PatientDetailsComponent = () => {
                 className="nav-link bg-transparent"
               >
                 <span>Dialysis</span>
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link
+                href="#pathlab-cases"
+                data-bs-toggle="tab"
+                aria-expanded="false"
+                className="nav-link bg-transparent"
+              >
+                <span>Pathlab Cases</span>
               </Link>
             </li>
           </ul>
@@ -1685,160 +1747,54 @@ const PatientDetailsComponent = () => {
               {/*  End Filter */}
               {/*  Start Table */}
               <div className="table-responsive">
-                <table className="table table-nowrap datatable">
-                  <thead className="thead-light">
-                    <tr>
-                      <th className="no-sort">Transaction ID</th>
-                      <th>Description</th>
-                      <th>Paid Date</th>
-                      <th>Payment Method</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0025</Link>
-                      </td>
-                      <td className="text-dark"> General Consultation </td>
-                      <td className="text-dark"> 30 Apr 2025</td>
-                      <td className="text-dark"> PayPal</td>
-                      <td className="text-dark"> $800</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0024</Link>
-                      </td>
-                      <td className="text-dark">Dental Cleaning</td>
-                      <td className="text-dark"> 15 Apr 2025</td>
-                      <td className="text-dark"> Debit Card </td>
-                      <td className="text-dark"> $930</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-info rounded text-info fw-medium border border-info">
-                          Pending
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0023</Link>
-                      </td>
-                      <td className="text-dark"> Eye Checkup </td>
-                      <td className="text-dark"> 02 Apr 2025 </td>
-                      <td className="text-dark"> Cheque </td>
-                      <td className="text-dark"> $850</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0022</Link>
-                      </td>
-                      <td className="text-dark"> X-Ray </td>
-                      <td className="text-dark"> 27 Mar 2025 </td>
-                      <td className="text-dark"> Debit Card</td>
-                      <td className="text-dark"> $80</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0021</Link>
-                      </td>
-                      <td className="text-dark">Physiotherapy Session</td>
-                      <td className="text-dark"> 12 Mar 2025</td>
-                      <td className="text-dark"> PayPal</td>
-                      <td className="text-dark"> $650</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0020</Link>
-                      </td>
-                      <td className="text-dark">Cardiac Screening</td>
-                      <td className="text-dark"> 05 Mar 2025 </td>
-                      <td className="text-dark"> Cheque </td>
-                      <td className="text-dark"> $430 </td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0019</Link>
-                      </td>
-                      <td className="text-dark">Skin Allergy Test</td>
-                      <td className="text-dark"> 24 Feb 2025 </td>
-                      <td className="text-dark"> Debit Card </td>
-                      <td className="text-dark"> $300</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-info rounded text-info fw-medium border border-info">
-                          Pending
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0018</Link>
-                      </td>
-                      <td className="text-dark">Blood Test</td>
-                      <td className="text-dark"> 16 Feb 2025 </td>
-                      <td className="text-dark"> Cheque </td>
-                      <td className="text-dark"> $450</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0017</Link>
-                      </td>
-                      <td className="text-dark">ENT Consultation</td>
-                      <td className="text-dark"> 01 Feb 2025 </td>
-                      <td className="text-dark"> Debit Card </td>
-                      <td className="fw-semibold text-dark"> $570</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Link href="#">#TNX0017</Link>
-                      </td>
-                      <td className="text-dark">Nutrition Counseling</td>
-                      <td className="text-dark"> 25 Jan 2025 </td>
-                      <td className="text-dark"> PayPal</td>
-                      <td className="text-dark"> $800</td>
-                      <td>
-                        <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                {patientTransactionsLoading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : patientTransactions.length === 0 ? (
+                  <p className="text-muted mb-0 py-4">No transactions found.</p>
+                ) : (
+                  <table className="table table-nowrap datatable">
+                    <thead className="thead-light">
+                      <tr>
+                        <th className="no-sort">Transaction ID</th>
+                        <th>Description</th>
+                        <th>Paid Date</th>
+                        <th>Payment Method</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patientTransactions.map((txn) => (
+                        <tr key={txn._id}>
+                          <td>
+                            <span className="text-dark fw-medium">{txn.transactionId ?? "—"}</span>
+                          </td>
+                          <td className="text-dark">{txn.transactionType ?? "—"}</td>
+                          <td className="text-dark">
+                            {txn.transactionDate
+                              ? dayjs(txn.transactionDate).format("DD MMM YYYY")
+                              : txn.createdAt
+                              ? dayjs(txn.createdAt).format("DD MMM YYYY")
+                              : "—"}
+                          </td>
+                          <td className="text-dark">{txn.paymentMode ?? "—"}</td>
+                          <td className="text-dark fw-medium">
+                            ₹{(txn.amount ?? 0).toFixed(2)}
+                          </td>
+                          <td>
+                            <span className="badge fs-13 badge-soft-success rounded text-success fw-medium border border-success">
+                              Completed
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
               {/*  End Table */}
             </div>
@@ -1911,6 +1867,52 @@ const PatientDetailsComponent = () => {
                               <option value="In Progress">In Progress</option>
                               <option value="Completed">Completed</option>
                             </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+            <div className="tab-pane" id="pathlab-cases">
+              <div className="table-responsive">
+                {!patient?.pathlabCases?.length ? (
+                  <p className="text-muted mb-0">No pathlab cases found.</p>
+                ) : (
+                  <table className="table table-nowrap table-hover">
+                    <thead className="thead-light">
+                      <tr>
+                        <th className="no-sort">Case ID</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Amount Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patient.pathlabCases.map((pc) => (
+                        <tr key={pc._id}>
+                          <td>
+                            <span className="text-dark fw-medium">{pc.caseId ?? "—"}</span>
+                          </td>
+                          <td className="text-dark">{pc.status ?? "—"}</td>
+                          <td className="text-dark">
+                            {pc.createdAt ? dayjs(pc.createdAt).format("DD MMM YYYY, HH:mm") : "—"}
+                          </td>
+                          <td className="text-dark">
+                            {pc.finalAmount != null ? `₹${pc.finalAmount.toFixed(2)}` : pc.totalAmount != null ? `₹${pc.totalAmount.toFixed(2)}` : "—"}
+                          </td>
+                          <td>
+                            <span
+                              className={`badge fs-13 py-1 rounded fw-medium ${
+                                pc.amountStatus === "Paid"
+                                  ? "badge-soft-success text-success"
+                                  : "badge-soft-warning text-warning"
+                              }`}
+                            >
+                              {pc.amountStatus ?? "—"}
+                            </span>
                           </td>
                         </tr>
                       ))}

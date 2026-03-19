@@ -53,12 +53,7 @@ const DoctorDashboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div>
                       <p className="mb-1">Total Appointments</p>
-                      <div className="d-flex align-items-center gap-1">
-                        <h3 className="fw-bold mb-0">658</h3>
-                        <span className="badge fw-medium bg-success flex-shrink-0">
-                          +95%
-                        </span>
-                      </div>
+                      <h3 className="fw-bold mb-0">658</h3>
                     </div>
                     <span className="avatar border border-primary text-primary rounded-2 flex-shrink-0">
                       <i className="ti ti-calendar-heart fs-20" />
@@ -66,10 +61,6 @@ const DoctorDashboardComponent = () => {
                   </div>
                   <div className="d-flex align-items-end">
                     <SCol5Chart />
-                    <span className="badge fw-medium badge-soft-success flex-shrink-0 ms-2">
-                      +21% <i className="ti ti-arrow-up ms-1" />
-                    </span>
-                    <p className="ms-1 fs-13 text-truncate">in last 7 Days </p>
                   </div>
                 </div>
               </div>
@@ -82,12 +73,7 @@ const DoctorDashboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div>
                       <p className="mb-1">Online Consultations</p>
-                      <div className="d-flex align-items-center gap-1">
-                        <h3 className="fw-bold mb-0">125</h3>
-                        <span className="badge fw-medium bg-danger flex-shrink-0">
-                          -15%
-                        </span>
-                      </div>
+                      <h3 className="fw-bold mb-0">125</h3>
                     </div>
                     <span className="avatar border border-danger text-danger rounded-2 flex-shrink-0">
                       <i className="ti ti-users fs-20" />
@@ -95,10 +81,6 @@ const DoctorDashboardComponent = () => {
                   </div>
                   <div className="d-flex align-items-end">
                     <SCol6Chart />
-                    <span className="badge fw-medium badge-soft-danger flex-shrink-0 ms-2">
-                      +21% <i className="ti ti-arrow-down ms-1" />
-                    </span>
-                    <p className="ms-1 fs-13 text-truncate">in last 7 Days </p>
                   </div>
                 </div>
               </div>
@@ -111,12 +93,7 @@ const DoctorDashboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div>
                       <p className="mb-1">Cancelled Appointments</p>
-                      <div className="d-flex align-items-center gap-1">
-                        <h3 className="fw-bold mb-0">35</h3>
-                        <span className="badge fw-medium bg-success flex-shrink-0">
-                          +45%
-                        </span>
-                      </div>
+                      <h3 className="fw-bold mb-0">35</h3>
                     </div>
                     <span className="avatar border border-success text-success rounded-2 flex-shrink-0">
                       <i className="ti ti-versions fs-20" />
@@ -124,10 +101,6 @@ const DoctorDashboardComponent = () => {
                   </div>
                   <div className="d-flex align-items-end">
                     <SCol7Chart />
-                    <span className="badge fw-medium badge-soft-success flex-shrink-0 ms-2">
-                      +31% <i className="ti ti-arrow-up ms-1" />
-                    </span>
-                    <p className="ms-1 fs-13 text-truncate">in last 7 Days </p>
                   </div>
                 </div>
               </div>
