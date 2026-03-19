@@ -158,6 +158,8 @@ export const all_routes = {
   transactions: "/transactions",
 
   //Administration
+  users: "/users",
+  createUser: "/users/create",
   rolesPermissions: "/roles-and-permissions",
   permissions: "/permissions",
   deleteaccountrequest: "/delete-account-request",

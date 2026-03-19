@@ -310,20 +310,14 @@ export const SidebarData = [
       },
       {
         label: "Users",
-        link: "index",
-        submenu: true,
+        link: routes.users,
+        submenu: false,
         showSubRoute: false,
         icon: "user",
         base: "Users",
         materialicons: "start",
         dot: true,
-        submenuItems: [
-          { label: "Roles & Permissions", link: routes.rolesPermissions },
-          {
-            label: "Delete Account Request",
-            link: routes.deleteaccountrequest,
-          },
-        ],
+        submenuItems: [],
       },
       {
         label: "Leaves",

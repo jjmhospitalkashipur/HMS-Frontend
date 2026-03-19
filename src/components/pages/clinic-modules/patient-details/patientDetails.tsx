@@ -3,8 +3,6 @@
 
 import { all_routes } from "../../../../routes/all_routes";
 import { useState, useEffect } from "react";
-import PredefinedDatePicker from "@/core/common/datePicker";
-import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
@@ -110,7 +108,6 @@ const PatientDetailsComponent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const patientId = searchParams.get("id");
-  const [searchText, setSearchText] = useState<string>("");
   const [patient, setPatient] = useState<IPatient | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [appointments, setAppointments] = useState<IAppointment[]>([]);
@@ -120,10 +117,6 @@ const PatientDetailsComponent = () => {
   const [dialysisStatusUpdatingId, setDialysisStatusUpdatingId] = useState<string | null>(null);
   const [patientTransactions, setPatientTransactions] = useState<IPatientTransaction[]>([]);
   const [patientTransactionsLoading, setPatientTransactionsLoading] = useState<boolean>(false);
-
-  const handleSearch = (value: string) => {
-    setSearchText(value);
-  };
 
   useEffect(() => {
     if (patientId) {
@@ -243,7 +236,8 @@ const PatientDetailsComponent = () => {
     try {
       setPatientTransactionsLoading(true);
       const response = await axios.get(
-        `${API_BASE_URL}/hospital/transactions/${patientId}`
+        `${API_BASE_URL}/hospital/transactions`,
+        { params: { patientId } }
       );
       if (response.data?.code === 200) {
         const raw = response.data?.data ?? response.data;
@@ -729,28 +723,9 @@ const PatientDetailsComponent = () => {
           <div className="tab-content">
             <div className="tab-pane show active" id="appointments">
               {/*  Start Filter */}
-              <div className=" d-flex align-items-center justify-content-between flex-wrap">
+              <div className="d-none align-items-center justify-content-between flex-wrap">
                 <div className="d-flex align-items-center gap-2">
-                  <div className="search-set mb-3">
-                    <div className="d-flex align-items-center flex-wrap gap-2">
-                      <div className="table-search d-flex align-items-center mb-0">
-                        <div className="search-input">
-                          <SearchInput
-                            value={searchText}
-                            onChange={handleSearch}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="d-flex right-content align-items-center flex-wrap mb-3">
-                    <div className="input-icon-start position-relative">
-                      <span className="input-icon-addon text-dark">
-                        <i className="ti ti-calendar-event" />
-                      </span>
-                      <PredefinedDatePicker />
-                    </div>
-                  </div>
+                  {/* Search / date filters removed for Appointments tab */}
                 </div>
                 <div className="d-flex table-dropdown mb-3 right-content align-items-center flex-wrap row-gap-3">
                   <div className="dropdown me-2">
@@ -1092,17 +1067,7 @@ const PatientDetailsComponent = () => {
                               </div>
                             </div>
                           </div>
-                          <div className="mb-3">
-                            <label className="form-label mb-1 text-dark fs-14 fw-medium">
-                              Date<span className="text-danger">*</span>
-                            </label>
-                            <div className="input-icon-end position-relative">
-                              <PredefinedDatePicker />
-                              <span className="input-icon-addon">
-                                <i className="ti ti-calendar" />
-                              </span>
-                            </div>
-                          </div>
+                          {/* Date filter removed */}
                           <div className="mb-3">
                             <div className="d-flex align-items-center justify-content-between">
                               <label className="form-label">Status</label>
@@ -1236,7 +1201,7 @@ const PatientDetailsComponent = () => {
                     columns={appointmentColumns}
                     dataSource={appointments}
                     Selection={false}
-                    searchText={searchText}
+                    searchText=""
                     onRowClick={handleRowClick}
                   />
                 )}
@@ -1245,28 +1210,9 @@ const PatientDetailsComponent = () => {
             </div>
             <div className="tab-pane" id="transactions">
               {/*  Start Filter */}
-              <div className=" d-flex align-items-center justify-content-between flex-wrap">
+              <div className="d-none align-items-center justify-content-between flex-wrap">
                 <div className="d-flex align-items-center gap-2">
-                  <div className="search-set mb-3">
-                    <div className="d-flex align-items-center flex-wrap gap-2">
-                      <div className="table-search d-flex align-items-center mb-0">
-                        <div className="search-input">
-                          <SearchInput
-                            value={searchText}
-                            onChange={handleSearch}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="d-flex right-content align-items-center flex-wrap mb-3">
-                    <div className="input-icon-start position-relative">
-                      <span className="input-icon-addon text-dark">
-                        <i className="ti ti-calendar-event" />
-                      </span>
-                      <PredefinedDatePicker />
-                    </div>
-                  </div>
+                  {/* Search / date filters removed for Transactions tab */}
                 </div>
                 <div className="d-flex table-dropdown mb-3 right-content align-items-center flex-wrap row-gap-3">
                   <div className="dropdown me-2">

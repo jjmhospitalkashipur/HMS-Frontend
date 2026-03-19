@@ -132,7 +132,9 @@ const DashboardComponent = () => {
 
   const [visitStatsSummary, setVisitStatsSummary] = useState<IVisitStatsSummary>({ all: 0, scheduled: 0, inProgress: 0, completed: 0, cancelled: 0, noShow: 0 });
   const [visitStatsPeriodData, setVisitStatsPeriodData] = useState<IVisitStatsPeriodData[]>([]);
-  const [visitStatsPeriod, setVisitStatsPeriod] = useState<"daily" | "week" | "month" | "year">("month");
+  const [visitStatsPeriod, setVisitStatsPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
+  const [visitStatsFrom, setVisitStatsFrom] = useState<string>("");
+  const [visitStatsTo, setVisitStatsTo] = useState<string>("");
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -239,8 +241,11 @@ const DashboardComponent = () => {
     const fetchVisitStatistics = async () => {
       if (!API_BASE_URL) return;
       try {
+        const params: Record<string, string> = { period: visitStatsPeriod };
+        if (visitStatsFrom) params.from = visitStatsFrom;
+        if (visitStatsTo) params.to = visitStatsTo;
         const response = await axios.get(`${API_BASE_URL}/hospital/dashboard/visit-statistics`, {
-          params: { period: visitStatsPeriod },
+          params,
         });
         if (response.data?.code === 200 && response.data?.data) {
           const { summary, periodData } = response.data.data;
@@ -252,7 +257,7 @@ const DashboardComponent = () => {
       }
     };
     fetchVisitStatistics();
-  }, [visitStatsPeriod]);
+  }, [visitStatsPeriod, visitStatsFrom, visitStatsTo]);
 
   const visitStatsCategories = visitStatsPeriodData.map((d) => d.period);
   const visitStatsSeries: ApexAxisChartSeries = [
@@ -411,22 +416,42 @@ const DashboardComponent = () => {
             <div className="col-xl-12">
               {/* card start */}
               <div className="card shadow-sm flex-fill w-100">
-                <div className="card-header d-flex align-items-center justify-content-between">
+                <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                   <h5 className="fw-bold mb-0">Appointment Statistics</h5>
-                  <div className="dropdown">
-                    <button
-                      type="button"
-                      className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
-                      data-bs-toggle="dropdown"
-                    >
-                      {visitStatsPeriod === "daily" ? "Daily" : visitStatsPeriod === "week" ? "Weekly" : visitStatsPeriod === "month" ? "Monthly" : "Yearly"} <i className="ti ti-chevron-down ms-1" />
-                    </button>
-                    <ul className="dropdown-menu">
-                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("daily")}>Daily</button></li>
-                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("week")}>Weekly</button></li>
-                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("month")}>Monthly</button></li>
-                      <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("year")}>Yearly</button></li>
-                    </ul>
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="mb-0 fs-13 text-muted">From</label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        value={visitStatsFrom}
+                        onChange={(e) => setVisitStatsFrom(e.target.value)}
+                      />
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="mb-0 fs-13 text-muted">To</label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        value={visitStatsTo}
+                        onChange={(e) => setVisitStatsTo(e.target.value)}
+                      />
+                    </div>
+                    <div className="dropdown">
+                      <button
+                        type="button"
+                        className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
+                        data-bs-toggle="dropdown"
+                      >
+                        {visitStatsPeriod === "daily" ? "Daily" : visitStatsPeriod === "weekly" ? "Weekly" : visitStatsPeriod === "monthly" ? "Monthly" : "Yearly"} <i className="ti ti-chevron-down ms-1" />
+                      </button>
+                      <ul className="dropdown-menu">
+                        <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("daily")}>Daily</button></li>
+                        <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("weekly")}>Weekly</button></li>
+                        <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("monthly")}>Monthly</button></li>
+                        <li><button className="dropdown-item" onClick={() => setVisitStatsPeriod("yearly")}>Yearly</button></li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
                 <div className="card-body pb-0">

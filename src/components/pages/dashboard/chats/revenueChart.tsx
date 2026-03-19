@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import dayjs from "dayjs";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface IPeriodData {
   period: string;
+  date?: string;
   revenue: number;
 }
 
@@ -22,7 +24,9 @@ interface IRevenueStatsResponse {
 }
 
 const RevenueChart = () => {
-  const [range, setRange] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [range, setRange] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
   const [periodData, setPeriodData] = useState<IPeriodData[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -33,9 +37,12 @@ const RevenueChart = () => {
     setLoading(true);
     setError(null);
     try {
+      const params: Record<string, string> = { range };
+      if (fromDate) params.from = fromDate;
+      if (toDate) params.to = toDate;
       const res = await axios.get<IRevenueStatsResponse>(
         `${API_BASE_URL}/hospital/dashboard/revenue-statistics`,
-        { params: { range } }
+        { params }
       );
       if (res.data?.code === 200 && res.data?.data) {
         setPeriodData(res.data.data.periodData ?? []);
@@ -51,7 +58,7 @@ const RevenueChart = () => {
     } finally {
       setLoading(false);
     }
-  }, [range]);
+  }, [range, fromDate, toDate]);
 
   useEffect(() => {
     fetchRevenueStats();
@@ -102,6 +109,16 @@ const RevenueChart = () => {
       },
     },
     tooltip: {
+      custom: ({ series, dataPointIndex, w }: any) => {
+        const revenue = series?.[0]?.[dataPointIndex] ?? 0;
+        const periodLabel = w?.globals?.labels?.[dataPointIndex] ?? "—";
+        const receivedDate = periodData?.[dataPointIndex]?.date ?? "—";
+        return `<div class="apex-tooltip p-2">
+          <div><strong>${periodLabel}</strong></div>
+          <div>Date: ${receivedDate}</div>
+          <div>Revenue: ₹${Number(revenue).toLocaleString("en-IN")}</div>
+        </div>`;
+      },
       y: {
         formatter: (val: number) => `₹${val?.toLocaleString("en-IN") ?? 0}`,
       },
@@ -133,44 +150,73 @@ const RevenueChart = () => {
     <div className="card shadow-sm">
       <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h5 className="fw-bold mb-0">Revenue Statistics</h5>
-        <div className="dropdown">
-          <button
-            type="button"
-            className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
-            data-bs-toggle="dropdown"
-          >
-            {range === "daily" ? "Daily" : range === "weekly" ? "Weekly" : "Monthly"}{" "}
-            <i className="ti ti-chevron-down ms-1" />
-          </button>
-          <ul className="dropdown-menu dropdown-menu-end">
-            <li>
-              <button
-                type="button"
-                className="dropdown-item"
-                onClick={() => setRange("daily")}
-              >
-                Daily
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className="dropdown-item"
-                onClick={() => setRange("weekly")}
-              >
-                Weekly
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className="dropdown-item"
-                onClick={() => setRange("monthly")}
-              >
-                Monthly
-              </button>
-            </li>
-          </ul>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="d-flex align-items-center gap-2">
+            <label className="mb-0 fs-13 text-muted">From</label>
+            <input
+              type="date"
+              className="form-control form-control-sm"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <label className="mb-0 fs-13 text-muted">To</label>
+            <input
+              type="date"
+              className="form-control form-control-sm"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+          <div className="dropdown">
+            <button
+              type="button"
+              className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
+              data-bs-toggle="dropdown"
+            >
+              {range === "daily" ? "Daily" : range === "weekly" ? "Weekly" : range === "monthly" ? "Monthly" : "Yearly"}{" "}
+              <i className="ti ti-chevron-down ms-1" />
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => setRange("daily")}
+                >
+                  Daily
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => setRange("weekly")}
+                >
+                  Weekly
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => setRange("monthly")}
+                >
+                  Monthly
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => setRange("yearly")}
+                >
+                  Yearly
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
       <div className="card-body">
