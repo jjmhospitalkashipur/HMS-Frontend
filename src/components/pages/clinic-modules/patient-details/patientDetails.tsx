@@ -407,6 +407,27 @@ const PatientDetailsComponent = () => {
       triggerButton.click();
     }
   };
+
+  const handleCreateCase = () => {
+    if (!patient) return;
+
+    const phone = patient?.phone ?? "";
+    const title = patient?.title ?? "";
+    const name = patient?.name ?? "";
+
+    const params = new URLSearchParams({
+      phone,
+      title,
+      name,
+      center: "JJM",
+    });
+
+    window.open(
+      `https://pathlab.kilobyte.live/new-appointment?${params.toString()}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
   return (
     <>
       {/* Hidden buttons to trigger modals/offcanvas */}
@@ -485,13 +506,26 @@ const PatientDetailsComponent = () => {
                       <i className="ti ti-video" />
                     </Link> 
                    </div> */}
-                <Link
-                  href={`${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}`}
-                  className="btn btn-primary"
-                >
+                <div className="d-flex justify-content-lg-end align-items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    onClick={handleCreateCase}
+                    disabled={loading || !patient}
+                    aria-label="Create Pathlab Case"
+                  >
+                    <i className="ti ti-plus me-1" />
+                    Create Case
+                  </button>
+
+                  <Link
+                    href={`${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}`}
+                    className="btn btn-primary"
+                  >
                     <i className="ti ti-droplet me-1" />
                     Dialysis
                   </Link>
+                </div>
                 </div>
               </div>
             </div>
