@@ -52,6 +52,7 @@ interface IDaycareTransaction {
 interface IDaycareAppointmentDetail {
   _id: string;
   daycareId: string;
+  receiptId?: string;
   appointmentId: string;
   patientId: string;
   doctorId: string;
@@ -160,6 +161,7 @@ const buildDaycareReceiptData = (
     phone: daycare.patient?.phone,
     doctorName: daycare.doctor?.name,
     doctorDepartment: daycare.doctor?.department,
+    receiptId: daycare.receiptId,
     transactions: charges,
     // Use subtotal as gross "Total" on receipt, so discount and final are computed correctly
     totalAmount: daycare.subtotal ?? daycare.totalPrice ?? 0,
@@ -200,7 +202,11 @@ const DaycareAppointmentDetailsComponent = () => {
       const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments/${id}`);
       if (res.data?.code === 200 && res.data?.data) {
         const data = res.data.data?.daycareAppointment ?? res.data.data;
-        setDaycare(data as IDaycareAppointmentDetail);
+        const responseReceiptId = res.data?.data?.receiptId as string | undefined;
+        setDaycare({
+          ...(data as IDaycareAppointmentDetail),
+          receiptId: (data as IDaycareAppointmentDetail)?.receiptId ?? responseReceiptId,
+        });
       } else {
         setError("Daycare appointment not found");
       }

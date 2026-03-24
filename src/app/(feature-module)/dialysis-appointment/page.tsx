@@ -35,6 +35,7 @@ const DialysisAppointmentContent = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isCentralLineNo, setIsCentralLineNo] = useState(false);
+  const [mrdNo, setMrdNo] = useState("");
 
   const handlePrint = () => {
     if (formRef.current) {
@@ -78,6 +79,23 @@ const DialysisAppointmentContent = () => {
     fetchData();
   }, [searchParams, sessionId]);
 
+  // Prefill MRD for new form from patient ID in URL
+  useEffect(() => {
+    if (isEditMode || !patientIdFromUrl || !API_BASE_URL) return;
+
+    const fetchPatient = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/hospital/patients/${patientIdFromUrl}`);
+        const patient = response?.data?.data?.patient ?? response?.data?.data ?? null;
+        setMrdNo(patient?.mrd ?? "");
+      } catch {
+        setMrdNo("");
+      }
+    };
+
+    fetchPatient();
+  }, [isEditMode, patientIdFromUrl]);
+
   const populateForm = (session: any) => {
     if (!formRef.current) return;
     const form = formRef.current;
@@ -97,11 +115,14 @@ const DialysisAppointmentContent = () => {
     setVal("patient.name", pat.name);
     setVal("patient.age", pat.age);
     setVal("patient.gender", pat.gender);
+    setMrdNo(pat?.mrd ?? "");
 
     const gen = session.generalInformation || {};
     setVal("general.machineNumber", gen.machineNumber);
-    setVal("general.uhid", gen.uhid);
+    setVal("general.mrdNo", pat?.mrd ?? gen.uhid);
     setVal("general.technicianName", gen.technicianName);
+    setVal("general.bolus", gen.bolus);
+    setVal("general.hourly", gen.hourly);
     setVal("general.fiberVolume", gen.fiberVolume);
     setVal("general.heparinUse", gen.heparinUse);
     setVal("general.preHdWeightToday", gen.preHdWeightToday);
@@ -250,8 +271,10 @@ const DialysisAppointmentContent = () => {
 
     const generalInformation = {
       machineNumber: get("general.machineNumber"),
-      uhid: get("general.uhid"),
+      uhid: get("general.mrdNo"),
       technicianName: get("general.technicianName"),
+      bolus: get("general.bolus"),
+      hourly: get("general.hourly"),
       fiberVolume: getNumber("general.fiberVolume"),
       heparinUse: get("general.heparinUse"),
       preHdWeightToday: getNumber("general.preHdWeightToday"),
@@ -539,11 +562,14 @@ const DialysisAppointmentContent = () => {
                           />
                         </div>
                         <div className="col-md-2 col-12 col-sm-6">
-                          <label className="form-label mb-1 fw-medium">UHID</label>
+                          <label className="form-label mb-1 fw-medium">MRD No.</label>
+                          <input name="general.mrdNo" type="hidden" value={mrdNo} />
                           <input
-                            name="general.uhid"
+                            name="general.mrdNoDisplay"
                             type="text"
                             className="form-control form-control-sm"
+                            value={mrdNo}
+                            disabled
                           />
                         </div>
                         <div className="col-md-4 offset-4 col-12 col-sm-12">
@@ -556,7 +582,7 @@ const DialysisAppointmentContent = () => {
                         </div>
 
                         {/* Row 2 – Dialyzer usage row */}
-                        <div className="col-md-3 col-12 pe-md-0">
+                        <div className="col-md-2 col-12">
                           <label className="form-label mb-1 fw-medium">Dialyzer Usage Type</label>
                           <div className="d-flex flex-wrap gap-2">
                             <div className="form-check me-2">
@@ -587,11 +613,8 @@ const DialysisAppointmentContent = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="col-md-1 col-12 col-sm-6 ms-md-n2">
-                          <label
-                            className="form-label  mb-1 fw-medium"
-                            style={{ whiteSpace: "nowrap", marginLeft: "-24px" }}
-                          >
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium" style={{ whiteSpace: "nowrap" }}>
                             Times Reused
                           </label>
                           <input
@@ -600,7 +623,23 @@ const DialysisAppointmentContent = () => {
                             className="form-control form-control-sm"
                           />
                         </div>
-                        <div className="col-md-2 offset-4 col-6">
+                        <div className="col-md-2 col-6">
+                          <label className="form-label mb-1 fw-medium">Bolus</label>
+                          <input
+                            name="general.bolus"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-6">
+                          <label className="form-label mb-1 fw-medium">Hourly</label>
+                          <input
+                            name="general.hourly"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-6">
                           <label className="form-label mb-1 fw-medium">Fiber Volume</label>
                           <input
                             name="general.fiberVolume"
@@ -936,23 +975,23 @@ const DialysisAppointmentContent = () => {
                         <table className="dialysis-table w-100 text-center">
                           <thead className="table-light">
                             <tr>
-                              <th style={{ whiteSpace: "nowrap" }}>Time on HD</th>
+                              <th style={{ whiteSpace: "nowrap", width: "7%" }}>Time on HD</th>
                               <th>PR</th>
-                              <th>BP</th>
+                              <th style={{ width: "10%" }}>BP</th>
                               <th>BFR</th>
                               <th>DFR</th>
-                              <th>UFR</th>
+                              <th style={{ width: "10%" }}>UFR</th>
                               <th>Total UF</th>
                               <th>Temp.</th>
                               <th>DyNa</th>
                               <th>Heparin</th>
-                              <th>RBS</th>
+                              <th style={{ width: "10%" }}>RBS</th>
                             </tr>
                           </thead>
                           <tbody>
                             {Array.from({ length: 8 }).map((_, index) => (
                               <tr key={index}>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -961,7 +1000,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.timeOnHd`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -970,7 +1009,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.pr`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -979,7 +1018,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.bp`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -988,7 +1027,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.bfr`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -997,7 +1036,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.dfr`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -1006,7 +1045,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.ufr`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -1015,7 +1054,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.totalUf`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -1024,7 +1063,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.temperature`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -1033,7 +1072,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.dyna`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"
@@ -1042,7 +1081,7 @@ const DialysisAppointmentContent = () => {
                                     name={`monitoring.${index}.heparin`}
                                   />
                                 </td>
-                                <td style={{ padding: "2px 4px" }}>
+                                <td style={{ padding: "2px 1px" }}>
                                   <input
                                     type="text"
                                     className="form-control form-control-sm text-center"

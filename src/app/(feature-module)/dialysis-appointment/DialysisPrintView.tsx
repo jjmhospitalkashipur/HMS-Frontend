@@ -18,7 +18,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   // ── collect values ─────────────────────────────────────────────────────────
   const v = {
     machineNumber: get("general.machineNumber"),
-    uhid: get("general.uhid"),
+    mrdNo: get("general.mrdNo"),
     technicianName: get("general.technicianName"),
     patientName: get("patient.name"),
     patientAge: get("patient.age"),
@@ -26,6 +26,8 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     dialyzerSingle: checked("general.dialyzerUsageSingleUse"),
     dialyzerReuse: checked("general.dialyzerUsageReuse"),
     timesReused: get("general.timesReused"),
+    bolus: get("general.bolus"),
+    hourly: get("general.hourly"),
     fiberVolume: get("general.fiberVolume"),
     heparinUse: get("general.heparinUse"),
     preHdWeight: get("general.preHdWeightToday"),
@@ -313,6 +315,10 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
       font-weight: bold;
     }
 
+    th.col-time { width: 7%; }
+    th.col-bp { width: 10%; }
+    th.col-rbs { width: 12%; }
+
     td {
       border: 1.5px solid #777;
       padding: 0;
@@ -379,7 +385,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
 
     ${row(
     cell("Machine Number", field(v.machineNumber, "150px"), "150px"),
-    cell("UHID", field(v.uhid, "150px"), "150px"),
+    cell("MRD No.", field(v.mrdNo, "150px"), "150px"),
     `<div class="cell push-right" style="min-width: 220px;">
       <div class="lbl">Technician Name</div>
       ${field(v.technicianName, "220px")}
@@ -407,7 +413,9 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     cell("Weight Gain", field(v.weightGain, "100px"), "100px"),
     cell("Target Weight Loss", field(v.targetWeightLoss, "110px"), "110px"),
     cell("Post HD Weight Today", field(v.postHdWeightToday, "110px"), "110px"),
-    cell("Actual Weight Loss", field(v.actualWeightLoss, "110px"), "110px")
+    cell("Actual Weight Loss", field(v.actualWeightLoss, "110px"), "110px"),
+    cell("Bolus", field(v.bolus, "90px"), "90px"),
+    cell("Hourly", field(v.hourly, "90px"), "90px")
   )}
 
     ${row(
@@ -471,9 +479,9 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     <table>
       <thead>
         <tr>
-          <th>Time on HD</th>
+          <th class="col-time">Time on HD</th>
           <th>PR</th>
-          <th>BP</th>
+          <th class="col-bp">BP</th>
           <th>BFR</th>
           <th>DFR</th>
           <th>UFR</th>
@@ -481,7 +489,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
           <th>Temp.</th>
           <th>DyNa</th>
           <th>Heparin</th>
-          <th>RBS</th>
+          <th class="col-rbs">RBS</th>
         </tr>
       </thead>
       <tbody>

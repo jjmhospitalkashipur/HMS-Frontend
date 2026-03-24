@@ -326,9 +326,9 @@ const PatientDetailsComponent = () => {
         <div className="d-flex align-items-center">
           <div>
             <h6 className="fs-14 mb-1 text-truncate">
-              <Link href={all_routes.doctordetails} className="fw-semibold text-dark">
+             
                 {text}
-              </Link>
+          
             </h6>
             <p className="mb-0 fs-13 text-truncate text-dark">{record.role}</p>
           </div>
@@ -399,14 +399,6 @@ const PatientDetailsComponent = () => {
       ),
     },
   ];
-
-  const handleRowClick = (record: any) => {
-    // Trigger view action on row click using hidden button
-    const triggerButton = document.querySelector('#view_details_trigger') as HTMLElement;
-    if (triggerButton) {
-      triggerButton.click();
-    }
-  };
 
   const handleCreateCase = () => {
     if (!patient) return;
@@ -1236,7 +1228,6 @@ const PatientDetailsComponent = () => {
                     dataSource={appointments}
                     Selection={false}
                     searchText=""
-                    onRowClick={handleRowClick}
                   />
                 )}
               </div>

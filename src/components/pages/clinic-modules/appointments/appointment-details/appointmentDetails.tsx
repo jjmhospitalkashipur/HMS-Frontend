@@ -14,6 +14,7 @@ import type { IReceiptData, IReceiptTransaction } from "../printReceipt";
 interface IVisit {
   _id: string;
   visitId: string;
+  receiptId?: string;
   appointmentId: string;
   patientId: string;
   doctorId: string;
@@ -108,7 +109,12 @@ const AppointmentDetailsComponent = () => {
       const response = await axios.get(`${API_BASE_URL}/hospital/visits/${visitId}`);
 
       if (response.data?.code === 200 && response.data?.data?.visit) {
-        setVisit(response.data.data.visit);
+        const visitData = response.data.data.visit as IVisit;
+        const responseReceiptId = response.data?.data?.receiptId as string | undefined;
+        setVisit({
+          ...visitData,
+          receiptId: visitData?.receiptId ?? responseReceiptId,
+        });
       } else {
         setError("Appointment not found");
       }
@@ -510,8 +516,11 @@ const AppointmentDetailsComponent = () => {
             age: ageDisplay != null ? String(ageDisplay) : undefined,
             gender: patient?.gender,
             phone: patient?.phone,
+            address: patient?.address,
+            doctorId: doctor?.doctorId || visit.doctorId,
             doctorName: doctor?.name,
             doctorDepartment: doctor?.department,
+            receiptId: visit.receiptId,
             // Use visit price as the single charge row
             transactions: [visitCharge],
             totalAmount: visit.price || 0,

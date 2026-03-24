@@ -29,8 +29,11 @@ export interface IReceiptData {
   age?: string | number;
   gender?: string;
   phone?: string;
+  address?: string;
+  doctorId?: string;
   doctorName?: string;
   doctorDepartment?: string;
+  receiptId?: string;
   transactions?: IReceiptTransaction[];
   totalAmount?: number;
   discount?: number;
@@ -94,6 +97,18 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; font-weight: 600; border-bottom: 1px solid #000; }
               .summary-row.total-paid { font-weight: bold; border-bottom: none; margin-top: 0; padding-bottom: 8px; }
               .footer { margin-top: 10px; display: flex; justify-content: space-between; font-size: 11px; color: #000; }
+              .signature-block {
+                min-width: 180px;
+                text-align: center;
+              }
+              .signature-line {
+                border-top: 1px solid #000;
+                margin-top: 50px;
+                padding-top: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                text-align: center;
+              }
               .payment-no-data { text-align: center; padding: 24px; color: #000; font-size: 14px; border: 1px solid #000; }
               @media print {
                 @page { margin: 8mm 10mm 10mm 10mm; size: A4; }
@@ -128,6 +143,10 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
   };
 
   const patientName = [receiptData.patientTitle, receiptData.patientName].filter(Boolean).join(" ").trim() || "—";
+  const patientAge = receiptData.age != null && String(receiptData.age).trim() !== "" ? String(receiptData.age) : "—";
+  const patientAddress = receiptData.address?.trim() || "—";
+  const doctorId = receiptData.doctorId?.trim() || "—";
+  const doctorName = receiptData.doctorName?.trim() || "—";
   const doctorDisplay = receiptData.doctorName
     ? `Dr. ${receiptData.doctorName.replace(/^Dr\.\s*/i, "")}${receiptData.doctorDepartment ? ` (${receiptData.doctorDepartment})` : ""}`
     : "—";
@@ -191,6 +210,24 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                   <td className="info-label-cell">Case ID:</td>
                   <td className="info-value-cell info-value-cell-narrow">{receiptData.visitId ?? "—"}</td>
                 </tr>
+                <tr>
+                  <td className="info-label-cell">Address:</td>
+                  <td className="info-value-cell">{patientAddress}</td>
+                  <td className="info-label-cell">Patient Age:</td>
+                  <td className="info-value-cell info-value-cell-narrow">{patientAge}</td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Receipt ID:</td>
+                  <td className="info-value-cell">{receiptData.receiptId ?? "—"}</td>
+                  <td className="info-label-cell">Doctor ID:</td>
+                  <td className="info-value-cell info-value-cell-narrow">{doctorId}</td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Doctor Name:</td>
+                  <td className="info-value-cell" colSpan={3}>
+                    {doctorName}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -247,6 +284,9 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
         {/* Footer */}
         <div className="footer">
           <div>This is a computer generated receipt.</div>
+          <div className="signature-block">
+            <div className="signature-line">Signature</div>
+          </div>
         </div>
       </div>
     </div>
