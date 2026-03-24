@@ -140,6 +140,7 @@ const NewAppointmentComponent = () => {
   const [daycareAddedProcedures, setDaycareAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
   const [daycareAddProcedureSelect, setDaycareAddProcedureSelect] = useState<Option | null>(null);
   const daycareBedChargesOptions: Option[] = [
+    { value: "none", label: "None" },
     { value: "private", label: "Private (200/hr)" },
     { value: "semi", label: "Semi-Private (150/hr)" },
     { value: "general", label: "General (100/hr)" },
@@ -156,7 +157,7 @@ const NewAppointmentComponent = () => {
   const [daycareShowDiscountPasswordDialog, setDaycareShowDiscountPasswordDialog] = useState<boolean>(false);
   const [daycareDiscountPassword, setDaycareDiscountPassword] = useState<string>("");
   const [daycareDiscountFieldChanged, setDaycareDiscountFieldChanged] = useState<boolean>(false);
-  const daycareBedChargesAmount: Record<string, number> = { private: 200, semi: 150, general: 100 };
+  const daycareBedChargesAmount: Record<string, number> = { none: 0, private: 200, semi: 150, general: 100 };
   const daycareBedChargesRate = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
   const daycareBedCharges = daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
   const daycareProceduresCharges = daycareAddedProcedures.reduce((sum, p) => sum + p.price, 0);

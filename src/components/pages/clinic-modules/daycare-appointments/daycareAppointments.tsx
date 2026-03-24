@@ -75,6 +75,7 @@ interface IRow {
 
 const DaycareAppointmentsComponent = () => {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"all" | "today">("today");
   const [rows, setRows] = useState<IRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -85,7 +86,11 @@ const DaycareAppointmentsComponent = () => {
       try {
         setLoading(true);
         setError("");
-        const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments`);
+        const params: Record<string, string> = {};
+        if (activeTab === "today") {
+          params.date = dayjs().format("YYYY-MM-DD");
+        }
+        const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments`, { params });
         if (res.data?.code === 200 && res.data?.data) {
           const raw = res.data.data as any;
           const list: IDaycareAppointment[] = Array.isArray(raw)
@@ -146,7 +151,7 @@ const DaycareAppointmentsComponent = () => {
       } finally {
         setLoading(false);
       }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     fetchDaycareAppointments();
@@ -296,6 +301,10 @@ const DaycareAppointmentsComponent = () => {
     setSearchText(value);
   };
 
+  const handleTabChange = (tab: "all" | "today") => {
+    setActiveTab(tab);
+  };
+
   const handleRowClick = (record: IRow) => {
     if (!record?.id) return;
     router.push(`${all_routes.daycareAppointmentDetails}/${record.id}`);
@@ -339,6 +348,26 @@ const DaycareAppointmentsComponent = () => {
           )}
 
           <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3">
+            <ul className="nav nav-tabs border-0 mb-3 flex-shrink-0">
+              <li className="nav-item">
+                <button
+                  type="button"
+                  className={`nav-link${activeTab === "all" ? " active" : ""}`}
+                  onClick={() => handleTabChange("all")}
+                >
+                  All Appointments
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  type="button"
+                  className={`nav-link${activeTab === "today" ? " active" : ""}`}
+                  onClick={() => handleTabChange("today")}
+                >
+                  Today&apos;s Appointments
+                </button>
+              </li>
+            </ul>
             <div className="search-set mb-3">
               <div className="d-flex align-items-center flex-wrap gap-2">
                 <div className="table-search d-flex align-items-center mb-0">

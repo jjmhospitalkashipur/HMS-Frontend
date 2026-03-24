@@ -118,20 +118,42 @@ const getStatusDisplay = (status: string, visitType?: string) => {
       textClass: "text-dark",
     };
   }
-  
-  // MR + Scheduled
-  if (normalizedVisitType === "mr") {
+
+  // Emergency queue color
+  if (normalizedVisitType === "emergency") {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#af6eaa" },
+      rowStyle: { backgroundColor: "#F05178" },
       textClass: "text-white",
     };
   }
-  
-  // Regular In Queue
+
+  // MR queue color
+  if (normalizedVisitType === "mr") {
+    return {
+      label: "In Queue (आप कतार में हैं)",
+      rowStyle: { backgroundColor: "#0BA4D0" },
+      textClass: "text-white",
+    };
+  }
+
+  // Follow-up queue color (default queue color too)
+  if (
+    normalizedVisitType === "follow-up" ||
+    normalizedVisitType === "follow up" ||
+    normalizedVisitType === "followup"
+  ) {
+    return {
+      label: "In Queue (आप कतार में हैं)",
+      rowStyle: { backgroundColor: "#F8CA50" },
+      textClass: "text-dark",
+    };
+  }
+
+  // Regular In Queue (fallback)
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#f5eb55" },
+    rowStyle: { backgroundColor: "#F8CA50" },
     textClass: "text-dark",
   };
 };

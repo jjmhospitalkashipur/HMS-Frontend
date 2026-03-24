@@ -121,6 +121,7 @@ export const all_routes = {
   editDaycareAppointment: "/edit-daycare-appointment",
   appointmentCalendar: "/appointment-calendar",
   daycareAppointments: "/daycare-appointments",
+  dialysis: "/dialysis",
   daycareAppointmentDetails: "/daycare-appointment-details",
   locations: "/locations",
   procedures: "/procedures",

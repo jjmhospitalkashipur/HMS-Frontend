@@ -12,7 +12,6 @@ import CommonSelect from "@/core/common/common-select/commonSelect";
 import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import dayjs from "dayjs";
 
 interface IProcedureRow {
   _id: string;
@@ -26,15 +25,6 @@ interface IProcedureRow {
   roomCharges?: number;
 }
 
-interface IDialysisSessionRow {
-  _id: string;
-  sessionId: string;
-  patientId?: string;
-  status?: string;
-  createdAt?: string;
-  patient?: { name?: string; age?: number; gender?: string; phone?: string };
-}
-
 const ProceduresComponent = () => {
   const router = useRouter();
   const [procedures, setProcedures] = useState<IProcedureRow[]>([]);
@@ -42,14 +32,6 @@ const ProceduresComponent = () => {
   const [proceduresTotal, setProceduresTotal] = useState(0);
   const [procedureToDelete, setProcedureToDelete] = useState<{ id: string } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [dialysisSessions, setDialysisSessions] = useState<IDialysisSessionRow[]>([]);
-  const [dialysisLoading, setDialysisLoading] = useState(false);
-  const [dialysisPage, setDialysisPage] = useState(1);
-  const [dialysisTotal, setDialysisTotal] = useState(0);
-  const [dialysisSearchInput, setDialysisSearchInput] = useState("");
-  const [dialysisSearch, setDialysisSearch] = useState("");
-  const [dialysisStatusFilter, setDialysisStatusFilter] = useState<string>("");
-  const dialysisLimit = 100;
   const columns = [
     {
       title: "Procedure ID",
@@ -135,47 +117,6 @@ const ProceduresComponent = () => {
   const handleChangeDefault = (value: any) => {
     setSliderValueDefault(value);
   };
-
-  // Debounce dialysis search (server-side)
-  useEffect(() => {
-    const t = setTimeout(() => setDialysisSearch(dialysisSearchInput.trim()), 400);
-    return () => clearTimeout(t);
-  }, [dialysisSearchInput]);
-
-  // Reset to page 1 when search or filter changes
-  useEffect(() => {
-    setDialysisPage(1);
-  }, [dialysisSearch, dialysisStatusFilter]);
-
-  useEffect(() => {
-    const fetchDialysis = async () => {
-      if (!API_BASE_URL) return;
-      try {
-        setDialysisLoading(true);
-        const params: Record<string, string | number> = {
-          page: dialysisPage,
-          limit: dialysisLimit,
-        };
-        if (dialysisSearch) params.search = dialysisSearch;
-        if (dialysisStatusFilter) params.status = dialysisStatusFilter;
-        const res = await axios.get(`${API_BASE_URL}/hospital/dialysis-sessions`, {
-          params,
-        });
-        if (res.data?.code === 200 && Array.isArray(res.data?.data?.sessions)) {
-          setDialysisSessions(res.data.data.sessions as IDialysisSessionRow[]);
-          const pagination = res.data.data?.pagination;
-          if (pagination?.totalCount != null) setDialysisTotal(pagination.totalCount);
-        } else {
-          setDialysisSessions([]);
-        }
-      } catch {
-        setDialysisSessions([]);
-      } finally {
-        setDialysisLoading(false);
-      }
-    };
-    fetchDialysis();
-  }, [dialysisPage, dialysisSearch, dialysisStatusFilter]);
 
   const fetchProcedures = async () => {
     if (!API_BASE_URL) return;
@@ -288,30 +229,6 @@ const ProceduresComponent = () => {
               </Link>
             </div>
           </div>
-          <ul className="nav nav-tabs nav-bordered mb-3">
-            <li className="nav-item">
-              <Link
-                href="#procedures"
-                data-bs-toggle="tab"
-                aria-expanded="true"
-                className="nav-link active bg-transparent"
-              >
-                <span>Procedures</span>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                href="#dialysis"
-                data-bs-toggle="tab"
-                aria-expanded="false"
-                className="nav-link bg-transparent"
-              >
-                <span>Dialysis</span>
-              </Link>
-            </li>
-          </ul>
-          <div className="tab-content">
-            <div className="tab-pane show active" id="procedures">
           <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3">
             <div className="search-set mb-3">
               <div className="d-flex align-items-center flex-wrap gap-2">
@@ -471,129 +388,6 @@ const ProceduresComponent = () => {
                 onRowClick={handleProcedureRowClick}
               />
             )}
-          </div>
-            </div>
-            <div className="tab-pane" id="dialysis">
-              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                <div className="d-flex align-items-center flex-wrap gap-2">
-                  <div className="table-search d-flex align-items-center mb-0">
-                    <div className="search-input">
-                      <SearchInput
-                        value={dialysisSearchInput}
-                        onChange={(value) => setDialysisSearchInput(value)}
-                      />
-                    </div>
-                  </div>
-                  <select
-                    className="form-select form-select-sm"
-                    style={{ width: "auto", minWidth: "10rem" }}
-                    value={dialysisStatusFilter}
-                    onChange={(e) => setDialysisStatusFilter(e.target.value)}
-                    aria-label="Filter by status"
-                  >
-                    <option value="">All statuses</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                </div>
-              </div>
-              <div className="table-responsive">
-                {dialysisLoading ? (
-                  <p className="text-muted mb-0">Loading dialysis sessions…</p>
-                ) : dialysisSessions.length === 0 ? (
-                  <p className="text-muted mb-0">No dialysis sessions found.</p>
-                ) : (
-                  <Datatable
-                    columns={[
-                      {
-                        title: "Session ID",
-                        dataIndex: "sessionId",
-                        sorter: false,
-                        showSorterTooltip: false,
-                      },
-                      {
-                        title: "Patient",
-                        dataIndex: "patientName",
-                        sorter: false,
-                        showSorterTooltip: false,
-                        render: (_: any, record: any) => (
-                          <div className="text-dark">
-                            <div className="fw-semibold fs-14 text-truncate">
-                              {record.patientName}
-                            </div>
-                            {record.meta && (
-                              <div className="fs-13 text-muted text-truncate">
-                                {record.meta}
-                              </div>
-                            )}
-                          </div>
-                        ),
-                      },
-                      {
-                        title: "Phone",
-                        dataIndex: "phone",
-                        sorter: false,
-                        showSorterTooltip: false,
-                      },
-                      {
-                        title: "Date",
-                        dataIndex: "date",
-                        sorter: false,
-                        showSorterTooltip: false,
-                        render: (_: any, record: any) => (
-                          <div className="text-dark">
-                            <div>{record.date}</div>
-                            {record.time && (
-                              <div className="fs-13 text-muted">{record.time}</div>
-                            )}
-                          </div>
-                        ),
-                      },
-                      {
-                        title: "Status",
-                        dataIndex: "status",
-                        sorter: false,
-                        showSorterTooltip: false,
-                        render: (text: string) => (
-                          <span
-                            className={`badge fs-13 fw-medium border ${
-                              text === "Completed"
-                                ? "badge-soft-success text-success border-success"
-                                : text === "In Progress"
-                                  ? "badge-soft-warning text-warning border-warning"
-                                  : "badge-soft-secondary text-secondary border-secondary"
-                            }`}
-                          >
-                            {text || "—"}
-                          </span>
-                        ),
-                      },
-                    ]}
-                    dataSource={dialysisSessions.map((session) => ({
-                      key: session._id,
-                      sessionId: session.sessionId ?? "—",
-                      patientName: session.patient?.name ?? "—",
-                      meta: [
-                        session.patient?.age != null ? `${session.patient.age}` : "",
-                        session.patient?.gender || "",
-                      ]
-                        .filter(Boolean)
-                        .join(", "),
-                      phone: session.patient?.phone ?? "—",
-                      date: session.createdAt
-                        ? dayjs(session.createdAt).format("DD MMM YYYY")
-                        : "—",
-                      time: session.createdAt
-                        ? dayjs(session.createdAt).format("hh:mm A")
-                        : "",
-                      status: session.status ?? "—",
-                    }))}
-                    Selection={false}
-                    searchText={dialysisSearch}
-                  />
-                )}
-              </div>
-            </div>
           </div>
         </div>
         <div className="footer text-center bg-white p-2 border-top">

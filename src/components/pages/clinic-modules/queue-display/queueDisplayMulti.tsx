@@ -88,16 +88,34 @@ function getStatusDisplay(status: string, visitType?: string) {
       textClass: "text-dark",
     };
   }
+  if (normalizedVisitType === "emergency") {
+    return {
+      label: "In Queue (आप कतार में हैं)",
+      rowStyle: { backgroundColor: "#F05178" },
+      textClass: "text-white",
+    };
+  }
   if (normalizedVisitType === "mr") {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#af6eaa" },
+      rowStyle: { backgroundColor: "#0BA4D0" },
       textClass: "text-white",
+    };
+  }
+  if (
+    normalizedVisitType === "follow-up" ||
+    normalizedVisitType === "follow up" ||
+    normalizedVisitType === "followup"
+  ) {
+    return {
+      label: "In Queue (आप कतार में हैं)",
+      rowStyle: { backgroundColor: "#F8CA50" },
+      textClass: "text-dark",
     };
   }
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#f5eb55" },
+    rowStyle: { backgroundColor: "#F8CA50" },
     textClass: "text-dark",
   };
 }

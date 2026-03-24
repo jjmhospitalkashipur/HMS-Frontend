@@ -46,6 +46,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "Dialysis",
+        link: routes.dialysis,
+        submenu: false,
+        showSubRoute: false,
+        icon: "droplet",
+        base: "Dialysis",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Patients",
         link: routes.patients,
         submenu: false,

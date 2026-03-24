@@ -23,12 +23,13 @@ import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 
 const BED_CHARGES_OPTIONS: Option[] = [
+  { value: "none", label: "None" },
   { value: "private", label: "Private (200/hr)" },
   { value: "semi", label: "Semi-Private (150/hr)" },
   { value: "general", label: "General (100/hr)" },
 ];
 
-const BED_CHARGES_RATE: Record<string, number> = { private: 200, semi: 150, general: 100 };
+const BED_CHARGES_RATE: Record<string, number> = { none: 0, private: 200, semi: 150, general: 100 };
 
 interface IDaycareProcedure {
   procedureId: string;
