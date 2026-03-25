@@ -44,12 +44,15 @@ const CommonSelect: React.FC<SelectProps> = ({
   const customStyles = {
     option: (base: any, state: any) => ({
       ...base,
-      color: "#6C7688",
-      backgroundColor: state.isSelected ? "#ddd" : "white",
+      backgroundColor:
+        state.isSelected || state.isFocused ? "#2e37a4" : "white",
+      color: state.isSelected || state.isFocused ? "#ffffff" : "#333",
       cursor: "pointer",
-      "&:hover": {
-        backgroundColor: state.isFocused ? "#2e37a4" : "white",
-        color: state.isFocused ? "#fff" : "#2e37a4",
+      padding: "8px 12px",
+      ":active": {
+        ...base[":active"],
+        backgroundColor: "#2e37a4",
+        color: "#ffffff",
       },
     }),
   };
@@ -61,7 +64,7 @@ const CommonSelect: React.FC<SelectProps> = ({
       setSelectedOption(option || undefined);
     }
   };
-  
+
   useEffect(() => {
     if (value !== undefined && value !== null) {
       setSelectedOption(value);
@@ -71,24 +74,26 @@ const CommonSelect: React.FC<SelectProps> = ({
       setSelectedOption(undefined);
     }
   }, [value, defaultValue]);
-  
+
   return (
-    <Select
-      classNamePrefix="react-select"
-      className={className}
-      styles={customStyles}
-      options={options}
-      instanceId={stableInstanceId}
-      value={selectedOption}
-      onChange={handleChange}
-      placeholder={placeholder ?? "Select"}
-      isDisabled={disabled}
-      key={stableInstanceId}
-      onInputChange={onInputChange}
-      onMenuOpen={onMenuOpen}
-      isLoading={isLoading}
-      isSearchable={true}
-    />
+    <div className="common-select-wrapper">
+      <Select
+        classNamePrefix="react-select"
+        className={className}
+        styles={customStyles}
+        options={options}
+        instanceId={stableInstanceId}
+        value={selectedOption}
+        onChange={handleChange}
+        placeholder={placeholder ?? "Select"}
+        isDisabled={disabled}
+        key={stableInstanceId}
+        onInputChange={onInputChange}
+        onMenuOpen={onMenuOpen}
+        isLoading={isLoading}
+        isSearchable={true}
+      />
+    </div>
   );
 };
 

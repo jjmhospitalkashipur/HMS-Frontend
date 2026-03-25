@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import dayjs from "dayjs";
 
 export interface IReceiptTransaction {
@@ -48,13 +48,49 @@ interface IPrintReceiptProps {
 
 const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
   const printRef = useRef<HTMLDivElement>(null);
+  /** Inline parent handlers change every render; must not be a useEffect dependency or print runs again after cancel. */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  /** Parents often pass `buildDaycareReceiptData(...)` inline — new object every render would retrigger print. */
+  const receiptEffectKey = useMemo(
+    () =>
+      [
+        receiptData.visitId ?? "",
+        receiptData.appointmentId ?? "",
+        receiptData.receiptId ?? "",
+        String(receiptData.totalAmount ?? ""),
+        String(receiptData.discount ?? ""),
+        String(receiptData.paidAmount ?? ""),
+      ].join("|"),
+    [
+      receiptData.visitId,
+      receiptData.appointmentId,
+      receiptData.receiptId,
+      receiptData.totalAmount,
+      receiptData.discount,
+      receiptData.paidAmount,
+    ]
+  );
 
   useEffect(() => {
+    let cancelled = false;
+
     const doPrint = () => {
-      if (!printRef.current) return;
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) return;
-      printWindow.document.write(`
+      if (!printRef.current || cancelled) return;
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("title", "Receipt print");
+      iframe.style.cssText =
+        "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+      document.body.appendChild(iframe);
+      const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+      const iframeWin = iframe.contentWindow;
+      if (!iframeDoc || !iframeWin) {
+        iframe.remove();
+        return;
+      }
+      if (cancelled) return;
+      const html = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -79,6 +115,13 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               .header-right { text-align: right; }
               .header-right .address { font-size: 14px; color: #000; margin-bottom: 4px; line-height: 1.4; }
               .header-right .contact { font-size: 14px; color: #000; line-height: 1.6; }
+              .receipt-title {
+                text-align: center;
+                font-size: 20px;
+                font-weight: bold;
+                letter-spacing: 0.04em;
+                color: #000;
+              }
               .content-box { border: none; padding: 8px 12px 0 12px; margin-bottom: 12px; }
               .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; }
               .patient-info-table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
@@ -120,17 +163,34 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
             ${printRef.current.innerHTML}
           </body>
         </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-        onClose?.();
-      }, 250);
+      `;
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      const finish = () => {
+        if (cancelled) return;
+        try {
+          iframeWin.focus();
+          iframeWin.print();
+        } finally {
+          window.setTimeout(() => {
+            if (cancelled) return;
+            iframe.remove();
+            onCloseRef.current?.();
+          }, 250);
+        }
+      };
+
+      window.setTimeout(finish, 250);
     };
     doPrint();
-  }, [receiptData, onClose]);
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally omit onClose and receipt object identity — use receiptEffectKey + onCloseRef instead.
+  }, [receiptEffectKey]);
 
   const formatTime = (timeStr?: string) => {
     if (!timeStr) return "—";
@@ -144,6 +204,8 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
 
   const patientName = [receiptData.patientTitle, receiptData.patientName].filter(Boolean).join(" ").trim() || "—";
   const patientAge = receiptData.age != null && String(receiptData.age).trim() !== "" ? String(receiptData.age) : "—";
+  const patientGender = receiptData.gender?.trim() || "—";
+  const patientAgeGender = patientGender !== "—" ? `${patientAge} / ${patientGender}` : patientAge;
   const patientAddress = receiptData.address?.trim() || "—";
   const doctorId = receiptData.doctorId?.trim() || "—";
   const doctorName = receiptData.doctorName?.trim() || "—";
@@ -192,6 +254,8 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
           </div>
         </div>
 
+        <div className="receipt-title">Receipt</div>
+
         {/* Content Box */}
         <div className="content-box">
           {/* Patient Details */}
@@ -213,8 +277,8 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                 <tr>
                   <td className="info-label-cell">Address:</td>
                   <td className="info-value-cell">{patientAddress}</td>
-                  <td className="info-label-cell">Patient Age:</td>
-                  <td className="info-value-cell info-value-cell-narrow">{patientAge}</td>
+                  <td className="info-label-cell">Age / Gender:</td>
+                  <td className="info-value-cell info-value-cell-narrow">{patientAgeGender}</td>
                 </tr>
                 <tr>
                   <td className="info-label-cell">Receipt ID:</td>

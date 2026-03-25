@@ -117,6 +117,20 @@
   background-color: #06081f !important;
 }
 
+// CommonSelect option hover/focus/selected colors.
+// Double-class selector (0,2,0) beats emotion's single-class (0,1,0) AND is marked !important.
+.common-select-wrapper .react-select__option--is-focused,
+.common-select-wrapper .react-select__option--is-selected {
+  background-color: #2e37a4 !important;
+  color: #ffffff !important;
+}
+
+// Ensure child text nodes inside the option also inherit white.
+.common-select-wrapper .react-select__option--is-focused *,
+.common-select-wrapper .react-select__option--is-selected * {
+  color: #ffffff !important;
+}
+
 [data-bs-theme="dark"] .select .react-select__control {
   border: 1px solid #202a36 !important;
 }

@@ -1,20 +1,63 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Link from "next/link";
 import axios from "axios";
 import dayjs from "dayjs";
 import { API_BASE_URL } from "@/environment";
+import { all_routes } from "@/routes/all_routes";
+import PrintReceipt, {
+  type IReceiptData,
+} from "@/components/pages/clinic-modules/appointments/printReceipt";
+import {
+  buildDaycareReceiptData,
+  type IDaycareAppointmentDetail,
+} from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
 
 interface IDialysisSessionRow {
   _id: string;
   sessionId: string;
+  patientId?: string;
+  daycareAppointmentId?: string;
   status?: string;
   createdAt?: string;
-  patient?: { name?: string; age?: number; gender?: string; phone?: string };
+  patient?: {
+    name?: string;
+    age?: number;
+    months?: number;
+    days?: number;
+    gender?: string;
+    phone?: string;
+  };
 }
+
+const formatAgeForDialysisListing = (patient?: {
+  age?: number;
+  months?: number;
+  days?: number;
+}): string | undefined => {
+  const years = patient?.age;
+  const months = patient?.months;
+  const days = patient?.days;
+
+  if (years == null) return undefined;
+  if (!Number.isFinite(Number(years))) return undefined;
+
+  if (Number(years) === 0) {
+    if (months != null && Number(months) > 0) {
+      return `${months} ${months === 1 ? "Month" : "Months"}`;
+    }
+    if (days != null) {
+      return `${days} ${days === 1 ? "Day" : "Days"}`;
+    }
+    return "0 Years";
+  }
+
+  return `${years} ${years === 1 ? "Year" : "Years"}`;
+};
 
 const DialysisComponent = () => {
   const [activeTab, setActiveTab] = useState<"all" | "today">("today");
@@ -25,7 +68,11 @@ const DialysisComponent = () => {
   const [dialysisSearch, setDialysisSearch] = useState("");
   const [dialysisStatusFilter, setDialysisStatusFilter] = useState<string>("");
   const [dialysisStatusUpdatingId, setDialysisStatusUpdatingId] = useState<string | null>(null);
+  const [receiptData, setReceiptData] = useState<IReceiptData | null>(null);
+  const [showPrintReceipt, setShowPrintReceipt] = useState(false);
+  const [printingSessionId, setPrintingSessionId] = useState<string | null>(null);
   const dialysisLimit = 100;
+  const router = useRouter();
 
   useEffect(() => {
     const t = setTimeout(() => setDialysisSearch(dialysisSearchInput.trim()), 400);
@@ -87,6 +134,38 @@ const DialysisComponent = () => {
       // Keep previous status if update fails
     } finally {
       setDialysisStatusUpdatingId(null);
+    }
+  };
+
+  const handlePrintReceipt = async (daycareAppointmentId: string | undefined, sessionRowId: string) => {
+    if (!daycareAppointmentId || !API_BASE_URL) {
+      alert("No linked daycare appointment found for this session. Receipt is not available.");
+      return;
+    }
+    setPrintingSessionId(sessionRowId);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments/${daycareAppointmentId}`);
+      if (res.data?.code !== 200 || !res.data?.data) {
+        alert(res.data?.message ?? "Failed to load daycare appointment for receipt.");
+        return;
+      }
+      const raw = res.data.data?.daycareAppointment ?? res.data.data;
+      const responseReceiptId = res.data?.data?.receiptId as string | undefined;
+      const daycare: IDaycareAppointmentDetail = {
+        ...(raw as IDaycareAppointmentDetail),
+        receiptId: (raw as IDaycareAppointmentDetail)?.receiptId ?? responseReceiptId,
+      };
+      const baseTotal = daycare.totalPrice ?? daycare.subtotal ?? 0;
+      const transactions = daycare.transactions || [];
+      const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+      const totalPaid = daycare.amountPaid != null ? daycare.amountPaid : totalPaidFromTx;
+      const dueAmount = Math.max(0, baseTotal - totalPaid);
+      setReceiptData(buildDaycareReceiptData(daycare, dueAmount));
+      setShowPrintReceipt(true);
+    } catch {
+      alert("Failed to load receipt. Please try again.");
+    } finally {
+      setPrintingSessionId(null);
     }
   };
 
@@ -210,12 +289,71 @@ const DialysisComponent = () => {
                     </select>
                   ),
                 },
+                {
+                  title: "",
+                  dataIndex: "actions",
+                  sorter: false,
+                  showSorterTooltip: false,
+                  width: 110,
+                  render: (_: unknown, record: any) => {
+                    const sessionKey = record.key as string;
+                    const daycareId = record.daycareAppointmentId as string | undefined;
+                    const canPrint = Boolean(daycareId);
+                    const canOpenForm = Boolean(record.patientId);
+                    return (
+                      <div className="d-flex align-items-center justify-content-end gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center"
+                          title="Open dialysis form"
+                          aria-label="Open dialysis form"
+                          disabled={!canOpenForm}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(
+                              `${all_routes.dialysisAppointment}?patientId=${record.patientId ?? ""}&sessionId=${sessionKey}`
+                            );
+                          }}
+                        >
+                          <i className="ti ti-edit fs-16" />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center"
+                          title={canPrint ? "Print daycare receipt" : "No linked daycare appointment"}
+                          aria-label="Print receipt"
+                          disabled={!canPrint || printingSessionId === sessionKey}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePrintReceipt(daycareId, sessionKey);
+                          }}
+                        >
+                          {printingSessionId === sessionKey ? (
+                            <span
+                              className="spinner-border spinner-border-sm"
+                              role="status"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <i className="ti ti-printer fs-16" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  },
+                },
               ]}
               dataSource={dialysisSessions.map((session) => ({
                 key: session._id,
+                patientId: session.patientId,
+                daycareAppointmentId: session.daycareAppointmentId,
                 sessionId: session.sessionId ?? "-",
                 patientName: session.patient?.name ?? "-",
-                meta: [session.patient?.age != null ? `${session.patient.age}` : "", session.patient?.gender || ""]
+                meta: [
+                  formatAgeForDialysisListing(session.patient),
+                  session.patient?.gender || "",
+                ]
                   .filter(Boolean)
                   .join(", "),
                 phone: session.patient?.phone ?? "-",
@@ -228,6 +366,16 @@ const DialysisComponent = () => {
             />
           )}
         </div>
+
+        {showPrintReceipt && receiptData && (
+          <PrintReceipt
+            receiptData={receiptData}
+            onClose={() => {
+              setShowPrintReceipt(false);
+              setReceiptData(null);
+            }}
+          />
+        )}
       </div>
       <div className="footer text-center bg-white p-2 border-top">
         <p className="text-dark mb-0">

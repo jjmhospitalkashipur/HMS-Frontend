@@ -259,6 +259,13 @@ const DialysisAppointmentContent = () => {
       const n = Number(v);
       return Number.isNaN(n) ? undefined : n;
     };
+    /** For monitoring cells that may be numeric or free text (e.g. "normal"); avoids NaN → dropped. */
+    const parseNumericOrString = (raw: string): number | string | undefined => {
+      const t = raw.trim();
+      if (t === "") return undefined;
+      const n = Number(t);
+      return Number.isNaN(n) ? t : n;
+    };
     const getBool = (name: string) => formData.get(name) === "on";
 
     const patientId =
@@ -327,6 +334,7 @@ const DialysisAppointmentContent = () => {
       const dyna = get(`monitoring.${i}.dyna`);
       const heparin = get(`monitoring.${i}.heparin`);
       const rbs = get(`monitoring.${i}.rbs`);
+      const rbsPayload = parseNumericOrString(rbs);
 
       const anyValue = [
         timeOnHd,
@@ -345,16 +353,16 @@ const DialysisAppointmentContent = () => {
 
       monitoringReadings.push({
         timeOnHd,
-        pr: pr ? Number(pr) : undefined,
+        pr: parseNumericOrString(pr),
         bp,
-        bfr: bfr ? Number(bfr) : undefined,
-        dfr: dfr ? Number(dfr) : undefined,
-        ufr: ufr ? Number(ufr) : undefined,
-        totalUf: totalUf ? Number(totalUf) : undefined,
-        temperature: temperature ? Number(temperature) : undefined,
-        dyna: dyna ? Number(dyna) : undefined,
-        heparin: heparin ? Number(heparin) : undefined,
-        rbs: rbs ? Number(rbs) : undefined,
+        bfr: parseNumericOrString(bfr),
+        dfr: parseNumericOrString(dfr),
+        ufr: parseNumericOrString(ufr),
+        totalUf: parseNumericOrString(totalUf),
+        temperature: parseNumericOrString(temperature),
+        dyna: parseNumericOrString(dyna),
+        heparin: parseNumericOrString(heparin),
+        rbs: rbsPayload,
       });
     }
 
@@ -624,6 +632,14 @@ const DialysisAppointmentContent = () => {
                           />
                         </div>
                         <div className="col-md-2 col-6">
+                          <label className="form-label mb-1 fw-medium">Fiber Volume</label>
+                          <input
+                            name="general.fiberVolume"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
+                        <div className="col-md-2 col-6">
                           <label className="form-label mb-1 fw-medium">Bolus</label>
                           <input
                             name="general.bolus"
@@ -635,14 +651,6 @@ const DialysisAppointmentContent = () => {
                           <label className="form-label mb-1 fw-medium">Hourly</label>
                           <input
                             name="general.hourly"
-                            type="text"
-                            className="form-control form-control-sm"
-                          />
-                        </div>
-                        <div className="col-md-2 col-6">
-                          <label className="form-label mb-1 fw-medium">Fiber Volume</label>
-                          <input
-                            name="general.fiberVolume"
                             type="text"
                             className="form-control form-control-sm"
                           />

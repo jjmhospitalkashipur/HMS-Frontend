@@ -42,6 +42,8 @@ interface IPatient {
   phone: string;
   email: string;
   age: number;
+  months?: number;
+  days?: number;
   gender: string;
   bloodGroup: string;
   address: string;
@@ -577,7 +579,17 @@ const PatientDetailsComponent = () => {
                         </span>
                         <div className="flex-grow-1">
                           <h6 className="fs-13 fw-bold mb-1 text-dark">Age</h6>
-                          <p className="mb-0 text-nowrap text-dark">{patient?.age ? `${patient.age} Years` : "N/A"}</p>
+                          <p className="mb-0 text-nowrap text-dark">
+                            {patient?.age != null
+                              ? patient.age === 0
+                                ? (patient.months != null && patient.months > 0
+                                    ? `${patient.months} Months`
+                                    : patient.days != null
+                                      ? `${patient.days} Days`
+                                      : "0 Years")
+                                : `${patient.age} Years`
+                              : "N/A"}
+                          </p>
                         </div>
                       </div>
                     </div>

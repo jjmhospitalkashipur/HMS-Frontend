@@ -110,6 +110,9 @@ const EditAppointmentComponent = () => {
   const [address, setAddress] = useState<string>("");
   const [aadharNo, setAadharNo] = useState<string>("");
   const [ayushmanNo, setAyushmanNo] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("");
+  const [division, setDivision] = useState<string>("");
+  const [patientId, setPatientId] = useState<string | null>(null);
   const [attendantName, setAttendantName] = useState<string>("");
   const [attendantRelation, setAttendantRelation] = useState<string>("");
 
@@ -135,6 +138,7 @@ const EditAppointmentComponent = () => {
       const res = await axios.get(`${API_BASE_URL}/hospital/visits/${id}`);
       if (res.data?.code === 200 && res.data?.data?.visit) {
         const v = res.data.data.visit;
+        setPatientId(v.patientId ?? null);
         setVisitStatus((v as { status?: string }).status || "");
         setVisitDate(v.visitDate ? dayjs(v.visitDate) : null);
         setVisitTime(v.visitTime ? dayjs(v.visitTime, "HH:mm") : null);
@@ -198,6 +202,8 @@ const EditAppointmentComponent = () => {
             setAddress(p.address || "");
             setAadharNo((p as any).aadharNo || "");
             setAyushmanNo((p as any).ayushmanCardNo || "");
+            setCompanyName((p as { companyName?: string }).companyName ?? "");
+            setDivision((p as { division?: string }).division ?? "");
             if (p.dob) {
               const birthDate = dayjs(p.dob).toDate();
               const today = new Date();
@@ -218,6 +224,10 @@ const EditAppointmentComponent = () => {
               setAgeDays(days.toString());
             } else if (p.age != null) {
               setAgeYears(String(p.age));
+              const pm = (p as { months?: number }).months;
+              const pd = (p as { days?: number }).days;
+              if (pm != null) setAgeMonths(String(pm));
+              if (pd != null) setAgeDays(String(pd));
             }
           }
         } catch {
@@ -330,6 +340,31 @@ const EditAppointmentComponent = () => {
     }
   };
 
+  const calculatePatientAgeYears = (): number => {
+    if (ageYears) {
+      const n = parseInt(ageYears, 10);
+      return Number.isFinite(n) && !Number.isNaN(n) ? n : 0;
+    }
+    if (dob) {
+      const birthDate = dayjs.isDayjs(dob) ? dob.toDate() : new Date(dob);
+      const today = new Date();
+      let years = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        years--;
+      }
+      return years;
+    }
+    return 0;
+  };
+
+  const parseAgeComponent = (s: string): number => {
+    const t = s.trim();
+    if (t === "") return 0;
+    const n = parseInt(t, 10);
+    return Number.isFinite(n) && !Number.isNaN(n) ? Math.max(0, n) : 0;
+  };
+
   const canEditDoctorDetails =
     visitStatus === "Scheduled" || visitStatus === "No Show";
 
@@ -382,6 +417,40 @@ const EditAppointmentComponent = () => {
       }
       const res = await axios.patch(`${API_BASE_URL}/hospital/visits/${visitId}`, payload);
       if (res.data?.code === 200 || (res.status >= 200 && res.status < 300)) {
+        if (patientId && appointmentType === "OPD") {
+          try {
+            const dobStr = dob
+              ? dayjs.isDayjs(dob)
+                ? dob.format("YYYY-MM-DD")
+                : dayjs(dob).format("YYYY-MM-DD")
+              : undefined;
+            const patientPatch: Record<string, unknown> = {
+              title: title?.value || "",
+              name: name.trim(),
+              phone: phone || "",
+              email: email || undefined,
+              age: calculatePatientAgeYears(),
+              months: parseAgeComponent(ageMonths),
+              days: parseAgeComponent(ageDays),
+              gender: gender?.value !== "Select" ? gender?.value : "",
+              bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
+              address: address || undefined,
+              aadharNo: aadharNo || undefined,
+              ayushmanCardNo: ayushmanNo || undefined,
+              companyName: companyName.trim() || undefined,
+              division: division.trim() || undefined,
+            };
+            if (dobStr) patientPatch.dob = dobStr;
+            await axios.patch(`${API_BASE_URL}/hospital/patients/${patientId}`, patientPatch);
+          } catch (pErr: any) {
+            setError(
+              pErr?.response?.data?.message ??
+                "Appointment was updated but patient details could not be saved. Please try again from the patient record."
+            );
+            setLoading(false);
+            return;
+          }
+        }
         router.push(all_routes.appointments);
       } else {
         setError(res.data?.message || "Failed to update appointment");
@@ -471,6 +540,15 @@ const EditAppointmentComponent = () => {
           .page-wrapper .card,
           .page-wrapper .card * {
             color: #000 !important;
+          }
+          .page-wrapper .card .react-select__menu .react-select__option--is-focused,
+          .page-wrapper .card .react-select__menu .react-select__option--is-selected {
+            color: #ffffff !important;
+            background-color: #2e37a4 !important;
+          }
+          .page-wrapper .card .react-select__menu .react-select__option--is-focused *,
+          .page-wrapper .card .react-select__menu .react-select__option--is-selected * {
+            color: #ffffff !important;
           }
         `,
         }}
@@ -654,9 +732,9 @@ const EditAppointmentComponent = () => {
                       />
                     </div>
                   </div>
-                  <div className="col-md-5">
+                  <div className="col-12">
                     <div className="row g-2">
-                      <div className="col-md-6">
+                      <div className="col-12 col-sm-6 col-lg-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">Attendant Name</label>
                           <input
@@ -668,13 +746,39 @@ const EditAppointmentComponent = () => {
                           />
                         </div>
                       </div>
-                      <div className="col-md-6">
+                      <div className="col-12 col-sm-6 col-lg-3">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">Relation to Patient</label>
                           <input
                             type="text"
                             className="form-control bg-light"
                             value={attendantRelation}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      <div className="col-12 col-sm-6 col-lg-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Company</label>
+                          <input
+                            type="text"
+                            className="form-control bg-light"
+                            placeholder="Company name"
+                            value={companyName}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      <div className="col-12 col-sm-6 col-lg-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Division</label>
+                          <input
+                            type="text"
+                            className="form-control bg-light"
+                            placeholder="Division"
+                            value={division}
                             readOnly
                             disabled
                           />

@@ -79,6 +79,45 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     padding: 0;
                     background: #fff;
                   }
+                  .vitals-layout {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    justify-content: flex-start;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    margin-bottom: 12px;
+                  }
+                  .vitals-main {
+                    flex: 0 0 30%;
+                    max-width: 30%;
+                    min-width: 0;
+                  }
+                  .vitals-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 12px;
+                    line-height: 1.3;
+                    margin: 0;
+                  }
+                  .vitals-table td {
+                    padding: 4px 6px;
+                    border: 1px solid #000;
+                    vertical-align: middle;
+                  }
+                  .vitals-label-cell {
+                    background-color: #f8f9fa;
+                    font-weight: 600;
+                    color: #000;
+                    width: 55%;
+                    white-space: nowrap;
+                  }
+                  .vitals-value-cell {
+                    background-color: #ffffff;
+                    font-weight: 500;
+                    color: #000;
+                    width: 45%;
+                  }
                   .letterhead-space { height: 60px; width: 100%; margin-bottom: 12px; }
                   .patient-card {
                     border-radius: 12px;
@@ -202,6 +241,18 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
     })() ||
     "";
 
+  const normalizeVital = (value?: string) => {
+    const v = value?.trim();
+    if (!v) return "";
+    if (v === "-" || v === "—") return "";
+    return v;
+  };
+
+  const bpValue = normalizeVital(appointmentData.Vitals?.BP);
+  const pulseValue = normalizeVital(appointmentData.Vitals?.PR);
+  const weightValue = normalizeVital(appointmentData.Vitals?.WT);
+  const spO2Value = normalizeVital(appointmentData.Vitals?.HT);
+
   return (
     <div style={{ display: "none" }}>
       <div ref={printRef} className="prescription-container">
@@ -226,7 +277,7 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                 <td className="info-label-cell">Age / Gender:</td>
                 <td className="info-value-cell">
                   {appointmentData.Age != null || appointmentData.Sex
-                    ? `${appointmentData.Age ?? "—"} Years/${appointmentData.Sex ?? "—"}`
+                    ? `${appointmentData.Age ?? "—"}/${appointmentData.Sex ?? "—"}`
                     : "—"}
                 </td>
               </tr>
@@ -249,6 +300,32 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
               </tr>
             </tbody>
           </table>
+        </div>
+
+        {/* Vitals: BP, Pulse, Weight, SpO2 with a small side table */}
+        <div className="vitals-layout">
+          <div className="vitals-main">
+            <table className="vitals-table">
+              <tbody>
+                <tr>
+                  <td className="vitals-label-cell">BP:</td>
+                  <td className="vitals-value-cell">{bpValue}</td>
+                </tr>
+                <tr>
+                  <td className="vitals-label-cell">Pulse:</td>
+                  <td className="vitals-value-cell">{pulseValue}</td>
+                </tr>
+                <tr>
+                  <td className="vitals-label-cell">Weight:</td>
+                  <td className="vitals-value-cell">{weightValue}</td>
+                </tr>
+                <tr>
+                  <td className="vitals-label-cell">SpO2:</td>
+                  <td className="vitals-value-cell">{spO2Value}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

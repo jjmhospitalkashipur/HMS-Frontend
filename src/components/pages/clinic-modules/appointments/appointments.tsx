@@ -49,6 +49,8 @@ interface IPatient {
   phone: string;
   organisationName?: string;
   age?: number;
+  months?: number;
+  days?: number;
   gender?: string;
   dob?: string;
   mrd?: string;
@@ -79,6 +81,54 @@ interface ITransformedAppointment {
   createdAt?: string;
   [key: string]: any;
 }
+
+const calculateAgePartsFromDob = (dob?: string): { years: number; months: number; days: number } | null => {
+  if (!dob) return null;
+  const birth = dayjs(dob);
+  if (!birth.isValid()) return null;
+  const birthDate = birth.toDate();
+  const today = new Date();
+  let years = today.getFullYear() - birthDate.getFullYear();
+  let months = today.getMonth() - birthDate.getMonth();
+  let days = today.getDate() - birthDate.getDate();
+  if (days < 0) {
+    months--;
+    const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+    days += lastMonth.getDate();
+  }
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  return { years, months, days };
+};
+
+const formatAgeForListing = (
+  years?: number | null,
+  months?: number | null,
+  days?: number | null,
+  dob?: string
+): string | undefined => {
+  const y = years != null ? Number(years) : undefined;
+  if (y != null && Number.isFinite(y)) {
+    if (y === 0) {
+      const m = months != null ? Number(months) : 0;
+      if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+      if (days != null) return `${days} ${Number(days) === 1 ? "Day" : "Days"}`;
+      return undefined;
+    }
+    return `${y} ${y === 1 ? "Year" : "Years"}`;
+  }
+
+  const parts = calculateAgePartsFromDob(dob);
+  if (!parts) return undefined;
+  if (parts.years === 0) {
+    if (parts.months > 0)
+      return `${parts.months} ${parts.months === 1 ? "Month" : "Months"}`;
+    return `${parts.days} ${parts.days === 1 ? "Day" : "Days"}`;
+  }
+  return `${parts.years} ${parts.years === 1 ? "Year" : "Years"}`;
+};
 
 const AppointmentsComponent = () => {
   const router = useRouter();
@@ -289,6 +339,8 @@ const AppointmentsComponent = () => {
                   organisationName?: string;
                   organisation_name?: string;
                   age?: number;
+                  months?: number;
+                  days?: number;
                   gender?: string;
                   dob?: string;
                   mrd?: string;
@@ -305,6 +357,8 @@ const AppointmentsComponent = () => {
                     embeddedPatient.organisation_name ||
                     "",
                   age: embeddedPatient.age,
+                  months: embeddedPatient.months,
+                  days: embeddedPatient.days,
                   gender: embeddedPatient.gender,
                   dob: embeddedPatient.dob,
                   mrd: embeddedPatient.mrd,
@@ -333,12 +387,12 @@ const AppointmentsComponent = () => {
             const visitTime = visit.visitTime || "";
             const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
 
-            const ageDisplay =
-              patient?.age != null
-                ? String(patient.age)
-                : patient?.dob
-                ? String(dayjs().diff(dayjs(patient.dob), "year"))
-                : undefined;
+            const ageDisplay = formatAgeForListing(
+              patient?.age,
+              patient?.months,
+              patient?.days,
+              patient?.dob
+            );
 
             return {
               id: visit._id,

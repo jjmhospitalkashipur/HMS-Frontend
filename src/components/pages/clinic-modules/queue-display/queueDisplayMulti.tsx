@@ -91,7 +91,7 @@ function getStatusDisplay(status: string, visitType?: string) {
   if (normalizedVisitType === "emergency") {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#F05178" },
+      rowStyle: { backgroundColor: "#F89A42" },
       textClass: "text-white",
     };
   }
@@ -109,13 +109,13 @@ function getStatusDisplay(status: string, visitType?: string) {
   ) {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#F8CA50" },
+      rowStyle: { backgroundColor: "#B067AA" },
       textClass: "text-dark",
     };
   }
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#F8CA50" },
+    rowStyle: { backgroundColor: "#F05778" },
     textClass: "text-dark",
   };
 }

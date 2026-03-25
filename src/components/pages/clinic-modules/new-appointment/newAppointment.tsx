@@ -53,8 +53,12 @@ interface IPatient {
   gender?: string;
   dob?: string;
   age?: number;
+  months?: number;
+  days?: number;
   bloodGroup?: string;
   address?: string;
+  companyName?: string;
+  division?: string;
   emergencyContacts?: Array<{
     name: string;
     number: string;
@@ -79,6 +83,8 @@ const NewAppointmentComponent = () => {
   const [address, setAddress] = useState<string>("");
   const [aadharNo, setAadharNo] = useState<string>("");
   const [ayushmanNo, setAyushmanNo] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("");
+  const [division, setDivision] = useState<string>("");
   const [selectedPatient, setSelectedPatient] = useState<IPatient | null>(null);
   const [patientSearchResults, setPatientSearchResults] = useState<IPatient[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState<boolean>(false);
@@ -630,12 +636,14 @@ const NewAppointmentComponent = () => {
       const dobDate = dayjs(patient.dob);
       setDob(dobDate);
       handleDobChange(dobDate);
+    } else {
+      if (patient.age != null) setAgeYears(String(patient.age));
+      if (patient.months != null) setAgeMonths(String(patient.months));
+      if (patient.days != null) setAgeDays(String(patient.days));
     }
-    
-    if (patient.age) {
-      setAgeYears(patient.age.toString());
-    }
-    
+
+    setCompanyName(patient.companyName ?? "");
+    setDivision(patient.division ?? "");
     setAddress(patient.address || "");
     setAadharNo((patient as any).aadharNo || "");
     setAyushmanNo((patient as any).ayushmanCardNo || "");
@@ -731,6 +739,13 @@ const NewAppointmentComponent = () => {
       return years;
     }
     return 0;
+  };
+
+  const parseAgeComponent = (s: string): number => {
+    const t = s.trim();
+    if (t === "") return 0;
+    const n = parseInt(t, 10);
+    return Number.isFinite(n) && !Number.isNaN(n) ? Math.max(0, n) : 0;
   };
 
   const formatDob = (): string => {
@@ -1046,11 +1061,15 @@ const NewAppointmentComponent = () => {
         phone: phone || "",
         email: email || undefined,
         age: calculateAge(),
+        months: parseAgeComponent(ageMonths),
+        days: parseAgeComponent(ageDays),
         gender: gender?.value !== "Select" ? gender?.value : "",
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
         aadharNo: aadharNo || undefined,
         ayushmanCardNo: ayushmanNo || undefined,
+        companyName: companyName.trim() || undefined,
+        division: division.trim() || undefined,
       };
       const formattedDob = formatDob();
       if (formattedDob) patientPayload.dob = formattedDob;
@@ -1261,6 +1280,17 @@ const NewAppointmentComponent = () => {
           .page-wrapper .card,
           .page-wrapper .card * {
             color: #000 !important;
+          }
+          /* react-select menu lives inside .card; the rule above forces black text with !important
+             and beats inline/emotion styles. Exceptions must be more specific (3+ classes). */
+          .page-wrapper .card .react-select__menu .react-select__option--is-focused,
+          .page-wrapper .card .react-select__menu .react-select__option--is-selected {
+            color: #ffffff !important;
+            background-color: #2e37a4 !important;
+          }
+          .page-wrapper .card .react-select__menu .react-select__option--is-focused *,
+          .page-wrapper .card .react-select__menu .react-select__option--is-selected * {
+            color: #ffffff !important;
           }
           @keyframes spin {
             from { transform: rotate(0deg); }
@@ -1593,36 +1623,6 @@ const NewAppointmentComponent = () => {
                             onChange={(e) => setAddress(e.target.value)}
                           />
                         </div>
-                        <div className="row g-2">
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">
-                                Attendant Name
-                              </label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Enter attendant name"
-                                value={attendantName}
-                                onChange={(e) => setAttendantName(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">
-                                Relation to Patient
-                              </label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Son, Daughter, etc."
-                                value={attendantRelation}
-                                onChange={(e) => setAttendantRelation(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
                       </div>
                       <div className="col-md-4">
                         <div className="mb-3">
@@ -1650,6 +1650,62 @@ const NewAppointmentComponent = () => {
                             value={ayushmanNo}
                             onChange={(e) => setAyushmanNo(e.target.value)}
                           />
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <div className="row g-2">
+                          <div className="col-12 col-sm-6 col-lg-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Attendant Name
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter attendant name"
+                                value={attendantName}
+                                onChange={(e) => setAttendantName(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-12 col-sm-6 col-lg-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">
+                                Relation to Patient
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Son, Daughter, etc."
+                                value={attendantRelation}
+                                onChange={(e) => setAttendantRelation(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-12 col-sm-6 col-lg-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Company</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Company name"
+                                value={companyName}
+                                onChange={(e) => setCompanyName(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-12 col-sm-6 col-lg-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Division</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Division"
+                                value={division}
+                                onChange={(e) => setDivision(e.target.value)}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -580,18 +580,44 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     <div style="text-align: center; border-top: 1.5px solid #666; width: 180px; padding-top: 5px;">Signature</div>
     <div style="text-align: center; border-top: 1.5px solid #666; width: 180px; padding-top: 5px;">Dr. In charge</div>
   </div>
-
-  <script>
-    window.onload = function () { window.print(); };
-  </script>
 </body>
 </html>`;
 
-  const win = window.open("", "_blank", "width=960,height=800");
-  if (!win) {
-    alert("Pop-up blocked. Please allow pop-ups for this site and try again.");
+  // Use a hidden iframe instead of window.open() so printing works without a popup
+  // (async flows and some browsers block popups that are not from a direct user gesture).
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Dialysis print");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  const iframeWin = iframe.contentWindow;
+  if (!iframeDoc || !iframeWin) {
+    iframe.remove();
     return;
   }
-  win.document.write(html);
-  win.document.close();
+
+  iframeDoc.open();
+  iframeDoc.write(html);
+  iframeDoc.close();
+
+  const cleanup = () => {
+    iframe.remove();
+  };
+
+  const runPrint = () => {
+    try {
+      iframeWin.focus();
+      iframeWin.print();
+    } finally {
+      window.setTimeout(cleanup, 750);
+    }
+  };
+
+  if (iframeDoc.readyState === "complete") {
+    window.setTimeout(runPrint, 0);
+  } else {
+    iframe.onload = () => window.setTimeout(runPrint, 0);
+  }
 }

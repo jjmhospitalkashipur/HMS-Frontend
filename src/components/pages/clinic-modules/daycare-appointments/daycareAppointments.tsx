@@ -27,6 +27,8 @@ interface IDaycarePatient {
   _id: string;
   name?: string;
   age?: number;
+  months?: number;
+  days?: number;
   gender?: string;
 }
 
@@ -61,7 +63,7 @@ interface IRow {
   Date: string;
   Time?: string;
   Patient: string;
-  Age?: number;
+  Age?: string;
   Gender?: string;
   Doctor: string;
   DoctorDesignation?: string;
@@ -80,15 +82,47 @@ const DaycareAppointmentsComponent = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [searchText, setSearchText] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const formatAgeForListing = (
+    years?: number | null,
+    months?: number | null,
+    days?: number | null
+  ): string | undefined => {
+    const y = years != null ? Number(years) : undefined;
+    if (y != null && Number.isFinite(y)) {
+      if (y === 0) {
+        const m = months != null ? Number(months) : 0;
+        if (m > 0) return `${m}M`;
+        if (days != null) return `${days}D`;
+        return undefined;
+      }
+      return String(y);
+    }
+    // If backend doesn't send `age` but does send `months/days`, prefer that.
+    const m = months != null ? Number(months) : 0;
+    if (m > 0) return `${m}M`;
+    if (days != null) return `${days}D`;
+    return undefined;
+  };
 
   const fetchDaycareAppointments = useCallback(async () => {
       if (!API_BASE_URL) return;
       try {
         setLoading(true);
         setError("");
-        const params: Record<string, string> = {};
+        const params: Record<string, string | number> = {
+          page,
+          limit,
+        };
         if (activeTab === "today") {
           params.date = dayjs().format("YYYY-MM-DD");
+        }
+        const trimmedSearch = searchText.trim();
+        if (trimmedSearch) {
+          params.search = trimmedSearch;
         }
         const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments`, { params });
         if (res.data?.code === 200 && res.data?.data) {
@@ -98,6 +132,21 @@ const DaycareAppointmentsComponent = () => {
             : Array.isArray(raw.appointments)
             ? (raw.appointments as IDaycareAppointment[])
             : [];
+
+          const pagination = raw?.pagination;
+          if (pagination && typeof pagination === "object") {
+            const total =
+              typeof pagination.total === "number"
+                ? pagination.total
+                : typeof pagination.totalCount === "number"
+                  ? pagination.totalCount
+                  : list.length;
+            setTotalCount(total);
+          } else {
+            const fallbackTotal = res.data?.data?.total ?? res.data?.data?.count;
+            setTotalCount(typeof fallbackTotal === "number" ? fallbackTotal : list.length);
+          }
+
           if (!list.length) {
             setRows([]);
             setError("");
@@ -115,7 +164,7 @@ const DaycareAppointmentsComponent = () => {
             const dept = item.daycareChargesType || item.bedChargesType || "";
             const deptName = item.doctor?.department || "";
             const patientName = item.patient?.name ?? "";
-            const age = item.patient?.age;
+            const age = formatAgeForListing(item.patient?.age, (item.patient as any)?.months, (item.patient as any)?.days);
             const gender = item.patient?.gender;
             const proceduresList =
               item.procedures && item.procedures.length
@@ -143,15 +192,17 @@ const DaycareAppointmentsComponent = () => {
           setRows(mapped);
         } else {
           setRows([]);
+          setTotalCount(0);
           setError(res.data?.message || "Failed to load daycare appointments.");
         }
       } catch (err: any) {
         setRows([]);
+        setTotalCount(0);
         setError(err?.response?.data?.message || "Failed to load daycare appointments.");
       } finally {
         setLoading(false);
       }
-  }, [activeTab]);
+  }, [activeTab, page, limit, searchText]);
 
   useEffect(() => {
     fetchDaycareAppointments();
@@ -299,10 +350,17 @@ const DaycareAppointmentsComponent = () => {
 
   const handleSearch = (value: string) => {
     setSearchText(value);
+    setPage(1);
   };
 
   const handleTabChange = (tab: "all" | "today") => {
     setActiveTab(tab);
+    setPage(1);
+  };
+
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setPage(newPage);
+    setLimit(newPageSize);
   };
 
   const handleRowClick = (record: IRow) => {
@@ -387,8 +445,13 @@ const DaycareAppointmentsComponent = () => {
                 columns={columns}
                 dataSource={rows}
                 Selection={false}
-                searchText={searchText}
+                // Server-side search: Datatable must not client-filter the current page.
+                searchText={""}
                 onRowClick={handleRowClick}
+                total={totalCount}
+                currentPage={page}
+                pageSize={limit}
+                onPaginationChange={handlePaginationChange}
               />
             )}
           </div>

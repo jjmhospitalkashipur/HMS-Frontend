@@ -137,11 +137,21 @@ const AppointmentDetailsComponent = () => {
 
   const calculateAge = (dob: string) => {
     if (!dob) return null;
-    const birthDate = dayjs(dob);
-    const today = dayjs();
-    const years = today.diff(birthDate, "year");
-    const months = today.diff(birthDate, "month") % 12;
-    return { years, months };
+    const birthDate = dayjs(dob).toDate();
+    const today = new Date();
+    let years = today.getFullYear() - birthDate.getFullYear();
+    let months = today.getMonth() - birthDate.getMonth();
+    let days = today.getDate() - birthDate.getDate();
+    if (days < 0) {
+      months--;
+      const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      days += lastMonth.getDate();
+    }
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    return { years, months, days };
   };
 
   const handleAddTransaction = async () => {
@@ -224,6 +234,61 @@ const AppointmentDetailsComponent = () => {
   const age = patient?.dob ? calculateAge(patient.dob) : null;
   const totalPaid = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const dueAmount = Math.max(0, (visit.price || 0) - totalPaid);
+
+  const patientAgeUi = (() => {
+    const apiYears = patient?.age;
+    const apiMonths = (patient as any)?.months as number | undefined;
+    const apiDays = (patient as any)?.days as number | undefined;
+
+    if (apiYears != null && Number.isFinite(Number(apiYears))) {
+      const y = Number(apiYears);
+      if (y === 0) {
+        const m = apiMonths != null ? Number(apiMonths) : 0;
+        if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+        if (apiDays != null) return `${apiDays} ${apiDays === 1 ? "Day" : "Days"}`;
+        return undefined;
+      }
+      return `${y} ${y === 1 ? "Year" : "Years"}`;
+    }
+
+    if (age) {
+      if (age.years === 0) {
+        if (age.months > 0) return `${age.months} ${age.months === 1 ? "Month" : "Months"}`;
+        return `${age.days} ${age.days === 1 ? "Day" : "Days"}`;
+      }
+      return `${age.years} ${age.years === 1 ? "Year" : "Years"}`;
+    }
+
+    return undefined;
+  })();
+
+  const patientAgeReceipt = (() => {
+    const apiYears = patient?.age;
+    const apiMonths = (patient as any)?.months as number | undefined;
+    const apiDays = (patient as any)?.days as number | undefined;
+
+    if (apiYears != null && Number.isFinite(Number(apiYears))) {
+      const y = Number(apiYears);
+      if (y === 0) {
+        const m = apiMonths != null ? Number(apiMonths) : 0;
+        if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+        if (apiDays != null) return `${apiDays} ${apiDays === 1 ? "Day" : "Days"}`;
+        return undefined;
+      }
+      return `${y} ${y === 1 ? "Year" : "Years"}`;
+    }
+
+    if (age) {
+      if (age.years === 0) {
+        if (age.months > 0)
+          return `${age.months} ${age.months === 1 ? "Month" : "Months"}`;
+        return `${age.days} ${age.days === 1 ? "Day" : "Days"}`;
+      }
+      return `${age.years} ${age.years === 1 ? "Year" : "Years"}`;
+    }
+
+    return undefined;
+  })();
 
   return (
     <div className="page-wrapper">
@@ -343,7 +408,7 @@ const AppointmentDetailsComponent = () => {
                     <div className="mb-2">
                       <label className="form-label mb-1 fw-medium text-dark fs-14">Age / Gender</label>
                       <div className="fw-bold text-dark">
-                        {age ? `${age.years} years` : patient?.age ? `${patient.age} years` : "N/A"} / {patient?.gender || "N/A"}
+                        {patientAgeUi || "N/A"} / {patient?.gender || "N/A"}
                       </div>
                     </div>
                   </div>
@@ -486,10 +551,6 @@ const AppointmentDetailsComponent = () => {
         </div>
 
         {showPrintReceipt && visit && (() => {
-          const ageDisplay = patient?.dob
-            ? dayjs().diff(dayjs(patient.dob), "year")
-            : patient?.age;
-
           const visitCharge: IReceiptTransaction = {
             _id: visit._id,
             transactionId: "",
@@ -513,7 +574,7 @@ const AppointmentDetailsComponent = () => {
             patientName: patient?.name,
             patientTitle: patient?.title,
             mrd: patient?.mrd,
-            age: ageDisplay != null ? String(ageDisplay) : undefined,
+            age: patientAgeReceipt,
             gender: patient?.gender,
             phone: patient?.phone,
             address: patient?.address,

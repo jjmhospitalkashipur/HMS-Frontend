@@ -20,6 +20,8 @@ interface IPatient {
   phone: string;
   email: string;
   age: number;
+  months?: number;
+  days?: number;
   gender: string;
   bloodGroup: string;
   address: string;
@@ -116,7 +118,25 @@ const PatientsComponent = () => {
             {record.title ? `${record.title} ${record.name}` : record.name}
           </div>
           <div className="fs-13 text-muted">
-            {[record.age ? `${record.age}` : "", record.gender || ""].filter(Boolean).join(", ")}
+            {(() => {
+              const ageNum = record.age;
+              if (ageNum != null) {
+                if (ageNum === 0) {
+                  const m = record.months;
+                  const d = record.days;
+                  if (m != null && m > 0) return `${m} Months, ${record.gender || ""}`.replace(/, $/, "");
+                  if (d != null) return `${d} Days, ${record.gender || ""}`.replace(/, $/, "");
+                  return `0 Years, ${record.gender || ""}`.replace(/, $/, "");
+                }
+                return `${ageNum} Years, ${record.gender || ""}`.replace(/, $/, "");
+              }
+
+              const m = record.months;
+              const d = record.days;
+              if (m != null && m > 0) return `${m} Months, ${record.gender || ""}`.replace(/, $/, "");
+              if (d != null) return `${d} Days, ${record.gender || ""}`.replace(/, $/, "");
+              return record.gender || "";
+            })()}
           </div>
         </div>
       ),
