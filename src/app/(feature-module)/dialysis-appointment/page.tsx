@@ -253,18 +253,23 @@ const DialysisAppointmentContent = () => {
 
     const formData = new FormData(e.currentTarget);
     const get = (name: string) => (formData.get(name)?.toString().trim() ?? "");
-    const getNumber = (name: string): number | undefined => {
+    /**
+     * API expects ALL (non-boolean) fields as strings.
+     * We keep checkboxes/radios that represent booleans as booleans via `getBool`.
+     */
+    const getNumber = (name: string): string | undefined => {
       const v = get(name);
-      if (!v) return undefined;
-      const n = Number(v);
-      return Number.isNaN(n) ? undefined : n;
+      if (v === "") return undefined;
+      return v;
     };
-    /** For monitoring cells that may be numeric or free text (e.g. "normal"); avoids NaN → dropped. */
-    const parseNumericOrString = (raw: string): number | string | undefined => {
+    /**
+     * For monitoring cells that may be numeric or free text (e.g. "normal").
+     * Always returns a string (or undefined when empty).
+     */
+    const parseNumericOrString = (raw: string): string | undefined => {
       const t = raw.trim();
       if (t === "") return undefined;
-      const n = Number(t);
-      return Number.isNaN(n) ? t : n;
+      return t;
     };
     const getBool = (name: string) => formData.get(name) === "on";
 
