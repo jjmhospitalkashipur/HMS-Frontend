@@ -276,9 +276,16 @@ const DialysisComponent = () => {
                   render: (_: unknown, record: any) => (
                     <select
                       className={`form-select form-select-sm ${
-                        record.status === "Completed" ? "text-success" : "text-warning"
+                        record.status === "Completed" ? "text-success" : "text-dark"
                       }`}
-                      style={{ width: "auto", minWidth: "7rem" }}
+                      style={{
+                        width: "auto",
+                        minWidth: "7rem",
+                        backgroundColor:
+                          record.status === "Completed" ? "#f0f9f2" : "#fffdf2",
+                        borderColor:
+                          record.status === "Completed" ? "#d9efdf" : "#fff3cd",
+                      }}
                       value={record.status || "In Progress"}
                       disabled={dialysisStatusUpdatingId === record.key}
                       onChange={(e) => handleDialysisStatusChange(record.key, e.target.value)}

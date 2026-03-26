@@ -109,8 +109,8 @@ function getStatusDisplay(status: string, visitType?: string) {
   ) {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#B067AA" },
-      textClass: "text-dark",
+      rowStyle: { backgroundColor: "#8B4513" },
+      textClass: "text-white",
     };
   }
   return {

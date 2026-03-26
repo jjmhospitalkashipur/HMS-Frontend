@@ -104,7 +104,7 @@ export const buildDaycareReceiptData = (
     charges.push({
       _id: `${daycare._id}-bed`,
       transactionId: "",
-      transactionType: `Daycare Charges (${daycare.daycareChargesType ?? daycare.bedChargesType ?? "N/A"})`,
+      transactionType: "Daycare Charges",
       amount: bedTotal,
       paymentMode: "",
       transactionDate: daycare.appointmentDate || daycare.createdAt || "",

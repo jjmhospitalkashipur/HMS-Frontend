@@ -530,8 +530,9 @@ const AppointmentsComponent = () => {
       dataIndex: "Visit",
       sorter: false,
       showSorterTooltip: false,
+      width: 120,
       render: (text: any, record: any) => (
-        <div>
+        <div style={{ maxWidth: 110, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
           <div className="text-dark">{record.Visit || "New"}</div>
           <div className="text-body fs-13 fw-normal">{record.Appointment_Type || record.Mode || "OPD"}</div>
         </div>

@@ -83,7 +83,7 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     display: flex;
                     align-items: flex-start;
                     gap: 12px;
-                    justify-content: flex-start;
+                    justify-content: flex-end;
                     padding-left: 8px;
                     padding-right: 8px;
                     margin-bottom: 12px;
@@ -92,6 +92,7 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     flex: 0 0 30%;
                     max-width: 30%;
                     min-width: 0;
+                    margin-left: auto;
                   }
                   .vitals-table {
                     width: 100%;
