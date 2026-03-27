@@ -309,15 +309,15 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
             <table className="vitals-table">
               <tbody>
                 <tr>
-                  <td className="vitals-label-cell">BP:</td>
+                  <td className="vitals-label-cell">BP: (mm hg)</td>
                   <td className="vitals-value-cell">{bpValue}</td>
                 </tr>
                 <tr>
-                  <td className="vitals-label-cell">Pulse:</td>
+                  <td className="vitals-label-cell">PR: (min)</td>
                   <td className="vitals-value-cell">{pulseValue}</td>
                 </tr>
                 <tr>
-                  <td className="vitals-label-cell">Weight:</td>
+                  <td className="vitals-label-cell">Weight: (Kg)</td>
                   <td className="vitals-value-cell">{weightValue}</td>
                 </tr>
                 <tr>

@@ -107,8 +107,10 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                 line-height: 1.4;
               }
               .receipt-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 0 60px; background: #fff; }
-              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; }
+              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; gap: 12px; }
               .header-left { display: flex; align-items: center; gap: 10px; }
+              .header-center { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 54px; }
+              .header-center .receipt-title { transform: translateX(18px); }
               .logo-img { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
               .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 2px 0; color: #000; }
               .header-info .certification { font-size: 12px; color: #000; margin-top: 2px; }
@@ -243,6 +245,9 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
               <div className="certification">ISO 9001:2000 Certified</div>
             </div>
           </div>
+          <div className="header-center">
+            <div className="receipt-title">Receipt</div>
+          </div>
           <div className="header-right">
             <div className="address">
               Jaspur Rd, opposite Anaj Mandi, Sarverkhera,<br />
@@ -253,8 +258,6 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
             </div>
           </div>
         </div>
-
-        <div className="receipt-title">Receipt</div>
 
         {/* Content Box */}
         <div className="content-box">

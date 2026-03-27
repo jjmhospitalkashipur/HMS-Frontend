@@ -121,6 +121,8 @@ const DialysisAppointmentContent = () => {
     setVal("general.machineNumber", gen.machineNumber);
     setVal("general.mrdNo", pat?.mrd ?? gen.uhid);
     setVal("general.technicianName", gen.technicianName);
+    setVal("general.startTime", gen.startTime);
+    setVal("general.endTime", gen.endTime);
     setVal("general.bolus", gen.bolus);
     setVal("general.hourly", gen.hourly);
     setVal("general.fiberVolume", gen.fiberVolume);
@@ -229,6 +231,7 @@ const DialysisAppointmentContent = () => {
     setCheck("comp.pruritus", comp.pruritus);
     setCheck("comp.dialyzerReaction", comp.dialyzerReaction);
     setCheck("comp.seizures", comp.seizures);
+    setCheck("comp.noComplication", comp.noComplication);
     setVal("comp.other", comp.other);
 
     const treat = session.treatmentGiven || {};
@@ -285,6 +288,8 @@ const DialysisAppointmentContent = () => {
       machineNumber: get("general.machineNumber"),
       uhid: get("general.mrdNo"),
       technicianName: get("general.technicianName"),
+      startTime: get("general.startTime"),
+      endTime: get("general.endTime"),
       bolus: get("general.bolus"),
       hourly: get("general.hourly"),
       fiberVolume: getNumber("general.fiberVolume"),
@@ -391,6 +396,7 @@ const DialysisAppointmentContent = () => {
       rash: getBool("comp.rash"),
       dyspnea: getBool("comp.dyspnea"),
       seizures: getBool("comp.seizures"),
+      noComplication: getBool("comp.noComplication"),
       fever: getBool("comp.fever"),
       cramps: getBool("comp.cramps"),
       chestPain: getBool("comp.chestPain"),
@@ -585,7 +591,25 @@ const DialysisAppointmentContent = () => {
                             disabled
                           />
                         </div>
-                        <div className="col-md-4 offset-4 col-12 col-sm-12">
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Start Time</label>
+                          <input
+                            name="general.startTime"
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="HH:MM"
+                          />
+                        </div>
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">End Time</label>
+                          <input
+                            name="general.endTime"
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="HH:MM"
+                          />
+                        </div>
+                        <div className="col-md-4 col-12 col-sm-12">
                           <label className="form-label mb-1 fw-medium">Technician Name</label>
                           <input
                             name="general.technicianName"
@@ -800,7 +824,7 @@ const DialysisAppointmentContent = () => {
                         </div>
 
                         {/* Row 7: checkbox rows start – Central line */}
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">Central Line</label>
                           <div className="d-flex flex-wrap gap-2">
                             <div className="form-check me-2">
@@ -859,7 +883,7 @@ const DialysisAppointmentContent = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">AVF Needle Size</label>
                           <div className="d-flex flex-wrap gap-2">
                             <div className="form-check me-2">
@@ -897,7 +921,7 @@ const DialysisAppointmentContent = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">Bruit / Thrill</label>
                           <div className="d-flex flex-wrap gap-2">
                             <div className="form-check me-2">
@@ -1146,13 +1170,13 @@ const DialysisAppointmentContent = () => {
 
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">UF Removed</label>
                           <input name="post.ufRemoved" type="text" className="form-control form-control-sm" />
                         </div>
 
                         {/* Row 3: Prolonged bleeding (Yes / No radio), Bruit/Thrill, KT/V (same row) */}
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">Prolonged Bleeding from Access Site</label>
                           <div className="d-flex flex-wrap gap-3">
                             <div className="form-check">
@@ -1183,7 +1207,7 @@ const DialysisAppointmentContent = () => {
                         </div>
 
                         {/* Bruit/Thrill (checkboxes like General Info) */}
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">Bruit/Thrill (AVF/AVG)</label>
                           <div className="d-flex flex-wrap gap-3">
                             <div className="form-check m-0">
@@ -1223,7 +1247,7 @@ const DialysisAppointmentContent = () => {
                         </div>
 
                         {/* KT/V Achieved */}
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <label className="form-label mb-1 fw-medium">KT / V Achieved</label>
                           <input
                             name="post.ktVAchieved"
@@ -1245,7 +1269,7 @@ const DialysisAppointmentContent = () => {
                     <div className="border rounded p-3">
                       <div className="row g-2">
                         {/* All as checkboxes */}
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1258,7 +1282,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1271,7 +1295,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1285,7 +1309,7 @@ const DialysisAppointmentContent = () => {
                           </div>
                         </div>
 
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1298,7 +1322,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1311,7 +1335,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1325,7 +1349,7 @@ const DialysisAppointmentContent = () => {
                           </div>
                         </div>
 
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1338,7 +1362,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1351,7 +1375,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1365,7 +1389,7 @@ const DialysisAppointmentContent = () => {
                           </div>
                         </div>
 
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1378,7 +1402,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1395,7 +1419,7 @@ const DialysisAppointmentContent = () => {
                             </label>
                           </div>
                         </div>
-                        <div className="col-md-4 col-12">
+                        <div className="col-md-3 col-12">
                           <div className="form-check">
                             <input
                               className="form-check-input"
@@ -1405,6 +1429,19 @@ const DialysisAppointmentContent = () => {
                             />
                             <label className="form-check-label" htmlFor="comp-seizures" style={{ color: "#000" }}>
                               Seizures
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-3 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-no-complication"
+                              name="comp.noComplication"
+                            />
+                            <label className="form-check-label" htmlFor="comp-no-complication" style={{ color: "#000" }}>
+                              No Complication
                             </label>
                           </div>
                         </div>

@@ -153,7 +153,7 @@ const getStatusDisplay = (status: string, visitType?: string) => {
   // Regular In Queue (fallback)
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#F05778" },
+    rowStyle: { backgroundColor: "#6B7280" },
     textClass: "text-white",
   };
 };

@@ -20,6 +20,8 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     machineNumber: get("general.machineNumber"),
     mrdNo: get("general.mrdNo"),
     technicianName: get("general.technicianName"),
+    startTime: get("general.startTime"),
+    endTime: get("general.endTime"),
     patientName: get("patient.name"),
     patientAge: get("patient.age"),
     patientGender: get("patient.gender"),
@@ -100,6 +102,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     pruritus: checked("comp.pruritus"),
     dialyzerReaction: checked("comp.dialyzerReaction"),
     seizures: checked("comp.seizures"),
+    noComplication: checked("comp.noComplication"),
     otherComp: get("comp.other"),
 
     // treatment
@@ -158,6 +161,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     [v.hypotension, "Hypotension"],
     [v.fever, "Fever"],
     [v.headache, "Headache"],
+    [v.noComplication, "No Complication"],
     [v.rigor, "Rigor"],
     [v.cramps, "Cramps"],
     [v.rash, "Rash"],
@@ -371,11 +375,11 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
       <strong>Start T/t Time:</strong>
-      <div class="field" style="width: 120px; min-height: 24px;">&nbsp;</div>
+      ${field(v.startTime, "120px")}
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
       <strong>End T/t Time:</strong>
-      <div class="field" style="width: 120px; min-height: 24px;">&nbsp;</div>
+      ${field(v.endTime, "120px")}
     </div>
   </div>
 
