@@ -115,6 +115,7 @@ const DialysisAppointmentContent = () => {
     setVal("patient.name", pat.name);
     setVal("patient.age", pat.age);
     setVal("patient.gender", pat.gender);
+    setVal("meta.createdAt", session.createdAt);
     setMrdNo(pat?.mrd ?? "");
 
     const gen = session.generalInformation || {};
@@ -565,6 +566,7 @@ const DialysisAppointmentContent = () => {
                   <input type="hidden" name="patient.name" />
                   <input type="hidden" name="patient.age" />
                   <input type="hidden" name="patient.gender" />
+                  <input type="hidden" name="meta.createdAt" />
 
                   {/* General Information */}
                   <div ref={sectionRefs["general-information"]} id="general-information" className="mb-4">

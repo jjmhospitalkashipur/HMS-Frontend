@@ -14,6 +14,24 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     (form.querySelector(`[name="${name}"]`) as HTMLInputElement | null)
       ?.checked ?? false;
   const radio = (name: string) => get(name);
+  const todayIst = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date());
+  const createdAtRaw = get("meta.createdAt");
+  const printDateIst = (() => {
+    if (!createdAtRaw) return todayIst;
+    const parsed = new Date(createdAtRaw);
+    if (Number.isNaN(parsed.getTime())) return todayIst;
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed);
+  })();
 
   // ── collect values ─────────────────────────────────────────────────────────
   const v = {
@@ -371,15 +389,15 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   <div style="display: flex; gap: 40px; align-items: center; margin-bottom: 12px; font-size: 11pt;">
     <div style="display: flex; align-items: center; gap: 8px;">
       <strong>Date:</strong>
-      <div style="border-bottom: 1.5px solid #000; width: 200px; height: 20px;"></div>
+      <span>${printDateIst || "—"}</span>
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
       <strong>Start T/t Time:</strong>
-      ${field(v.startTime, "120px")}
+      <span>${v.startTime || "—"}</span>
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
       <strong>End T/t Time:</strong>
-      ${field(v.endTime, "120px")}
+      <span>${v.endTime || "—"}</span>
     </div>
   </div>
 
