@@ -19,6 +19,18 @@ import dayjs from "dayjs";
 
 const Modals = () => {
   const router = useRouter();
+  const normalizePhoneForInput = (raw?: string): string => {
+    const v = raw?.trim() ?? "";
+    if (!v) return "";
+    if (v.startsWith("+")) return v;
+    const digits = v.replace(/\D/g, "");
+    if (!digits) return "";
+    // Backend often stores plain Indian mobile numbers.
+    // Convert to E.164 so PhoneInput does not throw runtime warnings.
+    if (digits.length === 10) return `+91${digits}`;
+    if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+    return `+${digits}`;
+  };
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body;
@@ -74,7 +86,7 @@ const Modals = () => {
 
       if (response.data?.code === 200 && response.data?.data?.patient) {
         const patient = response.data.data.patient;
-        setPhone(patient.phone || "");
+        setPhone(normalizePhoneForInput(patient.phone));
         setTitle(Title.find(t => t.value === patient.title) || Title[0] || null);
         setName(patient.name || "");
         setGender(Gender.find(g => g.value === patient.gender) || Gender[0] || null);
@@ -86,8 +98,14 @@ const Modals = () => {
         setAyushmanCardNo(patient.ayushmanCardNo || "");
 
         // Set age from patient.age or calculate from dob
-        if (patient.age) {
+        if (patient.age != null) {
           setAgeYears(patient.age.toString());
+          if (patient.months != null) {
+            setAgeMonths(String(patient.months));
+          }
+          if (patient.days != null) {
+            setAgeDays(String(patient.days));
+          }
         } else if (patient.dob) {
           const birthDate = dayjs(patient.dob);
           const today = dayjs();
@@ -185,6 +203,13 @@ const Modals = () => {
     return 0;
   };
 
+  const parseAgeComponent = (value: string): number => {
+    const trimmed = value.trim();
+    if (trimmed === "") return 0;
+    const n = parseInt(trimmed, 10);
+    return Number.isNaN(n) ? 0 : Math.max(0, n);
+  };
+
   const formatDob = (): string => {
     if (!dob) return "";
     if (dayjs.isDayjs(dob)) {
@@ -228,6 +253,8 @@ const Modals = () => {
         email: email || undefined,
         dob: formatDob() || undefined,
         age: calculateAge(),
+        months: parseAgeComponent(ageMonths),
+        days: parseAgeComponent(ageDays),
         gender: gender?.value || "",
         bloodGroup: bloodGroup?.value && bloodGroup.value !== "Select" ? bloodGroup.value : undefined,
         address: address,

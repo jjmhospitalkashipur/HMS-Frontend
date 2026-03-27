@@ -205,7 +205,7 @@ const DialysisAppointmentContent = () => {
     setVal("post.bp", post.bp);
     setVal("post.bodyTemperature", post.bodyTemperature);
     setVal("post.postHdWeight1", post.postHdWeight);
-    setVal("post.ufRemoved", post.postHdWeightField2);
+    setVal("post.ufRemoved", post.ufRemoved ?? post.postHdWeightField2);
     setVal("post.ktVAchieved", post.ktVAchieved);
 
     // Radios for prolonged bleeding
@@ -382,8 +382,9 @@ const DialysisAppointmentContent = () => {
       bp: get("post.bp"),
       bodyTemperature: getNumber("post.bodyTemperature"),
       postHdWeight: get("post.postHdWeight1"),
-      postHdWeightField2: get("post.postHdWeight2"),
       ufRemoved: getNumber("post.ufRemoved"),
+      // Keep legacy key populated from the same visible field for backward compatibility.
+      postHdWeightField2: getNumber("post.ufRemoved"),
       prolongedBleedingField1: get("post.prolongedBleeding"),
       prolongedBleedingField2: "",
       bruitThrillAvfAvgField1: getBool("post.bruitThrillPresent") ? "Present" : "",
