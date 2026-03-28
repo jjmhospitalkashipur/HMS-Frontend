@@ -78,9 +78,11 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   };
 }
 
+const QUEUE_ORANGE_MR = "#E2B93B";
+
 function getStatusDisplay(status: string, visitType?: string) {
   const normalized = status?.toLowerCase() ?? "";
-  const normalizedVisitType = visitType?.toLowerCase() ?? "";
+  const normalizedVisitType = visitType?.toLowerCase().replace(/\s+/g, " ").trim() ?? "";
   if (normalized === "consulting" || normalized === "in progress") {
     return {
       label: "Consulting (कंसल्टेशन जारी)",
@@ -91,14 +93,26 @@ function getStatusDisplay(status: string, visitType?: string) {
   if (normalizedVisitType === "emergency") {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#F89A42" },
-      textClass: "text-white",
+      rowStyle: { backgroundColor: "#FCA5A5" },
+      textClass: "text-dark",
     };
   }
   if (normalizedVisitType === "mr") {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#0BA4D0" },
+      rowStyle: { backgroundColor: QUEUE_ORANGE_MR },
+      textClass: "text-dark",
+    };
+  }
+  if (
+    normalizedVisitType === "follow-up-report" ||
+    normalizedVisitType === "follow up report" ||
+    normalizedVisitType === "followup-report" ||
+    normalizedVisitType === "followup report"
+  ) {
+    return {
+      label: "In Queue (आप कतार में हैं)",
+      rowStyle: { backgroundColor: "#374151" },
       textClass: "text-white",
     };
   }
@@ -109,13 +123,13 @@ function getStatusDisplay(status: string, visitType?: string) {
   ) {
     return {
       label: "In Queue (आप कतार में हैं)",
-      rowStyle: { backgroundColor: "#8B4513" },
+      rowStyle: { backgroundColor: "#3D5C79" },
       textClass: "text-white",
     };
   }
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#6B7280" },
+    rowStyle: { backgroundColor: "#A48273" },
     textClass: "text-white",
   };
 }
