@@ -57,6 +57,7 @@ interface IDoctor {
   name: string;
   designation?: string;
   department?: string;
+  medicalLicenseNo?: string;
   email?: string;
   phone?: string;
 }
@@ -578,9 +579,9 @@ const AppointmentDetailsComponent = () => {
             gender: patient?.gender,
             phone: patient?.phone,
             address: patient?.address,
-            doctorId: doctor?.doctorId || visit.doctorId,
             doctorName: doctor?.name,
             doctorDepartment: doctor?.department,
+            medicalLicenseNo: doctor?.medicalLicenseNo,
             receiptId: visit.receiptId,
             // Use visit price as the single charge row
             transactions: [visitCharge],

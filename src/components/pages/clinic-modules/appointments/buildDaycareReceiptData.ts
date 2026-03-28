@@ -1,4 +1,47 @@
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
 import type { IReceiptData, IReceiptTransaction } from "./printReceipt";
+
+/**
+ * Daycare appointment payloads often omit `doctor.medicalLicenseNo`. Fetch full doctor so receipt
+ * matches OPD: `Dr. … [licence]` via shared {@link buildDaycareReceiptData} + PrintReceipt.
+ */
+export async function enrichDaycareDoctorForReceipt(
+  daycare: IDaycareAppointmentDetail
+): Promise<IDaycareAppointmentDetail> {
+  if (!API_BASE_URL) return daycare;
+  if (daycare.doctor?.medicalLicenseNo?.trim()) return daycare;
+  const doctorRef = String(daycare.doctor?._id || daycare.doctorId || "").trim();
+  if (!doctorRef) return daycare;
+  try {
+    const res = await axios.get(`${API_BASE_URL}/hospital/doctors/${doctorRef}`);
+    const d = res.data?.data?.doctor as
+      | {
+          _id?: string;
+          doctorId?: string;
+          name?: string;
+          department?: string;
+          designation?: string;
+          medicalLicenseNo?: string;
+        }
+      | undefined;
+    if (!d) return daycare;
+    const cur = daycare.doctor;
+    return {
+      ...daycare,
+      doctor: {
+        _id: d._id ?? cur?._id ?? doctorRef,
+        doctorId: d.doctorId ?? cur?.doctorId,
+        name: cur?.name?.trim() || d.name || "",
+        department: cur?.department ?? d.department,
+        designation: cur?.designation ?? d.designation,
+        medicalLicenseNo: d.medicalLicenseNo ?? cur?.medicalLicenseNo,
+      },
+    };
+  } catch {
+    return daycare;
+  }
+}
 
 export interface IDaycarePatient {
   _id: string;
@@ -21,6 +64,7 @@ export interface IDaycareDoctor {
   name: string;
   department?: string;
   designation?: string;
+  medicalLicenseNo?: string;
 }
 
 export interface IDaycareProcedure {
@@ -170,9 +214,9 @@ export const buildDaycareReceiptData = (
     gender: daycare.patient?.gender,
     phone: daycare.patient?.phone,
     address: daycare.patient?.address?.trim() || undefined,
-    doctorId: daycare.doctor?.doctorId?.trim() || daycare.doctorId,
     doctorName: daycare.doctor?.name,
     doctorDepartment: daycare.doctor?.department,
+    medicalLicenseNo: daycare.doctor?.medicalLicenseNo,
     receiptId: daycare.receiptId,
     transactions: charges,
     totalAmount: daycare.subtotal ?? daycare.totalPrice ?? 0,

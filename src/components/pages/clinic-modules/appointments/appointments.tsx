@@ -12,6 +12,7 @@ import PrintPrescription from "./printPrescription";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { DatePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { Visit_Type, Appointment_Type } from "@/core/common/selectOption";
@@ -81,54 +82,6 @@ interface ITransformedAppointment {
   createdAt?: string;
   [key: string]: any;
 }
-
-const calculateAgePartsFromDob = (dob?: string): { years: number; months: number; days: number } | null => {
-  if (!dob) return null;
-  const birth = dayjs(dob);
-  if (!birth.isValid()) return null;
-  const birthDate = birth.toDate();
-  const today = new Date();
-  let years = today.getFullYear() - birthDate.getFullYear();
-  let months = today.getMonth() - birthDate.getMonth();
-  let days = today.getDate() - birthDate.getDate();
-  if (days < 0) {
-    months--;
-    const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-    days += lastMonth.getDate();
-  }
-  if (months < 0) {
-    years--;
-    months += 12;
-  }
-  return { years, months, days };
-};
-
-const formatAgeForListing = (
-  years?: number | null,
-  months?: number | null,
-  days?: number | null,
-  dob?: string
-): string | undefined => {
-  const y = years != null ? Number(years) : undefined;
-  if (y != null && Number.isFinite(y)) {
-    if (y === 0) {
-      const m = months != null ? Number(months) : 0;
-      if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
-      if (days != null) return `${days} ${Number(days) === 1 ? "Day" : "Days"}`;
-      return undefined;
-    }
-    return `${y} ${y === 1 ? "Year" : "Years"}`;
-  }
-
-  const parts = calculateAgePartsFromDob(dob);
-  if (!parts) return undefined;
-  if (parts.years === 0) {
-    if (parts.months > 0)
-      return `${parts.months} ${parts.months === 1 ? "Month" : "Months"}`;
-    return `${parts.days} ${parts.days === 1 ? "Day" : "Days"}`;
-  }
-  return `${parts.years} ${parts.years === 1 ? "Year" : "Years"}`;
-};
 
 const AppointmentsComponent = () => {
   const router = useRouter();
@@ -390,8 +343,7 @@ const AppointmentsComponent = () => {
             const ageDisplay = formatAgeForListing(
               patient?.age,
               patient?.months,
-              patient?.days,
-              patient?.dob
+              patient?.days
             );
 
             return {
@@ -498,8 +450,9 @@ const AppointmentsComponent = () => {
       dataIndex: "Age",
       sorter: false,
       showSorterTooltip: false,
+      width: 64,
       render: (text: any) => (
-        <span className="text-dark">
+        <span className="text-dark text-nowrap d-inline-block" style={{ maxWidth: 64 }}>
           {text ?? "—"}
         </span>
       ),
@@ -509,19 +462,29 @@ const AppointmentsComponent = () => {
       dataIndex: "Doctor",
       sorter: false,
       showSorterTooltip: false,
+      ellipsis: false,
+      minWidth: 132,
+      onCell: () => ({
+        style: {
+          whiteSpace: "normal",
+          wordBreak: "break-word",
+          verticalAlign: "top",
+        },
+      }),
       render: (text: any, record: any) => (
-        <div className="d-flex align-items-center">
-          <div style={{ maxWidth: 180 }}>
-            <h6 className="fs-14 mb-1 text-truncate">
-              <Link 
-                href={`${all_routes.doctordetails}?id=${record._doctorId || ""}`} 
-                className="fw-semibold"
-              >
-                {text}
-              </Link>
-            </h6>
-            <p className="mb-0 fs-13 text-truncate">{record.role}</p>
-          </div>
+        <div style={{ minWidth: 0, maxWidth: "100%", lineHeight: 1.3 }}>
+          <Link
+            href={`${all_routes.doctordetails}?id=${record._doctorId || ""}`}
+            className="fw-semibold text-dark fs-14 d-inline"
+            style={{ wordBreak: "break-word" }}
+          >
+            {text}
+          </Link>
+          {record.role ? (
+            <p className="mb-0 mt-1 fs-13 text-muted" style={{ wordBreak: "break-word" }}>
+              {record.role}
+            </p>
+          ) : null}
         </div>
       ),
     },

@@ -9,6 +9,7 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 
 interface IDaycareDoctor {
   _id: string;
@@ -59,6 +60,7 @@ interface IDaycareAppointment {
 
 interface IRow {
   id: string;
+  _doctorId?: string;
   Daycare_ID: string;
   Date: string;
   Time?: string;
@@ -85,28 +87,6 @@ const DaycareAppointmentsComponent = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
-
-  const formatAgeForListing = (
-    years?: number | null,
-    months?: number | null,
-    days?: number | null
-  ): string | undefined => {
-    const y = years != null ? Number(years) : undefined;
-    if (y != null && Number.isFinite(y)) {
-      if (y === 0) {
-        const m = months != null ? Number(months) : 0;
-        if (m > 0) return `${m}M`;
-        if (days != null) return `${days}D`;
-        return undefined;
-      }
-      return String(y);
-    }
-    // If backend doesn't send `age` but does send `months/days`, prefer that.
-    const m = months != null ? Number(months) : 0;
-    if (m > 0) return `${m}M`;
-    if (days != null) return `${days}D`;
-    return undefined;
-  };
 
   const fetchDaycareAppointments = useCallback(async () => {
       if (!API_BASE_URL) return;
@@ -164,7 +144,11 @@ const DaycareAppointmentsComponent = () => {
             const dept = item.daycareChargesType || item.bedChargesType || "";
             const deptName = item.doctor?.department || "";
             const patientName = item.patient?.name ?? "";
-            const age = formatAgeForListing(item.patient?.age, (item.patient as any)?.months, (item.patient as any)?.days);
+            const age = formatAgeForListing(
+              item.patient?.age,
+              item.patient?.months,
+              item.patient?.days
+            );
             const gender = item.patient?.gender;
             const proceduresList =
               item.procedures && item.procedures.length
@@ -173,6 +157,7 @@ const DaycareAppointmentsComponent = () => {
 
             return {
               id: item._id,
+              _doctorId: item.doctor?._id || item.doctorId,
               Daycare_ID: item.daycareId,
               Date: dateStr,
               Time: timeStr,
@@ -249,18 +234,36 @@ const DaycareAppointmentsComponent = () => {
       dataIndex: "Doctor",
       sorter: false,
       showSorterTooltip: false,
+      ellipsis: false,
+      minWidth: 132,
+      onCell: () => ({
+        style: {
+          whiteSpace: "normal",
+          wordBreak: "break-word",
+          verticalAlign: "top",
+        },
+      }),
       render: (text: any, record: IRow) => (
-        <div className="d-flex align-items-center">
-          <div style={{ maxWidth: 180 }}>
-            <h6 className="fs-14 mb-0 text-truncate">
-              <span className="fw-semibold text-dark">{text}</span>
-            </h6>
-            {record.DoctorDesignation && (
-              <p className="mb-0 fs-13 text-muted text-truncate">
-                {record.DoctorDesignation}
-              </p>
-            )}
-          </div>
+        <div style={{ minWidth: 0, maxWidth: "100%", lineHeight: 1.3 }}>
+          {record._doctorId ? (
+            <Link
+              href={`${all_routes.doctordetails}?id=${record._doctorId}`}
+              className="fw-semibold text-dark fs-14 d-inline"
+              style={{ wordBreak: "break-word" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {text || "—"}
+            </Link>
+          ) : (
+            <span className="fw-semibold text-dark fs-14" style={{ wordBreak: "break-word" }}>
+              {text || "—"}
+            </span>
+          )}
+          {record.DoctorDesignation ? (
+            <p className="mb-0 mt-1 fs-13 text-muted" style={{ wordBreak: "break-word" }}>
+              {record.DoctorDesignation}
+            </p>
+          ) : null}
         </div>
       ),
     },

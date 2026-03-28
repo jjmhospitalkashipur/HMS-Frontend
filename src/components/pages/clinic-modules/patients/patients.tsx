@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import Modals from "./modals/modals";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
+import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 
 interface IPatient {
   _id: string;
@@ -119,23 +120,11 @@ const PatientsComponent = () => {
           </div>
           <div className="fs-13 text-muted">
             {(() => {
-              const ageNum = record.age;
-              if (ageNum != null) {
-                if (ageNum === 0) {
-                  const m = record.months;
-                  const d = record.days;
-                  if (m != null && m > 0) return `${m} Months, ${record.gender || ""}`.replace(/, $/, "");
-                  if (d != null) return `${d} Days, ${record.gender || ""}`.replace(/, $/, "");
-                  return `0 Years, ${record.gender || ""}`.replace(/, $/, "");
-                }
-                return `${ageNum} Years, ${record.gender || ""}`.replace(/, $/, "");
-              }
-
-              const m = record.months;
-              const d = record.days;
-              if (m != null && m > 0) return `${m} Months, ${record.gender || ""}`.replace(/, $/, "");
-              if (d != null) return `${d} Days, ${record.gender || ""}`.replace(/, $/, "");
-              return record.gender || "";
+              const ageStr = formatAgeForListing(record.age, record.months, record.days);
+              const g = record.gender?.trim();
+              if (ageStr && g) return `${ageStr}, ${g}`;
+              if (ageStr) return ageStr;
+              return g || "";
             })()}
           </div>
         </div>

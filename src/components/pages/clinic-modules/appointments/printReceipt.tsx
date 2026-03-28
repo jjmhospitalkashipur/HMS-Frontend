@@ -33,6 +33,8 @@ export interface IReceiptData {
   doctorId?: string;
   doctorName?: string;
   doctorDepartment?: string;
+  /** Shown in square brackets after doctor name on print */
+  medicalLicenseNo?: string;
   receiptId?: string;
   transactions?: IReceiptTransaction[];
   totalAmount?: number;
@@ -209,11 +211,16 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
   const patientGender = receiptData.gender?.trim() || "—";
   const patientAgeGender = patientGender !== "—" ? `${patientAge} / ${patientGender}` : patientAge;
   const patientAddress = receiptData.address?.trim() || "—";
-  const doctorId = receiptData.doctorId?.trim() || "—";
-  const doctorName = receiptData.doctorName?.trim() || "—";
-  const doctorDisplay = receiptData.doctorName
-    ? `Dr. ${receiptData.doctorName.replace(/^Dr\.\s*/i, "")}${receiptData.doctorDepartment ? ` (${receiptData.doctorDepartment})` : ""}`
-    : "—";
+  const rawDoctorName = receiptData.doctorName?.trim() || "";
+  const licenseNo = receiptData.medicalLicenseNo?.trim();
+  const doctorLineForPrint =
+    rawDoctorName !== ""
+      ? (() => {
+          const withoutDupDr = rawDoctorName.replace(/^Dr\.\s*/i, "").trim();
+          const withTitle = `Dr. ${withoutDupDr}`;
+          return licenseNo ? `${withTitle} [${licenseNo}]` : withTitle;
+        })()
+      : "—";
   const visitDate = receiptData.visitDate ? dayjs(receiptData.visitDate).format("DD MMM YYYY") : "—";
   const visitTime = receiptData.visitTime ? formatTime(receiptData.visitTime) : "—";
   const transactions = receiptData.transactions ?? [];
@@ -284,15 +291,9 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                   <td className="info-value-cell info-value-cell-narrow">{patientAgeGender}</td>
                 </tr>
                 <tr>
-                  <td className="info-label-cell">Receipt ID:</td>
-                  <td className="info-value-cell">{receiptData.receiptId ?? "—"}</td>
-                  <td className="info-label-cell">Doctor ID:</td>
-                  <td className="info-value-cell info-value-cell-narrow">{doctorId}</td>
-                </tr>
-                <tr>
                   <td className="info-label-cell">Doctor Name:</td>
                   <td className="info-value-cell" colSpan={3}>
-                    {doctorName}
+                    {doctorLineForPrint}
                   </td>
                 </tr>
               </tbody>

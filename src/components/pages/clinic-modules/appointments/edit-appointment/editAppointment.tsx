@@ -405,6 +405,7 @@ const EditAppointmentComponent = () => {
         attendantName: attendantName || undefined,
         attendantRelation: attendantRelation || undefined,
         discount: discountNum,
+        paymentMode,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
       const remainingAmount = Math.max(0, amountReceived - amountPaidFromApi);
@@ -540,6 +541,13 @@ const EditAppointmentComponent = () => {
           .page-wrapper .card,
           .page-wrapper .card * {
             color: #000 !important;
+          }
+          .page-wrapper .card .btn.btn-primary,
+          .page-wrapper .card .btn.btn-primary:hover,
+          .page-wrapper .card .btn.btn-primary:focus,
+          .page-wrapper .card .btn.btn-primary:active,
+          .page-wrapper .card .btn.btn-primary:disabled {
+            color: #fff !important;
           }
           .page-wrapper .card .react-select__menu .react-select__option--is-focused,
           .page-wrapper .card .react-select__menu .react-select__option--is-selected {

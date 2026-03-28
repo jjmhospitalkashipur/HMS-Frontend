@@ -8,14 +8,24 @@ import Link from "next/link";
 import axios from "axios";
 import dayjs from "dayjs";
 import { API_BASE_URL } from "@/environment";
+import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { all_routes } from "@/routes/all_routes";
 import PrintReceipt, {
   type IReceiptData,
 } from "@/components/pages/clinic-modules/appointments/printReceipt";
 import {
   buildDaycareReceiptData,
+  enrichDaycareDoctorForReceipt,
   type IDaycareAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
+
+interface IDialysisDaycareAppointmentSummary {
+  totalPrice?: number;
+  subtotal?: number;
+  discount?: number;
+  amountPaid?: number;
+  paymentStatus?: string;
+}
 
 interface IDialysisSessionRow {
   _id: string;
@@ -32,32 +42,12 @@ interface IDialysisSessionRow {
     gender?: string;
     phone?: string;
   };
+  procedure?: {
+    price?: number;
+    procedureName?: string;
+  };
+  daycareAppointment?: IDialysisDaycareAppointmentSummary;
 }
-
-const formatAgeForDialysisListing = (patient?: {
-  age?: number;
-  months?: number;
-  days?: number;
-}): string | undefined => {
-  const years = patient?.age;
-  const months = patient?.months;
-  const days = patient?.days;
-
-  if (years == null) return undefined;
-  if (!Number.isFinite(Number(years))) return undefined;
-
-  if (Number(years) === 0) {
-    if (months != null && Number(months) > 0) {
-      return `${months} ${months === 1 ? "Month" : "Months"}`;
-    }
-    if (days != null) {
-      return `${days} ${days === 1 ? "Day" : "Days"}`;
-    }
-    return "0 Years";
-  }
-
-  return `${years} ${years === 1 ? "Year" : "Years"}`;
-};
 
 const DialysisComponent = () => {
   const [activeTab, setActiveTab] = useState<"all" | "today">("today");
@@ -151,10 +141,11 @@ const DialysisComponent = () => {
       }
       const raw = res.data.data?.daycareAppointment ?? res.data.data;
       const responseReceiptId = res.data?.data?.receiptId as string | undefined;
-      const daycare: IDaycareAppointmentDetail = {
+      let daycare: IDaycareAppointmentDetail = {
         ...(raw as IDaycareAppointmentDetail),
         receiptId: (raw as IDaycareAppointmentDetail)?.receiptId ?? responseReceiptId,
       };
+      daycare = await enrichDaycareDoctorForReceipt(daycare);
       const baseTotal = daycare.totalPrice ?? daycare.subtotal ?? 0;
       const transactions = daycare.transactions || [];
       const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -269,6 +260,29 @@ const DialysisComponent = () => {
                   ),
                 },
                 {
+                  title: "Total",
+                  dataIndex: "totalAmount",
+                  sorter: false,
+                  showSorterTooltip: false,
+                  render: (value: number, record: any) => {
+                    const paymentStatus = record.paymentStatus || "Unpaid";
+                    const isPaid = paymentStatus === "Paid";
+                    return (
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="fw-semibold text-dark">₹{(Number(value) || 0).toFixed(2)}</span>
+                        <span
+                          className={`d-inline-flex align-items-center justify-content-center rounded-circle ${
+                            isPaid ? "bg-success" : "bg-warning"
+                          }`}
+                          style={{ width: "15px", height: "15px", minWidth: "15px" }}
+                        >
+                          <i className="ti ti-check fs-10 text-white" />
+                        </span>
+                      </div>
+                    );
+                  },
+                },
+                {
                   title: "Status",
                   dataIndex: "status",
                   sorter: false,
@@ -351,23 +365,42 @@ const DialysisComponent = () => {
                   },
                 },
               ]}
-              dataSource={dialysisSessions.map((session) => ({
-                key: session._id,
-                patientId: session.patientId,
-                daycareAppointmentId: session.daycareAppointmentId,
-                sessionId: session.sessionId ?? "-",
-                patientName: session.patient?.name ?? "-",
-                meta: [
-                  formatAgeForDialysisListing(session.patient),
-                  session.patient?.gender || "",
-                ]
-                  .filter(Boolean)
-                  .join(", "),
-                phone: session.patient?.phone ?? "-",
-                date: session.createdAt ? dayjs(session.createdAt).format("DD MMM YYYY") : "-",
-                time: session.createdAt ? dayjs(session.createdAt).format("hh:mm A") : "",
-                status: session.status ?? "-",
-              }))}
+              dataSource={dialysisSessions.map((session) => {
+                const dc = session.daycareAppointment;
+                const discount = Number(dc?.discount ?? 0) || 0;
+                const gross =
+                  dc?.totalPrice != null
+                    ? Number(dc.totalPrice)
+                    : dc?.subtotal != null
+                      ? Number(dc.subtotal)
+                      : Number(session.procedure?.price ?? 0) || 0;
+                const totalAmount = dc ? Math.max(0, gross - discount) : gross;
+                const paymentStatus = dc?.paymentStatus?.trim() || "Unpaid";
+
+                return {
+                  key: session._id,
+                  patientId: session.patientId,
+                  daycareAppointmentId: session.daycareAppointmentId,
+                  sessionId: session.sessionId ?? "-",
+                  patientName: session.patient?.name ?? "-",
+                  meta: [
+                    formatAgeForListing(
+                      session.patient?.age,
+                      session.patient?.months,
+                      session.patient?.days
+                    ),
+                    session.patient?.gender || "",
+                  ]
+                    .filter(Boolean)
+                    .join(", "),
+                  phone: session.patient?.phone ?? "-",
+                  date: session.createdAt ? dayjs(session.createdAt).format("DD MMM YYYY") : "-",
+                  time: session.createdAt ? dayjs(session.createdAt).format("hh:mm A") : "",
+                  totalAmount,
+                  paymentStatus,
+                  status: session.status ?? "-",
+                };
+              })}
               Selection={false}
               searchText={dialysisSearch}
             />

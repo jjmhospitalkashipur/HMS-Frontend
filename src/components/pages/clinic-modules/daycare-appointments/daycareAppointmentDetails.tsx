@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import PrintReceipt from "@/components/pages/clinic-modules/appointments/printReceipt";
 import {
   buildDaycareReceiptData,
+  enrichDaycareDoctorForReceipt,
   type IDaycareAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
 
@@ -45,10 +46,12 @@ const DaycareAppointmentDetailsComponent = () => {
       if (res.data?.code === 200 && res.data?.data) {
         const data = res.data.data?.daycareAppointment ?? res.data.data;
         const responseReceiptId = res.data?.data?.receiptId as string | undefined;
-        setDaycare({
+        let next: IDaycareAppointmentDetail = {
           ...(data as IDaycareAppointmentDetail),
           receiptId: (data as IDaycareAppointmentDetail)?.receiptId ?? responseReceiptId,
-        });
+        };
+        next = await enrichDaycareDoctorForReceipt(next);
+        setDaycare(next);
       } else {
         setError("Daycare appointment not found");
       }
