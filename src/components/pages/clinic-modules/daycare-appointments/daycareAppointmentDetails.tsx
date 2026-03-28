@@ -14,6 +14,8 @@ import {
   type IDaycareAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
 
+const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
+
 const DaycareAppointmentDetailsComponent = () => {
   const params = useParams();
   const id = params?.id as string;
@@ -26,6 +28,7 @@ const DaycareAppointmentDetailsComponent = () => {
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [amount, setAmount] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
+  const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -164,6 +167,33 @@ const DaycareAppointmentDetailsComponent = () => {
     setShowAddTransaction(false);
     setAmount("0");
     setPaymentMode("Cash");
+  };
+
+  const handleTransactionPaymentModeChange = async (
+    transactionMongoId: string,
+    newPaymentMode: string
+  ) => {
+    if (!API_BASE_URL || !daycare) return;
+    try {
+      setTransactionModeUpdatingId(transactionMongoId);
+      await axios.patch(`${API_BASE_URL}/hospital/transactions/${transactionMongoId}`, {
+        paymentMode: newPaymentMode,
+      });
+      setDaycare((prev) => {
+        if (!prev?.transactions) return prev;
+        return {
+          ...prev,
+          transactions: prev.transactions.map((t) =>
+            t._id === transactionMongoId ? { ...t, paymentMode: newPaymentMode } : t
+          ),
+        };
+      });
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Failed to update payment mode.");
+      await fetchDaycareDetails();
+    } finally {
+      setTransactionModeUpdatingId(null);
+    }
   };
 
   return (
@@ -428,7 +458,36 @@ const DaycareAppointmentDetailsComponent = () => {
                               ₹{txn.amount?.toFixed(2) || "0.00"}
                             </td>
                             <td className="fs-15 text-dark">
-                              <span className="badge badge-soft-primary">{txn.paymentMode}</span>
+                              <select
+                                className="form-select form-select-sm"
+                                style={{ minWidth: "6.5rem", maxWidth: "10rem" }}
+                                value={
+                                  TRANSACTION_PAYMENT_MODES.includes(
+                                    txn.paymentMode as (typeof TRANSACTION_PAYMENT_MODES)[number]
+                                  )
+                                    ? txn.paymentMode
+                                    : txn.paymentMode || "Cash"
+                                }
+                                disabled={transactionModeUpdatingId === txn._id}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v === txn.paymentMode) return;
+                                  void handleTransactionPaymentModeChange(txn._id, v);
+                                }}
+                                aria-label="Payment mode"
+                              >
+                                {txn.paymentMode &&
+                                !TRANSACTION_PAYMENT_MODES.includes(
+                                  txn.paymentMode as (typeof TRANSACTION_PAYMENT_MODES)[number]
+                                ) ? (
+                                  <option value={txn.paymentMode}>{txn.paymentMode}</option>
+                                ) : null}
+                                {TRANSACTION_PAYMENT_MODES.map((m) => (
+                                  <option key={m} value={m}>
+                                    {m}
+                                  </option>
+                                ))}
+                              </select>
                             </td>
                           </tr>
                         ))}

@@ -345,7 +345,6 @@ const EditDaycareAppointmentComponent = () => {
         procedureIds: uniqueProcedureIds,
         doctorVisitCharges: doctorVisitCharges === "Yes",
         discount: discountNum,
-        paymentMode,
         appointmentDate: appointmentDate || undefined,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };

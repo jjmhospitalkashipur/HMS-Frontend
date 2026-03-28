@@ -405,7 +405,6 @@ const EditAppointmentComponent = () => {
         attendantName: attendantName || undefined,
         attendantRelation: attendantRelation || undefined,
         discount: discountNum,
-        paymentMode,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
       const remainingAmount = Math.max(0, amountReceived - amountPaidFromApi);
