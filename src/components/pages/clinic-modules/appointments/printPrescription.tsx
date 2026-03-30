@@ -303,26 +303,26 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
           </table>
         </div>
 
-        {/* Vitals: BP, Pulse, Weight, SpO2 with a small side table */}
+        {/* Vitals: PR, BP, SpO2, Weight */}
         <div className="vitals-layout">
           <div className="vitals-main">
             <table className="vitals-table">
               <tbody>
                 <tr>
-                  <td className="vitals-label-cell">BP: (mm hg)</td>
-                  <td className="vitals-value-cell">{bpValue}</td>
-                </tr>
-                <tr>
                   <td className="vitals-label-cell">PR: (min)</td>
                   <td className="vitals-value-cell">{pulseValue}</td>
                 </tr>
                 <tr>
-                  <td className="vitals-label-cell">Weight: (Kg)</td>
-                  <td className="vitals-value-cell">{weightValue}</td>
+                  <td className="vitals-label-cell">BP: (mm hg)</td>
+                  <td className="vitals-value-cell">{bpValue}</td>
                 </tr>
                 <tr>
                   <td className="vitals-label-cell">SpO2:</td>
                   <td className="vitals-value-cell">{spO2Value}</td>
+                </tr>
+                <tr>
+                  <td className="vitals-label-cell">Weight: (Kg)</td>
+                  <td className="vitals-value-cell">{weightValue}</td>
                 </tr>
               </tbody>
             </table>

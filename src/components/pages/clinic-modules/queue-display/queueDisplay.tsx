@@ -402,6 +402,11 @@ const QueueDisplayComponent = () => {
     const normalized = entry.status?.toLowerCase() ?? "";
     return normalized === "in progress" || normalized === "scheduled";
   });
+  const VISIBLE_ROWS = 6;
+  const visibleQueue = queue.slice(0, VISIBLE_ROWS);
+  const waitingPatientsCount = display?.totalPatients ?? queue.length;
+  const remainingPatientsCount = Math.max(0, waitingPatientsCount - visibleQueue.length);
+  const noteCount = remainingPatientsCount > 0 ? remainingPatientsCount : waitingPatientsCount;
 
   return (
     <div ref={containerRef} className="min-vh-100 w-100 d-flex flex-column bg-white position-relative">
@@ -503,7 +508,8 @@ const QueueDisplayComponent = () => {
                     </td>
                   </tr>
                 ) : (
-                  queue.slice(0, 8).map((entry) => {
+                  <>
+                    {visibleQueue.map((entry) => {
                     const normalizedStatus = entry.status?.toLowerCase() ?? "";
                     const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
                     const isConsulting = normalizedStatus === "consulting" || normalizedStatus === "in progress";
@@ -543,7 +549,22 @@ const QueueDisplayComponent = () => {
                         </td>
                       </tr>
                     );
-                  })
+                    })}
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="text-center fw-semibold"
+                        style={{
+                          padding: "clamp(0.5rem, 1vw, 2rem)",
+                          fontSize: "clamp(0.8rem, 1.4vw, 3rem)",
+                          backgroundColor: "#f8f9fa",
+                          color: "#000",
+                        }}
+                      >
+                        {noteCount} patients are waiting
+                      </td>
+                    </tr>
+                  </>
                 )}
               </tbody>
             </table>
