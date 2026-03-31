@@ -397,16 +397,23 @@ const QueueDisplayComponent = () => {
   const departmentOrSpecialization = display?.department ?? display?.specialization ?? "—";
   const designation = display?.designation ?? "—";
   const allQueue = display?.queue ?? [];
-  // Filter to show only "In Progress" and "Scheduled" status
-  const queue = allQueue.filter((entry) => {
-    const normalized = entry.status?.toLowerCase() ?? "";
-    return normalized === "in progress" || normalized === "scheduled";
-  });
+  /** Show everyone still in the live queue; only hide finished / cancelled visits (includes Consulting). */
+  const isTerminalQueueStatus = (status?: string) => {
+    const n = status?.toLowerCase().trim() ?? "";
+    return (
+      n === "completed" ||
+      n === "cancelled" ||
+      n === "canceled" ||
+      n === "no show" ||
+      n === "no_show"
+    );
+  };
+  const queue = allQueue.filter((entry) => !isTerminalQueueStatus(entry.status));
+
   const VISIBLE_ROWS = 6;
   const visibleQueue = queue.slice(0, VISIBLE_ROWS);
-  const waitingPatientsCount = display?.totalPatients ?? queue.length;
-  const remainingPatientsCount = Math.max(0, waitingPatientsCount - visibleQueue.length);
-  const noteCount = remainingPatientsCount > 0 ? remainingPatientsCount : waitingPatientsCount;
+  const totalBasis = Math.max(display?.totalPatients ?? 0, queue.length);
+  const additionalWaiting = Math.max(0, totalBasis - visibleQueue.length);
 
   return (
     <div ref={containerRef} className="min-vh-100 w-100 d-flex flex-column bg-white position-relative">
@@ -550,20 +557,22 @@ const QueueDisplayComponent = () => {
                       </tr>
                     );
                     })}
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="text-center fw-semibold"
-                        style={{
-                          padding: "clamp(0.5rem, 1vw, 2rem)",
-                          fontSize: "clamp(0.8rem, 1.4vw, 3rem)",
-                          backgroundColor: "#f8f9fa",
-                          color: "#000",
-                        }}
-                      >
-                        {noteCount} patients are waiting
-                      </td>
-                    </tr>
+                    {additionalWaiting > 0 ? (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="text-center fw-semibold"
+                          style={{
+                            padding: "clamp(0.5rem, 1vw, 2rem)",
+                            fontSize: "clamp(0.8rem, 1.4vw, 3rem)",
+                            backgroundColor: "#f8f9fa",
+                            color: "#000",
+                          }}
+                        >
+                          {`${additionalWaiting} more ${additionalWaiting === 1 ? "patient is" : "patients are"} waiting`}
+                        </td>
+                      </tr>
+                    ) : null}
                   </>
                 )}
               </tbody>
