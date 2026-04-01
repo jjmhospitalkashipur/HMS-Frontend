@@ -10,6 +10,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
+import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
 
 interface IDaycareDoctor {
   _id: string;
@@ -98,7 +99,7 @@ const DaycareAppointmentsComponent = () => {
           limit,
         };
         if (activeTab === "today") {
-          params.date = dayjs().format("YYYY-MM-DD");
+          params.date = todayISODateInIST();
         }
         const trimmedSearch = searchText.trim();
         if (trimmedSearch) {
@@ -136,9 +137,7 @@ const DaycareAppointmentsComponent = () => {
             const dateStr = item.appointmentDate
               ? dayjs(item.appointmentDate).format("DD MMM YYYY")
               : "";
-            const timeStr = item.appointmentDate
-              ? dayjs(item.appointmentDate).format("hh:mm A")
-              : "";
+            const timeStr = formatInstantInIST(item.createdAt, "hh:mm A");
             const doctorName = item.doctor?.name ?? "";
             const doctorDesignation = item.doctor?.designation ?? "";
             const dept = item.daycareChargesType || item.bedChargesType || "";
