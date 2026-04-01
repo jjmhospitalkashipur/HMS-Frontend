@@ -88,23 +88,87 @@ const DaycareAppointmentsComponent = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [exporting, setExporting] = useState(false);
+
+  const getDaycareQueryParams = useCallback(
+    (includePagination: boolean): Record<string, string | number> => {
+      const params: Record<string, string | number> = {};
+      if (includePagination) {
+        params.page = page;
+        params.limit = limit;
+      }
+      if (activeTab === "today") {
+        params.date = todayISODateInIST();
+      }
+      const trimmedSearch = searchText.trim();
+      if (trimmedSearch) {
+        params.search = trimmedSearch;
+      }
+      return params;
+    },
+    [activeTab, page, limit, searchText]
+  );
+
+  const handleExportDaycare = async () => {
+    if (!API_BASE_URL) return;
+    setExporting(true);
+    try {
+      const params = getDaycareQueryParams(false);
+      const response = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments/export`, {
+        params,
+        responseType: "blob",
+      });
+      const blob = response.data as Blob;
+      const contentType = String(response.headers["content-type"] ?? "");
+      if (contentType.includes("application/json")) {
+        const text = await blob.text();
+        try {
+          const parsed = JSON.parse(text) as { message?: string };
+          alert(parsed?.message ?? "Export failed.");
+        } catch {
+          alert("Export failed.");
+        }
+        return;
+      }
+      const cd = response.headers["content-disposition"] as string | undefined;
+      const match = cd?.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i) ?? cd?.match(/filename="([^"]+)"/i);
+      const fromHeader = match?.[1]?.trim();
+      const filename =
+        (fromHeader ? decodeURIComponent(fromHeader) : null) ||
+        `daycare-appointments-export-${dayjs().format("YYYY-MM-DD-HHmm")}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: Blob } };
+      const data = ax.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          const parsed = JSON.parse(text) as { message?: string };
+          alert(parsed?.message ?? "Export failed.");
+        } catch {
+          alert("Export failed.");
+        }
+      } else {
+        alert("Export failed. Please try again.");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchDaycareAppointments = useCallback(async () => {
       if (!API_BASE_URL) return;
       try {
         setLoading(true);
         setError("");
-        const params: Record<string, string | number> = {
-          page,
-          limit,
-        };
-        if (activeTab === "today") {
-          params.date = todayISODateInIST();
-        }
-        const trimmedSearch = searchText.trim();
-        if (trimmedSearch) {
-          params.search = trimmedSearch;
-        }
+        const params = getDaycareQueryParams(true);
         const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments`, { params });
         if (res.data?.code === 200 && res.data?.data) {
           const raw = res.data.data as any;
@@ -186,7 +250,7 @@ const DaycareAppointmentsComponent = () => {
       } finally {
         setLoading(false);
       }
-  }, [activeTab, page, limit, searchText]);
+  }, [getDaycareQueryParams]);
 
   useEffect(() => {
     fetchDaycareAppointments();
@@ -390,10 +454,20 @@ const DaycareAppointmentsComponent = () => {
             <div className="flex-grow-1">
               <h4 className="fw-bold mb-0">Daycare Appointments</h4>
             </div>
-            <div className="text-end d-flex">
+            <div className="text-end d-flex align-items-center flex-wrap justify-content-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-primary fs-13 btn-md"
+                onClick={() => void handleExportDaycare()}
+                disabled={exporting || !API_BASE_URL}
+                aria-busy={exporting}
+              >
+                <i className="ti ti-download me-1" aria-hidden />
+                {exporting ? "Exporting…" : "Export"}
+              </button>
               <Link
                 href={`${all_routes.newAppointment}?tab=daycare`}
-                className="btn btn-primary ms-2 fs-13 btn-md"
+                className="btn btn-primary fs-13 btn-md"
               >
                 <i className="ti ti-plus me-1" />
                 New Appointment

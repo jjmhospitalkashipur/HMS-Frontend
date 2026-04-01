@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import FilterIndex from "@/core/common/filter/filterIndex";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import { DatePicker } from "antd";
+import dayjs, { type Dayjs } from "dayjs";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
+import { Department } from "@/core/common/selectOption";
+
+const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
 interface ITransaction {
   _id: string;
@@ -41,14 +46,79 @@ interface ITableRow {
   Amount: string;
 }
 
+interface IDoctor {
+  _id: string;
+  name: string;
+}
+
+const ALL_OPTION: Option = { value: "", label: "All" };
+
 const TransactionsListComponent = () => {
   const [data, setData] = useState<ITableRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [totalCount, setTotalCount] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [exporting, setExporting] = useState(false);
+  const [doctors, setDoctors] = useState<IDoctor[]>([]);
 
-  const fetchTransactions = async () => {
+  const [filterDoctorId, setFilterDoctorId] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
+  const [filterPaymentMode, setFilterPaymentMode] = useState("");
+  const [filterDate, setFilterDate] = useState<Dayjs | null>(null);
+
+  const [appliedDoctorId, setAppliedDoctorId] = useState("");
+  const [appliedDepartment, setAppliedDepartment] = useState("");
+  const [appliedPaymentMode, setAppliedPaymentMode] = useState("");
+  const [appliedDate, setAppliedDate] = useState<string | null>(null);
+
+  const doctorOptions: Option[] = useMemo(
+    () => [ALL_OPTION, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
+    [doctors]
+  );
+
+  const departmentOptions: Option[] = useMemo(
+    () => [ALL_OPTION, ...Department.map((d) => ({ value: d.value, label: d.label }))],
+    []
+  );
+
+  const paymentOptions: Option[] = useMemo(
+    () => [
+      ALL_OPTION,
+      ...TRANSACTION_PAYMENT_MODES.map((m) => ({ value: m, label: m })),
+    ],
+    []
+  );
+
+  const getTransactionsQueryParams = useCallback(
+    (includePagination: boolean): Record<string, string | number> => {
+      const params: Record<string, string | number> = {};
+      if (includePagination) {
+        params.page = page;
+        params.limit = limit;
+      }
+      const trimmed = searchText.trim();
+      if (trimmed) params.search = trimmed;
+      if (appliedDoctorId) params.doctorId = appliedDoctorId;
+      if (appliedDepartment) params.department = appliedDepartment;
+      if (appliedPaymentMode) params.paymentMode = appliedPaymentMode;
+      if (appliedDate) params.date = appliedDate;
+      return params;
+    },
+    [
+      page,
+      limit,
+      searchText,
+      appliedDoctorId,
+      appliedDepartment,
+      appliedPaymentMode,
+      appliedDate,
+    ]
+  );
+
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -57,12 +127,29 @@ const TransactionsListComponent = () => {
         setLoading(false);
         return;
       }
+      const params = getTransactionsQueryParams(true);
       const response = await axios.get(`${API_BASE_URL}/hospital/transactions`, {
-        params: { limit: 100 },
+        params,
       });
       if (response.data?.code === 200 && response.data?.data?.transactions) {
         const transactions: ITransaction[] = response.data.data.transactions;
-        setTotalCount(response.data.data.count ?? transactions.length);
+        const raw = response.data.data as Record<string, unknown>;
+        const pagination = raw?.pagination as Record<string, number> | undefined;
+        if (pagination && typeof pagination === "object") {
+          const apiTotal =
+            typeof pagination.totalCount === "number"
+              ? pagination.totalCount
+              : typeof pagination.total === "number"
+                ? pagination.total
+                : undefined;
+          setTotalCount(
+            typeof apiTotal === "number" ? apiTotal : (raw.count as number) ?? transactions.length
+          );
+        } else {
+          setTotalCount(
+            typeof raw.count === "number" ? (raw.count as number) : transactions.length
+          );
+        }
         const formatTime = (iso: string | undefined) => {
           if (!iso) return "";
           try {
@@ -89,23 +176,126 @@ const TransactionsListComponent = () => {
         setData(rows);
       } else {
         setError("Failed to load transactions");
+        setData([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching transactions:", err);
-      setError(err.response?.data?.message || "Failed to load transactions");
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || "Failed to load transactions");
       setData([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [getTransactionsQueryParams]);
 
   useEffect(() => {
     fetchTransactions();
+  }, [fetchTransactions]);
+
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    axios
+      .get(`${API_BASE_URL}/hospital/doctors`, { params: { limit: 100 } })
+      .then((res) => {
+        if (res.data?.code === 200 && res.data?.data?.doctors) {
+          setDoctors(res.data.data.doctors as IDoctor[]);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleExportTransactions = async () => {
+    if (!API_BASE_URL) return;
+    setExporting(true);
+    try {
+      const params = getTransactionsQueryParams(false);
+      const response = await axios.get(`${API_BASE_URL}/hospital/transactions/export`, {
+        params,
+        responseType: "blob",
+      });
+      const blob = response.data as Blob;
+      const contentType = String(response.headers["content-type"] ?? "");
+      if (contentType.includes("application/json")) {
+        const text = await blob.text();
+        try {
+          const parsed = JSON.parse(text) as { message?: string };
+          alert(parsed?.message ?? "Export failed.");
+        } catch {
+          alert("Export failed.");
+        }
+        return;
+      }
+      const cd = response.headers["content-disposition"] as string | undefined;
+      const match = cd?.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i) ?? cd?.match(/filename="([^"]+)"/i);
+      const fromHeader = match?.[1]?.trim();
+      const filename =
+        (fromHeader ? decodeURIComponent(fromHeader) : null) ||
+        `transactions-export-${dayjs().format("YYYY-MM-DD-HHmm")}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: Blob } };
+      const blobErr = ax.response?.data;
+      if (blobErr instanceof Blob) {
+        try {
+          const text = await blobErr.text();
+          const parsed = JSON.parse(text) as { message?: string };
+          alert(parsed?.message ?? "Export failed.");
+        } catch {
+          alert("Export failed.");
+        }
+      } else {
+        alert("Export failed. Please try again.");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleSearch = (value: string) => {
     setSearchText(value);
+    setPage(1);
   };
+
+  const handleApplyFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    setAppliedDoctorId(filterDoctorId);
+    setAppliedDepartment(filterDepartment);
+    setAppliedPaymentMode(filterPaymentMode);
+    setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
+  };
+
+  const handleClearFilters = () => {
+    setPage(1);
+    setFilterDoctorId("");
+    setFilterDepartment("");
+    setFilterPaymentMode("");
+    setFilterDate(null);
+    setAppliedDoctorId("");
+    setAppliedDepartment("");
+    setAppliedPaymentMode("");
+    setAppliedDate(null);
+  };
+
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setPage(newPage);
+    setLimit(newPageSize);
+  };
+
+  const getModalContainer = () => {
+    const el = document.getElementById("filter-dropdown");
+    return el ?? document.body;
+  };
+
+  const optionByValue = (options: Option[], value: string): Option =>
+    options.find((o) => o.value === value) ?? ALL_OPTION;
 
   const columns = [
     {
@@ -123,7 +313,7 @@ const TransactionsListComponent = () => {
     {
       title: "Patient",
       dataIndex: "PatientName",
-      render: (_: string, record: any) => (
+      render: (_: string, record: ITableRow) => (
         <div>
           <div className="text-dark fw-medium">{record.PatientName}</div>
           <div className="text-dark fs-13">{record.PatientPhone}</div>
@@ -133,7 +323,7 @@ const TransactionsListComponent = () => {
     {
       title: "Visit Type",
       dataIndex: "VisitType",
-      render: (_: string, record: any) => (
+      render: (_: string, record: ITableRow) => (
         <div>
           <div className="text-dark">{record.VisitType}</div>
           <div className="text-dark fs-13">{record.AppointmentType}</div>
@@ -158,7 +348,7 @@ const TransactionsListComponent = () => {
     {
       title: "Date",
       dataIndex: "Date",
-      render: (text: string, record: any) => (
+      render: (text: string, record: ITableRow) => (
         <div>
           <div className="text-dark">{text}</div>
           {record.Time && <div className="text-dark fs-13">{record.Time}</div>}
@@ -180,29 +370,17 @@ const TransactionsListComponent = () => {
                 </span>
               </h4>
             </div>
-            <div className="text-end d-flex">
-              <div className="dropdown me-1">
-                <Link
-                  href="#"
-                  className="btn btn-md fs-14 fw-normal border bg-white rounded text-dark d-inline-flex align-items-center"
-                  data-bs-toggle="dropdown"
-                >
-                  Export
-                  <i className="ti ti-chevron-down ms-2" />
-                </Link>
-                <ul className="dropdown-menu p-2">
-                  <li>
-                    <Link className="dropdown-item" href="#">
-                      Download as PDF
-                    </Link>
-                  </li>
-                  <li>
-                    <Link className="dropdown-item" href="#">
-                      Download as Excel
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+            <div className="text-end d-flex align-items-center flex-wrap justify-content-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-primary fs-13 btn-md"
+                onClick={() => void handleExportTransactions()}
+                disabled={exporting || !API_BASE_URL}
+                aria-busy={exporting}
+              >
+                <i className="ti ti-download me-1" aria-hidden />
+                {exporting ? "Exporting…" : "Export"}
+              </button>
             </div>
           </div>
 
@@ -220,53 +398,90 @@ const TransactionsListComponent = () => {
             </div>
             <div className="d-flex table-dropdown mb-3 pb-1 right-content align-items-center flex-wrap row-gap-3">
               <div className="dropdown me-2">
-                <Link
-                  href="#"
+                <button
+                  type="button"
                   className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
                   data-bs-toggle="dropdown"
                   data-bs-auto-close="outside"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters
-                </Link>
+                </button>
                 <div
                   className="dropdown-menu dropdown-lg dropdown-menu-end filter-dropdown p-0"
                   id="filter-dropdown"
                 >
-                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header">
+                  <div className="d-flex align-items-center justify-content-between border-bottom filter-header px-3 py-2">
                     <h4 className="mb-0 fw-bold">Filter</h4>
-                    <div className="d-flex align-items-center">
-                      <Link
-                        href="#"
-                        className="link-danger text-decoration-underline"
-                      >
-                        Clear All
-                      </Link>
-                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-link link-danger text-decoration-underline p-0"
+                      onClick={handleClearFilters}
+                    >
+                      Clear All
+                    </button>
                   </div>
-                  <FilterIndex />
+                  <form onSubmit={handleApplyFilter}>
+                    <div className="filter-body pb-0 px-3 pt-2">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Doctor</label>
+                        <CommonSelect
+                          options={doctorOptions}
+                          value={optionByValue(doctorOptions, filterDoctorId)}
+                          onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
+                          className="select"
+                          placeholder="All"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Department</label>
+                        <CommonSelect
+                          options={departmentOptions}
+                          value={optionByValue(departmentOptions, filterDepartment)}
+                          onChange={(opt) => setFilterDepartment(opt?.value ?? "")}
+                          className="select"
+                          placeholder="All"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Payment mode</label>
+                        <CommonSelect
+                          options={paymentOptions}
+                          value={optionByValue(paymentOptions, filterPaymentMode)}
+                          onChange={(opt) => setFilterPaymentMode(opt?.value ?? "")}
+                          className="select"
+                          placeholder="All"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Transaction date</label>
+                        <div className="input-icon-end position-relative">
+                          <DatePicker
+                            className="form-control datetimepicker w-100"
+                            format={{ format: "DD-MM-YYYY", type: "mask" }}
+                            getPopupContainer={getModalContainer}
+                            placeholder="DD-MM-YYYY"
+                            suffixIcon={null}
+                            value={filterDate}
+                            onChange={(d) => setFilterDate(d)}
+                            allowClear
+                          />
+                          <span className="input-icon-addon">
+                            <i className="ti ti-calendar" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="filter-footer d-flex align-items-center justify-content-end border-top px-3 py-2 gap-2">
+                      <button type="button" className="btn btn-light btn-md fw-medium" data-bs-dismiss="dropdown">
+                        Close
+                      </button>
+                      <button type="submit" className="btn btn-primary btn-md fw-medium">
+                        Filter
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              </div>
-              <div className="dropdown">
-                <Link
-                  href="#"
-                  className="dropdown-toggle btn bg-white btn-md d-inline-flex align-items-center fw-normal rounded border text-dark px-2 py-1 fs-14"
-                  data-bs-toggle="dropdown"
-                >
-                  <span className="me-1"> Sort By : </span> Recent
-                </Link>
-                <ul className="dropdown-menu dropdown-menu-end p-2">
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Recent
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#" className="dropdown-item rounded-1">
-                      Oldest
-                    </Link>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
@@ -289,7 +504,11 @@ const TransactionsListComponent = () => {
                 columns={columns}
                 dataSource={data}
                 Selection={false}
-                searchText={searchText}
+                searchText=""
+                total={totalCount}
+                currentPage={page}
+                pageSize={limit}
+                onPaginationChange={handlePaginationChange}
               />
             )}
           </div>

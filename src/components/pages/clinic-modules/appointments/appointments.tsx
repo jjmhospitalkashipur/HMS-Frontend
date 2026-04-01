@@ -2,7 +2,7 @@
 
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { all_routes } from "../../../../routes/all_routes";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
@@ -128,6 +128,96 @@ const AppointmentsComponent = () => {
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState<string>("");
+  const [exporting, setExporting] = useState(false);
+
+  /** Same filter/query shape as GET /hospital/visits; omit pagination for export. */
+  const getVisitsQueryParams = useCallback(
+    (includePagination: boolean): Record<string, string | number> => {
+      const params: Record<string, string | number> = {};
+      if (includePagination) {
+        params.page = page;
+        params.limit = limit;
+      }
+      if (appliedStatus) params.status = appliedStatus;
+      if (appliedVisitType) params.visitType = appliedVisitType;
+      if (appliedAppointmentType) params.appointmentType = appliedAppointmentType;
+      if (appliedDoctorId) params.doctorId = appliedDoctorId;
+      const effectiveDate = activeTab === "today" ? dayjs().format("YYYY-MM-DD") : appliedDate;
+      if (effectiveDate) params.date = effectiveDate;
+      if (appliedCreatedFrom) params.createdFrom = appliedCreatedFrom;
+      if (appliedCreatedTo) params.createdTo = appliedCreatedTo;
+      const trimmedSearch = searchText.trim();
+      if (trimmedSearch) params.search = trimmedSearch;
+      return params;
+    },
+    [
+      page,
+      limit,
+      activeTab,
+      appliedStatus,
+      appliedVisitType,
+      appliedAppointmentType,
+      appliedDoctorId,
+      appliedDate,
+      appliedCreatedFrom,
+      appliedCreatedTo,
+      searchText,
+    ]
+  );
+
+  const handleExportVisits = async () => {
+    if (!API_BASE_URL) return;
+    setExporting(true);
+    try {
+      const params = getVisitsQueryParams(false);
+      const response = await axios.get(`${API_BASE_URL}/hospital/visits/export`, {
+        params,
+        responseType: "blob",
+      });
+      const blob = response.data as Blob;
+      const contentType = String(response.headers["content-type"] ?? "");
+      if (contentType.includes("application/json")) {
+        const text = await blob.text();
+        try {
+          const parsed = JSON.parse(text) as { message?: string };
+          alert(parsed?.message ?? "Export failed.");
+        } catch {
+          alert("Export failed.");
+        }
+        return;
+      }
+      const cd = response.headers["content-disposition"] as string | undefined;
+      const match = cd?.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i) ?? cd?.match(/filename="([^"]+)"/i);
+      const fromHeader = match?.[1]?.trim();
+      const filename =
+        (fromHeader ? decodeURIComponent(fromHeader) : null) ||
+        `visits-export-${dayjs().format("YYYY-MM-DD-HHmm")}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: Blob; status?: number } };
+      const data = ax.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          const parsed = JSON.parse(text) as { message?: string };
+          alert(parsed?.message ?? "Export failed.");
+        } catch {
+          alert("Export failed.");
+        }
+      } else {
+        alert("Export failed. Please try again.");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleStatusChange = async (record: ITransformedAppointment, newStatus: string) => {
     const visitId = record.id;
@@ -253,20 +343,10 @@ const AppointmentsComponent = () => {
         return;
       }
 
-      const params: Record<string, string | number> = { page, limit };
-      if (appliedStatus) params.status = appliedStatus;
-      if (appliedVisitType) params.visitType = appliedVisitType;
-      if (appliedAppointmentType) params.appointmentType = appliedAppointmentType;
-      if (appliedDoctorId) params.doctorId = appliedDoctorId;
-      // Today tab always overrides date filter with today's date
-      const effectiveDate = activeTab === "today" ? dayjs().format("YYYY-MM-DD") : appliedDate;
-      if (effectiveDate) params.date = effectiveDate;
-      if (appliedCreatedFrom) params.createdFrom = appliedCreatedFrom;
-      if (appliedCreatedTo) params.createdTo = appliedCreatedTo;
-      if (searchText.trim()) params.search = searchText.trim();
+      const params = getVisitsQueryParams(true);
 
       const response = await axios.get(`${API_BASE_URL}/hospital/visits`, {
-        params
+        params,
       });
 
       if (response.data?.code === 200 && response.data?.data?.visits) {
@@ -662,30 +742,7 @@ const AppointmentsComponent = () => {
             <div className="flex-grow-1">
               <h4 className="fw-semibold mb-0"> Appointment </h4>
             </div>
-            <div className="text-end d-flex">
-              {/* dropdown*/}
-              <div className="dropdown me-1">
-                {/* <Link
-                  href="#"
-                  className="btn btn-md fs-14 fw-normal border bg-white rounded text-dark d-inline-flex align-items-center"
-                  data-bs-toggle="dropdown"
-                >
-                  Export
-                  <i className="ti ti-chevron-down ms-2" />
-                </Link> */}
-                <ul className="dropdown-menu p-2">
-                  <li>
-                    <Link className="dropdown-item" href="#">
-                      Download as PDF
-                    </Link>
-                  </li>
-                  <li>
-                    <Link className="dropdown-item" href="#">
-                      Download as Excel
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+            <div className="text-end d-flex align-items-center flex-wrap justify-content-end gap-2">
               <div className="bg-white border shadow-sm rounded px-1 pb-0 text-center d-flex align-items-center justify-content-center">
                 <Link
                   href={all_routes.appointments}
@@ -700,9 +757,19 @@ const AppointmentsComponent = () => {
                   <i className="ti ti-calendar-event fs-14 text-body" />
                 </Link>
               </div>
+              <button
+                type="button"
+                className="btn btn-outline-primary fs-13 btn-md"
+                onClick={() => void handleExportVisits()}
+                disabled={exporting || !API_BASE_URL}
+                aria-busy={exporting}
+              >
+                <i className="ti ti-download me-1" aria-hidden />
+                {exporting ? "Exporting…" : "Export"}
+              </button>
               <Link
                 href={all_routes.newAppointment}
-                className="btn btn-primary ms-2 fs-13 btn-md"
+                className="btn btn-primary fs-13 btn-md"
               >
                 <i className="ti ti-plus me-1" /> New Appointment
               </Link>
