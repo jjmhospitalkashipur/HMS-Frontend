@@ -33,6 +33,7 @@ const AddDoctorComponent = () => {
   const [name, setName] = useState<string>("");
   const [phone, setPhone] = useState<string | undefined>();
   const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [dob, setDob] = useState<any>(null);
   const [gender, setGender] = useState<Option | null>(Gender[0] || null);
   const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
@@ -93,6 +94,14 @@ const AddDoctorComponent = () => {
       alert("Phone Number is required.");
       return;
     }
+    if (!email?.trim()) {
+      alert("Email is required.");
+      return;
+    }
+    if (!password?.trim()) {
+      alert("Password is required.");
+      return;
+    }
     const validSessions = sessions.filter((s) => s.value && s.value !== "Select");
     if (validSessions.length === 0) {
       alert("Please select at least one Session.");
@@ -137,7 +146,8 @@ const AddDoctorComponent = () => {
         imageUrl: photoFile 
           ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
           : "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg",
-        email: email || undefined,
+        email: email.trim(),
+        password: password.trim(),
         phone: phone || "",
         yearsOfExperience: parseInt(yearsOfExperience) || 0,
         department: department?.value !== "Select" ? department?.value : "",
@@ -239,13 +249,30 @@ const AddDoctorComponent = () => {
                         <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
-                              Email
+                              Email <span className="text-danger">*</span>
                             </label>
                             <input 
                               type="email" 
                               className="form-control" 
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
+                              required
+                              autoComplete="email"
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-3">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Password <span className="text-danger">*</span>
+                            </label>
+                            <input
+                              type="password"
+                              className="form-control"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              required
+                              autoComplete="new-password"
                             />
                           </div>
                         </div>
@@ -273,7 +300,7 @@ const AddDoctorComponent = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">
                               Gender
@@ -286,7 +313,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">
                               Blood Group
@@ -299,7 +326,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">
                               Years of Exp

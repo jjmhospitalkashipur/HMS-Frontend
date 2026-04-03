@@ -7,6 +7,24 @@ import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "../../../../routes/all_routes";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
+
+const ROLE_OPTIONS: Option[] = [
+  { value: "ADMIN", label: "Admin" },
+  { value: "RECEPTIONIST", label: "Receptionist" },
+  { value: "RECEPTIONIST2", label: "Receptionist 2" },
+  { value: "DIALYSIS", label: "Dialysis" },
+];
+
+const normalizeRoleValue = (roleDisplay: string): string => {
+  const r = roleDisplay?.trim() ?? "";
+  if (r === "—" || !r) return "RECEPTIONIST";
+  const upper = r.toUpperCase().replace(/\s+/g, "_");
+  const match = ROLE_OPTIONS.find((o) => o.value === upper);
+  if (match) return match.value;
+  const byLabel = ROLE_OPTIONS.find((o) => o.label.toLowerCase() === r.toLowerCase());
+  return byLabel?.value ?? "RECEPTIONIST";
+};
 
 interface IRow {
   id: string;
@@ -25,7 +43,9 @@ const UsersListComponent = () => {
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
+  const [editRole, setEditRole] = useState<string>("RECEPTIONIST");
   const [editEmail, setEditEmail] = useState<string>("");
+  const [editPassword, setEditPassword] = useState<string>("");
   const [editIsActive, setEditIsActive] = useState<boolean>(true);
   const [editSaving, setEditSaving] = useState<boolean>(false);
   const [editError, setEditError] = useState<string>("");
@@ -101,7 +121,9 @@ const UsersListComponent = () => {
   const openEditModal = (record: IRow) => {
     setEditingUserId(record.id);
     setEditName(record.Name);
+    setEditRole(normalizeRoleValue(record.Role));
     setEditEmail(record.Email !== "—" ? record.Email : "");
+    setEditPassword("");
     setEditIsActive(record.Status === "Active");
     setEditError("");
     setEditSaving(false);
@@ -114,11 +136,16 @@ const UsersListComponent = () => {
     try {
       setEditSaving(true);
       setEditError("");
-      await axios.patch(`${API_BASE_URL}/hospital/users/${editingUserId}`, {
+      const payload: Record<string, unknown> = {
         name: editName,
         email: editEmail,
+        role: editRole,
         isActive: editIsActive,
-      });
+      };
+      const trimmedPw = editPassword.trim();
+      if (trimmedPw) payload.password = trimmedPw;
+
+      await axios.patch(`${API_BASE_URL}/hospital/users/${editingUserId}`, payload);
       setEditModalOpen(false);
       setEditingUserId(null);
       await fetchUsers();
@@ -250,7 +277,7 @@ const UsersListComponent = () => {
       {editModalOpen && (
         <div
           className="offcanvas offcanvas-end show"
-          style={{ visibility: "visible", width: 420 }}
+          style={{ visibility: "visible", width: "min(640px, 100vw - 1rem)" }}
           tabIndex={-1}
           aria-modal="true"
           role="dialog"
@@ -271,26 +298,65 @@ const UsersListComponent = () => {
                   {editError}
                 </div>
               )}
-              <div className="mb-3">
-                <label className="form-label fw-medium">
-                  Name<span className="text-danger ms-1">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                />
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Name<span className="text-danger ms-1">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Role<span className="text-danger ms-1">*</span>
+                    </label>
+                    <CommonSelect
+                      options={ROLE_OPTIONS}
+                      value={
+                        ROLE_OPTIONS.find((o) => o.value === editRole) ??
+                        ROLE_OPTIONS.find((o) => o.value === "RECEPTIONIST") ??
+                        null
+                      }
+                      onChange={(opt) => setEditRole(opt?.value ?? "RECEPTIONIST")}
+                      placeholder="Select role"
+                      className="w-100"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="mb-3">
-                <label className="form-label fw-medium">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                />
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">New password</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      placeholder="Leave blank to keep current password"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="form-check mb-0">
                 <input

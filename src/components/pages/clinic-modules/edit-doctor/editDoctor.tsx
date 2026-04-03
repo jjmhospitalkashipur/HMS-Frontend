@@ -13,7 +13,7 @@ import {
   Gender,
   State,
 } from "@/core/common/selectOption";
-import CommonSelect from "@/core/common/common-select/commonSelect";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import TagInput from "@/core/common/Taginput";
 import { useState } from "react";
 import DuplicateForms from "@/core/common/duplicate-forms/duplicateForms";
@@ -32,7 +32,12 @@ const EditDoctorComponent = () => {
   const handleTagsChange = (newTags: string[]) => {
     setTags(newTags);
   };
-  const [phone, setPhone] = useState<string | undefined>()
+  const [phone, setPhone] = useState<string | undefined>();
+  const [password, setPassword] = useState<string>("");
+  const [dob, setDob] = useState<any>(null);
+  const [gender, setGender] = useState<Option | null>(Gender[0] || null);
+  const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
+  const [yearsOfExperience, setYearsOfExperience] = useState<string>("5");
 
   return (
     <>
@@ -118,28 +123,14 @@ const EditDoctorComponent = () => {
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label">
-                                  Username
-                                  <span className="text-danger">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  defaultValue="Andrew"
-                                />
-                              </div>
-                            </div>
-                            {/* end col*/}
-                            <div className="col-lg-6">
-                              <div className="mb-3">
-                                <label className="form-label">
                                   Phone Number
                                   <span className="text-danger">*</span>
                                 </label>
- <PhoneInput
-                            defaultCountry="US"
-                            value={phone}
-                            onChange={setPhone}
-                          />
+                                <PhoneInput
+                                  defaultCountry="IN"
+                                  value={phone}
+                                  onChange={setPhone}
+                                />
                               </div>
                             </div>
                             {/* end col*/}
@@ -150,9 +141,23 @@ const EditDoctorComponent = () => {
                                   <span className="text-danger">*</span>
                                 </label>
                                 <input
-                                  type="text"
+                                  type="email"
                                   className="form-control"
                                   defaultValue="mick@example.com"
+                                />
+                              </div>
+                            </div>
+                            {/* end col*/}
+                            <div className="col-lg-6">
+                              <div className="mb-3">
+                                <label className="form-label">New password</label>
+                                <input
+                                  type="password"
+                                  className="form-control"
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  placeholder="Leave blank to keep current"
+                                  autoComplete="new-password"
                                 />
                               </div>
                             </div>
@@ -162,7 +167,7 @@ const EditDoctorComponent = () => {
                         {/* end col*/}
                         <div className="col-lg-12">
                           <div className="row">
-                            <div className="col-lg-6">
+                            <div className="col-lg-3">
                               <div className="mb-3">
                                 <label className="form-label">
                                   DOB <span className="text-danger">*</span>
@@ -177,6 +182,8 @@ const EditDoctorComponent = () => {
                                     getPopupContainer={getModalContainer}
                                     placeholder="DD-MM-YYYY"
                                     suffixIcon={null}
+                                    value={dob}
+                                    onChange={setDob}
                                   />
                                   <span className="input-icon-addon">
                                     <i className="ti ti-calendar" />
@@ -184,7 +191,35 @@ const EditDoctorComponent = () => {
                                 </div>
                               </div>
                             </div>
-                            <div className="col-lg-6">
+                            <div className="col-lg-2">
+                              <div className="mb-3">
+                                <label className="form-label">
+                                  Gender
+                                  <span className="text-danger ms-1">*</span>
+                                </label>
+                                <CommonSelect
+                                  options={Gender}
+                                  className="select"
+                                  value={gender}
+                                  onChange={setGender}
+                                />
+                              </div>
+                            </div>
+                            <div className="col-lg-2">
+                              <div className="mb-3">
+                                <label className="form-label">
+                                  Blood Group
+                                  <span className="text-danger ms-1">*</span>
+                                </label>
+                                <CommonSelect
+                                  options={Blood_Group}
+                                  className="select"
+                                  value={bloodGroup}
+                                  onChange={setBloodGroup}
+                                />
+                              </div>
+                            </div>
+                            <div className="col-lg-2">
                               <div className="mb-3">
                                 <label className="form-label">
                                   Year Of Experience
@@ -193,16 +228,13 @@ const EditDoctorComponent = () => {
                                 <input
                                   type="text"
                                   className="form-control"
-                                  defaultValue="+5 Years"
+                                  value={yearsOfExperience}
+                                  onChange={(e) => setYearsOfExperience(e.target.value)}
+                                  placeholder="e.g. 5"
                                 />
                               </div>
                             </div>
-                          </div>
-                        </div>
-                        {/* end col*/}
-                        <div className="col-lg-12">
-                          <div className="row">
-                            <div className="col-lg-6">
+                            <div className="col-lg-3">
                               <div className="mb-3">
                                 <label className="form-label">
                                   Department
@@ -215,6 +247,11 @@ const EditDoctorComponent = () => {
                                 />
                               </div>
                             </div>
+                          </div>
+                        </div>
+                        {/* end col*/}
+                        <div className="col-lg-12">
+                          <div className="row">
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label">
@@ -224,15 +261,10 @@ const EditDoctorComponent = () => {
                                 <CommonSelect
                                   options={Designation}
                                   className="select"
-                                  defaultValue={Department[0]}
+                                  defaultValue={Designation[0]}
                                 />
                               </div>
                             </div>
-                          </div>
-                        </div>
-                        {/* end col*/}
-                        <div className="col-lg-12">
-                          <div className="row">
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label">
@@ -246,7 +278,12 @@ const EditDoctorComponent = () => {
                                 />
                               </div>
                             </div>
-                            <div className="col-lg-6">
+                          </div>
+                        </div>
+                        {/* end col*/}
+                        <div className="col-lg-12">
+                          <div className="row">
+                            <div className="col-lg-12">
                               <div className="mb-3">
                                 <label className="form-label">
                                   Language Spoken
@@ -254,37 +291,6 @@ const EditDoctorComponent = () => {
                                 <TagInput
                                   initialTags={tags}
                                   onTagsChange={handleTagsChange}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        {/* end col*/}
-                        <div className="col-lg-12">
-                          <div className="row">
-                            <div className="col-lg-6">
-                              <div className="mb-3">
-                                <label className="form-label">
-                                  Blood Group
-                                  <span className="text-danger ms-1">*</span>
-                                </label>
-                                <CommonSelect
-                                  options={Blood_Group}
-                                  className="select"
-                                  defaultValue={Blood_Group[0]}
-                                />
-                              </div>
-                            </div>
-                            <div className="col-lg-6">
-                              <div className="mb-3">
-                                <label className="form-label">
-                                  Gender
-                                  <span className="text-danger ms-1">*</span>
-                                </label>
-                                <CommonSelect
-                                  options={Gender}
-                                  className="select"
-                                  defaultValue={Blood_Group[0]}
                                 />
                               </div>
                             </div>

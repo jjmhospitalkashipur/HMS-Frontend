@@ -484,16 +484,11 @@ const DialysisAppointmentContent = () => {
           <h4 className="fw-bold mb-0">
             {isEditMode ? "Edit Dialysis Session" : "Dialysis Form"}
           </h4>
-          <Link
-            href={
-              isEditMode && patientIdFromUrl
-                ? `${all_routes.patientDetails}?id=${patientIdFromUrl}`
-                : all_routes.appointments
-            }
-            className="btn btn-outline-primary"
-          >
-            {isEditMode ? "Back to Patient Details" : "Back to Appointments"}
-          </Link>
+          {!isEditMode && (
+            <Link href={all_routes.appointments} className="btn btn-outline-primary">
+              Back to Appointments
+            </Link>
+          )}
         </div>
 
         <div className="row g-2 dialysis-form-row">

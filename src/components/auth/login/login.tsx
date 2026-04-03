@@ -2,6 +2,7 @@
 
 import "@/core/api/axiosAuth";
 import ImageWithBasePath from "@/core/imageWithBasePath";
+import { getDefaultRouteForRole } from "@/core/auth/roleAccess";
 import { all_routes } from "@/routes/all_routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -70,7 +71,7 @@ const LoginComponent = () => {
       }
 
       const role = (user?.role || "").toUpperCase();
-      router.push(role === "ADMIN" ? all_routes.dashboard : all_routes.appointments);
+      router.push(getDefaultRouteForRole(role));
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||

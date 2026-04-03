@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { SidebarData } from "./sidebarData";
 import { useDispatch, useSelector } from "react-redux";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,6 +12,11 @@ import { setExpandMenu, setMobileSidebar } from "@/core/redux/sidebarSlice";
 import Image from "next/image";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { updateTheme } from "@/core/redux/themeSlice";
+import {
+  canShowNewAppointmentSidebarCta,
+  filterSidebarSubmenuItems,
+  normalizeRole,
+} from "@/core/auth/roleAccess";
 
 const Sidebar = () => {
   const Location = usePathname();
@@ -144,8 +149,8 @@ const Sidebar = () => {
     }
   }, [themeSettings,Location]);
 
-  // Load logged-in user info from localStorage (set on login)
-  useEffect(() => {
+  // Load logged-in user info from localStorage (set on login); layout before paint to avoid menu flash
+  useLayoutEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
       if (!raw) return;
@@ -208,32 +213,35 @@ const Sidebar = () => {
         <div className="sidebar-inner">
           <OverlayScrollbarsComponent style={{ height: "100%", width: "100%" }}>
             <div id="sidebar-menu" className="sidebar-menu sidebar-menu-content">
-              <div className="mb-3 px-2 sidebar-new-appointment-wrap">
-                <Link
-                  href={all_routes.newAppointment}
-                  className="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center sidebar-new-appointment-btn"
-                >
-                  <i className="ti ti-plus" />
-                  <span className="sidebar-btn-text ms-1">New Appointment</span>
-                </Link>
-              </div>
+              {canShowNewAppointmentSidebarCta(sidebarUserRoleRaw ?? "") && (
+                <div className="mb-3 px-2 sidebar-new-appointment-wrap">
+                  <Link
+                    href={all_routes.newAppointment}
+                    className="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center sidebar-new-appointment-btn"
+                  >
+                    <i className="ti ti-plus" />
+                    <span className="sidebar-btn-text ms-1">New Appointment</span>
+                  </Link>
+                </div>
+              )}
               <ul>
                 {SidebarData?.map((mainLabel, index) => {
                   const isAdministrationSection = mainLabel?.tittle === "Administration";
-                  const isAdmin =
-                    (sidebarUserRoleRaw || "").toUpperCase() === "ADMIN";
+                  const isAdmin = normalizeRole(sidebarUserRoleRaw) === "ADMIN";
                   if (isAdministrationSection && !isAdmin) {
                     return null;
                   }
-                  // Filter out Dashboard item for non-admin users
-                  const filteredMainLabel = isAdmin
-                    ? mainLabel
-                    : {
-                        ...mainLabel,
-                        submenuItems: mainLabel?.submenuItems?.filter(
-                          (item: any) => item?.label !== "Dashboard"
-                        ),
-                      };
+                  const filteredSubmenuItems = filterSidebarSubmenuItems(
+                    sidebarUserRoleRaw ?? "",
+                    mainLabel?.submenuItems
+                  );
+                  if (!filteredSubmenuItems.length) {
+                    return null;
+                  }
+                  const filteredMainLabel = {
+                    ...mainLabel,
+                    submenuItems: filteredSubmenuItems,
+                  };
                   return (
                   <React.Fragment key={`main-${index}`}>
                     <li className="menu-title">

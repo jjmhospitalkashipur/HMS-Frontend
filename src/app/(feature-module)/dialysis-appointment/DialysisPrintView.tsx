@@ -33,6 +33,12 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     }).format(parsed);
   })();
 
+  /** Absolute URL with encoded path — spaces in filename break img src in iframe print. */
+  const logoUrl =
+    typeof window !== "undefined"
+      ? new URL(encodeURI("/JJM Logo.png"), window.location.origin).href
+      : encodeURI("/JJM Logo.png");
+
   // ── collect values ─────────────────────────────────────────────────────────
   const v = {
     machineNumber: get("general.machineNumber"),
@@ -201,22 +207,81 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: Arial, sans-serif;
+      font-family: Tahoma, Arial, sans-serif;
       font-size: 11.5pt;
       color: #111;
       background: #fff;
-      padding: 13mm 6mm 10mm 6mm;
+      padding: 2px 14px 10mm 14px;
       line-height: 1.25;
     }
 
-    /* ── Spacer for letterhead (first page) ── */
-    #print-spacer {
-      height: 15mm;
+    /* ── Letterhead: same visual as receipt print, full width to match form below ── */
+    .receipt-container {
       width: 100%;
+      max-width: none;
+      margin: 0 0 10px 0;
+      padding: 0;
+      background: #fff;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #000;
+      gap: 12px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+    }
+    .logo-img {
+      width: 54px;
+      height: 54px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .header-info h2 {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0 0 2px 0;
+      color: #000;
+      background: transparent;
+      border: none;
+      border-left: none;
+      padding: 0;
+    }
+    .header-info .certification {
+      font-size: 12px;
+      color: #000;
+      margin-top: 2px;
+    }
+    .header-right {
+      text-align: right;
+    }
+    .header-right .address {
+      font-size: 14px;
+      color: #000;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+    .header-right .contact {
+      font-size: 14px;
+      color: #000;
+      line-height: 1.6;
     }
 
-    /* ── Section heading ── */
-    h2 {
+    /* ── Form section headings only (not letterhead title) ── */
+    h2.dialysis-section-heading {
       font-size: 11pt;
       font-weight: bold;
       background: #eee;
@@ -362,21 +427,44 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
       page-break-inside: avoid;
     }
 
-    /* ── Print settings ── */
+    /* ── Print settings (page margins aligned with receipt print) ── */
     @page {
+      margin: 8mm 10mm 10mm 10mm;
       size: A4 portrait;
-      margin: 8mm 8mm;
     }
 
     @media print {
-      /* Ensure colors/borders print properly */
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body {
+        padding: 0;
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Dedicated spacer to reserve room for hospital letterhead -->
-  <div id="print-spacer"></div>
+  <div class="receipt-container">
+    <div class="header">
+      <div class="header-left">
+        <img src="${logoUrl}" alt="JJM Hospital" class="logo-img" />
+        <div class="header-info">
+          <h2>JJM Hospital</h2>
+          <div class="certification">ISO 9001:2000 Certified</div>
+        </div>
+      </div>
+      <div class="header-center"></div>
+      <div class="header-right">
+        <div class="address">
+          Jaspur Rd, opposite Anaj Mandi, Sarverkhera,<br />
+          Kashipur, Uttarakhand 244713
+        </div>
+        <div class="contact">
+          Phone: +91 9634844075<br />
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ══════════════════ PATIENT INFO ROW ══════════════════════════════ -->
   <div style="display: flex; gap: 20px; margin-bottom: 8px; font-size: 12pt;">
@@ -402,7 +490,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   </div>
 
   <!-- ══════════════════ GENERAL INFORMATION ══════════════════════════════ -->
-  <h2>General Information</h2>
+  <h2 class="dialysis-section-heading">General Information</h2>
   <div class="section">
 
     ${row(
@@ -485,7 +573,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   </div>
 
   <!-- ══════════════════ PRE-DIALYSIS ASSESSMENT ═══════════════════════════ -->
-  <h2>Pre-Dialysis Assessment</h2>
+  <h2 class="dialysis-section-heading">Pre-Dialysis Assessment</h2>
   <div class="section">
     ${row(
     cell("BP at Start of HD", field(v.bpStartHd, "130px"), "130px"),
@@ -496,7 +584,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   </div>
 
   <!-- ══════════════════ DIALYSIS MONITORING ══════════════════════════════ -->
-  <h2>Dialysis Monitoring</h2>
+  <h2 class="dialysis-section-heading">Dialysis Monitoring</h2>
   <div class="section">
     <table>
       <thead>
@@ -521,7 +609,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   </div>
 
   <!-- ══════════════════ POST-DIALYSIS ASSESSMENT ══════════════════════════ -->
-  <h2 style="page-break-before: always;">Post Dialysis Assessment</h2>
+  <h2 class="dialysis-section-heading" style="page-break-before: always;">Post Dialysis Assessment</h2>
   <div class="section">
     ${row(
     cell("Pulse", field(v.postPulse, "100px"), "100px"),
@@ -551,7 +639,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   </div>
 
   <!-- ══════════════════ COMPLICATIONS ════════════════════════════════════ -->
-  <h2>Complications During Dialysis</h2>
+  <h2 class="dialysis-section-heading">Complications During Dialysis</h2>
   <div class="section">
     <div class="comp-grid">
       ${compList
@@ -568,7 +656,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   </div>
 
   <!-- ══════════════════ TREATMENT GIVEN ══════════════════════════════════ -->
-  <h2>Treatment Given</h2>
+  <h2 class="dialysis-section-heading">Treatment Given</h2>
   <div class="section">
     ${row(
       cell("EPO Dosage", field(v.epoDosage, "130px"), "130px"),
@@ -637,9 +725,30 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     }
   };
 
-  if (iframeDoc.readyState === "complete") {
-    window.setTimeout(runPrint, 0);
-  } else {
-    iframe.onload = () => window.setTimeout(runPrint, 0);
-  }
+  const waitForImagesThenPrint = () => {
+    const imgs = Array.from(iframeDoc.images);
+    const pending = imgs.filter((img) => !img.complete);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.setTimeout(runPrint, 200);
+    };
+    if (pending.length === 0) {
+      finish();
+      return;
+    }
+    let left = pending.length;
+    const step = () => {
+      left--;
+      if (left <= 0) finish();
+    };
+    pending.forEach((img) => {
+      img.addEventListener("load", step, { once: true });
+      img.addEventListener("error", step, { once: true });
+    });
+    window.setTimeout(finish, 3500);
+  };
+
+  window.setTimeout(waitForImagesThenPrint, 0);
 }

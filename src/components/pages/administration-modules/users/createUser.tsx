@@ -6,9 +6,16 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "../../../../routes/all_routes";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
+
+const ROLE_OPTIONS: Option[] = [
+  { value: "ADMIN", label: "Admin" },
+  { value: "RECEPTIONIST", label: "Receptionist" },
+  { value: "RECEPTIONIST2", label: "Receptionist 2" },
+  { value: "DIALYSIS", label: "Dialysis" },
+];
 
 const CreateUserComponent = () => {
-  const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
@@ -26,14 +33,12 @@ const CreateUserComponent = () => {
       setError("");
       setSuccess("");
       await axios.post(`${API_BASE_URL}/hospital/users`, {
-        username,
         password,
         name,
         email,
         role,
       });
       setSuccess("User created successfully.");
-      setUsername("");
       setPassword("");
       setName("");
       setEmail("");
@@ -77,34 +82,6 @@ const CreateUserComponent = () => {
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label fw-medium">
-                      Username<span className="text-danger ms-1">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label fw-medium">
-                      Password<span className="text-danger ms-1">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label fw-medium">
                       Name<span className="text-danger ms-1">*</span>
                     </label>
                     <input
@@ -116,6 +93,26 @@ const CreateUserComponent = () => {
                     />
                   </div>
                 </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Role<span className="text-danger ms-1">*</span>
+                    </label>
+                    <CommonSelect
+                      options={ROLE_OPTIONS}
+                      value={
+                        ROLE_OPTIONS.find((o) => o.value === role) ??
+                        ROLE_OPTIONS.find((o) => o.value === "RECEPTIONIST") ??
+                        null
+                      }
+                      onChange={(opt) => setRole(opt?.value ?? "RECEPTIONIST")}
+                      placeholder="Select role"
+                      className="w-100"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="row">
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label fw-medium">
@@ -133,19 +130,15 @@ const CreateUserComponent = () => {
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label fw-medium">
-                      Role<span className="text-danger ms-1">*</span>
+                      Password<span className="text-danger ms-1">*</span>
                     </label>
-                    <select
-                      className="form-select"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
+                    <input
+                      type="password"
+                      className="form-control"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
-                    >
-                      <option value="RECEPTIONIST">Receptionist</option>
-                      <option value="ADMIN">Admin</option>
-                      <option value="DOCTOR">Doctor</option>
-                      <option value="NURSE">Nurse</option>
-                    </select>
+                    />
                   </div>
                 </div>
               </div>

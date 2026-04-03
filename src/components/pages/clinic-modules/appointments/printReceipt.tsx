@@ -236,9 +236,10 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
       : transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 
   // Use absolute URL for logo so it renders in print window
-  const logoUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/JJM Logo.png`
-    : "/JJM Logo.png";
+  const logoUrl =
+    typeof window !== "undefined"
+      ? new URL(encodeURI("/JJM Logo.png"), window.location.origin).href
+      : encodeURI("/JJM Logo.png");
 
   return (
     <div style={{ display: "none" }}>
