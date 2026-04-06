@@ -67,7 +67,7 @@ export const SidebarData = [
       },
       {
         label: "Pathlab",
-        link: "https://pathlab.kilobyte.live/dashboard",
+        link: "https://lab.jjmhospitalkashipur.com",
         submenu: false,
         showSubRoute: false,
         icon: "flask",
