@@ -41,7 +41,15 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.daycareAppointmentDetails,
     all_routes.editDaycareAppointment,
   ],
-  DIALYSIS: [all_routes.dialysis, all_routes.dialysisAppointment],
+  DIALYSIS: [
+    all_routes.dialysis,
+    all_routes.dialysisAppointment,
+    all_routes.patients,
+    all_routes.patientsGrid,
+    all_routes.patientDetails,
+    all_routes.createPatient,
+    all_routes.editPatient,
+  ],
   DOCTOR: [
     all_routes.appointments,
     all_routes.appointmentDetails,

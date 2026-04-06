@@ -38,7 +38,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
 <style>
   @page {
     size: 80mm auto;
-    margin: 2mm;
+    margin: 0;
   }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -54,7 +54,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
   .slip {
     max-width: 72mm;
     margin: 0 auto;
-    padding: 6mm 4mm;
+    padding: 0 4mm 0;
     font-family: ui-monospace, "Cascadia Code", "Courier New", Courier, monospace;
     font-size: 12px;
     line-height: 1.4;
@@ -77,7 +77,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
   }
   .token {
     text-align: center;
-    font-size: 32px;
+    font-size: 35px;
     font-weight: 700;
     letter-spacing: 0.06em;
     line-height: 1.1;

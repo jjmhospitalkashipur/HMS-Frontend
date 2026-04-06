@@ -420,7 +420,7 @@ const PatientDetailsComponent = () => {
     });
 
     window.open(
-      `https://pathlab.kilobyte.live/new-appointment?${params.toString()}`,
+      `https://lab.jjmhospitalkashipur.com/new-appointment?${params.toString()}`,
       "_blank",
       "noopener,noreferrer"
     );
