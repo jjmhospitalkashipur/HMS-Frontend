@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Datatable from "@/core/common/dataTable";
@@ -9,8 +9,16 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { DatePicker } from "antd";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
+
+interface IDoctor {
+  _id: string;
+  name: string;
+  designation?: string;
+}
 
 interface IDaycareDoctor {
   _id: string;
@@ -90,6 +98,17 @@ const DaycareAppointmentsComponent = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [exporting, setExporting] = useState(false);
 
+  const [doctors, setDoctors] = useState<IDoctor[]>([]);
+  const [filterDoctorId, setFilterDoctorId] = useState<string>("");
+  const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
+  const [filterStartDate, setFilterStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [filterEndDate, setFilterEndDate] = useState<dayjs.Dayjs | null>(null);
+
+  const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
+  const [appliedDate, setAppliedDate] = useState<string | null>(null);
+  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
+  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
+
   const getDaycareQueryParams = useCallback(
     (includePagination: boolean): Record<string, string | number> => {
       const params: Record<string, string | number> = {};
@@ -97,8 +116,19 @@ const DaycareAppointmentsComponent = () => {
         params.page = page;
         params.limit = limit;
       }
+      if (appliedDoctorId) {
+        params.doctorId = appliedDoctorId;
+      }
       if (activeTab === "today") {
         params.date = todayISODateInIST();
+      } else {
+        const hasRange = Boolean(appliedStartDate && appliedEndDate);
+        if (hasRange) {
+          params.startDate = appliedStartDate ?? "";
+          params.endDate = appliedEndDate ?? "";
+        } else if (appliedDate) {
+          params.date = appliedDate;
+        }
       }
       const trimmedSearch = searchText.trim();
       if (trimmedSearch) {
@@ -106,7 +136,16 @@ const DaycareAppointmentsComponent = () => {
       }
       return params;
     },
-    [activeTab, page, limit, searchText]
+    [
+      activeTab,
+      page,
+      limit,
+      searchText,
+      appliedDoctorId,
+      appliedDate,
+      appliedStartDate,
+      appliedEndDate,
+    ]
   );
 
   const handleExportDaycare = async () => {
@@ -255,6 +294,51 @@ const DaycareAppointmentsComponent = () => {
   useEffect(() => {
     fetchDaycareAppointments();
   }, [fetchDaycareAppointments]);
+
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    axios
+      .get(`${API_BASE_URL}/hospital/doctors`, { params: { limit: 100 } })
+      .then((res) => {
+        if (res.data?.code === 200 && res.data?.data?.doctors) {
+          setDoctors(res.data.data.doctors);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const doctorOptions: Option[] = useMemo(
+    () => [{ value: "", label: "All" }, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
+    [doctors]
+  );
+
+  const handleApplyFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    setAppliedDoctorId(filterDoctorId);
+    const hasRange = filterStartDate && filterEndDate;
+    if (hasRange) {
+      setAppliedStartDate(filterStartDate.format("YYYY-MM-DD"));
+      setAppliedEndDate(filterEndDate.format("YYYY-MM-DD"));
+      setAppliedDate(null);
+    } else {
+      setAppliedStartDate(null);
+      setAppliedEndDate(null);
+      setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
+    }
+  };
+
+  const handleClearFilter = () => {
+    setPage(1);
+    setFilterDoctorId("");
+    setFilterDate(null);
+    setFilterStartDate(null);
+    setFilterEndDate(null);
+    setAppliedDoctorId("");
+    setAppliedDate(null);
+    setAppliedStartDate(null);
+    setAppliedEndDate(null);
+  };
 
   const columns = [
     {
@@ -502,11 +586,115 @@ const DaycareAppointmentsComponent = () => {
                 </button>
               </li>
             </ul>
-            <div className="search-set mb-3">
-              <div className="d-flex align-items-center flex-wrap gap-2">
-                <div className="table-search d-flex align-items-center mb-0">
-                  <div className="search-input">
-                    <SearchInput value={searchText} onChange={handleSearch} />
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <div className="search-input">
+                <SearchInput value={searchText} onChange={handleSearch} />
+              </div>
+              <div className="d-flex table-dropdown right-content align-items-center flex-wrap row-gap-3">
+                <div className="dropdown me-2">
+                  <Link
+                    href="#"
+                    className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
+                    data-bs-toggle="dropdown"
+                    data-bs-auto-close="outside"
+                  >
+                    <i className="ti ti-filter text-gray-5 me-1" />
+                    Filters
+                  </Link>
+                  <div
+                    className="dropdown-menu dropdown-lg dropdown-menu-end filter-dropdown p-0"
+                    id="daycare-filter-dropdown"
+                  >
+                    <div className="d-flex align-items-center justify-content-between border-bottom filter-header px-3 py-2">
+                      <h4 className="mb-0 fw-bold">Filter</h4>
+                      <button
+                        type="button"
+                        onClick={handleClearFilter}
+                        className="btn btn-link link-danger text-decoration-underline p-0"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    <form onSubmit={handleApplyFilter}>
+                      <div className="filter-body p-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1">Doctor</label>
+                          <CommonSelect
+                            options={doctorOptions}
+                            value={doctorOptions.find((o) => o.value === filterDoctorId) ?? null}
+                            onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
+                            placeholder="All"
+                            className="w-100"
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label mb-1">Date (appointment)</label>
+                          <DatePicker
+                            className="w-100"
+                            format="DD-MM-YYYY"
+                            placeholder="Single day"
+                            value={filterDate}
+                            onChange={(d) => {
+                              setFilterDate(d);
+                              if (d) {
+                                setFilterStartDate(null);
+                                setFilterEndDate(null);
+                              }
+                            }}
+                            getPopupContainer={(node) => node?.parentElement ?? document.body}
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label mb-1">Date range</label>
+                          <div className="row g-2">
+                            <div className="col-6">
+                              <DatePicker
+                                className="w-100"
+                                format="DD-MM-YYYY"
+                                placeholder="Start"
+                                value={filterStartDate}
+                                onChange={(d) => {
+                                  setFilterStartDate(d);
+                                  if (d) setFilterDate(null);
+                                }}
+                                getPopupContainer={(node) => node?.parentElement ?? document.body}
+                              />
+                            </div>
+                            <div className="col-6">
+                              <DatePicker
+                                className="w-100"
+                                format="DD-MM-YYYY"
+                                placeholder="End"
+                                value={filterEndDate}
+                                onChange={(d) => {
+                                  setFilterEndDate(d);
+                                  if (d) setFilterDate(null);
+                                }}
+                                getPopupContainer={(node) => node?.parentElement ?? document.body}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-light btn-md fw-medium"
+                          onClick={() => {
+                            const toggle = document
+                              .getElementById("daycare-filter-dropdown")
+                              ?.closest(".dropdown")
+                              ?.querySelector<HTMLElement>('[data-bs-toggle="dropdown"]');
+                            toggle?.click();
+                          }}
+                        >
+                          Close
+                        </button>
+                        <button type="submit" className="btn btn-primary btn-md fw-medium">
+                          Filter
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               </div>

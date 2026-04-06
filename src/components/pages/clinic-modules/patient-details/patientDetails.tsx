@@ -58,6 +58,9 @@ interface IPatient {
   createdAt?: string;
   updatedAt?: string;
   pathlabCases?: IPathlabCase[];
+  isMRPatient?: boolean;
+  companyName?: string;
+  division?: string;
 }
 
 interface IVisit {
@@ -462,11 +465,32 @@ const PatientDetailsComponent = () => {
                 <div className="d-sm-flex align-items-center p-3">
                   <div>
                     <p className="text-dark mb-1">{loading ? "Loading..." : patient?.mrd || "N/A"}</p>
-                    <h5 className="mb-1">
+                    <h5 className="mb-1 d-flex align-items-center flex-wrap gap-2">
                       <Link href="#" className="fw-bold text-dark">
                         {loading ? "Loading..." : patient ? `${patient.title} ${patient.name}` : "Patient not found"}
                       </Link>
+                      {!loading && patient?.isMRPatient ? (
+                        <span className="badge badge-soft-primary border border-primary text-primary fs-12 fw-semibold px-2 py-1 rounded-2">
+                          MR
+                        </span>
+                      ) : null}
                     </h5>
+                    {!loading &&
+                    patient?.isMRPatient &&
+                    (patient.companyName?.trim() || patient.division?.trim()) ? (
+                      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        {patient.companyName?.trim() ? (
+                          <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
+                            {patient.companyName.trim()}
+                          </span>
+                        ) : null}
+                        {patient.division?.trim() ? (
+                          <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
+                            Division · {patient.division.trim()}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {patient?.address && <p className="mb-3 text-dark">{patient.address}</p>}
                     <div className="d-flex align-items-center flex-wrap">
                       <p className="mb-0 d-inline-flex align-items-center">

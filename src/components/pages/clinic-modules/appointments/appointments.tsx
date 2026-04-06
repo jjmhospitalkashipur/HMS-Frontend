@@ -16,6 +16,7 @@ import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { DatePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { Visit_Type, Appointment_Type } from "@/core/common/selectOption";
+import { openThermalTokenPrint } from "@/core/utils/thermalTokenPrint";
 
 const APPOINTMENT_STATUS_OPTIONS: Option[] = [
   { value: "", label: "All" },
@@ -49,6 +50,7 @@ interface IPatient {
   name: string;
   phone: string;
   organisationName?: string;
+  companyName?: string;
   age?: number;
   months?: number;
   days?: number;
@@ -101,6 +103,16 @@ const AppointmentsComponent = () => {
   const handlePrintClose = () => {
     setShowPrint(false);
     setSelectedAppointment(null);
+  };
+
+  const handleThermalTokenPrint = (record: any) => {
+    openThermalTokenPrint({
+      caseId: String(record.Case_ID ?? ""),
+      tokenNo: record.Token_No ?? "—",
+      patientName: String(record.Patient ?? ""),
+      appointmentDateTime: String(record.Date_Time ?? ""),
+      doctorName: String(record.Doctor ?? ""),
+    });
   };
 
   const [statusUpdates, setStatusUpdates] = useState<Record<string, string>>({});
@@ -371,6 +383,7 @@ const AppointmentsComponent = () => {
                   phone?: string;
                   organisationName?: string;
                   organisation_name?: string;
+                  companyName?: string;
                   age?: number;
                   months?: number;
                   days?: number;
@@ -389,6 +402,9 @@ const AppointmentsComponent = () => {
                     embeddedPatient.organisationName ||
                     embeddedPatient.organisation_name ||
                     "",
+                  companyName: embeddedPatient.companyName?.trim()
+                    ? embeddedPatient.companyName.trim()
+                    : undefined,
                   age: embeddedPatient.age,
                   months: embeddedPatient.months,
                   days: embeddedPatient.days,
@@ -425,6 +441,8 @@ const AppointmentsComponent = () => {
               patient?.months,
               patient?.days
             );
+            const companyLabel =
+              patient?.companyName?.trim() || patient?.organisationName?.trim() || "";
 
             return {
               id: visit._id,
@@ -434,6 +452,7 @@ const AppointmentsComponent = () => {
               Patient: [embeddedPatient?.title, patient?.name].filter(Boolean).join(" ") || "Unknown Patient",
               Phone: patient?.phone || "",
               Organisation_name: patient?.organisationName || "",
+              _companyLabel: companyLabel,
               Doctor: doctor?.name || "Unknown Doctor",
               role: doctor?.designation || "",
               _department: doctorDepartment,
@@ -511,31 +530,36 @@ const AppointmentsComponent = () => {
       dataIndex: "Patient",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any, record: any) => (
-        <div className="d-flex align-items-center">
-          <Link
-            href={`${all_routes.patientDetails}?id=${record._patientId || ""}`}
-            className="text-dark fw-semibold"
-          >
-            {text}
-            <span className="text-body fs-13 fw-normal d-block">
-              {record.Phone}
-            </span>
-          </Link>
-        </div>
-      ),
-    },
-    {
-      title: "Age",
-      dataIndex: "Age",
-      sorter: false,
-      showSorterTooltip: false,
-      width: 64,
-      render: (text: any) => (
-        <span className="text-dark text-nowrap d-inline-block" style={{ maxWidth: 64 }}>
-          {text ?? "—"}
-        </span>
-      ),
+      render: (text: any, record: any) => {
+        const ageStr = record.Age ?? "";
+        const g = typeof record.Sex === "string" ? record.Sex.trim() : "";
+        const ageGenderLine =
+          ageStr && g ? `${ageStr}, ${g}` : ageStr ? ageStr : g || "";
+        const company = typeof record._companyLabel === "string" ? record._companyLabel.trim() : "";
+        return (
+          <div className="text-dark">
+            <Link
+              href={`${all_routes.patientDetails}?id=${record._patientId || ""}`}
+              className="text-dark fw-semibold d-inline-block"
+            >
+              <div>{text}</div>
+              {record.Phone ? (
+                <span className="text-body fs-13 fw-normal d-block">{record.Phone}</span>
+              ) : null}
+            </Link>
+            {ageGenderLine ? (
+              <div className="fs-13 text-muted">{ageGenderLine}</div>
+            ) : null}
+            {company ? (
+              <div className="mt-1">
+                <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
+                  {company}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       title: "Doctor",
@@ -696,6 +720,18 @@ const AppointmentsComponent = () => {
           >
             <i className="ti ti-edit fs-16" />
           </Link>
+          <button
+            type="button"
+            className="btn btn-link text-dark p-0 border-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleThermalTokenPrint(record);
+            }}
+            title="Print token (thermal printer)"
+            aria-label="Print token for thermal printer"
+          >
+            <i className="ti ti-printer fs-16" />
+          </button>
           <Link
             href="#"
             className="text-success"

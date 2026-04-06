@@ -78,7 +78,7 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   };
 }
 
-const QUEUE_ORANGE_MR = "#E2B93B";
+const QUEUE_ORANGE_MR = "#FF6600";
 
 function getStatusDisplay(status: string, visitType?: string) {
   const normalized = status?.toLowerCase() ?? "";
@@ -101,7 +101,7 @@ function getStatusDisplay(status: string, visitType?: string) {
     return {
       label: "In Queue (आप कतार में हैं)",
       rowStyle: { backgroundColor: QUEUE_ORANGE_MR },
-      textClass: "text-dark",
+      textClass: "text-white",
     };
   }
   if (
@@ -129,7 +129,7 @@ function getStatusDisplay(status: string, visitType?: string) {
   }
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#A48273" },
+    rowStyle: { backgroundColor: "#5D443C" },
     textClass: "text-white",
   };
 }

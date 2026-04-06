@@ -106,8 +106,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   };
 }
 
-/** Theme warning orange (matches --pr-warning / badge-warning) */
-const QUEUE_ORANGE_MR = "#E2B93B";
+/** MR row highlight */
+const QUEUE_ORANGE_MR = "#FF6600";
 
 const getStatusDisplay = (status: string, visitType?: string) => {
   const normalized = status?.toLowerCase() ?? "";
@@ -131,12 +131,12 @@ const getStatusDisplay = (status: string, visitType?: string) => {
     };
   }
 
-  // MR — theme warning orange
+  // MR
   if (normalizedVisitType === "mr") {
     return {
       label: "In Queue (आप कतार में हैं)",
       rowStyle: { backgroundColor: QUEUE_ORANGE_MR },
-      textClass: "text-dark",
+      textClass: "text-white",
     };
   }
 
@@ -170,7 +170,7 @@ const getStatusDisplay = (status: string, visitType?: string) => {
   // OPD / New / default queue
   return {
     label: "In Queue (आप कतार में हैं)",
-    rowStyle: { backgroundColor: "#A48273" },
+    rowStyle: { backgroundColor: "#5D443C" },
     textClass: "text-white",
   };
 };

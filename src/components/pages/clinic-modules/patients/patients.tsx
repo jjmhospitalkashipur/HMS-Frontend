@@ -24,6 +24,7 @@ interface IPatient {
   months?: number;
   days?: number;
   gender: string;
+  companyName?: string;
   bloodGroup: string;
   address: string;
   createdAt?: string;
@@ -40,6 +41,8 @@ const PatientsComponent = () => {
   const [dateTo, setDateTo] = useState<dayjs.Dayjs | null>(null);
   const [appliedDateFrom, setAppliedDateFrom] = useState<string | null>(null);
   const [appliedDateTo, setAppliedDateTo] = useState<string | null>(null);
+  const [filterMrOnly, setFilterMrOnly] = useState(false);
+  const [appliedMrOnly, setAppliedMrOnly] = useState(false);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -49,6 +52,7 @@ const PatientsComponent = () => {
     setPage(1);
     setAppliedDateFrom(dateFrom ? dateFrom.format("YYYY-MM-DD") : null);
     setAppliedDateTo(dateTo ? dateTo.format("YYYY-MM-DD") : null);
+    setAppliedMrOnly(filterMrOnly);
   };
 
   const handleClearFilter = () => {
@@ -57,18 +61,21 @@ const PatientsComponent = () => {
     setDateTo(null);
     setAppliedDateFrom(null);
     setAppliedDateTo(null);
+    setFilterMrOnly(false);
+    setAppliedMrOnly(false);
   };
 
   useEffect(() => {
     fetchPatients();
-  }, [appliedDateFrom, appliedDateTo, page, limit, searchText]);
+  }, [appliedDateFrom, appliedDateTo, appliedMrOnly, page, limit, searchText]);
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const params: Record<string, string | number> = { page, limit };
+      const params: Record<string, string | number | boolean> = { page, limit };
       if (appliedDateFrom) params.createdFrom = appliedDateFrom;
       if (appliedDateTo) params.createdTo = appliedDateTo;
+      if (appliedMrOnly) params.isMRPatient = true;
       if (searchText.trim()) params.search = searchText.trim();
 
       const response = await axios.get(`${API_BASE_URL}/hospital/patients`, {
@@ -113,22 +120,30 @@ const PatientsComponent = () => {
       dataIndex: "name",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any, record: IPatient) => (
-        <div className="text-dark">
-          <div className="fw-semibold">
-            {record.title ? `${record.title} ${record.name}` : record.name}
+      render: (text: any, record: IPatient) => {
+        const ageStr = formatAgeForListing(record.age, record.months, record.days);
+        const g = record.gender?.trim();
+        const ageGenderLine =
+          ageStr && g ? `${ageStr}, ${g}` : ageStr ? ageStr : g || "";
+        const company = record.companyName?.trim();
+        return (
+          <div className="text-dark">
+            <div className="fw-semibold">
+              {record.title ? `${record.title} ${record.name}` : record.name}
+            </div>
+            {ageGenderLine ? (
+              <div className="fs-13 text-muted">{ageGenderLine}</div>
+            ) : null}
+            {company ? (
+              <div className="mt-1">
+                <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
+                  {company}
+                </span>
+              </div>
+            ) : null}
           </div>
-          <div className="fs-13 text-muted">
-            {(() => {
-              const ageStr = formatAgeForListing(record.age, record.months, record.days);
-              const g = record.gender?.trim();
-              if (ageStr && g) return `${ageStr}, ${g}`;
-              if (ageStr) return ageStr;
-              return g || "";
-            })()}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: "Phone",
@@ -313,6 +328,20 @@ const PatientsComponent = () => {
                   </div>
                   <form onSubmit={handleApplyFilter}>
                     <div className="filter-body p-3">
+                      <div className="mb-3">
+                        <div className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="patients-filter-mr-only"
+                            checked={filterMrOnly}
+                            onChange={(e) => setFilterMrOnly(e.target.checked)}
+                          />
+                          <label className="form-check-label text-dark" htmlFor="patients-filter-mr-only">
+                            MR only
+                          </label>
+                        </div>
+                      </div>
                       <div className="mb-3">
                         <label className="form-label mb-1">Created Date Range</label>
                         <div className="row g-2">

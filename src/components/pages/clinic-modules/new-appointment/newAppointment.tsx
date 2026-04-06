@@ -1068,8 +1068,12 @@ const NewAppointmentComponent = () => {
         address: address || undefined,
         aadharNo: aadharNo || undefined,
         ayushmanCardNo: ayushmanNo || undefined,
-        companyName: companyName.trim() || undefined,
-        division: division.trim() || undefined,
+        ...(visitType?.value === "MR"
+          ? {
+              companyName: companyName.trim() || undefined,
+              division: division.trim() || undefined,
+            }
+          : {}),
       };
       const formattedDob = formatDob();
       if (formattedDob) patientPayload.dob = formattedDob;
@@ -1682,30 +1686,34 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
-                          <div className="col-12 col-sm-6 col-lg-3">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Company</label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Company name"
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="col-12 col-sm-6 col-lg-3">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Division</label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Division"
-                                value={division}
-                                onChange={(e) => setDivision(e.target.value)}
-                              />
-                            </div>
-                          </div>
+                          {visitType?.value === "MR" && (
+                            <>
+                              <div className="col-12 col-sm-6 col-lg-3">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Company</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Company name"
+                                    value={companyName}
+                                    onChange={(e) => setCompanyName(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="col-12 col-sm-6 col-lg-3">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Division</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Division"
+                                    value={division}
+                                    onChange={(e) => setDivision(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
