@@ -28,6 +28,9 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
   }
 
   const tokenStr = escapeHtml(String(p.tokenNo ?? "—"));
+  const apptRaw = (p.appointmentDateTime ?? "").trim();
+  const apptParts = apptRaw.split(" - ").map((s) => s.trim()).filter(Boolean);
+  const apptDateLine = apptParts[0] ? escapeHtml(apptParts[0]) : "";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -65,10 +68,27 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
     font-size: 13px;
     margin-bottom: 2px;
   }
-  .sub {
-    text-align: center;
+  .sub-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
     font-size: 11px;
     margin-bottom: 6px;
+    width: 100%;
+  }
+  .sub-row--split {
+    justify-content: space-between;
+  }
+  .sub-row:not(.sub-row--split) {
+    justify-content: center;
+  }
+  .sub-title {
+    flex-shrink: 0;
+  }
+  .sub-date {
+    flex-shrink: 0;
+    text-align: right;
   }
   .rule {
     border: none;
@@ -103,7 +123,10 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
 <body>
   <div class="slip">
     <div class="head">${escapeHtml(hospital)}</div>
-    <div class="sub">OPD Token</div>
+    <div class="sub-row${apptDateLine ? " sub-row--split" : ""}">
+      <span class="sub-title">OPD Token</span>
+      ${apptDateLine ? `<span class="sub-date">${apptDateLine}</span>` : ""}
+    </div>
     <hr class="rule"/>
     <div class="token">${tokenStr}</div>
     <div class="token-lbl">Token No.</div>

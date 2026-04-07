@@ -147,6 +147,14 @@ const Sidebar = () => {
       document.body.classList.remove("mini-sidebar");
       rootElement.setAttribute("dir","ltr");      
     }
+
+    // Keep browser tab title consistent with sidebar brand visibility (mini vs normal)
+    try {
+      const isMini = themeSettings?.["data-layout"] === "mini";
+      document.title = isMini ? "JJM" : "JJM Hospital";
+    } catch {
+      // ignore
+    }
   }, [themeSettings,Location]);
 
   // Load logged-in user info from localStorage (set on login); layout before paint to avoid menu flash
