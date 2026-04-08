@@ -229,6 +229,26 @@ const EditPatient = () => {
                           />
                         </div>
                       </div>
+                      <div className="col-12 col-sm-6 col-lg-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Company</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Company name"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-12 col-sm-6 col-lg-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Division</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Division"
+                          />
+                        </div>
+                      </div>
                       <div className="col-lg-6">
                         <div className="mb-3">
                           <label className="form-label mb-1">

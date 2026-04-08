@@ -49,6 +49,8 @@ const Modals = () => {
   const [ageDays, setAgeDays] = useState<string>("");
   const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
   const [address, setAddress] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("");
+  const [division, setDivision] = useState<string>("");
   const [aadharNumber, setAadharNumber] = useState<string>("");
   const [aadharFile, setAadharFile] = useState<File | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -68,6 +70,8 @@ const Modals = () => {
     setAgeDays("");
     setBloodGroup(Blood_Group[0] || null);
     setAddress("");
+    setCompanyName("");
+    setDivision("");
     setAadharNumber("");
     setAadharFile(null);
     setDocFile(null);
@@ -94,6 +98,8 @@ const Modals = () => {
         setDob(patient.dob ? dayjs(patient.dob) : undefined);
         setBloodGroup(Blood_Group.find(bg => bg.value === patient.bloodGroup) || Blood_Group[0] || null);
         setAddress(patient.address || "");
+        setCompanyName(patient.companyName ?? "");
+        setDivision(patient.division ?? "");
         setAadharNumber(patient.aadharNo || "");
         setAyushmanCardNo(patient.ayushmanCardNo || "");
 
@@ -258,6 +264,8 @@ const Modals = () => {
         gender: gender?.value || "",
         bloodGroup: bloodGroup?.value && bloodGroup.value !== "Select" ? bloodGroup.value : undefined,
         address: address,
+        companyName: companyName.trim() || undefined,
+        division: division.trim() || undefined,
         aadharNo: aadharNumber || undefined,
         ayushmanCardNo: ayushmanCardNo || undefined,
       };
@@ -467,7 +475,7 @@ const Modals = () => {
                     />
                   </div>
                 </div>
-                <div className="col-md-12">
+                <div className="col-12 col-lg-6">
                   <div className="mb-3">
                     <label className="form-label mb-1 fw-medium">
                       Address<span className="text-danger ms-1">*</span>
@@ -480,6 +488,30 @@ const Modals = () => {
                       onChange={(e) => setAddress(e.target.value)}
                       required
                     ></textarea>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label mb-1 fw-medium">Company</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Company name"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label mb-1 fw-medium">Division</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Division"
+                      value={division}
+                      onChange={(e) => setDivision(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
