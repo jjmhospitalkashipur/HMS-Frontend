@@ -56,7 +56,7 @@ const EditAppointmentComponent = () => {
   const [sessionSlot, setSessionSlot] = useState<Option | null>(null);
   const [visitDate, setVisitDate] = useState<any>(null);
   const [visitTime, setVisitTime] = useState<any>(null);
-  const [visitType, setVisitType] = useState<Option | null>(Visit_Type[0]);
+  const [visitType, setVisitType] = useState<Option | null>(null);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
   const [reason, setReason] = useState<string>("");
   const [visitStatus, setVisitStatus] = useState<string>("");
@@ -87,14 +87,6 @@ const EditAppointmentComponent = () => {
     const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
     return daySchedule?.mr !== true;
   }, [selectedDoctor?.value, visitDate, doctors]);
-
-  // When MR is disabled for the selected day and currently selected, switch to New
-  useEffect(() => {
-    if (visitType?.value === "MR" && isMrDisabledForSelectedDay) {
-      const newOpt = Visit_Type.find((v) => v.value === "New") || Visit_Type[0];
-      if (newOpt) setVisitType(newOpt);
-    }
-  }, [isMrDisabledForSelectedDay, visitType?.value]);
 
   // Patient fields
   const [phone, setPhone] = useState<string>("");
@@ -142,7 +134,7 @@ const EditAppointmentComponent = () => {
         setVisitStatus((v as { status?: string }).status || "");
         setVisitDate(v.visitDate ? dayjs(v.visitDate) : null);
         setVisitTime(v.visitTime ? dayjs(v.visitTime, "HH:mm") : null);
-        setVisitType(Visit_Type.find((vt) => vt.value === v.visitType) || Visit_Type[0]);
+        setVisitType(Visit_Type.find((vt) => vt.value === v.visitType) || null);
         setAppointmentType(v.appointmentType || "OPD");
         setReason(v.reason || "");
         setAttendantName((v as any).attendantName || "");
