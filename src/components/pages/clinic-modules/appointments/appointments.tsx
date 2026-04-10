@@ -598,12 +598,20 @@ const AppointmentsComponent = () => {
       sorter: false,
       showSorterTooltip: false,
       width: 120,
-      render: (text: any, record: any) => (
-        <div style={{ maxWidth: 110, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
-          <div className="text-dark">{record.Visit || "New"}</div>
-          <div className="text-body fs-13 fw-normal">{record.Appointment_Type || record.Mode || "OPD"}</div>
-        </div>
-      ),
+      render: (text: any, record: any) => {
+        const visitValue = record?.Visit || "New";
+        const isEmergencyVisit = String(visitValue).toLowerCase() === "emergency";
+        return (
+          <div style={{ maxWidth: 110, whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
+            {isEmergencyVisit ? (
+              <span className="badge bg-danger text-white fw-medium">{visitValue}</span>
+            ) : (
+              <div className="text-dark">{visitValue}</div>
+            )}
+            <div className="text-body fs-13 fw-normal">{record.Appointment_Type || record.Mode || "OPD"}</div>
+          </div>
+        );
+      },
     },
     {
       title: "Amount",

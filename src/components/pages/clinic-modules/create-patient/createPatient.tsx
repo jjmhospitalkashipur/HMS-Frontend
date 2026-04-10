@@ -112,13 +112,13 @@ const CreatePatientComponent = () => {
   const handleTitleChange = useCallback((option: Option | null) => {
     setTitle(option);
     if (!option?.value) return;
-    if (option.value === "Mr.") {
+    if (option.value === "Mr." || option.value === "Master") {
       const male = Gender.find((g) => g.value === "Male");
       if (male) setGender(male);
     } else if (option.value === "Mrs." || option.value === "Ms.") {
       const female = Gender.find((g) => g.value === "Female");
       if (female) setGender(female);
-    } else if (option.value === "Dr." || option.value === "Prof.") {
+    } else if (option.value === "Dr." || option.value === "Prof." || option.value === "Baby") {
       const select = Gender.find((g) => g.value === "Select");
       if (select) setGender(select);
     }

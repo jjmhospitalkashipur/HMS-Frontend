@@ -197,6 +197,8 @@ export const Title = [
   { value: "Mr.", label: "Mr." },
   { value: "Mrs.", label: "Mrs." },
   { value: "Ms.", label: "Ms." },
+  { value: "Baby", label: "Baby" },
+  { value: "Master", label: "Master" },
   { value: "Dr.", label: "Dr." },
   { value: "Prof.", label: "Prof." },
 ];
