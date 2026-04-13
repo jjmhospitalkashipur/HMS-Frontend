@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { Maximize, Minimize } from "tabler-icons-react";
+import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
 
 interface IQueuePatient {
   _id: string;
@@ -416,9 +417,7 @@ const QueueDisplayMultiComponent = () => {
     const nextVisit = activeQueue[0];
     const nextToken =
       nextVisit != null
-        ? isEmergencyVisit(nextVisit)
-          ? `E-${nextVisit.tokenNumber}`
-          : String(nextVisit.tokenNumber)
+        ? formatTokenWithVisitPrefix(nextVisit.tokenNumber, nextVisit.visitType)
         : null;
     const nextMrd = nextVisit?.patient?.mrd ?? null;
     const nextStatus = nextVisit?.status ?? null;

@@ -87,6 +87,14 @@ const EditAppointmentComponent = () => {
     const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
     return daySchedule?.mr !== true;
   }, [selectedDoctor?.value, visitDate, doctors]);
+  const isMrVisitSelected = visitType?.value === "MR";
+  const isPaymentModeDisabledForMr = isMrVisitSelected;
+
+  useEffect(() => {
+    if (isMrVisitSelected && paymentMode === "Card") {
+      setPaymentMode("Cash");
+    }
+  }, [isMrVisitSelected, paymentMode]);
 
   // Patient fields
   const [phone, setPhone] = useState<string>("");
@@ -899,7 +907,11 @@ const EditAppointmentComponent = () => {
                               id="edit-cash"
                               value="Cash"
                               checked={paymentMode === "Cash"}
-                              onChange={(e) => setPaymentMode(e.target.value)}
+                              disabled={isPaymentModeDisabledForMr}
+                              onChange={(e) => {
+                                if (isPaymentModeDisabledForMr) return;
+                                setPaymentMode(e.target.value);
+                              }}
                             />
                             <label className="form-check-label" htmlFor="edit-cash">Cash</label>
                           </div>
@@ -911,7 +923,11 @@ const EditAppointmentComponent = () => {
                               id="edit-upi"
                               value="UPI"
                               checked={paymentMode === "UPI"}
-                              onChange={(e) => setPaymentMode(e.target.value)}
+                              disabled={isPaymentModeDisabledForMr}
+                              onChange={(e) => {
+                                if (isPaymentModeDisabledForMr) return;
+                                setPaymentMode(e.target.value);
+                              }}
                             />
                             <label className="form-check-label" htmlFor="edit-upi">UPI</label>
                           </div>
@@ -923,9 +939,18 @@ const EditAppointmentComponent = () => {
                               id="edit-card"
                               value="Card"
                               checked={paymentMode === "Card"}
-                              onChange={(e) => setPaymentMode(e.target.value)}
+                              disabled={isPaymentModeDisabledForMr}
+                              onChange={(e) => {
+                                if (isPaymentModeDisabledForMr) return;
+                                setPaymentMode(e.target.value);
+                              }}
                             />
-                            <label className="form-check-label" htmlFor="edit-card">Card</label>
+                            <label
+                              className={`form-check-label ${isPaymentModeDisabledForMr ? "text-muted" : ""}`}
+                              htmlFor="edit-card"
+                            >
+                              Card
+                            </label>
                           </div>
                         </div>
                       </div>
@@ -943,9 +968,11 @@ const EditAppointmentComponent = () => {
                           placeholder="0"
                           value={discount || ""}
                           onChange={(e) => {
+                            if (isMrVisitSelected) return;
                             setDiscount(parseFloat(e.target.value) || 0);
                             setDiscountFieldChanged(true);
                           }}
+                          disabled={isMrVisitSelected}
                           min="0"
                         />
                       </div>
@@ -962,7 +989,11 @@ const EditAppointmentComponent = () => {
                           className="form-control"
                           placeholder="0"
                           value={amountReceived || ""}
-                          onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            if (isMrVisitSelected) return;
+                            setAmountReceived(parseFloat(e.target.value) || 0);
+                          }}
+                          disabled={isMrVisitSelected}
                           min="0"
                         />
                       </div>

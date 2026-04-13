@@ -17,6 +17,7 @@ import { DatePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { Visit_Type, Appointment_Type } from "@/core/common/selectOption";
 import { openThermalTokenPrint } from "@/core/utils/thermalTokenPrint";
+import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
 
 const APPOINTMENT_STATUS_OPTIONS: Option[] = [
   { value: "", label: "All" },
@@ -109,6 +110,7 @@ const AppointmentsComponent = () => {
     openThermalTokenPrint({
       caseId: String(record.Case_ID ?? ""),
       tokenNo: record.Token_No ?? "—",
+      visitType: String(record.Visit ?? ""),
       patientName: String(record.Patient ?? ""),
       appointmentDateTime: String(record.Date_Time ?? ""),
       doctorName: String(record.Doctor ?? ""),
@@ -503,7 +505,7 @@ const AppointmentsComponent = () => {
         <div>
           <div className="text-dark mb-1">{text}</div>
           <span className="fs-13 badge badge-soft-primary text-primary rounded fw-medium">
-            Token No: {record.Token_No || "N/A"}
+            Token No: {formatTokenWithVisitPrefix(record.Token_No, record.Visit)}
           </span>
         </div>
       ),

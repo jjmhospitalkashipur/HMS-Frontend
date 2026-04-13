@@ -3,6 +3,8 @@
  * Uses monospace text and @page size hints; actual width depends on browser/OS print driver.
  */
 
+import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
+
 const escapeHtml = (s: string): string =>
   s
     .replace(/&/g, "&amp;")
@@ -14,6 +16,7 @@ export interface IThermalTokenPayload {
   hospitalName?: string;
   caseId: string;
   tokenNo: string | number;
+  visitType?: string;
   patientName: string;
   appointmentDateTime: string;
   doctorName?: string;
@@ -27,7 +30,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
     return;
   }
 
-  const tokenStr = escapeHtml(String(p.tokenNo ?? "—"));
+  const tokenStr = escapeHtml(formatTokenWithVisitPrefix(p.tokenNo, p.visitType));
   const apptRaw = (p.appointmentDateTime ?? "").trim();
   const apptParts = apptRaw.split(" - ").map((s) => s.trim()).filter(Boolean);
   const apptDateLine = apptParts[0] ? escapeHtml(apptParts[0]) : "";

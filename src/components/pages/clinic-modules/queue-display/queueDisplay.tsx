@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import { API_BASE_URL } from "@/environment";
 import { Maximize, Minimize, Ambulance } from "tabler-icons-react";
+import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
 
 interface IQueuePatient {
   _id: string;
@@ -522,7 +523,7 @@ const QueueDisplayComponent = () => {
                     const isConsulting = normalizedStatus === "consulting" || normalizedStatus === "in progress";
                     const isMR = entry.visitType?.toLowerCase() === "mr";
                     const isEmergency = isEmergencyVisit(entry);
-                    const tokenLabel = isEmergency ? `E-${entry.tokenNumber}` : entry.tokenNumber;
+                    const tokenLabel = formatTokenWithVisitPrefix(entry.tokenNumber, entry.visitType);
                     return (
                       <tr key={entry._id} style={statusDisplay.rowStyle}>
                         <td className={`fw-semibold align-middle text-center ${statusDisplay.textClass}`} style={{

@@ -9,7 +9,7 @@ import { API_BASE_URL } from "@/environment";
 import { DatePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
-import { Department } from "@/core/common/selectOption";
+import { Department, Visit_Type } from "@/core/common/selectOption";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -66,11 +66,13 @@ const TransactionsListComponent = () => {
 
   const [filterDoctorId, setFilterDoctorId] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
+  const [filterVisitType, setFilterVisitType] = useState("");
   const [filterPaymentMode, setFilterPaymentMode] = useState("");
   const [filterDate, setFilterDate] = useState<Dayjs | null>(null);
 
   const [appliedDoctorId, setAppliedDoctorId] = useState("");
   const [appliedDepartment, setAppliedDepartment] = useState("");
+  const [appliedVisitType, setAppliedVisitType] = useState("");
   const [appliedPaymentMode, setAppliedPaymentMode] = useState("");
   const [appliedDate, setAppliedDate] = useState<string | null>(null);
 
@@ -92,6 +94,17 @@ const TransactionsListComponent = () => {
     []
   );
 
+  const visitTypeOptions: Option[] = useMemo(
+    () => [
+      ALL_OPTION,
+      ...Visit_Type.filter((v) => v.value !== "Select").map((v) => ({
+        value: v.value,
+        label: v.label,
+      })),
+    ],
+    []
+  );
+
   const getTransactionsQueryParams = useCallback(
     (includePagination: boolean): Record<string, string | number> => {
       const params: Record<string, string | number> = {};
@@ -103,6 +116,7 @@ const TransactionsListComponent = () => {
       if (trimmed) params.search = trimmed;
       if (appliedDoctorId) params.doctorId = appliedDoctorId;
       if (appliedDepartment) params.department = appliedDepartment;
+      if (appliedVisitType) params.visitType = appliedVisitType;
       if (appliedPaymentMode) params.paymentMode = appliedPaymentMode;
       if (appliedDate) params.date = appliedDate;
       return params;
@@ -113,6 +127,7 @@ const TransactionsListComponent = () => {
       searchText,
       appliedDoctorId,
       appliedDepartment,
+      appliedVisitType,
       appliedPaymentMode,
       appliedDate,
     ]
@@ -268,6 +283,7 @@ const TransactionsListComponent = () => {
     setPage(1);
     setAppliedDoctorId(filterDoctorId);
     setAppliedDepartment(filterDepartment);
+    setAppliedVisitType(filterVisitType);
     setAppliedPaymentMode(filterPaymentMode);
     setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
   };
@@ -276,10 +292,12 @@ const TransactionsListComponent = () => {
     setPage(1);
     setFilterDoctorId("");
     setFilterDepartment("");
+    setFilterVisitType("");
     setFilterPaymentMode("");
     setFilterDate(null);
     setAppliedDoctorId("");
     setAppliedDepartment("");
+    setAppliedVisitType("");
     setAppliedPaymentMode("");
     setAppliedDate(null);
   };
@@ -449,6 +467,16 @@ const TransactionsListComponent = () => {
                           options={paymentOptions}
                           value={optionByValue(paymentOptions, filterPaymentMode)}
                           onChange={(opt) => setFilterPaymentMode(opt?.value ?? "")}
+                          className="select"
+                          placeholder="All"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Visit Type</label>
+                        <CommonSelect
+                          options={visitTypeOptions}
+                          value={optionByValue(visitTypeOptions, filterVisitType)}
+                          onChange={(opt) => setFilterVisitType(opt?.value ?? "")}
                           className="select"
                           placeholder="All"
                         />

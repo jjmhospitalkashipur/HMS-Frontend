@@ -198,6 +198,8 @@ const NewAppointmentComponent = () => {
     const daySchedule = doctor.weeklySchedule.find((d) => d.dayOfWeek === dayName);
     return daySchedule?.mr !== true;
   }, [selectedDoctor?.value, visitDate, doctors]);
+  const isMrVisitSelected = visitType?.value === "MR";
+  const isPaymentModeDisabledForMr = isMrVisitSelected;
 
   // When MR is disabled for the selected day and currently selected, switch to New
   useEffect(() => {
@@ -206,6 +208,12 @@ const NewAppointmentComponent = () => {
       if (newOpt) setVisitType(newOpt);
     }
   }, [isMrDisabledForSelectedDay, visitType?.value]);
+
+  useEffect(() => {
+    if (isMrVisitSelected && paymentMode === "Card") {
+      setPaymentMode("Cash");
+    }
+  }, [isMrVisitSelected, paymentMode]);
 
   const fetchDoctorsWithSearch = useCallback(async (search: string) => {
     if (!API_BASE_URL) return;
@@ -1875,7 +1883,11 @@ const NewAppointmentComponent = () => {
                               id="cash"
                               value="Cash"
                               checked={paymentMode === "Cash"}
-                              onChange={(e) => setPaymentMode(e.target.value)}
+                              disabled={isPaymentModeDisabledForMr}
+                              onChange={(e) => {
+                                if (isPaymentModeDisabledForMr) return;
+                                setPaymentMode(e.target.value);
+                              }}
                             />
                             <label className="form-check-label" htmlFor="cash">
                               Cash
@@ -1889,7 +1901,11 @@ const NewAppointmentComponent = () => {
                               id="upi"
                               value="UPI"
                               checked={paymentMode === "UPI"}
-                              onChange={(e) => setPaymentMode(e.target.value)}
+                              disabled={isPaymentModeDisabledForMr}
+                              onChange={(e) => {
+                                if (isPaymentModeDisabledForMr) return;
+                                setPaymentMode(e.target.value);
+                              }}
                             />
                             <label className="form-check-label" htmlFor="upi">
                               UPI
@@ -1903,9 +1919,16 @@ const NewAppointmentComponent = () => {
                               id="card"
                               value="Card"
                               checked={paymentMode === "Card"}
-                              onChange={(e) => setPaymentMode(e.target.value)}
+                              disabled={isPaymentModeDisabledForMr}
+                              onChange={(e) => {
+                                if (isPaymentModeDisabledForMr) return;
+                                setPaymentMode(e.target.value);
+                              }}
                             />
-                            <label className="form-check-label" htmlFor="card">
+                            <label
+                              className={`form-check-label ${isPaymentModeDisabledForMr ? "text-muted" : ""}`}
+                              htmlFor="card"
+                            >
                               Card
                             </label>
                           </div>
@@ -1925,9 +1948,11 @@ const NewAppointmentComponent = () => {
                           placeholder="0"
                           value={discount || ""}
                           onChange={(e) => {
+                            if (isMrVisitSelected) return;
                             setDiscount(parseFloat(e.target.value) || 0);
                             setDiscountFieldChanged(true);
                           }}
+                          disabled={isMrVisitSelected}
                           min="0"
                         />
                       </div>
@@ -1944,7 +1969,11 @@ const NewAppointmentComponent = () => {
                           className="form-control fs-15"
                           placeholder="0"
                           value={amountReceived || ""}
-                          onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            if (isMrVisitSelected) return;
+                            setAmountReceived(parseFloat(e.target.value) || 0);
+                          }}
+                          disabled={isMrVisitSelected}
                           min="0"
                         />
                       </div>

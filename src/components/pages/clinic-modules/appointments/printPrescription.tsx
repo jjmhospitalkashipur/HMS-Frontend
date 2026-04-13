@@ -89,8 +89,8 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     margin-bottom: 12px;
                   }
                   .vitals-main {
-                    flex: 0 0 30%;
-                    max-width: 30%;
+                    flex: 0 0 40%;
+                    max-width: 40%;
                     min-width: 0;
                     margin-left: auto;
                   }
@@ -106,18 +106,30 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
                     border: 1px solid #000;
                     vertical-align: middle;
                   }
+                  .vitals-table th {
+                    padding: 4px 6px;
+                    border: 1px solid #000;
+                    vertical-align: middle;
+                    background-color: #f8f9fa;
+                    font-weight: 600;
+                    text-align: center;
+                  }
                   .vitals-label-cell {
                     background-color: #f8f9fa;
                     font-weight: 600;
                     color: #000;
-                    width: 55%;
+                    width: 35%;
                     white-space: nowrap;
                   }
                   .vitals-value-cell {
                     background-color: #ffffff;
                     font-weight: 500;
                     color: #000;
-                    width: 45%;
+                    width: 32.5%;
+                  }
+                  .vitals-value-cell-empty {
+                    background-color: #ffffff;
+                    width: 32.5%;
                   }
                   .letterhead-space { height: 60px; width: 100%; margin-bottom: 12px; }
                   .patient-card {
@@ -267,7 +279,7 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
               <tr>
                 <td className="info-label-cell">MRD No.:</td>
                 <td className="info-value-cell">{appointmentData.MRD_No || "—"}</td>
-                <td className="info-label-cell">Case ID:</td>
+                <td className="info-label-cell">Case ID / Receipt No.:</td>
                 <td className="info-value-cell">{appointmentData.Case_ID || "—"}</td>
               </tr>
               <tr>
@@ -307,22 +319,33 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
         <div className="vitals-layout">
           <div className="vitals-main">
             <table className="vitals-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>First</th>
+                  <th>Second</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td className="vitals-label-cell">PR: (min)</td>
                   <td className="vitals-value-cell">{pulseValue}</td>
+                  <td className="vitals-value-cell-empty"></td>
                 </tr>
                 <tr>
                   <td className="vitals-label-cell">BP: (mm hg)</td>
                   <td className="vitals-value-cell">{bpValue}</td>
+                  <td className="vitals-value-cell-empty"></td>
                 </tr>
                 <tr>
                   <td className="vitals-label-cell">SpO2:</td>
                   <td className="vitals-value-cell">{spO2Value}</td>
+                  <td className="vitals-value-cell-empty"></td>
                 </tr>
                 <tr>
                   <td className="vitals-label-cell">Weight: (Kg)</td>
                   <td className="vitals-value-cell">{weightValue}</td>
+                  <td className="vitals-value-cell-empty"></td>
                 </tr>
               </tbody>
             </table>
