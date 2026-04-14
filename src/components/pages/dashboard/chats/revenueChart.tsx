@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import dayjs from "dayjs";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -64,7 +63,9 @@ const RevenueChart = () => {
     fetchRevenueStats();
   }, [fetchRevenueStats]);
 
-  const categories = periodData.map((d) => d.period);
+  const categories = periodData.map((d) =>
+    range === "daily" ? d.date || d.period : d.period
+  );
   const series = [
     {
       name: "Revenue",

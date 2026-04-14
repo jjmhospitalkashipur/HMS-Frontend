@@ -9,6 +9,8 @@ import SCol4Chart from "../chats/scol4";
 import SCol19Chart from "../chats/scol19";
 import CircleChart from "../chats/circleChart";
 import RevenueChart from "../chats/revenueChart";
+import VisitRevenueChart from "../chats/visitRevenueChart";
+import DaycareRevenueChart from "../chats/daycareRevenueChart";
 import { Calendar, type CalendarProps } from "antd";
 import type { Dayjs } from "dayjs";
 import Link from "next/link";
@@ -52,6 +54,26 @@ interface IVisitStatsSummary {
 
 interface IVisitStatsPeriodData {
   period: string;
+  date?: string;
+  scheduled: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
+}
+
+interface IDaycareStatsSummary {
+  all: number;
+  scheduled: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
+}
+
+interface IDaycareStatsPeriodData {
+  period: string;
+  date?: string;
   scheduled: number;
   inProgress: number;
   completed: number;
@@ -135,6 +157,18 @@ const DashboardComponent = () => {
   const [visitStatsPeriod, setVisitStatsPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
   const [visitStatsFrom, setVisitStatsFrom] = useState<string>("");
   const [visitStatsTo, setVisitStatsTo] = useState<string>("");
+  const [daycareStatsSummary, setDaycareStatsSummary] = useState<IDaycareStatsSummary>({
+    all: 0,
+    scheduled: 0,
+    inProgress: 0,
+    completed: 0,
+    cancelled: 0,
+    noShow: 0,
+  });
+  const [daycareStatsPeriodData, setDaycareStatsPeriodData] = useState<IDaycareStatsPeriodData[]>([]);
+  const [daycareStatsPeriod, setDaycareStatsPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
+  const [daycareStatsFrom, setDaycareStatsFrom] = useState<string>("");
+  const [daycareStatsTo, setDaycareStatsTo] = useState<string>("");
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -259,13 +293,80 @@ const DashboardComponent = () => {
     fetchVisitStatistics();
   }, [visitStatsPeriod, visitStatsFrom, visitStatsTo]);
 
-  const visitStatsCategories = visitStatsPeriodData.map((d) => d.period);
+  useEffect(() => {
+    const toNumber = (value: unknown): number => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    const fetchDaycareStatistics = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        const params: Record<string, string> = { range: daycareStatsPeriod };
+        if (daycareStatsFrom) params.from = daycareStatsFrom;
+        if (daycareStatsTo) params.to = daycareStatsTo;
+        const response = await axios.get(
+          `${API_BASE_URL}/hospital/dashboard/daycare-statistics`,
+          { params }
+        );
+
+        const data = response?.data?.data;
+        if (!data) return;
+
+        const summary = data?.summary ?? data?.totals ?? {};
+        setDaycareStatsSummary({
+          all: toNumber(summary?.all ?? summary?.total ?? summary?.totalVisits),
+          scheduled: toNumber(summary?.scheduled),
+          inProgress: toNumber(summary?.inProgress ?? summary?.inprogress),
+          completed: toNumber(summary?.completed),
+          cancelled: toNumber(summary?.cancelled ?? summary?.canceled),
+          noShow: toNumber(summary?.noShow ?? summary?.no_show),
+        });
+
+        const rawPeriodData = Array.isArray(data?.periodData)
+          ? data.periodData
+          : Array.isArray(data?.chartData)
+            ? data.chartData
+            : [];
+
+        const mappedPeriodData: IDaycareStatsPeriodData[] = rawPeriodData.map((item: Record<string, unknown>) => ({
+          period: String(item?.period ?? item?.label ?? item?.month ?? ""),
+          date: item?.date != null ? String(item.date) : undefined,
+          scheduled: toNumber(item?.scheduled),
+          inProgress: toNumber(item?.inProgress ?? item?.inprogress),
+          completed: toNumber(item?.completed),
+          cancelled: toNumber(item?.cancelled ?? item?.canceled),
+          noShow: toNumber(item?.noShow ?? item?.no_show),
+        }));
+        setDaycareStatsPeriodData(mappedPeriodData);
+      } catch {
+        // keep defaults
+      }
+    };
+
+    fetchDaycareStatistics();
+  }, [daycareStatsPeriod, daycareStatsFrom, daycareStatsTo]);
+
+  const visitStatsCategories = visitStatsPeriodData.map((d) =>
+    visitStatsPeriod === "daily" ? d.date || d.period : d.period
+  );
   const visitStatsSeries: ApexAxisChartSeries = [
     { name: "Completed", data: visitStatsPeriodData.map((d) => d.completed) },
     { name: "Scheduled", data: visitStatsPeriodData.map((d) => d.scheduled) },
     { name: "In Progress", data: visitStatsPeriodData.map((d) => d.inProgress) },
     { name: "Cancelled", data: visitStatsPeriodData.map((d) => d.cancelled) },
     { name: "No Show", data: visitStatsPeriodData.map((d) => d.noShow) },
+  ];
+
+  const daycareStatsCategories = daycareStatsPeriodData.map((d) =>
+    daycareStatsPeriod === "daily" ? d.date || d.period : d.period
+  );
+  const daycareStatsSeries: ApexAxisChartSeries = [
+    { name: "Completed", data: daycareStatsPeriodData.map((d) => d.completed) },
+    { name: "Scheduled", data: daycareStatsPeriodData.map((d) => d.scheduled) },
+    { name: "In Progress", data: daycareStatsPeriodData.map((d) => d.inProgress) },
+    { name: "Cancelled", data: daycareStatsPeriodData.map((d) => d.cancelled) },
+    { name: "No Show", data: daycareStatsPeriodData.map((d) => d.noShow) },
   ];
 
   const formatRevenue = (total: number) =>
@@ -503,10 +604,111 @@ const DashboardComponent = () => {
             {/* col end */}
           </div>
           {/* end row - chart only */}
-          {/* Revenue Statistics */}
+          <div className="row">
+            <div className="col-xl-12">
+              <div className="card shadow-sm flex-fill w-100">
+                <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <h5 className="fw-bold mb-0">Daycare Statistics</h5>
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="mb-0 fs-13 text-muted">From</label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        value={daycareStatsFrom}
+                        onChange={(e) => setDaycareStatsFrom(e.target.value)}
+                      />
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="mb-0 fs-13 text-muted">To</label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        value={daycareStatsTo}
+                        onChange={(e) => setDaycareStatsTo(e.target.value)}
+                      />
+                    </div>
+                    <div className="dropdown">
+                      <button
+                        type="button"
+                        className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center"
+                        data-bs-toggle="dropdown"
+                      >
+                        {daycareStatsPeriod === "daily" ? "Daily" : daycareStatsPeriod === "weekly" ? "Weekly" : daycareStatsPeriod === "monthly" ? "Monthly" : "Yearly"} <i className="ti ti-chevron-down ms-1" />
+                      </button>
+                      <ul className="dropdown-menu">
+                        <li><button className="dropdown-item" onClick={() => setDaycareStatsPeriod("daily")}>Daily</button></li>
+                        <li><button className="dropdown-item" onClick={() => setDaycareStatsPeriod("weekly")}>Weekly</button></li>
+                        <li><button className="dropdown-item" onClick={() => setDaycareStatsPeriod("monthly")}>Monthly</button></li>
+                        <li><button className="dropdown-item" onClick={() => setDaycareStatsPeriod("yearly")}>Yearly</button></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="card-body pb-0">
+                  <div className="row row-gap-3 mb-2">
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-primary" />All</p>
+                        <h5 className="fw-bold mb-0">{daycareStatsSummary.all}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-info" />Scheduled</p>
+                        <h5 className="fw-bold mb-0">{daycareStatsSummary.scheduled}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-warning" />In Progress</p>
+                        <h5 className="fw-bold mb-0">{daycareStatsSummary.inProgress}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-success" />Completed</p>
+                        <h5 className="fw-bold mb-0">{daycareStatsSummary.completed}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-danger" />Cancelled</p>
+                        <h5 className="fw-bold mb-0">{daycareStatsSummary.cancelled}</h5>
+                      </div>
+                    </div>
+                    <div className="col-md-2 col-sm-6">
+                      <div className="bg-light border p-2 text-center rounded-2">
+                        <p className="mb-1 text-truncate"><i className="ti ti-point-filled me-1 text-secondary" />No Show</p>
+                        <h5 className="fw-bold mb-0">{daycareStatsSummary.noShow}</h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="chart-set" id="s-col-19-daycare">
+                    <SCol19Chart categories={daycareStatsCategories} series={daycareStatsSeries} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* end row - daycare chart */}
+          {/* Revenue Statistics
           <div className="row mb-3">
             <div className="col-12">
               <RevenueChart />
+            </div>
+          </div>
+          */}
+          {/* Visit Revenue Statistics */}
+          <div className="row mb-3">
+            <div className="col-12">
+              <VisitRevenueChart />
+            </div>
+          </div>
+          {/* Daycare Revenue Statistics */}
+          <div className="row mb-3">
+            <div className="col-12">
+              <DaycareRevenueChart />
             </div>
           </div>
           {/* start row - Recent Transactions */}
@@ -522,32 +724,32 @@ const DashboardComponent = () => {
                   ) : recentTransactions.length === 0 ? (
                     <p className="mb-0 text-muted">No recent transactions</p>
                   ) : (
-                    recentTransactions.map((txn, index) => (
-                      <div
-                        key={txn._id}
-                        className={`d-flex justify-content-between align-items-center ${index < recentTransactions.length - 1 ? "mb-3" : ""}`}
-                      >
-                        <div className="d-flex align-items-center min-w-0 flex-grow-1 me-2">
-                          <span className="avatar bg-primary rounded-circle flex-shrink-0">
-                            <i className="ti ti-receipt fs-18 text-white" />
-                          </span>
-                          <div className="min-w-0 ms-2">
-                            <h6 className="fs-14 mb-0 text-truncate fw-semibold">
-                              {txn.patientName ?? "—"}
-                            </h6>
-                            <p className="mb-0 fs-13 text-muted text-truncate">
-                              {txn.serviceName ?? "—"} · {txn.transactionId}
-                            </p>
-                            <p className="mb-0 fs-12 text-muted">
-                              {formatTransactionDate(txn.transactionDate)} · {txn.paymentMode}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="badge fw-medium bg-success flex-shrink-0">
-                          {formatRevenue(txn.amount)}
-                        </span>
-                      </div>
-                    ))
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th>Transaction ID</th>
+                            <th>Patient</th>
+                            <th>Date</th>
+                            <th>Payment</th>
+                            <th className="text-end">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {recentTransactions.map((txn) => (
+                            <tr key={txn._id}>
+                              <td className="fw-semibold text-dark">{txn.transactionId || "—"}</td>
+                              <td>{txn.patientName || "—"}</td>
+                              <td>{formatTransactionDate(txn.transactionDate)}</td>
+                              <td>{txn.paymentMode || "—"}</td>
+                              <td className="text-end fw-semibold text-success">
+                                {formatRevenue(txn.amount)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               </div>
@@ -555,73 +757,6 @@ const DashboardComponent = () => {
             {/* col end */}
           </div>
           {/* end row */}
-          {/* row start */}
-          <div className="row">
-            <div className="col-12 d-flex">
-              <div className="card shadow-sm flex-fill w-100">
-                <div className="card-header d-flex align-items-center justify-content-between">
-                  <h5 className="fw-bold mb-0">All Appointments</h5>
-                  <Link
-                    href={all_routes.appointments}
-                    className="btn fw-normal btn-outline-white"
-                  >
-                    View All
-                  </Link>
-                </div>
-                <div className="card-body">
-                  {/* Table start */}
-                  <div className="table-responsive table-nowrap">
-                    <table className="table border">
-                      <thead className="thead-light">
-                        <tr>
-                          <th>Doctor</th>
-                          <th>Patient</th>
-                          <th>Date &amp; Time</th>
-                          <th>Mode</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentLoading ? (
-                          <tr>
-                            <td colSpan={5} className="text-center py-3">
-                              Loading appointments...
-                            </td>
-                          </tr>
-                        ) : recentAppointments.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="text-center py-3">
-                              No appointments found.
-                            </td>
-                          </tr>
-                        ) : (
-                          recentAppointments.map((item) => (
-                            <tr key={item.id}>
-                              <td>{item.doctorName}</td>
-                              <td>{item.patientName}</td>
-                              <td>{item.dateTime || "—"}</td>
-                              <td>{item.appointmentType || "OPD"}</td>
-                              <td>
-                                <span
-                                  className={`badge fs-13 py-1 rounded fw-medium ${getStatusBadgeClass(
-                                    item.status
-                                  )}`}
-                                >
-                                  {item.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {/* Table end */}
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* row end */}
         </div>
         {/* End Content */}
         {/* Footer Start */}
