@@ -46,6 +46,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "Pharma Appointments",
+        link: routes.pharmaTokens,
+        submenu: false,
+        showSubRoute: false,
+        icon: "ticket",
+        base: "PharmaTokens",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Dialysis",
         link: routes.dialysis,
         submenu: false,

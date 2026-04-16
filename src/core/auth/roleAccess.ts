@@ -18,6 +18,7 @@ const COMMON_AUTH_PATH_PREFIXES: string[] = [
   all_routes.securitysettings,
   all_routes.notificationssettings,
   all_routes.notifications,
+  all_routes.pharmaTokenQueue,
 ];
 
 /**
@@ -67,6 +68,10 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.createPatient,
     all_routes.editPatient,
   ],
+  PHARMACIST: [
+    all_routes.pharmaTokens,
+    all_routes.pharmaTokenQueue,
+  ],
 };
 
 export const canAccessPath = (role: string, pathname: string): boolean => {
@@ -93,6 +98,8 @@ export const getDefaultRouteForRole = (role: string): string => {
       return all_routes.appointments;
     case "RECEPTIONIST2":
       return all_routes.patients;
+    case "PHARMACIST":
+      return all_routes.pharmaTokens;
     default:
       return all_routes.login;
   }

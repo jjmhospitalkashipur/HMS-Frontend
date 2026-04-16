@@ -116,6 +116,8 @@ export const all_routes = {
   appointments: "/appointments",
   newAppointment: "/new-appointment",
   dialysisAppointment: "/dialysis-appointment",
+  pharmaTokens: "/pharma-tokens",
+  pharmaTokenQueue: "/pq",
   appointmentDetails: "/appointment-details",
   editAppointment: "/edit-appointment",
   editDaycareAppointment: "/edit-daycare-appointment",

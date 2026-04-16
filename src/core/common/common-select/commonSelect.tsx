@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useId } from "react";
+import React, { useEffect, useState, useId, useMemo } from "react";
 import Select, { InputActionMeta } from "react-select";
 
 export type Option = {
@@ -41,7 +41,7 @@ const CommonSelect: React.FC<SelectProps> = ({
   const reactId = useId();
   const stableInstanceId = instanceId || `common-select-${reactId}`;
 
-  const customStyles = {
+  const customStyles = useMemo(() => ({
     option: (base: any, state: any) => ({
       ...base,
       backgroundColor:
@@ -55,7 +55,15 @@ const CommonSelect: React.FC<SelectProps> = ({
         color: "#ffffff",
       },
     }),
-  };
+    menuPortal: (base: any) => ({
+      ...base,
+      zIndex: 9999,
+    }),
+    menu: (base: any) => ({
+      ...base,
+      zIndex: 9999,
+    }),
+  }), []);
 
   const handleChange = (option: Option | null) => {
     if (onChange) {
@@ -92,6 +100,8 @@ const CommonSelect: React.FC<SelectProps> = ({
         onMenuOpen={onMenuOpen}
         isLoading={isLoading}
         isSearchable={true}
+        menuPortalTarget={typeof window !== "undefined" ? document.body : null}
+        menuPosition="fixed"
       />
     </div>
   );

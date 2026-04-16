@@ -13,6 +13,7 @@ const ROLE_OPTIONS: Option[] = [
   { value: "RECEPTIONIST", label: "Receptionist" },
   { value: "RECEPTIONIST2", label: "Receptionist 2" },
   { value: "DIALYSIS", label: "Dialysis" },
+  { value: "PHARMACIST", label: "Pharmacist" },
 ];
 
 const CreateUserComponent = () => {
