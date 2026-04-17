@@ -110,12 +110,13 @@ const VisitRevenueChart = () => {
       },
     },
     tooltip: {
-      custom: ({ series: chartSeries, dataPointIndex, w }: any) => {
+      custom: ({ series: chartSeries, dataPointIndex }: any) => {
         const revenue = chartSeries?.[0]?.[dataPointIndex] ?? 0;
-        const periodLabel = w?.globals?.labels?.[dataPointIndex] ?? "—";
-        const receivedDate = periodData?.[dataPointIndex]?.date ?? "—";
+        const point = periodData?.[dataPointIndex];
+        const dateStr = point?.date != null ? String(point.date).trim() : "";
+        const periodStr = point?.period != null ? String(point.period).trim() : "";
+        const receivedDate = dateStr || periodStr || "—";
         return `<div class="apex-tooltip p-2">
-          <div><strong>${periodLabel}</strong></div>
           <div>Date: ${receivedDate}</div>
           <div>Revenue: ₹${Number(revenue).toLocaleString("en-IN")}</div>
         </div>`;
