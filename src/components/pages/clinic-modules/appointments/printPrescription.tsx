@@ -321,12 +321,17 @@ const PrintPrescription = ({ appointmentData, onClose }: IPrintPrescriptionProps
             <table className="vitals-table">
               <thead>
                 <tr>
-                  <th></th>
+                  <th>Visit</th>
                   <th>First</th>
                   <th>Second</th>
                 </tr>
               </thead>
               <tbody>
+                <tr>
+                  <td className="vitals-label-cell">Date</td>
+                  <td className="vitals-value-cell">&nbsp;</td>
+                  <td className="vitals-value-cell">&nbsp;</td>
+                </tr>
                 <tr>
                   <td className="vitals-label-cell">PR: (min)</td>
                   <td className="vitals-value-cell">{pulseValue}</td>
