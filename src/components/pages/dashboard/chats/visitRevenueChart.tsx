@@ -22,14 +22,41 @@ interface IVisitRevenueStatsResponse {
   };
 }
 
+interface IDoctorFilterItem {
+  _id: string;
+  name?: string;
+  department?: string;
+}
+
 const VisitRevenueChart = () => {
   const [range, setRange] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [doctorOptions, setDoctorOptions] = useState<IDoctorFilterItem[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
   const [periodData, setPeriodData] = useState<IVisitRevenuePeriodData[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFetchDoctors = useCallback(async () => {
+    if (!API_BASE_URL) return;
+    try {
+      const res = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
+        params: { limit: 50 },
+      });
+      const doctors = Array.isArray(res.data?.data?.doctors)
+        ? (res.data.data.doctors as IDoctorFilterItem[])
+        : [];
+      setDoctorOptions(doctors);
+    } catch {
+      setDoctorOptions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    handleFetchDoctors();
+  }, [handleFetchDoctors]);
 
   const handleFetchVisitRevenueStats = useCallback(async () => {
     if (!API_BASE_URL) return;
@@ -39,6 +66,7 @@ const VisitRevenueChart = () => {
       const params: Record<string, string> = { range };
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
+      if (selectedDoctorId) params.doctorId = selectedDoctorId;
       const res = await axios.get<IVisitRevenueStatsResponse>(
         `${API_BASE_URL}/hospital/dashboard/visit-revenue-statistics`,
         { params }
@@ -57,7 +85,7 @@ const VisitRevenueChart = () => {
     } finally {
       setLoading(false);
     }
-  }, [range, fromDate, toDate]);
+  }, [range, fromDate, toDate, selectedDoctorId]);
 
   useEffect(() => {
     handleFetchVisitRevenueStats();
@@ -134,6 +162,8 @@ const VisitRevenueChart = () => {
 
   const formatTotal = (n: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+  const selectedDoctorLabel =
+    doctorOptions.find((doctor) => doctor?._id === selectedDoctorId)?.name?.trim() || "All doctors";
 
   if (loading) {
     return (
@@ -153,6 +183,48 @@ const VisitRevenueChart = () => {
       <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h5 className="fw-bold mb-0">Visit Revenue Statistics</h5>
         <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="d-flex align-items-center gap-2">
+            <label className="mb-0 fs-13 text-muted">Doctor</label>
+            <div className="dropdown">
+              <button
+                type="button"
+                className="btn btn-sm px-2 border shadow-sm btn-outline-white d-inline-flex align-items-center justify-content-between text-start"
+                data-bs-toggle="dropdown"
+                aria-label="Filter visit revenue by doctor"
+                style={{ width: "220px" }}
+              >
+                <span className="text-truncate d-inline-block" style={{ maxWidth: "176px" }}>
+                  {selectedDoctorLabel}
+                </span>
+                <i className="ti ti-chevron-down ms-1 flex-shrink-0" />
+              </button>
+              <ul className="dropdown-menu" style={{ width: "260px", maxWidth: "90vw" }}>
+                <li>
+                  <button
+                    type="button"
+                    className={`dropdown-item ${selectedDoctorId ? "" : "active"}`}
+                    onClick={() => setSelectedDoctorId("")}
+                  >
+                    All doctors
+                  </button>
+                </li>
+                {doctorOptions.map((doctor) => (
+                  <li key={doctor._id}>
+                    <button
+                      type="button"
+                      className={`dropdown-item ${selectedDoctorId === doctor._id ? "active" : ""}`}
+                      onClick={() => setSelectedDoctorId(doctor._id)}
+                      style={{ whiteSpace: "normal", lineHeight: 1.25 }}
+                    >
+                      {doctor?.department
+                        ? `${doctor?.name ?? "Unknown"} (${doctor.department})`
+                        : doctor?.name ?? "Unknown"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
           <div className="d-flex align-items-center gap-2">
             <label className="mb-0 fs-13 text-muted">From</label>
             <input
