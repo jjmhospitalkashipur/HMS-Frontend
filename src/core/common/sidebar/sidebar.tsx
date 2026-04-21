@@ -17,6 +17,7 @@ import {
   filterSidebarSubmenuItems,
   normalizeRole,
 } from "@/core/auth/roleAccess";
+import { isSharedAuthEnabled, postSharedLogout } from "@/core/auth/sharedAuth";
 
 const Sidebar = () => {
   const Location = usePathname();
@@ -442,7 +443,11 @@ const Sidebar = () => {
                 href={all_routes.login}
                 className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center flex-shrink-0"
                 title="Log Out"
-                onClick={() => {
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (isSharedAuthEnabled()) {
+                    await postSharedLogout();
+                  }
                   try {
                     if (typeof window !== "undefined") {
                       window.localStorage.removeItem("authToken");
@@ -451,6 +456,7 @@ const Sidebar = () => {
                   } catch {
                     // ignore storage errors
                   }
+                  navigate.replace(all_routes.login);
                 }}
               >
                 <i className="ti ti-logout fs-16" />

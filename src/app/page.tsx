@@ -1,35 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { isSharedAuthEnabled, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
 import { all_routes } from "@/routes/all_routes";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    const authToken = localStorage.getItem("authToken");
-    const userString = localStorage.getItem("authUser");
+    let cancelled = false;
+    (async () => {
+      if (!cancelled && isSharedAuthEnabled() && !localStorage.getItem("authToken")) {
+        await syncHospitalSessionFromSharedCookie();
+      }
+      if (cancelled) return;
 
-    if (!authToken) {
-      router.replace(all_routes.login);
-      return;
-    }
+      const authToken = localStorage.getItem("authToken");
+      const userString = localStorage.getItem("authUser");
 
-    let role = "";
-    try {
-      const user = userString ? JSON.parse(userString) : null;
-      role = user?.role?.toUpperCase?.() ?? "";
-    } catch {
-      role = "";
-    }
+      if (!authToken) {
+        router.replace(all_routes.login);
+        return;
+      }
 
-    if (role === "RECEPTIONIST") {
-      router.replace(all_routes.appointments);
-      return;
-    }
+      let role = "";
+      try {
+        const user = userString ? JSON.parse(userString) : null;
+        role = user?.role?.toUpperCase?.() ?? "";
+      } catch {
+        role = "";
+      }
 
-    router.replace(all_routes.dashboard);
+      if (role === "RECEPTIONIST") {
+        router.replace(all_routes.appointments);
+        return;
+      }
+
+      router.replace(all_routes.dashboard);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return (
@@ -38,4 +50,3 @@ export default function HomePage() {
     </div>
   );
 }
-

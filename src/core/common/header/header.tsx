@@ -7,6 +7,7 @@ import { updateTheme } from "../../redux/themeSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { setMobileSidebar } from "../../redux/sidebarSlice";
 import Link from "next/link";
+import { isSharedAuthEnabled, postSharedLogout, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
 import { all_routes } from "@/routes/all_routes";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -52,10 +53,22 @@ const Header = () => {
       return;
     }
 
-    const token = window.localStorage.getItem("authToken");
-    if (!token) {
-      router.replace(all_routes.login);
-    }
+    let cancelled = false;
+    (async () => {
+      let token = window.localStorage.getItem("authToken");
+      if (!token && isSharedAuthEnabled()) {
+        await syncHospitalSessionFromSharedCookie();
+        if (cancelled) return;
+        token = window.localStorage.getItem("authToken");
+      }
+      if (cancelled) return;
+      if (!token) {
+        router.replace(all_routes.login);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [pathname, router]);
 
   useEffect(() => {
@@ -543,7 +556,11 @@ const Header = () => {
                   <Link
                     href={all_routes.login}
                     className="dropdown-item text-danger"
-                    onClick={() => {
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      if (isSharedAuthEnabled()) {
+                        await postSharedLogout();
+                      }
                       try {
                         if (typeof window !== "undefined") {
                           window.localStorage.removeItem("authToken");
@@ -552,6 +569,7 @@ const Header = () => {
                       } catch {
                         // ignore storage errors
                       }
+                      router.replace(all_routes.login);
                     }}
                   >
                     <i className="ti ti-logout me-1 fs-17 align-middle" />

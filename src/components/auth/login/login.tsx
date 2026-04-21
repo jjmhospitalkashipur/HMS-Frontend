@@ -1,14 +1,19 @@
-"use client"
+"use client";
 
 import "@/core/api/axiosAuth";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { getDefaultRouteForRole } from "@/core/auth/roleAccess";
+import {
+  isSharedAuthEnabled,
+  postSharedLogin,
+  syncHospitalSessionFromSharedCookie,
+} from "@/core/auth/sharedAuth";
 import { all_routes } from "@/routes/all_routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 type PasswordField = "password" | "confirmPassword";
 
 const LoginComponent = () => {
@@ -21,6 +26,32 @@ const LoginComponent = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const getPostLoginRoute = (role?: string) => {
+    const normalizedRole = (role || "").toUpperCase();
+    const route = getDefaultRouteForRole(normalizedRole);
+    return route === all_routes.login ? all_routes.dashboard : route;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isSharedAuthEnabled()) return;
+      const sync = await syncHospitalSessionFromSharedCookie();
+      if (cancelled) return;
+      if (sync !== "restored") return;
+      try {
+        const raw = localStorage.getItem("authUser");
+        const user = raw ? JSON.parse(raw) : null;
+        router.replace(getPostLoginRoute(user?.role));
+      } catch {
+        router.replace(all_routes.dashboard);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const togglePasswordVisibility = (field: PasswordField) => {
     setPasswordVisibility((prevState) => ({
@@ -45,13 +76,23 @@ const LoginComponent = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post(
-        `${API_BASE_URL}/hospital/auth/login`,
-        {
-          email: email.trim(),
-          password,
+
+      if (isSharedAuthEnabled()) {
+        const shared = await postSharedLogin(email.trim(), password);
+        if (!shared.ok) {
+          setError(shared.message || "Login failed.");
+          return;
         }
-      );
+        const raw = localStorage.getItem("authUser");
+        const user = raw ? JSON.parse(raw) : null;
+        router.push(getPostLoginRoute(user?.role));
+        return;
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/hospital/auth/login`, {
+        email: email.trim(),
+        password,
+      });
 
       const accessToken =
         (response.data as any)?.data?.accessToken ||
@@ -70,8 +111,7 @@ const LoginComponent = () => {
         // ignore storage errors
       }
 
-      const role = (user?.role || "").toUpperCase();
-      router.push(getDefaultRouteForRole(role));
+      router.push(getPostLoginRoute(user?.role));
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
