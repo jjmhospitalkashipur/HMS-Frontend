@@ -72,6 +72,21 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.pharmaTokens,
     all_routes.pharmaTokenQueue,
   ],
+  ACCOUNTANT: [
+    all_routes.dashboard,
+    all_routes.transactions,
+    all_routes.expenses,
+    all_routes.expenseCategory,
+    all_routes.income,
+    all_routes.invoices,
+    all_routes.invoicesDetails,
+    all_routes.addInvoices,
+    all_routes.editInvoices,
+    all_routes.payments,
+    all_routes.incomeReport,
+    all_routes.expenseReport,
+    all_routes.profitloss,
+  ],
 };
 
 export const canAccessPath = (role: string, pathname: string): boolean => {
@@ -100,6 +115,8 @@ export const getDefaultRouteForRole = (role: string): string => {
       return all_routes.patients;
     case "PHARMACIST":
       return all_routes.pharmaTokens;
+    case "ACCOUNTANT":
+      return all_routes.transactions;
     default:
       return all_routes.login;
   }

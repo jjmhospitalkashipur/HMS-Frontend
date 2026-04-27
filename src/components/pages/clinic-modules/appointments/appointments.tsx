@@ -143,6 +143,11 @@ const AppointmentsComponent = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState<string>("");
   const [exporting, setExporting] = useState(false);
+  const [visitDeleteTarget, setVisitDeleteTarget] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const [visitDeleteLoading, setVisitDeleteLoading] = useState(false);
 
   /** Same filter/query shape as GET /hospital/visits; omit pagination for export. */
   const getVisitsQueryParams = useCallback(
@@ -495,6 +500,26 @@ const AppointmentsComponent = () => {
     }
   };
 
+  const handleConfirmDeleteVisit = async () => {
+    const targetId = visitDeleteTarget?.id;
+    if (!targetId || !API_BASE_URL) return;
+    setVisitDeleteLoading(true);
+    try {
+      const res = await axios.delete(`${API_BASE_URL}/hospital/visits/${targetId}`);
+      if (res.data?.code === 200 || res.status === 200 || res.status === 204) {
+        setVisitDeleteTarget(null);
+        await fetchAppointments(false);
+      } else {
+        alert(res.data?.message ?? "Failed to delete appointment.");
+      }
+    } catch (err: any) {
+      console.error("Delete visit:", err);
+      alert(err?.response?.data?.message ?? "Failed to delete appointment.");
+    } finally {
+      setVisitDeleteLoading(false);
+    }
+  };
+
   const columns = [
     {
       title: "Case ID",
@@ -753,6 +778,21 @@ const AppointmentsComponent = () => {
           >
             <i className="ti ti-download fs-16" />
           </Link>
+          <button
+            type="button"
+            className="btn btn-link text-danger p-0 border-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setVisitDeleteTarget({
+                id: String(record.id ?? ""),
+                label: String(record.Case_ID ?? record.id ?? ""),
+              });
+            }}
+            title="Delete visit"
+            aria-label="Delete visit"
+          >
+            <i className="ti ti-trash fs-16" />
+          </button>
         </div>
       ),
     },
@@ -1032,6 +1072,65 @@ const AppointmentsComponent = () => {
           onClose={handlePrintClose}
         />
       )}
+
+      {visitDeleteTarget ? (
+        <div
+          className="modal fade show d-block"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete_visit_modal_title"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setVisitDeleteTarget(null);
+          }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-body text-center position-relative z-1">
+                <ImageWithBasePath
+                  src="assets/img/bg/delete-modal-bg-01.png"
+                  alt=""
+                  className="img-fluid position-absolute top-0 start-0 z-n1"
+                />
+                <ImageWithBasePath
+                  src="assets/img/bg/delete-modal-bg-02.png"
+                  alt=""
+                  className="img-fluid position-absolute bottom-0 end-0 z-n1"
+                />
+                <div className="mb-3">
+                  <span className="avatar avatar-lg bg-danger text-white">
+                    <i className="ti ti-trash fs-24" aria-hidden />
+                  </span>
+                </div>
+                <h5 id="delete_visit_modal_title" className="fw-bold mb-1">
+                  Delete this appointment?
+                </h5>
+                <p className="mb-3 text-muted small">
+                  Case ID: {visitDeleteTarget.label}. This action cannot be undone.
+                </p>
+                <div className="d-flex justify-content-center flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    onClick={() => setVisitDeleteTarget(null)}
+                    disabled={visitDeleteLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => void handleConfirmDeleteVisit()}
+                    disabled={visitDeleteLoading}
+                  >
+                    {visitDeleteLoading ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 };

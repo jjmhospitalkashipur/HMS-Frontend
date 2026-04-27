@@ -10,6 +10,7 @@ import CommonSelect, { type Option } from "@/core/common/common-select/commonSel
 
 const ROLE_OPTIONS: Option[] = [
   { value: "ADMIN", label: "Admin" },
+  { value: "ACCOUNTANT", label: "Accountant" },
   { value: "RECEPTIONIST", label: "Receptionist" },
   { value: "RECEPTIONIST2", label: "Receptionist 2" },
   { value: "DIALYSIS", label: "Dialysis" },

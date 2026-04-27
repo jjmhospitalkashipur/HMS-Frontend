@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import ImageWithBasePath from "@/core/imageWithBasePath";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Datatable from "@/core/common/dataTable";
@@ -97,6 +98,11 @@ const DaycareAppointmentsComponent = () => {
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [daycareDeleteTarget, setDaycareDeleteTarget] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const [daycareDeleteLoading, setDaycareDeleteLoading] = useState(false);
 
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
@@ -290,6 +296,28 @@ const DaycareAppointmentsComponent = () => {
         setLoading(false);
       }
   }, [getDaycareQueryParams]);
+
+  const handleConfirmDeleteDaycare = async () => {
+    const targetId = daycareDeleteTarget?.id;
+    if (!targetId || !API_BASE_URL) return;
+    setDaycareDeleteLoading(true);
+    try {
+      const res = await axios.delete(
+        `${API_BASE_URL}/hospital/daycare-appointments/${targetId}`
+      );
+      if (res.data?.code === 200 || res.status === 200 || res.status === 204) {
+        setDaycareDeleteTarget(null);
+        await fetchDaycareAppointments();
+      } else {
+        alert(res.data?.message ?? "Failed to delete daycare appointment.");
+      }
+    } catch (err: any) {
+      console.error("Delete daycare appointment:", err);
+      alert(err?.response?.data?.message ?? "Failed to delete daycare appointment.");
+    } finally {
+      setDaycareDeleteLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchDaycareAppointments();
@@ -493,6 +521,21 @@ const DaycareAppointmentsComponent = () => {
           >
             <i className="ti ti-edit fs-16" />
           </Link>
+          <button
+            type="button"
+            className="btn btn-link text-danger p-0 border-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDaycareDeleteTarget({
+                id: String(record.id ?? ""),
+                label: String(record.Daycare_ID ?? record.id ?? ""),
+              });
+            }}
+            title="Delete daycare appointment"
+            aria-label="Delete daycare appointment"
+          >
+            <i className="ti ti-trash fs-16" />
+          </button>
         </div>
       ),
     },
@@ -730,6 +773,65 @@ const DaycareAppointmentsComponent = () => {
           </p>
         </div>
       </div>
+
+      {daycareDeleteTarget ? (
+        <div
+          className="modal fade show d-block"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete_daycare_modal_title"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDaycareDeleteTarget(null);
+          }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-body text-center position-relative z-1">
+                <ImageWithBasePath
+                  src="assets/img/bg/delete-modal-bg-01.png"
+                  alt=""
+                  className="img-fluid position-absolute top-0 start-0 z-n1"
+                />
+                <ImageWithBasePath
+                  src="assets/img/bg/delete-modal-bg-02.png"
+                  alt=""
+                  className="img-fluid position-absolute bottom-0 end-0 z-n1"
+                />
+                <div className="mb-3">
+                  <span className="avatar avatar-lg bg-danger text-white">
+                    <i className="ti ti-trash fs-24" aria-hidden />
+                  </span>
+                </div>
+                <h5 id="delete_daycare_modal_title" className="fw-bold mb-1">
+                  Delete this daycare appointment?
+                </h5>
+                <p className="mb-3 text-muted small">
+                  Daycare ID: {daycareDeleteTarget.label}. This action cannot be undone.
+                </p>
+                <div className="d-flex justify-content-center flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    onClick={() => setDaycareDeleteTarget(null)}
+                    disabled={daycareDeleteLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => void handleConfirmDeleteDaycare()}
+                    disabled={daycareDeleteLoading}
+                  >
+                    {daycareDeleteLoading ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 };

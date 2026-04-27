@@ -6,11 +6,11 @@ import Datatable from "@/core/common/dataTable";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import { all_routes } from "../../../../routes/all_routes";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 
 const ROLE_OPTIONS: Option[] = [
   { value: "ADMIN", label: "Admin" },
+  { value: "ACCOUNTANT", label: "Accountant" },
   { value: "RECEPTIONIST", label: "Receptionist" },
   { value: "RECEPTIONIST2", label: "Receptionist 2" },
   { value: "DIALYSIS", label: "Dialysis" },
@@ -51,6 +51,14 @@ const UsersListComponent = () => {
   const [editSaving, setEditSaving] = useState<boolean>(false);
   const [editError, setEditError] = useState<string>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [createModalOpen, setCreateModalOpen] = useState<boolean>(false);
+  const [createName, setCreateName] = useState<string>("");
+  const [createEmail, setCreateEmail] = useState<string>("");
+  const [createPassword, setCreatePassword] = useState<string>("");
+  const [createRole, setCreateRole] = useState<string>("RECEPTIONIST");
+  const [createSubmitting, setCreateSubmitting] = useState<boolean>(false);
+  const [createError, setCreateError] = useState<string>("");
 
   const fetchUsers = async () => {
     if (!API_BASE_URL) return;
@@ -100,6 +108,50 @@ const UsersListComponent = () => {
     fetchUsers();
   }, []);
 
+  const panelOpen = editModalOpen || createModalOpen;
+
+  useEffect(() => {
+    if (!panelOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [panelOpen]);
+
+  const openCreateModal = () => {
+    setCreateName("");
+    setCreateEmail("");
+    setCreatePassword("");
+    setCreateRole("RECEPTIONIST");
+    setCreateError("");
+    setCreateSubmitting(false);
+    setEditModalOpen(false);
+    setCreateModalOpen(true);
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!API_BASE_URL) return;
+    try {
+      setCreateSubmitting(true);
+      setCreateError("");
+      await axios.post(`${API_BASE_URL}/hospital/users`, {
+        password: createPassword,
+        name: createName,
+        email: createEmail,
+        role: createRole,
+      });
+      setCreateModalOpen(false);
+      await fetchUsers();
+    } catch (err: any) {
+      console.error("Error creating user:", err);
+      setCreateError(err?.response?.data?.message || "Failed to create user.");
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
   const handleSearch = (value: string) => {
     setSearchText(value);
   };
@@ -120,6 +172,7 @@ const UsersListComponent = () => {
   };
 
   const openEditModal = (record: IRow) => {
+    setCreateModalOpen(false);
     setEditingUserId(record.id);
     setEditName(record.Name);
     setEditRole(normalizeRoleValue(record.Role));
@@ -129,6 +182,11 @@ const UsersListComponent = () => {
     setEditError("");
     setEditSaving(false);
     setEditModalOpen(true);
+  };
+
+  const closePanels = () => {
+    setEditModalOpen(false);
+    setCreateModalOpen(false);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -147,7 +205,7 @@ const UsersListComponent = () => {
       if (trimmedPw) payload.password = trimmedPw;
 
       await axios.patch(`${API_BASE_URL}/hospital/users/${editingUserId}`, payload);
-      setEditModalOpen(false);
+      closePanels();
       setEditingUserId(null);
       await fetchUsers();
     } catch (err: any) {
@@ -229,10 +287,10 @@ const UsersListComponent = () => {
       <div className="content">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h4 className="fw-bold mb-0">Users</h4>
-          <Link href={all_routes.createUser} className="btn btn-primary">
+          <button type="button" className="btn btn-primary" onClick={openCreateModal}>
             <i className="ti ti-plus me-1" />
             Create User
-          </Link>
+          </button>
         </div>
 
         {error && (
@@ -275,21 +333,40 @@ const UsersListComponent = () => {
           , All Rights Reserved
         </p>
       </div>
+      {panelOpen && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100"
+          style={{ zIndex: 1040, backgroundColor: "rgba(0, 0, 0, 0.5)" }}
+          aria-hidden
+          onClick={closePanels}
+        />
+      )}
       {editModalOpen && (
         <div
-          className="offcanvas offcanvas-end show"
-          style={{ visibility: "visible", width: "min(640px, 100vw - 1rem)" }}
+          className="offcanvas offcanvas-end show position-fixed"
+          style={{
+            visibility: "visible",
+            width: "min(640px, 100vw - 1rem)",
+            zIndex: 1045,
+            top: 0,
+            right: 0,
+            height: "100vh",
+          }}
           tabIndex={-1}
           aria-modal="true"
           role="dialog"
+          aria-labelledby="edit-user-panel-title"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="offcanvas-header border-bottom">
-            <h5 className="offcanvas-title fw-bold">Edit User</h5>
+            <h5 id="edit-user-panel-title" className="offcanvas-title fw-bold">
+              Edit User
+            </h5>
             <button
               type="button"
               className="btn-close text-reset"
               aria-label="Close"
-              onClick={() => setEditModalOpen(false)}
+              onClick={closePanels}
             />
           </div>
           <form onSubmit={handleEditSubmit}>
@@ -379,7 +456,7 @@ const UsersListComponent = () => {
               <button
                 type="button"
                 className="btn btn-light"
-                onClick={() => setEditModalOpen(false)}
+                onClick={closePanels}
                 disabled={editSaving}
               >
                 Cancel
@@ -390,6 +467,123 @@ const UsersListComponent = () => {
                 disabled={editSaving}
               >
                 {editSaving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {createModalOpen && (
+        <div
+          className="offcanvas offcanvas-end show position-fixed"
+          style={{
+            visibility: "visible",
+            width: "min(640px, 100vw - 1rem)",
+            zIndex: 1045,
+            top: 0,
+            right: 0,
+            height: "100vh",
+          }}
+          tabIndex={-1}
+          aria-modal="true"
+          role="dialog"
+          aria-labelledby="create-user-panel-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="offcanvas-header border-bottom">
+            <h5 id="create-user-panel-title" className="offcanvas-title fw-bold">
+              Create User
+            </h5>
+            <button
+              type="button"
+              className="btn-close text-reset"
+              aria-label="Close"
+              onClick={closePanels}
+            />
+          </div>
+          <form onSubmit={handleCreateSubmit}>
+            <div className="offcanvas-body">
+              {createError && (
+                <div className="alert alert-danger py-2" role="alert">
+                  {createError}
+                </div>
+              )}
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Name<span className="text-danger ms-1">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Role<span className="text-danger ms-1">*</span>
+                    </label>
+                    <CommonSelect
+                      options={ROLE_OPTIONS}
+                      value={
+                        ROLE_OPTIONS.find((o) => o.value === createRole) ??
+                        ROLE_OPTIONS.find((o) => o.value === "RECEPTIONIST") ??
+                        null
+                      }
+                      onChange={(opt) => setCreateRole(opt?.value ?? "RECEPTIONIST")}
+                      placeholder="Select role"
+                      className="w-100"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Email<span className="text-danger ms-1">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={createEmail}
+                      onChange={(e) => setCreateEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      Password<span className="text-danger ms-1">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      value={createPassword}
+                      onChange={(e) => setCreatePassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="offcanvas-footer border-top d-flex justify-content-end gap-2 p-3">
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={closePanels}
+                disabled={createSubmitting}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={createSubmitting}>
+                {createSubmitting ? "Creating…" : "Create User"}
               </button>
             </div>
           </form>
