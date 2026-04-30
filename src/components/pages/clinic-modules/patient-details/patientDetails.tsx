@@ -425,6 +425,16 @@ const PatientDetailsComponent = () => {
       "noopener,noreferrer"
     );
   };
+
+  const handlePathlabCaseRowClick = (pathlabCase: IPathlabCase) => {
+    const reportId = pathlabCase?._id ?? "";
+    if (!reportId) return;
+    window.open(
+      `https://lab.jjmhospitalkashipur.com/reports/view-report/${reportId}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
   return (
     <>
       {/* Hidden buttons to trigger modals/offcanvas */}
@@ -1899,7 +1909,20 @@ const PatientDetailsComponent = () => {
                     </thead>
                     <tbody>
                       {patient.pathlabCases.map((pc) => (
-                        <tr key={pc._id}>
+                        <tr
+                          key={pc._id}
+                          onClick={() => handlePathlabCaseRowClick(pc)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handlePathlabCaseRowClick(pc);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open pathlab report ${pc.caseId ?? "case"}`}
+                          className="cursor-pointer"
+                        >
                           <td>
                             <span className="text-dark fw-medium">{pc.caseId ?? "—"}</span>
                           </td>

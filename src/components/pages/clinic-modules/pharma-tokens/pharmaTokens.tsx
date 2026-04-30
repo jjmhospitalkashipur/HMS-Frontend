@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import Datatable from "@/core/common/dataTable";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "@/routes/all_routes";
+import { openThermalTokenPrint } from "@/core/utils/thermalTokenPrint";
 
 interface IPharmaTokenApi {
   _id: string;
@@ -42,6 +43,8 @@ interface IPharmaTokenRow {
   Age_Gender: string;
   Status: string;
   Date: string;
+  _visitType?: string;
+  _createdAt?: string;
 }
 
 interface IPatientSearchItem {
@@ -129,6 +132,8 @@ const PharmaTokensComponent = () => {
               : "—",
           Status: token.status || "—",
           Date: formattedDate,
+          _visitType: token.visitType,
+          _createdAt: created || token.date,
         };
       });
 
@@ -224,6 +229,19 @@ const PharmaTokensComponent = () => {
       setPatientSearchLoading(false);
     }
   }, []);
+
+  const handleThermalTokenPrint = (record: IPharmaTokenRow) => {
+    openThermalTokenPrint({
+      caseId: String(record?.Pharma_Token_ID ?? ""),
+      tokenNo: record?.Pharma_Token_ID ?? "—",
+      visitType: String(record?._visitType ?? ""),
+      tokenTitle: "Pharma Token",
+      useVisitPrefix: false,
+      patientName: String(record?.Patient ?? ""),
+      appointmentDateTime: String(record?.Date ?? ""),
+      doctorName: "Pharmacy Counter",
+    });
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -329,6 +347,24 @@ const PharmaTokensComponent = () => {
           </div>
         );
       },
+    },
+    {
+      title: "",
+      dataIndex: "actions",
+      render: (_: string, record: IPharmaTokenRow) => (
+        <button
+          type="button"
+          className="btn btn-link text-dark p-0 border-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleThermalTokenPrint(record);
+          }}
+          title="Print token (thermal printer)"
+          aria-label="Print token for thermal printer"
+        >
+          <i className="ti ti-printer fs-16" />
+        </button>
+      ),
     },
   ];
 

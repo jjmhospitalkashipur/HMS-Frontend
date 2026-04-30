@@ -255,31 +255,20 @@ const PharmaTokenQueueComponent = () => {
           }}
         >
           <div
-            className="bg-light flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
+            className="bg-light flex-grow-1 overflow-hidden rounded-2 mx-auto position-relative w-100"
             style={{
-              width: "clamp(180px, 20vw, 420px)",
-              height: "clamp(220px, 28vw, 560px)",
+              minHeight: 0,
             }}
           >
             <Image
-              src="/assets/img/Photo3.jpg"
-              alt="Queue"
+              src="/ChatGPT Image Apr 30, 2026, 10_14_23 AM.png"
+              alt="Pharmacy display"
               fill
               sizes="(max-width: 768px) 200px, 25vw"
               style={{ objectFit: "cover", objectPosition: "top" }}
               priority={false}
             />
           </div>
-          <h2
-            className="fw-bold text-dark mb-0 mx-auto"
-            style={{
-              fontSize: "clamp(1rem, 1.8vw, 5rem)",
-              maxWidth: "clamp(220px, 20vw, 380px)",
-              lineHeight: 1.2,
-            }}
-          >
-            Dr. Abhishek Goel MBBS MD (Medicine) DM (Nephrology)
-          </h2>
         </div>
 
         <div

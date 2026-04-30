@@ -32,6 +32,17 @@ interface IQueueDisplay {
   queue: IQueuePatient[];
 }
 
+interface IPharmaQueueToken {
+  _id: string;
+  pharmaTokenId?: number;
+  tokenNumber?: number;
+  status?: string;
+  mrd?: string;
+  patient?: {
+    mrd?: string;
+  };
+}
+
 const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
   (visit?.visitType ?? "").toLowerCase() === "emergency";
 
@@ -137,6 +148,29 @@ function getStatusDisplay(status: string, visitType?: string) {
 
 const DOCTORS_PER_PAGE = 5;
 
+const normalizePharmaToken = (token: IPharmaQueueToken): IPharmaQueueToken => ({
+  ...token,
+  pharmaTokenId: Number(token?.pharmaTokenId ?? token?.tokenNumber ?? 0),
+});
+
+const getPharmaQueueRowBackground = (status?: string): string => {
+  const normalizedStatus = status?.toLowerCase().trim() ?? "";
+  if (normalizedStatus === "created") return "#3D5C79";
+  if (normalizedStatus === "in progress") return "#bed75a";
+  return "#3D5C79";
+};
+
+const isTerminalOpdStatus = (status?: string): boolean => {
+  const normalizedStatus = status?.toLowerCase().trim() ?? "";
+  return (
+    normalizedStatus === "completed" ||
+    normalizedStatus === "cancelled" ||
+    normalizedStatus === "canceled" ||
+    normalizedStatus === "no show" ||
+    normalizedStatus === "no_show"
+  );
+};
+
 const QueueDisplayMultiComponent = () => {
   const params = useParams();
   const pageNum = Math.max(1, parseInt(params?.page as string, 10) || 1);
@@ -149,8 +183,10 @@ const QueueDisplayMultiComponent = () => {
   const [displays, setDisplays] = useState<Record<string, IQueueDisplay>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pharmaQueue, setPharmaQueue] = useState<IPharmaQueueToken[]>([]);
+  const [pharmaError, setPharmaError] = useState("");
   const eventSourceRefs = useRef<Record<string, EventSource>>({});
-  const introVideoRef = useRef<HTMLVideoElement | null>(null);
+  const pharmaEventSourceRef = useRef<EventSource | null>(null);
 
   const pageDoctors = doctors.slice(startIndex, endIndex);
   /** Same id as single qd page: readable doctorId for stream URL and state key */
@@ -366,19 +402,29 @@ const QueueDisplayMultiComponent = () => {
     };
   }, [API_BASE_URL, pageStreamIds]);
 
-  // Ensure intro video attempts to autoplay when component mounts
   useEffect(() => {
-    const video = introVideoRef.current;
-    if (!video) return;
-    // Most browsers require muted videos for autoplay
-    video.muted = true;
-    const playPromise = video.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // Autoplay might be blocked; ignore silently
-      });
-    }
-  }, []);
+    if (!API_BASE_URL || pageNum !== 2) return;
+    setPharmaError("");
+    const stream = new EventSource(`${API_BASE_URL}/hospital/pharma-tokens/stream`);
+    pharmaEventSourceRef.current = stream;
+    stream.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data) as { queue?: IPharmaQueueToken[] };
+        if (Array.isArray(data?.queue)) {
+          setPharmaQueue(data.queue.map((item) => normalizePharmaToken(item)));
+        }
+      } catch {
+        // ignore malformed chunks
+      }
+    };
+    stream.onerror = () => {
+      setPharmaError("Pharma queue disconnected");
+    };
+    return () => {
+      stream.close();
+      pharmaEventSourceRef.current = null;
+    };
+  }, [API_BASE_URL, pageNum]);
 
   if (loading && pageDoctors.length === 0) {
     return (
@@ -410,10 +456,7 @@ const QueueDisplayMultiComponent = () => {
       : "—";
 
     const allQueue = display?.queue ?? [];
-    const activeQueue = allQueue.filter((entry) => {
-      const normalized = entry.status?.toLowerCase() ?? "";
-      return normalized === "in progress" || normalized === "scheduled";
-    });
+    const activeQueue = allQueue.filter((entry) => !isTerminalOpdStatus(entry.status));
     const nextVisit = activeQueue[0];
     const nextToken =
       nextVisit != null
@@ -434,12 +477,29 @@ const QueueDisplayMultiComponent = () => {
       doctorName,
       opdLabel,
       hasDisplay: !!display,
+      hasNextVisit: !!nextVisit,
       nextToken,
       nextMrd,
       nextStatus,
       nextVisitType,
     };
   });
+
+  const activeDoctorSummaries = doctorSummaries.filter((doc) => doc.hasNextVisit);
+
+  const pharmaVisibleQueue = [...pharmaQueue]
+    .filter((item) => {
+      const status = item?.status?.toLowerCase().trim() ?? "";
+      return status !== "completed" && status !== "cancelled" && status !== "canceled";
+    })
+    .sort((a, b) => {
+      const aStatus = a?.status?.toLowerCase().trim() ?? "";
+      const bStatus = b?.status?.toLowerCase().trim() ?? "";
+      const aPriority = aStatus === "in progress" ? 0 : 1;
+      const bPriority = bStatus === "in progress" ? 0 : 1;
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return (a?.pharmaTokenId ?? 0) - (b?.pharmaTokenId ?? 0);
+    });
 
   return (
     <div
@@ -486,7 +546,9 @@ const QueueDisplayMultiComponent = () => {
         <div
           className="w-100"
           style={{
-            maxWidth: "50vw",
+            flex: "1 1 50%",
+            minWidth: 0,
+            height: "64vh",
           }}
         >
           <div className="card shadow-sm w-100 h-100">
@@ -525,18 +587,18 @@ const QueueDisplayMultiComponent = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {doctorSummaries.length === 0 ? (
+                    {activeDoctorSummaries.length === 0 ? (
                       <tr>
                         <td
                           colSpan={3}
                           className="text-center text-muted"
                           style={{ fontSize: "clamp(1rem, 1.8vw, 3.6rem)" }}
                         >
-                          No doctors found
+                          No tokens in queue
                         </td>
                       </tr>
                     ) : (
-                      doctorSummaries.map((doc) => {
+                      activeDoctorSummaries.map((doc) => {
                         const statusDisplay = doc.nextStatus
                           ? getStatusDisplay(doc.nextStatus, doc.nextVisitType ?? undefined)
                           : {
@@ -588,22 +650,96 @@ const QueueDisplayMultiComponent = () => {
           </div>
         </div>
 
-        {/* Right: Intro video */}
-        <div className="d-none d-lg-flex flex-grow-1 align-items-start justify-content-center mt-4 pt-4">
+        {/* Right: Pharma token queue (qd-all/2) */}
+        <div
+          className="d-none d-lg-flex"
+          style={{ flex: "1 1 50%", minWidth: 0, height: "64vh" }}
+        >
           <div
-            className="rounded-3 border shadow-sm bg-black d-flex align-items-center justify-content-center"
-            style={{ maxHeight: "64vh", maxWidth: "23vw", width: "100%" }}
+            className="rounded-3 border shadow-sm bg-white w-100 overflow-hidden h-100"
           >
-            <video
-              ref={introVideoRef}
-              src="/assets/img/WhatsApp Video 2026-03-07 at 10.17.04 AM.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              controls
-              style={{ width: "100%", height: "auto" }}
-            />
+            <div className="bg-primary text-white text-center fw-semibold py-2">
+              Pharma Queue
+            </div>
+            {pageNum !== 2 ? (
+              <div className="d-flex align-items-center justify-content-center h-100 text-muted p-4">
+                Pharma queue appears on page 2
+              </div>
+            ) : (
+              <div className="table-responsive h-100">
+                <table className="table mb-0">
+                  <thead className="table-dark position-sticky top-0 z-1">
+                    <tr>
+                      <th
+                        className="text-center"
+                        style={{ fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)" }}
+                      >
+                        Token
+                      </th>
+                      <th
+                        className="text-center"
+                        style={{ fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)" }}
+                      >
+                        Status
+                      </th>
+                      <th
+                        className="text-center"
+                        style={{ fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)" }}
+                      >
+                        MRD
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pharmaVisibleQueue.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="text-center text-muted py-4"
+                          style={{ fontSize: "clamp(1rem, 1.8vw, 3.6rem)" }}
+                        >
+                          {pharmaError || "No tokens in queue"}
+                        </td>
+                      </tr>
+                    ) : (
+                      pharmaVisibleQueue.map((item, index) => (
+                        <tr key={item?._id || `${item?.pharmaTokenId}-${index}`}>
+                          <td
+                            className="text-center fw-semibold text-white"
+                            style={{
+                              fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
+                              backgroundColor: getPharmaQueueRowBackground(item?.status),
+                            }}
+                          >
+                            {item?.pharmaTokenId ?? "—"}
+                          </td>
+                          <td
+                            className="text-center text-white"
+                            style={{
+                              fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
+                              backgroundColor: getPharmaQueueRowBackground(item?.status),
+                            }}
+                          >
+                            {item?.status?.toLowerCase().trim() === "in progress"
+                              ? "In Progress"
+                              : "In Queue"}
+                          </td>
+                          <td
+                            className="text-center text-white"
+                            style={{
+                              fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
+                              backgroundColor: getPharmaQueueRowBackground(item?.status),
+                            }}
+                          >
+                            {item?.patient?.mrd ?? item?.mrd ?? "—"}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -17,6 +17,8 @@ export interface IThermalTokenPayload {
   caseId: string;
   tokenNo: string | number;
   visitType?: string;
+  tokenTitle?: string;
+  useVisitPrefix?: boolean;
   patientName: string;
   appointmentDateTime: string;
   doctorName?: string;
@@ -30,7 +32,12 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
     return;
   }
 
-  const tokenStr = escapeHtml(formatTokenWithVisitPrefix(p.tokenNo, p.visitType));
+  const tokenTitle = p.tokenTitle?.trim() || "OPD Token";
+  const useVisitPrefix = p.useVisitPrefix ?? true;
+  const formattedToken = useVisitPrefix
+    ? formatTokenWithVisitPrefix(p.tokenNo, p.visitType)
+    : String(p.tokenNo ?? "").trim() || "N/A";
+  const tokenStr = escapeHtml(formattedToken);
   const apptRaw = (p.appointmentDateTime ?? "").trim();
   const apptParts = apptRaw.split(" - ").map((s) => s.trim()).filter(Boolean);
   const apptDateLine = apptParts[0] ? escapeHtml(apptParts[0]) : "";
@@ -127,7 +134,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
   <div class="slip">
     <div class="head">${escapeHtml(hospital)}</div>
     <div class="sub-row${apptDateLine ? " sub-row--split" : ""}">
-      <span class="sub-title">OPD Token</span>
+      <span class="sub-title">${escapeHtml(tokenTitle)}</span>
       ${apptDateLine ? `<span class="sub-date">${apptDateLine}</span>` : ""}
     </div>
     <hr class="rule"/>
