@@ -19,6 +19,8 @@ export interface IThermalTokenPayload {
   visitType?: string;
   tokenTitle?: string;
   useVisitPrefix?: boolean;
+  paperWidthMm?: number;
+  slipWidthMm?: number;
   patientName: string;
   appointmentDateTime: string;
   doctorName?: string;
@@ -41,6 +43,12 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
   const apptRaw = (p.appointmentDateTime ?? "").trim();
   const apptParts = apptRaw.split(" - ").map((s) => s.trim()).filter(Boolean);
   const apptDateLine = apptParts[0] ? escapeHtml(apptParts[0]) : "";
+  const paperWidthMm =
+    typeof p.paperWidthMm === "number" && p.paperWidthMm > 0 ? p.paperWidthMm : 80;
+  const slipWidthMm =
+    typeof p.slipWidthMm === "number" && p.slipWidthMm > 0
+      ? Math.min(p.slipWidthMm, paperWidthMm)
+      : 72;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -50,7 +58,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
 <title>Token ${tokenStr}</title>
 <style>
   @page {
-    size: 80mm auto;
+    size: ${paperWidthMm}mm auto;
     margin: 0;
   }
   @media print {
@@ -65,7 +73,7 @@ export const openThermalTokenPrint = (p: IThermalTokenPayload): void => {
     color: #000;
   }
   .slip {
-    max-width: 72mm;
+    max-width: ${slipWidthMm}mm;
     margin: 0 auto;
     padding: 0 4mm 0;
     font-family: ui-monospace, "Cascadia Code", "Courier New", Courier, monospace;
