@@ -261,7 +261,7 @@ const PharmaTokenQueueComponent = () => {
             }}
           >
             <Image
-              src="/ChatGPT Image Apr 30, 2026, 10_14_23 AM.png"
+              src="/pharmacy-health-banner.png"
               alt="Pharmacy display"
               fill
               sizes="(max-width: 768px) 200px, 25vw"
