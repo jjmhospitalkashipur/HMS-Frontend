@@ -73,7 +73,8 @@ const EditAppointmentComponent = () => {
   const balance = finalAmount - amountReceived;
   const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
   const [discountPassword, setDiscountPassword] = useState<string>("");
-  const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
+  const [discountPasswordError, setDiscountPasswordError] = useState<string>("");
+  const [discountFromApi, setDiscountFromApi] = useState<number>(0);
 
   // MR option is disabled when doctor has mr: false for the selected visit day
   const isMrDisabledForSelectedDay = useMemo(() => {
@@ -156,6 +157,7 @@ const EditAppointmentComponent = () => {
             : 0;
         setTotal(priceNum + discountNum);
         setDiscount(discountNum);
+        setDiscountFromApi(discountNum);
         setAmountReceived(amountPaid);
         setAmountPaidFromApi(amountPaid);
         const transactions = (v as { transactions?: Array<{ paymentMode?: string }> }).transactions;
@@ -381,8 +383,10 @@ const EditAppointmentComponent = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!visitId || !API_BASE_URL) return;
-    if (discount > 0 && discountFieldChanged) {
+    const hasDiscountMismatch = Math.abs(discount - discountFromApi) > 0.0001;
+    if (discount > 0 && hasDiscountMismatch) {
       setDiscountPassword("");
+      setDiscountPasswordError("");
       setShowDiscountPasswordDialog(true);
       return;
     }
@@ -453,11 +457,25 @@ const EditAppointmentComponent = () => {
         }
         router.push(all_routes.appointments);
       } else {
-        setError(res.data?.message || "Failed to update appointment");
+        const responseMessage = res.data?.message || "Failed to update appointment";
+        if (discountPwd !== undefined && discount > 0) {
+          setDiscountPasswordError(String(responseMessage));
+          setShowDiscountPasswordDialog(true);
+          setError("");
+          return;
+        }
+        setError(responseMessage);
       }
     } catch (err: any) {
       console.error("Error updating visit:", err);
-      setError(err.response?.data?.message || "Failed to update appointment");
+      const apiMessage = err?.response?.data?.message || "Failed to update appointment";
+      if (discountPwd !== undefined && discount > 0) {
+        setDiscountPasswordError(String(apiMessage));
+        setShowDiscountPasswordDialog(true);
+        setError("");
+        return;
+      }
+      setError(apiMessage);
     } finally {
       setLoading(false);
     }
@@ -465,17 +483,17 @@ const EditAppointmentComponent = () => {
 
   const handleDiscountPasswordConfirm = () => {
     if (!discountPassword.trim()) {
-      alert("Please enter the discount password.");
+      setDiscountPasswordError("Please enter the discount password.");
       return;
     }
-    setShowDiscountPasswordDialog(false);
+    setDiscountPasswordError("");
     doEditSubmit(discountPassword.trim());
-    setDiscountPassword("");
   };
 
   const handleDiscountPasswordCancel = () => {
     setShowDiscountPasswordDialog(false);
     setDiscountPassword("");
+    setDiscountPasswordError("");
   };
 
   if (loading && !visitDate) {
@@ -587,6 +605,11 @@ const EditAppointmentComponent = () => {
                 <label htmlFor="discount-password-input-edit" className="form-label">
                   Enter password to apply discount
                 </label>
+                {discountPasswordError ? (
+                  <div className="alert alert-danger py-2 mb-2" role="alert">
+                    {discountPasswordError}
+                  </div>
+                ) : null}
                 <input
                   id="discount-password-input-edit"
                   type="password"
@@ -970,7 +993,6 @@ const EditAppointmentComponent = () => {
                           onChange={(e) => {
                             if (isMrVisitSelected) return;
                             setDiscount(parseFloat(e.target.value) || 0);
-                            setDiscountFieldChanged(true);
                           }}
                           disabled={isMrVisitSelected}
                           min="0"

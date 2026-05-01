@@ -162,7 +162,7 @@ const NewAppointmentComponent = () => {
   const [daycareError, setDaycareError] = useState<string>("");
   const [daycareShowDiscountPasswordDialog, setDaycareShowDiscountPasswordDialog] = useState<boolean>(false);
   const [daycareDiscountPassword, setDaycareDiscountPassword] = useState<string>("");
-  const [daycareDiscountFieldChanged, setDaycareDiscountFieldChanged] = useState<boolean>(false);
+  const [daycareDiscountPasswordError, setDaycareDiscountPasswordError] = useState<string>("");
   const daycareBedChargesAmount: Record<string, number> = { none: 0, private: 200, semi: 150, general: 100 };
   const daycareBedChargesRate = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
   const daycareBedCharges = daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
@@ -180,7 +180,7 @@ const NewAppointmentComponent = () => {
   const [error, setError] = useState<string>("");
   const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
   const [discountPassword, setDiscountPassword] = useState<string>("");
-  const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
+  const [discountPasswordError, setDiscountPasswordError] = useState<string>("");
 
   // Calculate final amount and balance
   const finalAmount = total - discount;
@@ -808,7 +808,7 @@ const NewAppointmentComponent = () => {
     return dayjs.isDayjs(daycareVisitTime) ? daycareVisitTime.format("HH:mm") : dayjs(daycareVisitTime).format("HH:mm");
   };
 
-  const doDaycareSubmit = async () => {
+  const doDaycareSubmit = async (discountPwd?: string) => {
     setDaycareError("");
     if (!API_BASE_URL) {
       setDaycareError("API configuration error. Please contact support.");
@@ -846,8 +846,9 @@ const NewAppointmentComponent = () => {
       const daycareBasePayload: { discount: number; discountPassword?: string } = {
         discount: daycareDiscountNum,
       };
-      if (daycareDiscountNum > 0 && daycareDiscountPassword) {
-        daycareBasePayload.discountPassword = daycareDiscountPassword;
+      const trimmedDaycareDiscountPwd = discountPwd?.trim() ?? "";
+      if (daycareDiscountNum > 0 && trimmedDaycareDiscountPwd) {
+        daycareBasePayload.discountPassword = trimmedDaycareDiscountPwd;
       }
 
       if (daycareSelectedPatient?._id) {
@@ -926,7 +927,15 @@ const NewAppointmentComponent = () => {
 
       router.push(all_routes.daycareAppointments);
     } catch (err: any) {
-      setDaycareError(err?.response?.data?.message || "Failed to create Daycare appointment.");
+      const daycareErrMessage =
+        err?.response?.data?.message || "Failed to create Daycare appointment.";
+      if (discountPwd !== undefined && (Number(daycareDiscount) || 0) > 0) {
+        setDaycareDiscountPasswordError(String(daycareErrMessage));
+        setDaycareShowDiscountPasswordDialog(true);
+        setDaycareError("");
+      } else {
+        setDaycareError(daycareErrMessage);
+      }
     } finally {
       setDaycareLoading(false);
     }
@@ -934,8 +943,9 @@ const NewAppointmentComponent = () => {
 
   const handleDaycareSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (daycareDiscount > 0 && daycareDiscountFieldChanged) {
+    if (daycareDiscount > 0) {
       setDaycareDiscountPassword("");
+      setDaycareDiscountPasswordError("");
       setDaycareShowDiscountPasswordDialog(true);
       return;
     }
@@ -983,8 +993,9 @@ const NewAppointmentComponent = () => {
         return;
       }
 
-      if (discount > 0 && discountFieldChanged) {
+      if (discount > 0) {
         setDiscountPassword("");
+        setDiscountPasswordError("");
         setShowDiscountPasswordDialog(true);
         return;
       }
@@ -1055,6 +1066,12 @@ const NewAppointmentComponent = () => {
           return;
         } else {
           const errorMsg = response.data?.message || "Failed to create appointment. Please try again.";
+          if (discountPwd !== undefined && discount > 0) {
+            setDiscountPasswordError(errorMsg);
+            setShowDiscountPasswordDialog(true);
+            setError("");
+            return;
+          }
           setError(errorMsg);
           console.error("Failed to create appointment:", response.data);
           alert(errorMsg);
@@ -1118,6 +1135,12 @@ const NewAppointmentComponent = () => {
         router.push(all_routes.appointments);
       } else {
         const errorMsg = response.data?.message || "Failed to create appointment. Please try again.";
+        if (discountPwd !== undefined && discount > 0) {
+          setDiscountPasswordError(errorMsg);
+          setShowDiscountPasswordDialog(true);
+          setError("");
+          return;
+        }
         setError(errorMsg);
         console.error("Failed to create appointment:", response.data);
         alert(errorMsg);
@@ -1129,27 +1152,22 @@ const NewAppointmentComponent = () => {
         // Server responded with error status
         const status = error.response.status;
         const data = error.response.data;
+        const apiMessage = data?.message;
         
-        console.error("API Error Response:", {
-          status,
-          data,
-          headers: error.response.headers,
-        });
-
         if (status === 400) {
-          errorMessage = data?.message || "Invalid data provided. Please check all fields and try again.";
+          errorMessage = apiMessage || "Invalid data provided. Please check all fields and try again.";
         } else if (status === 401) {
-          errorMessage = "Unauthorized. Please login again.";
+          errorMessage = apiMessage || "Unauthorized. Please login again.";
         } else if (status === 403) {
-          errorMessage = "You don't have permission to perform this action.";
+          errorMessage = apiMessage || "You don't have permission to perform this action.";
         } else if (status === 404) {
-          errorMessage = "Resource not found. Please check the details and try again.";
+          errorMessage = apiMessage || "Resource not found. Please check the details and try again.";
         } else if (status === 409) {
-          errorMessage = data?.message || "Conflict: This appointment or patient already exists. Please check the details and try again.";
+          errorMessage = apiMessage || "Conflict: This appointment or patient already exists. Please check the details and try again.";
         } else if (status === 500) {
-          errorMessage = data?.message || "Server error occurred. Please try again later or contact support.";
+          errorMessage = apiMessage || "Server error occurred. Please try again later or contact support.";
         } else {
-          errorMessage = data?.message || `Error ${status}: ${data?.error || "An unexpected error occurred"}`;
+          errorMessage = apiMessage || `Error ${status}: ${data?.error || "An unexpected error occurred"}`;
         }
 
         // Log detailed error for debugging
@@ -1171,8 +1189,14 @@ const NewAppointmentComponent = () => {
       }
 
       setError(errorMessage);
-      alert(errorMessage);
-      console.error("Full error object:", error);
+      if (discountPwd !== undefined && discount > 0) {
+        setDiscountPasswordError(errorMessage);
+        setShowDiscountPasswordDialog(true);
+        setError("");
+      } else {
+        setError(errorMessage);
+        alert(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -1180,33 +1204,32 @@ const NewAppointmentComponent = () => {
 
   const handleDiscountPasswordConfirm = () => {
     if (!discountPassword.trim()) {
-      alert("Please enter the discount password.");
+      setDiscountPasswordError("Please enter the discount password.");
       return;
     }
-    setShowDiscountPasswordDialog(false);
+    setDiscountPasswordError("");
     doCreateAppointment(discountPassword.trim());
-    setDiscountPassword("");
   };
 
   const handleDiscountPasswordCancel = () => {
     setShowDiscountPasswordDialog(false);
     setDiscountPassword("");
+    setDiscountPasswordError("");
   };
 
   const handleDaycareDiscountPasswordConfirm = () => {
     if (!daycareDiscountPassword.trim()) {
-      alert("Please enter the discount password.");
+      setDaycareDiscountPasswordError("Please enter the discount password.");
       return;
     }
-    setDaycareShowDiscountPasswordDialog(false);
-    // Re-submit with password applied (skip reopening dialog)
-    setDaycareDiscountFieldChanged(false);
-    void doDaycareSubmit();
+    setDaycareDiscountPasswordError("");
+    void doDaycareSubmit(daycareDiscountPassword.trim());
   };
 
   const handleDaycareDiscountPasswordCancel = () => {
     setDaycareShowDiscountPasswordDialog(false);
     setDaycareDiscountPassword("");
+    setDaycareDiscountPasswordError("");
   };
 
   return (
@@ -1239,6 +1262,11 @@ const NewAppointmentComponent = () => {
                 <label htmlFor="discount-password-input" className="form-label">
                   Enter password to apply discount
                 </label>
+                {discountPasswordError ? (
+                  <div className="alert alert-danger py-2 mb-2" role="alert">
+                    {discountPasswordError}
+                  </div>
+                ) : null}
                 <input
                   id="discount-password-input"
                   type="password"
@@ -1340,6 +1368,11 @@ const NewAppointmentComponent = () => {
                 <label htmlFor="daycare-discount-password-input" className="form-label">
                   Enter password to apply discount
                 </label>
+                {daycareDiscountPasswordError ? (
+                  <div className="alert alert-danger py-2 mb-2" role="alert">
+                    {daycareDiscountPasswordError}
+                  </div>
+                ) : null}
                 <input
                   id="daycare-discount-password-input"
                   type="password"
@@ -1950,7 +1983,6 @@ const NewAppointmentComponent = () => {
                           onChange={(e) => {
                             if (isMrVisitSelected) return;
                             setDiscount(parseFloat(e.target.value) || 0);
-                            setDiscountFieldChanged(true);
                           }}
                           disabled={isMrVisitSelected}
                           min="0"
@@ -2367,7 +2399,6 @@ const NewAppointmentComponent = () => {
                                 value={daycareDiscount || ""}
                                 onChange={(e) => {
                                   setDaycareDiscount(parseFloat(e.target.value) || 0);
-                                  setDaycareDiscountFieldChanged(true);
                                 }}
                                 min="0"
                               />

@@ -116,8 +116,9 @@ const EditDaycareAppointmentComponent = () => {
   const [amountPaidFromApi, setAmountPaidFromApi] = useState<number>(0);
 
   const [discount, setDiscount] = useState<number>(0);
-  const [discountFieldChanged, setDiscountFieldChanged] = useState<boolean>(false);
+  const [discountFromApi, setDiscountFromApi] = useState<number>(0);
   const [discountPassword, setDiscountPassword] = useState<string>("");
+  const [discountPasswordError, setDiscountPasswordError] = useState<string>("");
   const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
   const [appointmentDate, setAppointmentDate] = useState<string>("");
 
@@ -246,6 +247,7 @@ const EditDaycareAppointmentComponent = () => {
         }));
         setAddedProcedures(procs);
         setDiscount(data.discount ?? 0);
+        setDiscountFromApi(data.discount ?? 0);
         setAppointmentDate(
           data.appointmentDate ? dayjs(data.appointmentDate).format("YYYY-MM-DD") : ""
         );
@@ -369,10 +371,25 @@ const EditDaycareAppointmentComponent = () => {
         }
         router.push(all_routes.daycareAppointments);
       } else {
-        setError(res?.data?.message ?? "Failed to update daycare appointment.");
+        const responseMessage = res?.data?.message ?? "Failed to update daycare appointment.";
+        if (discountPwd !== undefined && discount > 0) {
+          setDiscountPasswordError(String(responseMessage));
+          setShowDiscountPasswordDialog(true);
+          setError("");
+          return;
+        }
+        setError(responseMessage);
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Failed to update daycare appointment.");
+      const apiMessage =
+        err?.response?.data?.message ?? "Failed to update daycare appointment.";
+      if (discountPwd !== undefined && discount > 0) {
+        setDiscountPasswordError(String(apiMessage));
+        setShowDiscountPasswordDialog(true);
+        setError("");
+        return;
+      }
+      setError(apiMessage);
     } finally {
       setSubmitLoading(false);
     }
@@ -386,8 +403,10 @@ const EditDaycareAppointmentComponent = () => {
       setError("Please select a doctor.");
       return;
     }
-    if (discount > 0 && discountFieldChanged) {
+    const hasDiscountMismatch = Math.abs(discount - discountFromApi) > 0.0001;
+    if (discount > 0 && hasDiscountMismatch) {
       setDiscountPassword("");
+      setDiscountPasswordError("");
       setShowDiscountPasswordDialog(true);
       return;
     }
@@ -396,18 +415,17 @@ const EditDaycareAppointmentComponent = () => {
 
   const handleDiscountPasswordConfirm = () => {
     if (!discountPassword.trim()) {
-      alert("Please enter the discount password.");
+      setDiscountPasswordError("Please enter the discount password.");
       return;
     }
-    setShowDiscountPasswordDialog(false);
-    setDiscountFieldChanged(false);
+    setDiscountPasswordError("");
     void doDaycareSubmit(discountPassword.trim());
-    setDiscountPassword("");
   };
 
   const handleDiscountPasswordCancel = () => {
     setShowDiscountPasswordDialog(false);
     setDiscountPassword("");
+    setDiscountPasswordError("");
   };
 
   const patientTitleLabel = patient?.title
@@ -456,6 +474,11 @@ const EditDaycareAppointmentComponent = () => {
                 <label htmlFor="edit-daycare-discount-password-input" className="form-label">
                   Enter password to apply discount
                 </label>
+                {discountPasswordError ? (
+                  <div className="alert alert-danger py-2 mb-2" role="alert">
+                    {discountPasswordError}
+                  </div>
+                ) : null}
                 <input
                   id="edit-daycare-discount-password-input"
                   type="password"
@@ -900,7 +923,6 @@ const EditDaycareAppointmentComponent = () => {
                           value={discount || ""}
                           onChange={(e) => {
                             setDiscount(parseFloat(e.target.value) || 0);
-                            setDiscountFieldChanged(true);
                           }}
                           min={0}
                         />
