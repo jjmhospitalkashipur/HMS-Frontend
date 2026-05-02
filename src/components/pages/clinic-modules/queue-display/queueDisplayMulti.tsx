@@ -153,11 +153,40 @@ const normalizePharmaToken = (token: IPharmaQueueToken): IPharmaQueueToken => ({
   pharmaTokenId: Number(token?.pharmaTokenId ?? token?.tokenNumber ?? 0),
 });
 
+const normalizePharmaStatusKey = (status?: string): string =>
+  (status ?? "").trim().toLowerCase().replace(/\s+/g, "");
+
 const getPharmaQueueRowBackground = (status?: string): string => {
-  const normalizedStatus = status?.toLowerCase().trim() ?? "";
-  if (normalizedStatus === "created") return "#3D5C79";
-  if (normalizedStatus === "in progress") return "#bed75a";
+  const k = normalizePharmaStatusKey(status);
+  if (k === "inprogress") return "#bed75a";
+  if (k === "paynow") return "#0d9488";
   return "#3D5C79";
+};
+
+const getPharmaQueueRowTextClass = (status?: string): string =>
+  normalizePharmaStatusKey(status) === "inprogress" ? "text-dark" : "text-white";
+
+const renderPharmaQueueStatusDisplay = (status?: string) => {
+  const k = normalizePharmaStatusKey(status);
+  if (k === "paynow") {
+    return (
+      <span className="d-inline-flex align-items-center justify-content-center gap-2 flex-wrap">
+        <span className="fw-bold" style={{ fontSize: "clamp(1.1rem, 2vw, 4rem)", lineHeight: 1 }} aria-hidden>
+          ₹
+        </span>
+        <span>In Queue (आप कतार में हैं)</span>
+      </span>
+    );
+  }
+  if (k === "inprogress") {
+    return (
+      <span className="d-inline-flex align-items-baseline justify-content-center gap-2 text-nowrap">
+        <span>In progress</span>
+        <span style={{ fontSize: "clamp(0.5rem, 0.9vw, 2rem)", opacity: 0.92 }}>प्रगति में</span>
+      </span>
+    );
+  }
+  return <>In Queue (आप कतार में हैं)</>;
 };
 
 const isTerminalOpdStatus = (status?: string): boolean => {
@@ -493,10 +522,8 @@ const QueueDisplayMultiComponent = () => {
       return status !== "completed" && status !== "cancelled" && status !== "canceled";
     })
     .sort((a, b) => {
-      const aStatus = a?.status?.toLowerCase().trim() ?? "";
-      const bStatus = b?.status?.toLowerCase().trim() ?? "";
-      const aPriority = aStatus === "in progress" ? 0 : 1;
-      const bPriority = bStatus === "in progress" ? 0 : 1;
+      const aPriority = normalizePharmaStatusKey(a?.status) === "inprogress" ? 0 : 1;
+      const bPriority = normalizePharmaStatusKey(b?.status) === "inprogress" ? 0 : 1;
       if (aPriority !== bPriority) return aPriority - bPriority;
       return (a?.pharmaTokenId ?? 0) - (b?.pharmaTokenId ?? 0);
     });
@@ -705,7 +732,7 @@ const QueueDisplayMultiComponent = () => {
                       pharmaVisibleQueue.map((item, index) => (
                         <tr key={item?._id || `${item?.pharmaTokenId}-${index}`}>
                           <td
-                            className="text-center fw-semibold text-white"
+                            className={`text-center fw-semibold ${getPharmaQueueRowTextClass(item?.status)}`}
                             style={{
                               fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               backgroundColor: getPharmaQueueRowBackground(item?.status),
@@ -714,18 +741,16 @@ const QueueDisplayMultiComponent = () => {
                             {item?.pharmaTokenId ?? "—"}
                           </td>
                           <td
-                            className="text-center text-white"
+                            className={`text-center fw-medium ${getPharmaQueueRowTextClass(item?.status)}`}
                             style={{
                               fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               backgroundColor: getPharmaQueueRowBackground(item?.status),
                             }}
                           >
-                            {item?.status?.toLowerCase().trim() === "in progress"
-                              ? "In Progress"
-                              : "In Queue"}
+                            {renderPharmaQueueStatusDisplay(item?.status)}
                           </td>
                           <td
-                            className="text-center text-white"
+                            className={`text-center fw-medium ${getPharmaQueueRowTextClass(item?.status)}`}
                             style={{
                               fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               backgroundColor: getPharmaQueueRowBackground(item?.status),

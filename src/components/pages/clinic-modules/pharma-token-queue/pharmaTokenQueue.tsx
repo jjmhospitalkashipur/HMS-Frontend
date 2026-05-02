@@ -43,6 +43,47 @@ interface IPharmaQueueSsePayload {
   token?: IPharmaQueueToken;
 }
 
+/** Normalize for display / row colors (handles `InProgress`, `In Progress`, `PayNow`, etc.). */
+const normalizePharmaStatusKey = (status?: string): string =>
+  (status ?? "").trim().toLowerCase().replace(/\s+/g, "");
+
+const getPharmaQueueRowBackgroundColor = (status?: string): string => {
+  const k = normalizePharmaStatusKey(status);
+  if (k === "inprogress") return "#bed75a";
+  if (k === "paynow") return "#0d9488";
+  return "#3D5C79";
+};
+
+const getPharmaQueueRowTextClass = (status?: string): string =>
+  normalizePharmaStatusKey(status) === "inprogress" ? "text-dark" : "text-white";
+
+const renderPharmaQueueStatusCell = (status?: string) => {
+  const k = normalizePharmaStatusKey(status);
+  if (k === "paynow") {
+    return (
+      <span className="d-inline-flex align-items-center justify-content-center gap-2 flex-wrap">
+        <span
+          className="fw-bold"
+          style={{ fontSize: "clamp(1.25rem, 2.2vw, 6rem)", lineHeight: 1 }}
+          aria-hidden
+        >
+          ₹
+        </span>
+        <span>In Queue (आप कतार में हैं)</span>
+      </span>
+    );
+  }
+  if (k === "inprogress") {
+    return (
+      <span className="d-inline-flex align-items-baseline justify-content-center gap-2 text-nowrap">
+        <span>In progress ( प्रगति में )</span>
+       
+      </span>
+    );
+  }
+  return <>In Queue (आप कतार में हैं)</>;
+};
+
 const normalizeQueueToken = (rawToken: IPharmaQueueToken): IPharmaQueueToken => {
   const normalizedPharmaTokenId = Number(
     rawToken?.pharmaTokenId ??
@@ -93,19 +134,6 @@ const PharmaTokenQueueComponent = () => {
     document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
   }, []);
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "Created":
-        return "badge-soft-primary text-primary border border-primary";
-      case "Completed":
-        return "badge-soft-success text-success border border-success";
-      case "Cancelled":
-        return "badge-soft-danger text-danger border border-danger";
-      default:
-        return "badge-soft-secondary text-secondary border border-secondary";
-    }
-  };
-
   const sortedQueue = useMemo(
     () => [...queue].sort((a, b) => (a.pharmaTokenId ?? 0) - (b.pharmaTokenId ?? 0)),
     [queue]
@@ -120,13 +148,6 @@ const PharmaTokenQueueComponent = () => {
     () => sortedQueue.filter((item) => !isTerminalQueueStatus(item?.status)),
     [sortedQueue]
   );
-
-  const getRowBackgroundByStatus = (status?: string): string => {
-    const normalizedStatus = status?.toLowerCase().trim() ?? "";
-    if (normalizedStatus === "created") return "#3D5C79";
-    if (normalizedStatus === "in progress") return "#bed75a";
-    return "#3D5C79";
-  };
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -301,9 +322,9 @@ const PharmaTokenQueueComponent = () => {
                   visibleQueue.map((item, index) => (
                     <tr key={item?._id || `${item?.pharmaTokenId}-${index}`}>
                       <td
-                        className="fw-semibold align-middle text-center text-white"
+                        className={`fw-semibold align-middle text-center ${getPharmaQueueRowTextClass(item?.status)}`}
                         style={{
-                          backgroundColor: getRowBackgroundByStatus(item?.status),
+                          backgroundColor: getPharmaQueueRowBackgroundColor(item?.status),
                           padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
                           fontSize: "clamp(1rem, 1.8vw, 5.5rem)",
                         }}
@@ -315,19 +336,19 @@ const PharmaTokenQueueComponent = () => {
                         )}
                       </td>
                       <td
-                        className="align-middle fw-medium text-center text-white"
+                        className={`align-middle fw-medium text-center ${getPharmaQueueRowTextClass(item?.status)}`}
                         style={{
-                          backgroundColor: getRowBackgroundByStatus(item?.status),
+                          backgroundColor: getPharmaQueueRowBackgroundColor(item?.status),
                           padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
                           fontSize: "clamp(1rem, 1.8vw, 5.5rem)",
                         }}
                       >
-                        In Queue (आप कतार में हैं)
+                        {renderPharmaQueueStatusCell(item?.status)}
                       </td>
                       <td
-                        className="align-middle fw-medium text-center text-white"
+                        className={`align-middle fw-medium text-center ${getPharmaQueueRowTextClass(item?.status)}`}
                         style={{
-                          backgroundColor: getRowBackgroundByStatus(item?.status),
+                          backgroundColor: getPharmaQueueRowBackgroundColor(item?.status),
                           padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
                           fontSize: "clamp(1rem, 1.8vw, 5.5rem)",
                         }}

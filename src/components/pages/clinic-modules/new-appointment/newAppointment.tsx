@@ -142,6 +142,7 @@ const NewAppointmentComponent = () => {
   const [daycareAttendantRelation, setDaycareAttendantRelation] = useState<string>("");
   const [daycareBedChargesType, setDaycareBedChargesType] = useState<Option | null>(null);
   const [daycareBedChargesHours, setDaycareBedChargesHours] = useState<number>(1);
+  const [daycareCustomRate, setDaycareCustomRate] = useState<number>(0);
   const [daycareDoctorVisitCharges, setDaycareDoctorVisitCharges] = useState<"Yes" | "No">("No");
   const [daycareAddedProcedures, setDaycareAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
   const [daycareAddProcedureSelect, setDaycareAddProcedureSelect] = useState<Option | null>(null);
@@ -150,6 +151,7 @@ const NewAppointmentComponent = () => {
     { value: "private", label: "Private (200/hr)" },
     { value: "semi", label: "Semi-Private (150/hr)" },
     { value: "general", label: "General (100/hr)" },
+    { value: "custom", label: "Custom" },
   ];
   const [daycareProceduresOptions, setDaycareProceduresOptions] = useState<Option[]>([]);
   const [daycareProceduresLoading, setDaycareProceduresLoading] = useState(false);
@@ -164,8 +166,13 @@ const NewAppointmentComponent = () => {
   const [daycareDiscountPassword, setDaycareDiscountPassword] = useState<string>("");
   const [daycareDiscountPasswordError, setDaycareDiscountPasswordError] = useState<string>("");
   const daycareBedChargesAmount: Record<string, number> = { none: 0, private: 200, semi: 150, general: 100 };
-  const daycareBedChargesRate = daycareBedChargesType?.value ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0) : 0;
-  const daycareBedCharges = daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
+  const isDaycareCustomCharges = daycareBedChargesType?.value === "custom";
+  const daycareBedChargesRate = daycareBedChargesType?.value && !isDaycareCustomCharges
+    ? (daycareBedChargesAmount[daycareBedChargesType.value] ?? 0)
+    : 0;
+  const daycareBedCharges = isDaycareCustomCharges
+    ? Math.max(0, Number(daycareCustomRate) || 0)
+    : daycareBedChargesRate * (daycareBedChargesHours > 0 ? daycareBedChargesHours : 1);
   const daycareProceduresCharges = daycareAddedProcedures.reduce((sum, p) => sum + p.price, 0);
   const daycareDocVisitCharges = daycareDoctorVisitCharges === "Yes" ? daycareTotal : 0;
   const daycareSubtotal = daycareBedCharges + daycareProceduresCharges + daycareDocVisitCharges;
@@ -821,6 +828,19 @@ const NewAppointmentComponent = () => {
     setDaycareLoading(true);
     try {
       const bedChargesTypeLabel = daycareBedChargesType?.label?.split("(")[0]?.trim() ?? "";
+      const daycareChargesFields =
+        daycareBedChargesType?.value === "custom"
+          ? {
+              daycareChargesType: "Custom" as const,
+              customDaycareRate: Math.max(0, Number(daycareCustomRate) || 0),
+            }
+          : {
+              daycareChargesType: bedChargesTypeLabel || undefined,
+              daycareChargesHours: daycareBedChargesHours || 1,
+              bedChargesType: bedChargesTypeLabel || undefined,
+              bedChargesHours: daycareBedChargesHours || 1,
+              bedChargesRate: daycareBedChargesRate || 0,
+            };
       const procedureIds = Array.from(
         new Set(
           daycareAddedProcedures
@@ -857,13 +877,7 @@ const NewAppointmentComponent = () => {
           {
             patientId: daycareSelectedPatient._id,
             doctorId: daycareSelectedDoctor.value,
-            // new API fields
-            daycareChargesType: bedChargesTypeLabel || undefined,
-            daycareChargesHours: daycareBedChargesHours || 1,
-            // old fields kept for backward compatibility
-            bedChargesType: bedChargesTypeLabel || undefined,
-            bedChargesHours: daycareBedChargesHours || 1,
-            bedChargesRate: daycareBedChargesRate || 0,
+            ...daycareChargesFields,
             procedureIds,
             doctorVisitCharges,
             appointmentDate,
@@ -901,11 +915,7 @@ const NewAppointmentComponent = () => {
           {
             patient: patientPayload,
             doctorId: daycareSelectedDoctor.value,
-            daycareChargesType: bedChargesTypeLabel || undefined,
-            daycareChargesHours: daycareBedChargesHours || 1,
-            bedChargesType: bedChargesTypeLabel || undefined,
-            bedChargesHours: daycareBedChargesHours || 1,
-            bedChargesRate: daycareBedChargesRate || 0,
+            ...daycareChargesFields,
             procedureIds,
             doctorVisitCharges,
             appointmentDate,
@@ -2253,29 +2263,53 @@ const NewAppointmentComponent = () => {
                                       <CommonSelect
                                         options={daycareBedChargesOptions}
                                         value={daycareBedChargesType}
-                                        onChange={setDaycareBedChargesType}
+                                        onChange={(opt) => {
+                                          setDaycareBedChargesType(opt);
+                                          if (opt?.value !== "custom") {
+                                            setDaycareCustomRate(0);
+                                          }
+                                        }}
                                         placeholder="Select..."
                                       />
                                     </div>
                                     <div style={{ width: "35%", minWidth: 0 }}>
                                       <label className="form-label mb-1 fw-medium d-block">
-                                        Hours
+                                        {isDaycareCustomCharges ? "Amount (₹)" : "Hours"}
                                       </label>
-                                      <input
-                                        type="number"
-                                        className="form-control"
-                                        min={0}
-                                        step={1}
-                                        value={daycareBedChargesHours === 0 ? "" : daycareBedChargesHours}
-                                        onChange={(e) => {
-                                          if (e.target.value === "") {
-                                            setDaycareBedChargesHours(0);
-                                            return;
-                                          }
-                                          const v = parseFloat(e.target.value);
-                                          if (!Number.isNaN(v) && v >= 0) setDaycareBedChargesHours(v);
-                                        }}
-                                      />
+                                      {isDaycareCustomCharges ? (
+                                        <input
+                                          type="number"
+                                          className="form-control"
+                                          min={0}
+                                          step={0.01}
+                                          value={daycareCustomRate === 0 ? "" : daycareCustomRate}
+                                          onChange={(e) => {
+                                            if (e.target.value === "") {
+                                              setDaycareCustomRate(0);
+                                              return;
+                                            }
+                                            const v = parseFloat(e.target.value);
+                                            if (!Number.isNaN(v) && v >= 0) setDaycareCustomRate(v);
+                                          }}
+                                          placeholder="0"
+                                        />
+                                      ) : (
+                                        <input
+                                          type="number"
+                                          className="form-control"
+                                          min={0}
+                                          step={1}
+                                          value={daycareBedChargesHours === 0 ? "" : daycareBedChargesHours}
+                                          onChange={(e) => {
+                                            if (e.target.value === "") {
+                                              setDaycareBedChargesHours(0);
+                                              return;
+                                            }
+                                            const v = parseFloat(e.target.value);
+                                            if (!Number.isNaN(v) && v >= 0) setDaycareBedChargesHours(v);
+                                          }}
+                                        />
+                                      )}
                                     </div>
                                   </div>
                                 </div>

@@ -57,6 +57,60 @@ interface IPatientSearchItem {
   gender?: string;
 }
 
+const PHARMA_APPOINTMENT_STATUSES = [
+  "Created",
+  "InProgress",
+  "PayNow",
+  "Completed",
+  "Cancelled",
+] as const;
+
+type TPharmaAppointmentStatus = (typeof PHARMA_APPOINTMENT_STATUSES)[number];
+
+const mapToPharmaAppointmentStatus = (raw: string | undefined): TPharmaAppointmentStatus => {
+  const t = (raw ?? "").trim();
+  if (!t) return "Created";
+  if (PHARMA_APPOINTMENT_STATUSES.includes(t as TPharmaAppointmentStatus)) {
+    return t as TPharmaAppointmentStatus;
+  }
+  const k = t.toLowerCase().replace(/\s+/g, "");
+  if (k === "inprogress" || k === "in-progress") return "InProgress";
+  if (k === "paynow" || k === "pay-now") return "PayNow";
+  if (k === "completed") return "Completed";
+  if (k === "cancelled" || k === "canceled") return "Cancelled";
+  if (k === "created") return "Created";
+  return "Created";
+};
+
+const getPharmaStatusBadgeClass = (status: TPharmaAppointmentStatus): string => {
+  switch (status) {
+    case "Created":
+      return "badge-soft-primary text-primary";
+    case "InProgress":
+      return "badge-soft-warning text-dark";
+    case "PayNow":
+      return "badge-soft-info text-info";
+    case "Completed":
+      return "badge-soft-success text-success";
+    case "Cancelled":
+      return "badge-soft-danger text-danger";
+    default:
+      return "badge-soft-secondary text-secondary";
+  }
+};
+
+/** Row label in UI; PATCH still uses canonical `TPharmaAppointmentStatus`. */
+const getPharmaStatusDisplayLabel = (status: TPharmaAppointmentStatus): string => {
+  switch (status) {
+    case "InProgress":
+      return "In progress";
+    case "PayNow":
+      return "Pay now";
+    default:
+      return status;
+  }
+};
+
 const PharmaTokensComponent = () => {
   const [data, setData] = useState<IPharmaTokenRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,41 +340,16 @@ const PharmaTokensComponent = () => {
     {
       title: "Status",
       dataIndex: "Status",
+      width: 148,
       render: (_text: string, record: IPharmaTokenRow) => {
-        const currentStatus = statusUpdates[record.id] || record.Status || "Created";
-        const normalized = currentStatus.toLowerCase().trim();
-        const isCompleted = normalized === "completed";
-        const isCancelled = normalized === "cancelled" || normalized === "canceled";
+        const currentRaw = statusUpdates[record.id] ?? record.Status;
+        const currentStatus = mapToPharmaAppointmentStatus(
+          currentRaw === "—" ? undefined : currentRaw
+        );
         const isUpdating = statusUpdatingId === record.id;
 
-        if (isCompleted) {
-          return (
-            <span
-              className="text-success d-inline-flex align-items-center justify-content-center"
-              title="Completed"
-            >
-              <i className="ti ti-circle-check fs-18" aria-hidden="true" />
-              <span className="visually-hidden">Completed</span>
-            </span>
-          );
-        }
-        if (isCancelled) {
-          return (
-            <span
-              className="text-danger d-inline-flex align-items-center justify-content-center"
-              title="Cancelled"
-            >
-              <i className="ti ti-circle-x fs-18" aria-hidden="true" />
-              <span className="visually-hidden">Cancelled</span>
-            </span>
-          );
-        }
-
         return (
-          <div
-            className="d-flex align-items-center gap-2 flex-wrap"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="dropdown" onClick={(e) => e.stopPropagation()}>
             {isUpdating ? (
               <span className="d-inline-flex align-items-center gap-2 text-muted">
                 <span className="spinner-border spinner-border-sm" role="status" />
@@ -330,20 +359,45 @@ const PharmaTokensComponent = () => {
               <>
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-success d-inline-flex align-items-center justify-content-center rounded p-2"
-                  aria-label="Mark as completed"
-                  onClick={() => handleUpdatePharmaTokenStatus(record.id, "Completed")}
+                  className={`btn btn-sm fs-13 badge ${getPharmaStatusBadgeClass(
+                    currentStatus
+                  )} rounded fw-medium dropdown-toggle`}
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  aria-label="Pharma appointment status"
+                  title={currentStatus}
                 >
-                  <i className="ti ti-check fs-16" aria-hidden="true" />
+                  {getPharmaStatusDisplayLabel(currentStatus)}
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded p-2"
-                  aria-label="Mark as cancelled"
-                  onClick={() => handleUpdatePharmaTokenStatus(record.id, "Cancelled")}
-                >
-                  <i className="ti ti-x fs-16" aria-hidden="true" />
-                </button>
+                <ul className="dropdown-menu">
+                  {PHARMA_APPOINTMENT_STATUSES.map((option) => (
+                    <li key={option}>
+                      <Link
+                        className="dropdown-item"
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (isUpdating || option === currentStatus) return;
+                          void handleUpdatePharmaTokenStatus(record.id, option);
+                          const dropdown = e.currentTarget.closest(".dropdown");
+                          if (dropdown) {
+                            const button = dropdown.querySelector(
+                              '[data-bs-toggle="dropdown"]'
+                            ) as HTMLElement | null;
+                            const menu = dropdown.querySelector(".dropdown-menu") as HTMLElement | null;
+                            if (button && menu) {
+                              button.setAttribute("aria-expanded", "false");
+                              button.classList.remove("show");
+                              menu.classList.remove("show");
+                            }
+                          }
+                        }}
+                      >
+                        {getPharmaStatusDisplayLabel(option)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </>
             )}
           </div>

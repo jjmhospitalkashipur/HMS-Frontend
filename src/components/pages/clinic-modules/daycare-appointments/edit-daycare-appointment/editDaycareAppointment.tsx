@@ -27,6 +27,7 @@ const BED_CHARGES_OPTIONS: Option[] = [
   { value: "private", label: "Private (200/hr)" },
   { value: "semi", label: "Semi-Private (150/hr)" },
   { value: "general", label: "General (100/hr)" },
+  { value: "custom", label: "Custom" },
 ];
 
 const BED_CHARGES_RATE: Record<string, number> = { none: 0, private: 200, semi: 150, general: 100 };
@@ -70,6 +71,7 @@ interface IDaycareDetail {
   daycareChargesType?: string;
   daycareChargesHours?: number;
   daycareChargesRate?: number;
+  customDaycareRate?: number;
   bedChargesType?: string;
   bedChargesHours?: number;
   bedChargesRate?: number;
@@ -103,6 +105,7 @@ const EditDaycareAppointmentComponent = () => {
 
   const [bedChargesType, setBedChargesType] = useState<Option | null>(null);
   const [bedChargesHours, setBedChargesHours] = useState<number>(1);
+  const [customDaycareRate, setCustomDaycareRate] = useState<number>(0);
   const [doctorVisitCharges, setDoctorVisitCharges] = useState<"Yes" | "No">("No");
 
   const [proceduresOptions, setProceduresOptions] = useState<Option[]>([]);
@@ -122,8 +125,14 @@ const EditDaycareAppointmentComponent = () => {
   const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState<boolean>(false);
   const [appointmentDate, setAppointmentDate] = useState<string>("");
 
-  const bedChargesRate = bedChargesType?.value ? (BED_CHARGES_RATE[bedChargesType.value] ?? 0) : 0;
-  const bedChargesTotal = bedChargesRate * (bedChargesHours > 0 ? bedChargesHours : 1);
+  const isCustomDaycareCharges = bedChargesType?.value === "custom";
+  const bedChargesRateStandard =
+    bedChargesType?.value && !isCustomDaycareCharges
+      ? (BED_CHARGES_RATE[bedChargesType.value] ?? 0)
+      : 0;
+  const bedChargesTotal = isCustomDaycareCharges
+    ? Math.max(0, Number(customDaycareRate) || 0)
+    : bedChargesRateStandard * (bedChargesHours > 0 ? bedChargesHours : 1);
   const proceduresTotal = addedProcedures.reduce((sum, p) => sum + p.price, 0);
   const [daycareDoctorCharge, setDaycareDoctorCharge] = useState<number>(0);
   const docVisitAmount = doctorVisitCharges === "Yes" ? daycareDoctorCharge : 0;
@@ -223,21 +232,32 @@ const EditDaycareAppointmentComponent = () => {
           setSelectedDoctor(null);
         }
 
-        const bt = (data.daycareChargesType ?? data.bedChargesType ?? "").toLowerCase();
+        const rawChargesType = (data.daycareChargesType ?? data.bedChargesType ?? "").trim();
+        const bt = rawChargesType.toLowerCase();
         const bedOption =
-          BED_CHARGES_OPTIONS.find(
-            (o) =>
-              o.value === bt ||
-              o.label.toLowerCase().startsWith((data.daycareChargesType ?? data.bedChargesType ?? "").toLowerCase())
-          ) ?? BED_CHARGES_OPTIONS[0];
+          bt === "custom"
+            ? BED_CHARGES_OPTIONS.find((o) => o.value === "custom") ?? BED_CHARGES_OPTIONS[0]
+            : BED_CHARGES_OPTIONS.find(
+                (o) =>
+                  o.value === bt ||
+                  o.label.toLowerCase().startsWith(rawChargesType.toLowerCase())
+              ) ?? BED_CHARGES_OPTIONS[0];
         setBedChargesType(bedOption);
-        setBedChargesHours(
-          (data as any).daycareChargesHours != null && (data as any).daycareChargesHours > 0
-            ? (data as any).daycareChargesHours
-            : data.bedChargesHours != null && data.bedChargesHours > 0
-            ? data.bedChargesHours
-            : 1
-        );
+        if (bt === "custom") {
+          setCustomDaycareRate(
+            Number(data.customDaycareRate ?? data.daycareChargesRate ?? data.bedChargesRate ?? 0) || 0
+          );
+          setBedChargesHours(1);
+        } else {
+          setCustomDaycareRate(0);
+          setBedChargesHours(
+            (data as any).daycareChargesHours != null && (data as any).daycareChargesHours > 0
+              ? (data as any).daycareChargesHours
+              : data.bedChargesHours != null && data.bedChargesHours > 0
+                ? data.bedChargesHours
+                : 1
+          );
+        }
         setDoctorVisitCharges(data.doctorVisitCharges ? "Yes" : "No");
 
         const procs = (data.procedures ?? []).map((p) => ({
@@ -323,6 +343,23 @@ const EditDaycareAppointmentComponent = () => {
   const doDaycareSubmit = async (discountPwd: string | undefined) => {
     if (!daycareId || !API_BASE_URL || !selectedDoctor?.value) return;
     const bedChargesTypeLabel = bedChargesType?.label?.split("(")[0]?.trim() ?? "";
+    const isCustomCharges = bedChargesType?.value === "custom";
+    const standardBedRate =
+      bedChargesType?.value && !isCustomCharges
+        ? (BED_CHARGES_RATE[bedChargesType.value] ?? 0)
+        : 0;
+    const daycareChargesFields = isCustomCharges
+      ? {
+          daycareChargesType: "Custom" as const,
+          customDaycareRate: Math.max(0, Number(customDaycareRate) || 0),
+        }
+      : {
+          daycareChargesType: bedChargesTypeLabel || undefined,
+          daycareChargesHours: bedChargesHours || 1,
+          bedChargesType: bedChargesTypeLabel || undefined,
+          bedChargesHours: bedChargesHours || 1,
+          bedChargesRate: standardBedRate || 0,
+        };
     const procedureIds = addedProcedures
       .map((p) => p.id)
       .filter((pid) => Boolean(pid) && procedurePriceById[pid] != null);
@@ -339,11 +376,7 @@ const EditDaycareAppointmentComponent = () => {
       const payload = {
         ...(patientId && { patientId }),
         doctorId: selectedDoctor.value,
-        daycareChargesType: bedChargesTypeLabel || undefined,
-        daycareChargesHours: bedChargesHours || 1,
-        bedChargesType: bedChargesTypeLabel || undefined,
-        bedChargesHours: bedChargesHours || 1,
-        bedChargesRate: bedChargesRate || 0,
+        ...daycareChargesFields,
         procedureIds: uniqueProcedureIds,
         doctorVisitCharges: doctorVisitCharges === "Yes",
         discount: discountNum,
@@ -738,27 +771,53 @@ const EditDaycareAppointmentComponent = () => {
                               <CommonSelect
                                 options={BED_CHARGES_OPTIONS}
                                 value={bedChargesType}
-                                onChange={setBedChargesType}
+                                onChange={(opt) => {
+                                  setBedChargesType(opt);
+                                  if (opt?.value !== "custom") {
+                                    setCustomDaycareRate(0);
+                                  }
+                                }}
                                 placeholder="Select..."
                               />
                             </div>
                             <div style={{ width: "35%", minWidth: 0 }}>
-                              <label className="form-label mb-1 fw-medium d-block">Hours</label>
-                              <input
-                                type="number"
-                                className="form-control"
-                                min={0}
-                                step={1}
-                                value={bedChargesHours === 0 ? "" : bedChargesHours}
-                                onChange={(e) => {
-                                  if (e.target.value === "") {
-                                    setBedChargesHours(0);
-                                    return;
-                                  }
-                                  const v = parseFloat(e.target.value);
-                                  if (!Number.isNaN(v) && v >= 0) setBedChargesHours(v);
-                                }}
-                              />
+                              <label className="form-label mb-1 fw-medium d-block">
+                                {isCustomDaycareCharges ? "Amount (₹)" : "Hours"}
+                              </label>
+                              {isCustomDaycareCharges ? (
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  min={0}
+                                  step={0.01}
+                                  value={customDaycareRate === 0 ? "" : customDaycareRate}
+                                  onChange={(e) => {
+                                    if (e.target.value === "") {
+                                      setCustomDaycareRate(0);
+                                      return;
+                                    }
+                                    const v = parseFloat(e.target.value);
+                                    if (!Number.isNaN(v) && v >= 0) setCustomDaycareRate(v);
+                                  }}
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  min={0}
+                                  step={1}
+                                  value={bedChargesHours === 0 ? "" : bedChargesHours}
+                                  onChange={(e) => {
+                                    if (e.target.value === "") {
+                                      setBedChargesHours(0);
+                                      return;
+                                    }
+                                    const v = parseFloat(e.target.value);
+                                    if (!Number.isNaN(v) && v >= 0) setBedChargesHours(v);
+                                  }}
+                                />
+                              )}
                             </div>
                           </div>
                         </div>
