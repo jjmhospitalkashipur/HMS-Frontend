@@ -148,6 +148,12 @@ function getStatusDisplay(status: string, visitType?: string) {
 
 const DOCTORS_PER_PAGE = 5;
 
+/** Page 1 (`/qd-all/1`): intro MP4 in `public/assets/img/`. Override with `NEXT_PUBLIC_QD_ALL_PAGE1_VIDEO`. */
+const QD_ALL_PAGE1_VIDEO_DEFAULT =
+  "/assets/img/WhatsApp Video 2026-03-07 at 10.17.04 AM.mp4";
+const QD_ALL_PAGE1_VIDEO_SRC =
+  process.env.NEXT_PUBLIC_QD_ALL_PAGE1_VIDEO?.trim() || QD_ALL_PAGE1_VIDEO_DEFAULT;
+
 const normalizePharmaToken = (token: IPharmaQueueToken): IPharmaQueueToken => ({
   ...token,
   pharmaTokenId: Number(token?.pharmaTokenId ?? token?.tokenNumber ?? 0),
@@ -207,6 +213,7 @@ const QueueDisplayMultiComponent = () => {
   const endIndex = startIndex + DOCTORS_PER_PAGE;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const introVideoRef = useRef<HTMLVideoElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [doctors, setDoctors] = useState<Array<{ _id: string; name: string; doctorId?: string }>>([]);
   const [displays, setDisplays] = useState<Record<string, IQueueDisplay>>({});
@@ -237,6 +244,20 @@ const QueueDisplayMultiComponent = () => {
     });
     return () => document.removeEventListener("fullscreenchange", () => {});
   }, []);
+
+  // Ensure intro video attempts to autoplay when visible (page ≠ pharma-only)
+  useEffect(() => {
+    if (pageNum === 2) return;
+    const video = introVideoRef.current;
+    if (!video) return;
+    video.muted = true;
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        // Autoplay might be blocked; ignore silently
+      });
+    }
+  }, [pageNum]);
 
   // Fetch first 10 doctors
   useEffect(() => {
@@ -567,7 +588,7 @@ const QueueDisplayMultiComponent = () => {
         </span>
       </div>
 
-      {/* Main row: Upcoming tokens list on the left (50% width) and video on the right */}
+      {/* Main row: OPD summaries left (50%); page 1 = video right, page 2 = pharma queue right */}
       <div className="d-flex flex-grow-1 p-2 p-md-3 p-lg-4 p-xl-4 w-100 gap-3">
         {/* Left: Upcoming tokens (50% width) */}
         <div
@@ -677,23 +698,17 @@ const QueueDisplayMultiComponent = () => {
           </div>
         </div>
 
-        {/* Right: Pharma token queue (qd-all/2) */}
+        {/* Right: intro video on `/qd-all/1` (page ≠ 2); pharma queue only on `/qd-all/2` */}
         <div
           className="d-none d-lg-flex"
           style={{ flex: "1 1 50%", minWidth: 0, height: "64vh" }}
         >
-          <div
-            className="rounded-3 border shadow-sm bg-white w-100 overflow-hidden h-100"
-          >
-            <div className="bg-primary text-white text-center fw-semibold py-2">
-              Pharma Queue
-            </div>
-            {pageNum !== 2 ? (
-              <div className="d-flex align-items-center justify-content-center h-100 text-muted p-4">
-                Pharma queue appears on page 2
+          {pageNum === 2 ? (
+            <div className="rounded-3 border shadow-sm bg-white w-100 overflow-hidden h-100 d-flex flex-column">
+              <div className="bg-primary text-white text-center fw-semibold py-2 flex-shrink-0">
+                Pharma Queue
               </div>
-            ) : (
-              <div className="table-responsive h-100">
+              <div className="table-responsive flex-grow-1 min-h-0">
                 <table className="table mb-0">
                   <thead className="table-dark position-sticky top-0 z-1">
                     <tr>
@@ -764,8 +779,28 @@ const QueueDisplayMultiComponent = () => {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="d-flex flex-grow-1 align-items-start justify-content-center mt-4 pt-4 w-100 h-100 min-h-0">
+              <div
+                className="rounded-3 border shadow-sm bg-black d-flex align-items-center justify-content-center"
+                style={{ maxHeight: "64vh", maxWidth: "23vw", width: "100%" }}
+              >
+                <video
+                  ref={introVideoRef}
+                  src={QD_ALL_PAGE1_VIDEO_SRC}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  className="d-block"
+                  style={{ width: "100%", height: "auto" }}
+                  aria-label="Hospital intro video"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {/* Scrolling info strip (same as single QD, bigger and broader) */}
