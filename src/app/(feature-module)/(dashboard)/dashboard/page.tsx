@@ -1,13 +1,12 @@
 "use client";
 
-
 import DashboardComponent from "@/components/pages/dashboard/dashboard/dashboard";
+import DashboardPasswordGate from "@/components/pages/dashboard/dashboard/DashboardPasswordGate";
 
-
-export default function AdminDashboard () {
+export default function AdminDashboard() {
   return (
-    <div>
+    <DashboardPasswordGate>
       <DashboardComponent />
-    </div>
+    </DashboardPasswordGate>
   );
 }
