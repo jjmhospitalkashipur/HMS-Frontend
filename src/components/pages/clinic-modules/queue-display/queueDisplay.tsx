@@ -415,6 +415,7 @@ const QueueDisplayComponent = () => {
     );
   };
   const queue = allQueue.filter((entry) => !isTerminalQueueStatus(entry.status));
+  const shouldShowAdBanner = queue.length <= 3;
 
   const VISIBLE_ROWS = 6;
   const visibleQueue = queue.slice(0, VISIBLE_ROWS);
@@ -489,10 +490,10 @@ const QueueDisplayComponent = () => {
 
         {/* Right: Queue table */}
         <div
-          className="flex-grow-1 min-w-0 rounded-3 border shadow-sm order-1 order-md-2"
+          className="flex-grow-1 min-w-0 rounded-3 border shadow-sm order-1 order-md-2 d-flex flex-column overflow-hidden"
           style={{ minWidth: "0", height: "71vh" }}
         >
-          <div className="table-responsive w-100">
+          <div className="table-responsive w-100 flex-grow-1">
             <table className="table mb-0 w-100">
               <thead className="table-dark position-sticky top-0 z-1">
                 <tr>
@@ -584,6 +585,18 @@ const QueueDisplayComponent = () => {
               </tbody>
             </table>
           </div>
+          {shouldShowAdBanner ? (
+            <div className="border-top bg-white p-2 p-md-3">
+              <Image
+                src="/assets/img/Bannerforscreen2.jpg"
+                alt="Hospital promotional banner"
+                width={1000}
+                height={300}
+                className="w-100 h-auto rounded-2"
+                priority={false}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 

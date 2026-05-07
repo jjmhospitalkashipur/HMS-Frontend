@@ -568,6 +568,13 @@ const AppointmentsComponent = () => {
             <Link
               href={`${all_routes.patientDetails}?id=${record._patientId || ""}`}
               className="text-dark fw-semibold d-inline-block"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!record?._patientId) return;
+                router.push(`${all_routes.patientDetails}?id=${record._patientId}`);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <div>{text}</div>
               {record.Phone ? (

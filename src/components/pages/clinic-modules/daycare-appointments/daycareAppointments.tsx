@@ -71,6 +71,7 @@ interface IDaycareAppointment {
 interface IRow {
   id: string;
   _doctorId?: string;
+  _patientId?: string;
   Daycare_ID: string;
   Date: string;
   Time?: string;
@@ -266,6 +267,7 @@ const DaycareAppointmentsComponent = () => {
             return {
               id: item._id,
               _doctorId: item.doctor?._id || item.doctorId,
+              _patientId: item.patient?._id || item.patientId,
               Daycare_ID: item.daycareId,
               Date: dateStr,
               Time: timeStr,
@@ -398,7 +400,23 @@ const DaycareAppointmentsComponent = () => {
           .join(", ");
         return (
           <div className="text-dark">
-            <div className="fw-semibold">{text}</div>
+            {record._patientId ? (
+              <Link
+                href={`${all_routes.patientDetails}?id=${record._patientId}`}
+                className="fw-semibold text-dark"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!record?._patientId) return;
+                  router.push(`${all_routes.patientDetails}?id=${record._patientId}`);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {text}
+              </Link>
+            ) : (
+              <div className="fw-semibold">{text}</div>
+            )}
             {meta && <div className="fs-13 text-muted">{meta}</div>}
           </div>
         );

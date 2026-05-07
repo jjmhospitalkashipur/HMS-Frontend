@@ -22,11 +22,6 @@ const STATUS_OPTIONS: Option[] = [
   { value: "Inactive", label: "Inactive" },
 ];
 
-const YES_NO_OPTIONS: Option[] = [
-  { value: "true", label: "Yes" },
-  { value: "false", label: "No" },
-];
-
 interface IModalsProps {
   onDeleteConfirm?: () => void;
   deleteLoading?: boolean;
@@ -36,14 +31,10 @@ interface IModalsProps {
 const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps) => {
   const [procedureId, setProcedureId] = useState<string | null>(null);
   const [procedureName, setProcedureName] = useState("");
-  const [department, setDepartment] = useState<Option | null>(Department[0] ?? null);
-  const [category, setCategory] = useState<Option | null>(CATEGORY_OPTIONS[0]);
+  const [department, setDepartment] = useState<Option | null>(null);
+  const [category, setCategory] = useState<Option | null>(null);
   const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
   const [price, setPrice] = useState("");
-  const [dayCareBilling, setDayCareBilling] = useState<Option | null>(YES_NO_OPTIONS[1]);
-  const [consumables, setConsumables] = useState<Option | null>(YES_NO_OPTIONS[1]);
-  const [nursingCharges, setNursingCharges] = useState("");
-  const [roomCharges, setRoomCharges] = useState("");
   const [description, setDescription] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editFetchLoading, setEditFetchLoading] = useState(false);
@@ -51,14 +42,10 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
 
   const resetEditForm = useCallback(() => {
     setProcedureName("");
-    setDepartment(Department[0] ?? null);
-    setCategory(CATEGORY_OPTIONS[0]);
+    setDepartment(null);
+    setCategory(null);
     setStatus(STATUS_OPTIONS[0]);
     setPrice("");
-    setDayCareBilling(YES_NO_OPTIONS[1]);
-    setConsumables(YES_NO_OPTIONS[1]);
-    setNursingCharges("");
-    setRoomCharges("");
     setDescription("");
     setProcedureId(null);
     setEditError("");
@@ -77,19 +64,15 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
       }
       setProcedureName(data.procedureName ?? "");
       setDepartment(
-        Department.find((d) => d.value === (data.department ?? data.category)) ?? Department[0] ?? null
+        Department.find((d) => d.value === (data.department ?? data.category)) ?? null
       );
       setCategory(
-        CATEGORY_OPTIONS.find((c) => c.value === data.category) ?? CATEGORY_OPTIONS[0]
+        CATEGORY_OPTIONS.find((c) => c.value === data.category) ?? null
       );
       setStatus(
         STATUS_OPTIONS.find((s) => s.value === data.status) ?? STATUS_OPTIONS[0]
       );
       setPrice(data.price != null || data.basePrice != null ? String(data.price ?? data.basePrice) : "");
-      setDayCareBilling(data.dayCareBilling ? YES_NO_OPTIONS[0] : YES_NO_OPTIONS[1]);
-      setConsumables(data.consumables ? YES_NO_OPTIONS[0] : YES_NO_OPTIONS[1]);
-      setNursingCharges(data.nursingCharges != null ? String(data.nursingCharges) : "");
-      setRoomCharges(data.roomCharges != null ? String(data.roomCharges) : "");
       setDescription(data.description ?? "");
     } catch {
       setEditError("Failed to load procedure.");
@@ -132,14 +115,10 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
     try {
       const payload = {
         procedureName: procedureName.trim(),
-        department: department?.value ?? "",
-        category: category?.value ?? "Diagnostic",
+        department: department?.value || undefined,
+        category: category?.value || undefined,
         status: status?.value ?? "Active",
         price: priceNum,
-        dayCareBilling: dayCareBilling?.value === "true",
-        consumables: consumables?.value === "true",
-        nursingCharges: parseFloat(nursingCharges) || 0,
-        roomCharges: parseFloat(roomCharges) || 0,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -284,9 +263,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                     </div>
                     <div className="col-lg-3">
                       <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">
-                          Department<span className="text-danger ms-1">*</span>
-                        </label>
+                        <label className="form-label mb-1 fw-medium">Department</label>
                         <CommonSelect
                           options={Department}
                           className="select"
@@ -297,9 +274,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                     </div>
                     <div className="col-lg-3">
                       <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">
-                          Category<span className="text-danger ms-1">*</span>
-                        </label>
+                        <label className="form-label mb-1 fw-medium">Category</label>
                         <CommonSelect
                           options={CATEGORY_OPTIONS}
                           className="select"
@@ -319,7 +294,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         />
                       </div>
                     </div>
-                    <div className="col-lg-2">
+                    <div className="col-lg-3">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">
                           Price<span className="text-danger ms-1">*</span>
@@ -337,61 +312,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         </div>
                       </div>
                     </div>
-                    <div className="col-lg-2">
-                      <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">Day Care Billing</label>
-                        <CommonSelect
-                          options={YES_NO_OPTIONS}
-                          className="select"
-                          value={dayCareBilling}
-                          onChange={setDayCareBilling}
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-3">
-                      <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">Nursing Charges</label>
-                        <div className="input-group">
-                          <input
-                            type="number"
-                            className="form-control"
-                            min="0"
-                            step="0.01"
-                            value={nursingCharges}
-                            onChange={(e) => setNursingCharges(e.target.value)}
-                          />
-                          <span className="input-group-text bg-transparent text-dark fs-14">₹</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-lg-3">
-                      <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">Room Charges</label>
-                        <div className="input-group">
-                          <input
-                            type="number"
-                            className="form-control"
-                            min="0"
-                            step="0.01"
-                            value={roomCharges}
-                            onChange={(e) => setRoomCharges(e.target.value)}
-                          />
-                          <span className="input-group-text bg-transparent text-dark fs-14">₹</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-lg-2">
-                      <div className="mb-3">
-                        <label className="form-label mb-1 fw-medium">Consumables</label>
-                        <CommonSelect
-                          options={YES_NO_OPTIONS}
-                          className="select"
-                          value={consumables}
-                          onChange={setConsumables}
-                        />
-                      </div>
-                    </div>
-                    <div className="col-12">
+                    <div className="col-lg-9">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Description</label>
                         <textarea
