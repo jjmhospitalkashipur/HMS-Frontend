@@ -390,6 +390,11 @@ const QueueDisplayComponent = () => {
   }
 
   const rawName = display?.doctorName?.trim() ?? "";
+  const normalizedDoctorId = doctorId?.toUpperCase?.() ?? "";
+  const doctorPhotoSrc =
+    normalizedDoctorId === "DOC035"
+      ? "/assets/img/PDFGallery_20260506_122558_page-0001.jpg"
+      : "/assets/img/Photo3.jpg";
   const doctorName = rawName
     ? rawName.startsWith("Dr.")
       ? rawName
@@ -461,7 +466,7 @@ const QueueDisplayComponent = () => {
             }}
           >
             <Image
-              src="/assets/img/Photo3.jpg"
+              src={doctorPhotoSrc}
               alt="Doctor"
               fill
               sizes="(max-width: 768px) 200px, 25vw"
