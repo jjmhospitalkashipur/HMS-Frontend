@@ -425,7 +425,19 @@ const AppointmentDetailsComponent = () => {
                 </div>
 
                 {/* Patient Details Section */}
-                <h6 className="fw-bold text-primary mb-3">Patient Details</h6>
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                  <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
+                  <Link
+                    href={`${all_routes.patientDetails}?id=${patient?._id ?? visit.patientId ?? ""}`}
+                    className={`btn btn-sm d-inline-flex align-items-center ${
+                      patient?._id || visit.patientId ? "btn-primary" : "btn-light disabled"
+                    }`}
+                    aria-disabled={!(patient?._id || visit.patientId)}
+                  >
+                    <i className="ti ti-user-circle me-1" />
+                    Open Profile
+                  </Link>
+                </div>
                 <div className="row g-2 mb-4">
                   <div className="col-md-3">
                     <div className="mb-2">

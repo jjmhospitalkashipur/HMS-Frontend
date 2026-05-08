@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { API_BASE_URL } from "@/environment";
-import { Maximize, Minimize, Ambulance } from "tabler-icons-react";
+import { Maximize, Minimize, Ambulance, Clock } from "tabler-icons-react";
 import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
 
 interface IQueuePatient {
@@ -30,6 +30,8 @@ interface IQueueDisplay {
   specialization?: string | null;
   department?: string | null;
   designation?: string | null;
+  yearsOfExperience?: number | null;
+  shift?: string | null;
   sessionSlot: string;
   date: string;
   totalPatients: number;
@@ -97,6 +99,9 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     department: (data.department as string) ?? null,
     specialization: (data.specialization as string) ?? null,
     designation: (data.designation as string) ?? null,
+    yearsOfExperience:
+      data.yearsOfExperience != null ? Number(data.yearsOfExperience) : null,
+    shift: (data.shift as string) ?? null,
     sessionSlot: (data.sessionSlot as string) ?? "Morning",
     date: (data.date as string) ?? "",
     totalPatients: Number.isFinite(apiTotal) ? apiTotal : computedTotal,
@@ -109,6 +114,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
 
 /** MR row highlight */
 const QUEUE_ORANGE_MR = "#FF6600";
+const HEADER_PURPLE = "#6F4A8E";
+const DOCTOR_INFO_BG = "#F4EFFA";
 
 const getStatusDisplay = (status: string, visitType?: string) => {
   const normalized = status?.toLowerCase() ?? "";
@@ -185,6 +192,7 @@ const QueueDisplayComponent = () => {
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [now, setNow] = useState<Date>(new Date());
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
@@ -203,6 +211,11 @@ const QueueDisplayComponent = () => {
     const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -416,6 +429,17 @@ const QueueDisplayComponent = () => {
   };
   const queue = allQueue.filter((entry) => !isTerminalQueueStatus(entry.status));
   const shouldShowAdBanner = queue.length <= 3;
+  const timeLabel = now.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  const dateLabel = now.toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   const VISIBLE_ROWS = 6;
   const visibleQueue = queue.slice(0, VISIBLE_ROWS);
@@ -436,15 +460,54 @@ const QueueDisplayComponent = () => {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
       {/* Header */}
-      <div className="bg-white border-bottom py-1 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
-        <img src="/JJM Logo.png" alt="JJM Hospital" className="flex-shrink-0 me-3" style={{ height: "clamp(40px, 4vw, 150px)", width: "auto", objectFit: "contain" }} />
-        <h1 className="mb-0 fw-bold text-dark flex-grow-1 text-center" style={{ fontSize: "clamp(1rem, 2vw, 6rem)" }}>
-          JJM Hospital
-        </h1>
+      <div className="bg-white border-bottom px-3 px-md-4 px-lg-5 py-1 d-flex align-items-center justify-content-between gap-2 gap-md-3 w-100">
+        <div className="flex-shrink-0">
+          <img
+            src="/JJM Logo.png"
+            alt="JJM Hospital"
+            style={{ height: "clamp(34px, 3.8vw, 72px)", width: "auto", objectFit: "contain" }}
+          />
+        </div>
+        <div className="flex-grow-1 text-center">
+          <h1
+            className="mb-0 fw-bold"
+            style={{
+              fontSize: "clamp(1rem, 2vw, 2.4rem)",
+              lineHeight: 1.1,
+              color: HEADER_PURPLE,
+            }}
+          >
+            JJM Hospital
+          </h1>
+         
+        </div>
+        <div className="d-flex align-items-center justify-content-end gap-2 flex-shrink-0 text-end pe-5 pe-md-6">
+          <span aria-hidden style={{ color: HEADER_PURPLE }}>
+            <Clock size={48} strokeWidth={1.6} />
+          </span>
+          <div>
+            <p
+              className="mb-0 fw-bold"
+              style={{ fontSize: "clamp(0.82rem, 1.3vw, 1.4rem)", color: HEADER_PURPLE }}
+            >
+              {timeLabel}
+            </p>
+            <p className="mb-0 text-muted fw-medium" style={{ fontSize: "clamp(0.58rem, 0.75vw, 0.86rem)" }}>
+              {dateLabel}
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="bg-primary text-white py-1 px-3 px-md-4 px-lg-5 px-xl-6 text-center w-100" style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}>
-        <span className="text-nowrap">
-          Critical Patients will be given priority in Queue
+      <div
+        className="bg-white text-dark py-0 px-3 px-md-4 px-lg-5 text-center w-100 border-bottom"
+        style={{ fontSize: "clamp(0.75rem, 1vw, 1.2rem)" }}
+      >
+        <span
+          className="d-inline-flex align-items-center justify-content-center gap-2 fw-semibold"
+          style={{ color: HEADER_PURPLE }}
+        >
+          <i className="ti ti-alert-circle" aria-hidden />
+          Critical Patients will be given priority inQueue
         </span>
       </div>
 
@@ -455,15 +518,15 @@ const QueueDisplayComponent = () => {
           className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1 d-flex flex-column"
           style={{
             maxWidth: "clamp(240px, 22%, 420px)",
-            padding: "clamp(0.35rem, 0.9vw, 1.5rem)",
+            padding: "clamp(0.2rem, 0.45vw, 0.45rem)",
             height: "71vh",
           }}
         >
           <div
             className="bg-light  flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
             style={{ 
-              width: "clamp(180px, 20vw, 420px)", 
-              height: "clamp(220px, 28vw, 560px)",
+              width: "clamp(148px, 16.2vw, 260px)", 
+              height: "clamp(184px, 22.5vw, 330px)",
             }}
           >
             <Image
@@ -476,16 +539,98 @@ const QueueDisplayComponent = () => {
             />
           </div>
           <h2
-            className="fw-bold text-dark mb-0 mx-auto"
+            className="fw-bold mb-0 mx-auto"
             style={{
-              fontSize: "clamp(1rem, 1.8vw, 5rem)",
+              color: HEADER_PURPLE,
+              fontSize: "clamp(1rem, 1.75vw, 3rem)",
               maxWidth: "clamp(220px, 20vw, 380px)",
               lineHeight: 1.2,
             }}
           >
             {doctorName}
-            {departmentOrSpecialization ? ` (${departmentOrSpecialization})` : ""}
           </h2>
+          <div className="mt-1 d-flex flex-column gap-1">
+            <div
+              className="d-flex align-items-center gap-1 rounded-2 p-1"
+              style={{ backgroundColor: DOCTOR_INFO_BG }}
+            >
+              <span
+                className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
+                style={{
+                  width: "clamp(20px, 1.3vw, 26px)",
+                  height: "clamp(20px, 1.3vw, 26px)",
+                  backgroundColor: HEADER_PURPLE,
+                }}
+              >
+                <i className="ti ti-briefcase" />
+              </span>
+              <div className="text-start">
+                <p
+                  className="mb-0 fw-semibold"
+                  style={{ color: HEADER_PURPLE, fontSize: "clamp(0.78rem, 0.94vw, 1.08rem)" }}
+                >
+                  Designation
+                </p>
+                <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
+                  {designation || "Consultant"}
+                </p>
+              </div>
+            </div>
+            <div
+              className="d-flex align-items-center gap-1 rounded-2 p-1"
+              style={{ backgroundColor: DOCTOR_INFO_BG }}
+            >
+              <span
+                className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
+                style={{
+                  width: "clamp(20px, 1.3vw, 26px)",
+                  height: "clamp(20px, 1.3vw, 26px)",
+                  backgroundColor: HEADER_PURPLE,
+                }}
+              >
+                <i className="ti ti-briefcase-2" />
+              </span>
+              <div className="text-start">
+                <p
+                  className="mb-0 fw-semibold"
+                  style={{ color: HEADER_PURPLE, fontSize: "clamp(0.78rem, 0.94vw, 1.08rem)" }}
+                >
+                  Experience
+                </p>
+                <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
+                  {display?.yearsOfExperience != null
+                    ? `${display.yearsOfExperience}+ Years`
+                    : "N/A"}
+                </p>
+              </div>
+            </div>
+            <div
+              className="d-flex align-items-center gap-1 rounded-2 p-1"
+              style={{ backgroundColor: DOCTOR_INFO_BG }}
+            >
+              <span
+                className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
+                style={{
+                  width: "clamp(20px, 1.3vw, 26px)",
+                  height: "clamp(20px, 1.3vw, 26px)",
+                  backgroundColor: HEADER_PURPLE,
+                }}
+              >
+                <i className="ti ti-calendar-time" />
+              </span>
+              <div className="text-start">
+                <p
+                  className="mb-0 fw-semibold"
+                  style={{ color: HEADER_PURPLE, fontSize: "clamp(0.78rem, 0.94vw, 1.08rem)" }}
+                >
+                  Timings
+                </p>
+                <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
+                  {display?.shift || display?.sessionSlot || "N/A"}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right: Queue table */}
@@ -495,19 +640,25 @@ const QueueDisplayComponent = () => {
         >
           <div className="table-responsive w-100 flex-grow-1">
             <table className="table mb-0 w-100">
-              <thead className="table-dark position-sticky top-0 z-1">
+              <thead className="position-sticky top-0 z-1" style={{ backgroundColor: "#EFE8F8" }}>
                 <tr>
                   <th className="text-center" style={{ 
+                    backgroundColor: "#EFE8F8",
                     padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",
-                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)"
+                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)",
+                    color: HEADER_PURPLE
                   }}>Token No</th>
                   <th className="text-center" style={{ 
+                    backgroundColor: "#EFE8F8",
                     padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",
-                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)"
+                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)",
+                    color: HEADER_PURPLE
                   }}>Status</th>
                   <th className="text-center" style={{ 
+                    backgroundColor: "#EFE8F8",
                     padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",
-                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)"
+                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)",
+                    color: HEADER_PURPLE
                   }}>MRD No</th>
                 </tr>
               </thead>

@@ -238,6 +238,19 @@ const DaycareAppointmentDetailsComponent = () => {
                     {daycare.status || "Scheduled"}
                   </span>
                 </div>
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                  <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
+                  <Link
+                    href={`${all_routes.patientDetails}?id=${daycare.patient?._id ?? daycare.patientId ?? ""}`}
+                    className={`btn btn-sm d-inline-flex align-items-center ${
+                      daycare.patient?._id || daycare.patientId ? "btn-primary" : "btn-light disabled"
+                    }`}
+                    aria-disabled={!(daycare.patient?._id || daycare.patientId)}
+                  >
+                    <i className="ti ti-user-circle me-1" />
+                    Open Profile
+                  </Link>
+                </div>
                 <div className="row g-2 mb-3">
                   <div className="col-md-4">
                     <div className="mb-2">
