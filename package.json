@@ -88,12 +88,18 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/gitlab": "^13.3.2",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.1",
     "eslint-config-next": "15.5.3",
+    "semantic-release": "^25.0.3",
     "typescript": "^5.9.3"
   }
 }
