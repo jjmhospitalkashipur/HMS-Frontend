@@ -68,6 +68,25 @@ interface IDaycareAppointment {
   patient?: IDaycarePatient;
 }
 
+interface IProcedureCategoryItem {
+  category?: string;
+  name?: string;
+  value?: string;
+  label?: string;
+}
+
+interface IDaycarePagination {
+  total?: number;
+  totalCount?: number;
+}
+
+interface IDaycareAppointmentsResponseData {
+  appointments?: IDaycareAppointment[];
+  pagination?: IDaycarePagination;
+  total?: number;
+  count?: number;
+}
+
 interface IRow {
   id: string;
   _doctorId?: string;
@@ -88,6 +107,12 @@ interface IRow {
   Payment_Status: string;
 }
 
+const getAxiosMessage = (err: unknown, fallback: string) => {
+  if (!axios.isAxiosError(err)) return fallback;
+  const data = err.response?.data as { message?: unknown } | undefined;
+  return typeof data?.message === "string" ? data.message : fallback;
+};
+
 const DaycareAppointmentsComponent = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | "today">("today");
@@ -107,11 +132,15 @@ const DaycareAppointmentsComponent = () => {
 
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
+  const [filterProcedureCategory, setFilterProcedureCategory] = useState<string>("");
   const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<dayjs.Dayjs | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<dayjs.Dayjs | null>(null);
+  const [procedureCategories, setProcedureCategories] = useState<string[]>([]);
+  const [procedureCategoriesLoading, setProcedureCategoriesLoading] = useState(false);
 
   const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
+  const [appliedProcedureCategory, setAppliedProcedureCategory] = useState<string>("");
   const [appliedDate, setAppliedDate] = useState<string | null>(null);
   const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
   const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
@@ -125,6 +154,9 @@ const DaycareAppointmentsComponent = () => {
       }
       if (appliedDoctorId) {
         params.doctorId = appliedDoctorId;
+      }
+      if (appliedProcedureCategory) {
+        params.procedureCategory = appliedProcedureCategory;
       }
       if (activeTab === "today") {
         params.date = todayISODateInIST();
@@ -149,6 +181,7 @@ const DaycareAppointmentsComponent = () => {
       limit,
       searchText,
       appliedDoctorId,
+      appliedProcedureCategory,
       appliedDate,
       appliedStartDate,
       appliedEndDate,
@@ -217,14 +250,14 @@ const DaycareAppointmentsComponent = () => {
         const params = getDaycareQueryParams(true);
         const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments`, { params });
         if (res.data?.code === 200 && res.data?.data) {
-          const raw = res.data.data as any;
+          const raw = res.data.data as IDaycareAppointment[] | IDaycareAppointmentsResponseData;
           const list: IDaycareAppointment[] = Array.isArray(raw)
             ? raw
             : Array.isArray(raw.appointments)
-            ? (raw.appointments as IDaycareAppointment[])
+            ? raw.appointments
             : [];
 
-          const pagination = raw?.pagination;
+          const pagination = Array.isArray(raw) ? undefined : raw?.pagination;
           if (pagination && typeof pagination === "object") {
             const total =
               typeof pagination.total === "number"
@@ -234,7 +267,7 @@ const DaycareAppointmentsComponent = () => {
                   : list.length;
             setTotalCount(total);
           } else {
-            const fallbackTotal = res.data?.data?.total ?? res.data?.data?.count;
+            const fallbackTotal = Array.isArray(raw) ? undefined : raw?.total ?? raw?.count;
             setTotalCount(typeof fallbackTotal === "number" ? fallbackTotal : list.length);
           }
 
@@ -290,10 +323,10 @@ const DaycareAppointmentsComponent = () => {
           setTotalCount(0);
           setError(res.data?.message || "Failed to load daycare appointments.");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setRows([]);
         setTotalCount(0);
-        setError(err?.response?.data?.message || "Failed to load daycare appointments.");
+        setError(getAxiosMessage(err, "Failed to load daycare appointments."));
       } finally {
         setLoading(false);
       }
@@ -313,9 +346,9 @@ const DaycareAppointmentsComponent = () => {
       } else {
         alert(res.data?.message ?? "Failed to delete daycare appointment.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Delete daycare appointment:", err);
-      alert(err?.response?.data?.message ?? "Failed to delete daycare appointment.");
+      alert(getAxiosMessage(err, "Failed to delete daycare appointment."));
     } finally {
       setDaycareDeleteLoading(false);
     }
@@ -337,15 +370,49 @@ const DaycareAppointmentsComponent = () => {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    setProcedureCategoriesLoading(true);
+    axios
+      .get(`${API_BASE_URL}/hospital/procedures/categories`)
+      .then((res) => {
+        const rawCategories = res.data?.data?.categories ?? res.data?.data ?? [];
+        const list = Array.isArray(rawCategories) ? rawCategories : [];
+        const categoryNames = list
+          .map((item: string | IProcedureCategoryItem) => {
+            if (typeof item === "string") return item;
+            return item?.category ?? item?.name ?? item?.value ?? item?.label ?? "";
+          })
+          .map((category: string) => category.trim())
+          .filter(Boolean);
+        setProcedureCategories([...new Set(categoryNames)]);
+      })
+      .catch(() => {
+        setProcedureCategories([]);
+      })
+      .finally(() => {
+        setProcedureCategoriesLoading(false);
+      });
+  }, []);
+
   const doctorOptions: Option[] = useMemo(
     () => [{ value: "", label: "All" }, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
     [doctors]
+  );
+
+  const procedureCategoryOptions: Option[] = useMemo(
+    () => [
+      { value: "", label: "All" },
+      ...procedureCategories.map((category) => ({ value: category, label: category })),
+    ],
+    [procedureCategories]
   );
 
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     setAppliedDoctorId(filterDoctorId);
+    setAppliedProcedureCategory(filterProcedureCategory);
     const hasRange = filterStartDate && filterEndDate;
     if (hasRange) {
       setAppliedStartDate(filterStartDate.format("YYYY-MM-DD"));
@@ -358,13 +425,22 @@ const DaycareAppointmentsComponent = () => {
     }
   };
 
+  const handleProcedureCategoryChange = (option: Option | null) => {
+    const nextCategory = option?.value ?? "";
+    setPage(1);
+    setFilterProcedureCategory(nextCategory);
+    setAppliedProcedureCategory(nextCategory);
+  };
+
   const handleClearFilter = () => {
     setPage(1);
     setFilterDoctorId("");
+    setFilterProcedureCategory("");
     setFilterDate(null);
     setFilterStartDate(null);
     setFilterEndDate(null);
     setAppliedDoctorId("");
+    setAppliedProcedureCategory("");
     setAppliedDate(null);
     setAppliedStartDate(null);
     setAppliedEndDate(null);
@@ -436,7 +512,7 @@ const DaycareAppointmentsComponent = () => {
           verticalAlign: "top",
         },
       }),
-      render: (text: any, record: IRow) => (
+      render: (text: string, record: IRow) => (
         <div style={{ minWidth: 0, maxWidth: "100%", lineHeight: 1.3 }}>
           {record._doctorId ? (
             <Link
@@ -530,7 +606,7 @@ const DaycareAppointmentsComponent = () => {
       title: "",
       sorter: false,
       showSorterTooltip: false,
-      render: (_: any, record: IRow) => (
+      render: (_: unknown, record: IRow) => (
         <div className="d-flex align-items-center gap-2">
           <Link
             className="text-primary"
@@ -686,6 +762,21 @@ const DaycareAppointmentsComponent = () => {
                             onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
                             placeholder="All"
                             className="w-100"
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label mb-1">Category</label>
+                          <CommonSelect
+                            options={procedureCategoryOptions}
+                            value={
+                              procedureCategoryOptions.find(
+                                (o) => o.value === filterProcedureCategory
+                              ) ?? null
+                            }
+                            onChange={handleProcedureCategoryChange}
+                            placeholder="All"
+                            className="w-100"
+                            isLoading={procedureCategoriesLoading}
                           />
                         </div>
                         <div className="mb-3">

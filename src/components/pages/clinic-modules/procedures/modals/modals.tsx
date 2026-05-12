@@ -5,8 +5,6 @@ import CommonSelect from "@/core/common/common-select/commonSelect";
 import type { Option } from "@/core/common/common-select/commonSelect";
 import { Department } from "@/core/common/selectOption";
 import ImageWithBasePath from "@/core/imageWithBasePath";
-import { all_routes } from "@/routes/all_routes";
-import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 
@@ -15,6 +13,7 @@ const CATEGORY_OPTIONS: Option[] = [
   { value: "Surgical", label: "Surgical" },
   { value: "Therapeutic", label: "Therapeutic" },
   { value: "Preventive", label: "Preventive" },
+  { value: "X-ray", label: "X-ray" },
 ];
 
 const STATUS_OPTIONS: Option[] = [
@@ -27,6 +26,24 @@ interface IModalsProps {
   deleteLoading?: boolean;
   onEditSuccess?: () => void;
 }
+
+interface IBootstrapOffcanvasInstance {
+  hide?: () => void;
+}
+
+interface IBootstrapWindow extends Window {
+  bootstrap?: {
+    Offcanvas?: {
+      getInstance?: (element: HTMLElement) => IBootstrapOffcanvasInstance | null;
+    };
+  };
+}
+
+const getProcedureErrorMessage = (err: unknown, fallback: string) => {
+  if (!axios.isAxiosError(err)) return fallback;
+  const data = err.response?.data as { message?: unknown } | undefined;
+  return typeof data?.message === "string" ? data.message : err.message || fallback;
+};
 
 const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps) => {
   const [procedureId, setProcedureId] = useState<string | null>(null);
@@ -133,7 +150,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
         setEditError("");
         const offcanvasEl = document.getElementById("edit_procedure");
         if (offcanvasEl) {
-          const offcanvasApi = (window as any).bootstrap?.Offcanvas;
+          const offcanvasApi = (window as IBootstrapWindow).bootstrap?.Offcanvas;
           const instance = offcanvasApi?.getInstance
             ? offcanvasApi.getInstance(offcanvasEl)
             : null;
@@ -148,9 +165,8 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
       } else {
         setEditError(res?.data?.message ?? "Failed to update procedure.");
       }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message ?? err?.message ?? "Failed to update procedure.";
-      setEditError(msg);
+    } catch (err: unknown) {
+      setEditError(getProcedureErrorMessage(err, "Failed to update procedure."));
     } finally {
       setEditLoading(false);
     }

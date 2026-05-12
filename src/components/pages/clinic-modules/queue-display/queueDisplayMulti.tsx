@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import { Maximize, Minimize } from "tabler-icons-react";
+import { Maximize, Minimize, Clock } from "tabler-icons-react";
 import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
 
 interface IQueuePatient {
@@ -91,6 +92,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
 }
 
 const QUEUE_ORANGE_MR = "#FF6600";
+const HEADER_PURPLE = "#6F4A8E";
+const TABLE_HEADER_BG = "#EFE8F8";
 
 function getStatusDisplay(status: string, visitType?: string) {
   const normalized = status?.toLowerCase() ?? "";
@@ -221,6 +224,7 @@ const QueueDisplayMultiComponent = () => {
   const [error, setError] = useState("");
   const [pharmaQueue, setPharmaQueue] = useState<IPharmaQueueToken[]>([]);
   const [pharmaError, setPharmaError] = useState("");
+  const [now, setNow] = useState(() => new Date());
   const eventSourceRefs = useRef<Record<string, EventSource>>({});
   const pharmaEventSourceRef = useRef<EventSource | null>(null);
 
@@ -243,6 +247,11 @@ const QueueDisplayMultiComponent = () => {
       setIsFullscreen(!!document.fullscreenElement);
     });
     return () => document.removeEventListener("fullscreenchange", () => {});
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // Ensure intro video attempts to autoplay when visible (page ≠ pharma-only)
@@ -549,6 +558,18 @@ const QueueDisplayMultiComponent = () => {
       return (a?.pharmaTokenId ?? 0) - (b?.pharmaTokenId ?? 0);
     });
 
+  const timeLabel = now.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  const dateLabel = now.toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div
       ref={containerRef}
@@ -565,26 +586,48 @@ const QueueDisplayMultiComponent = () => {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
 
-      <div className="bg-white border-bottom py-1 px-3 px-md-4 px-lg-5 px-xl-6 d-flex align-items-center w-100">
-        <img
-          src="/JJM Logo.png"
-          alt="JJM Hospital"
-          className="flex-shrink-0 me-3"
-          style={{ height: "clamp(40px, 4vw, 150px)", width: "auto", objectFit: "contain" }}
-        />
+      <div
+        className="bg-white border-bottom py-1 px-3 px-md-4 px-lg-5 px-xl-6 d-grid align-items-center gap-2 gap-md-3 w-100"
+        style={{ gridTemplateColumns: "1fr auto 1fr" }}
+      >
+        <div className="min-w-0" style={{ justifySelf: "start" }}>
+          <img
+            src="/JJM Logo.png"
+            alt="JJM Hospital"
+            style={{ height: "clamp(40px, 4vw, 150px)", width: "auto", objectFit: "contain" }}
+          />
+        </div>
         <h1
-          className="mb-0 fw-bold text-dark flex-grow-1 text-center"
-          style={{ fontSize: "clamp(1rem, 2vw, 6rem)" }}
+          className="mb-0 fw-bold text-center"
+          style={{ color: HEADER_PURPLE, fontSize: "clamp(1rem, 2vw, 6rem)", justifySelf: "center" }}
         >
           JJM Hospital
         </h1>
+        <div
+          className="d-flex align-items-center justify-content-end gap-2 text-end pe-5 pe-md-6 min-w-0"
+          style={{ color: HEADER_PURPLE, justifySelf: "end" }}
+        >
+          <Clock size={48} strokeWidth={1.6} aria-hidden />
+          <div>
+            <p
+              className="mb-0 fw-bold"
+              style={{ fontSize: "clamp(0.82rem, 1.3vw, 1.4rem)" }}
+            >
+              {timeLabel}
+            </p>
+            <p className="mb-0 text-muted fw-medium" style={{ fontSize: "clamp(0.58rem, 0.75vw, 0.86rem)" }}>
+              {dateLabel}
+            </p>
+          </div>
+        </div>
       </div>
       <div
-        className="bg-primary text-white py-1 px-3 px-md-4 px-lg-5 px-xl-6 text-center w-100"
+        className="bg-white text-dark py-1 px-3 px-md-4 px-lg-5 px-xl-6 text-center w-100 border-bottom"
         style={{ fontSize: "clamp(0.75rem, 1.2vw, 3rem)" }}
       >
-        <span className="text-nowrap">
-         Critical Patients will be given priority in Queue
+        <span className="text-nowrap fw-semibold" style={{ color: HEADER_PURPLE }}>
+          <i className="ti ti-alert-circle me-1" aria-hidden />
+          Critical Patients will be given priority in Queue
         </span>
       </div>
 
@@ -594,20 +637,22 @@ const QueueDisplayMultiComponent = () => {
         <div
           className="w-100"
           style={{
-            flex: "1 1 50%",
+            flex: "1 1 64%",
             minWidth: 0,
-            height: "64vh",
+            height: "72vh",
           }}
         >
-          <div className="card shadow-sm w-100 h-100">
+          <div className="card border shadow-sm w-100 h-100 overflow-hidden d-flex flex-column">
            
-            <div className="card-body">
+            <div className="card-body p-0 flex-grow-1 overflow-hidden">
               <div className="table-responsive">
-                <table className="table mb-0 w-100">
-                  <thead className="table-dark">
+                <table className="table mb-0 w-100" style={{ tableLayout: "fixed" }}>
+                  <thead style={{ backgroundColor: TABLE_HEADER_BG }}>
                     <tr>
                       <th
                         style={{
+                          backgroundColor: TABLE_HEADER_BG,
+                          color: HEADER_PURPLE,
                           width: "50%",
                           fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
                         }}
@@ -617,7 +662,10 @@ const QueueDisplayMultiComponent = () => {
                       <th
                         className="text-center"
                         style={{
+                          backgroundColor: TABLE_HEADER_BG,
+                          color: HEADER_PURPLE,
                           width: "25%",
+                          textAlign: "center",
                           fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
                         }}
                       >
@@ -626,6 +674,8 @@ const QueueDisplayMultiComponent = () => {
                       <th
                         className="text-center"
                         style={{
+                          backgroundColor: TABLE_HEADER_BG,
+                          color: HEADER_PURPLE,
                           width: "25%",
                           fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
                         }}
@@ -659,6 +709,7 @@ const QueueDisplayMultiComponent = () => {
                             <td
                               style={{
                                 ...statusDisplay.rowStyle,
+                                verticalAlign: "middle",
                                 fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               }}
                             >
@@ -673,6 +724,8 @@ const QueueDisplayMultiComponent = () => {
                               className={`text-center fw-semibold ${statusDisplay.textClass}`}
                               style={{
                                 ...statusDisplay.rowStyle,
+                                textAlign: "center",
+                                verticalAlign: "middle",
                                 fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               }}
                             >
@@ -682,6 +735,8 @@ const QueueDisplayMultiComponent = () => {
                               className={`text-center ${statusDisplay.textClass}`}
                               style={{
                                 ...statusDisplay.rowStyle,
+                                textAlign: "center",
+                                verticalAlign: "middle",
                                 fontSize: "clamp(1rem, 1.8vw, 3.6rem)",
                               }}
                             >
@@ -695,38 +750,66 @@ const QueueDisplayMultiComponent = () => {
                 </table>
               </div>
             </div>
+            <div className="border-top bg-white p-2 p-md-3 flex-shrink-0">
+              <Image
+                src="/assets/img/Bannerforscreen2.jpg"
+                alt="Hospital promotional banner"
+                width={1000}
+                height={300}
+                className="w-100 h-auto rounded-2"
+                priority={false}
+              />
+            </div>
           </div>
         </div>
 
         {/* Right: intro video on `/qd-all/1` (page ≠ 2); pharma queue only on `/qd-all/2` */}
         <div
           className="d-none d-lg-flex"
-          style={{ flex: "1 1 50%", minWidth: 0, height: "64vh" }}
+          style={{ flex: "1 1 40%", minWidth: 0, height: "64vh" }}
         >
           {pageNum === 2 ? (
             <div className="rounded-3 border shadow-sm bg-white w-100 overflow-hidden h-100 d-flex flex-column">
-              <div className="bg-primary text-white text-center fw-semibold py-2 flex-shrink-0">
+              <div
+                className="text-center fw-semibold py-2 flex-shrink-0"
+                style={{ backgroundColor: HEADER_PURPLE, color: "#ffffff" }}
+              >
                 Pharma Queue
               </div>
               <div className="table-responsive flex-grow-1 min-h-0">
                 <table className="table mb-0">
-                  <thead className="table-dark position-sticky top-0 z-1">
+                  <thead
+                    className="position-sticky top-0 z-1"
+                    style={{ backgroundColor: TABLE_HEADER_BG }}
+                  >
                     <tr>
                       <th
                         className="text-center"
-                        style={{ fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)" }}
+                        style={{
+                          backgroundColor: TABLE_HEADER_BG,
+                          color: HEADER_PURPLE,
+                          fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
+                        }}
                       >
                         Token
                       </th>
                       <th
                         className="text-center"
-                        style={{ fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)" }}
+                        style={{
+                          backgroundColor: TABLE_HEADER_BG,
+                          color: HEADER_PURPLE,
+                          fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
+                        }}
                       >
                         Status
                       </th>
                       <th
                         className="text-center"
-                        style={{ fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)" }}
+                        style={{
+                          backgroundColor: TABLE_HEADER_BG,
+                          color: HEADER_PURPLE,
+                          fontSize: "clamp(0.9rem, 1.6vw, 3.2rem)",
+                        }}
                       >
                         MRD
                       </th>
@@ -806,7 +889,7 @@ const QueueDisplayMultiComponent = () => {
       {/* Scrolling info strip (same as single QD, bigger and broader) */}
       <div
         className="w-100 py-3 mt-0"
-        style={{ backgroundColor: "#704E8E", overflow: "hidden" }}
+        style={{ backgroundColor: HEADER_PURPLE, overflow: "hidden" }}
       >
         <div
           className="text-white fw-semibold"

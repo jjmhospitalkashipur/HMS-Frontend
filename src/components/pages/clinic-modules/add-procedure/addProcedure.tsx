@@ -15,12 +15,19 @@ const CATEGORY_OPTIONS: Option[] = [
   { value: "Surgical", label: "Surgical" },
   { value: "Therapeutic", label: "Therapeutic" },
   { value: "Preventive", label: "Preventive" },
+  { value: "X-ray", label: "X-ray" },
 ];
 
 const STATUS_OPTIONS: Option[] = [
   { value: "Active", label: "Active" },
   { value: "Inactive", label: "Inactive" },
 ];
+
+const getProcedureErrorMessage = (err: unknown, fallback: string) => {
+  if (!axios.isAxiosError(err)) return fallback;
+  const data = err.response?.data as { message?: unknown } | undefined;
+  return typeof data?.message === "string" ? data.message : fallback;
+};
 
 const AddProcedureComponent = () => {
   const router = useRouter();
@@ -72,8 +79,8 @@ const AddProcedureComponent = () => {
       } else {
         setError(res?.data?.message ?? "Failed to add procedure.");
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Failed to add procedure.");
+    } catch (err: unknown) {
+      setError(getProcedureErrorMessage(err, "Failed to add procedure."));
     } finally {
       setLoading(false);
     }

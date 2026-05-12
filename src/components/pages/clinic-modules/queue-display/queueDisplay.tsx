@@ -90,8 +90,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     regularCount: computedRegular,
   } = sortAndComputeQueue(rawQueue);
   const apiTotal = Number(data.totalPatients);
-  const apiEmergency = Number((data as any).emergencyCount);
-  const apiRegular = Number((data as any).regularCount);
+  const apiEmergency = Number(data.emergencyCount);
+  const apiRegular = Number(data.regularCount);
 
   return {
     doctorId: (data.doctorId as string) ?? "",
@@ -107,7 +107,7 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     totalPatients: Number.isFinite(apiTotal) ? apiTotal : computedTotal,
     emergencyCount: Number.isFinite(apiEmergency) ? apiEmergency : computedEmergency,
     regularCount: Number.isFinite(apiRegular) ? apiRegular : computedRegular,
-    currentTime: (data as any).currentTime as string | undefined,
+    currentTime: typeof data.currentTime === "string" ? data.currentTime : undefined,
     queue,
   };
 }
@@ -413,7 +413,6 @@ const QueueDisplayComponent = () => {
       ? rawName
       : `Dr. ${rawName}`
     : "—";
-  const departmentOrSpecialization = display?.department ?? display?.specialization ?? "—";
   const designation = display?.designation ?? "—";
   const allQueue = display?.queue ?? [];
   /** Show everyone still in the live queue; only hide finished / cancelled visits (includes Consulting). */
@@ -460,15 +459,18 @@ const QueueDisplayComponent = () => {
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
       {/* Header */}
-      <div className="bg-white border-bottom px-3 px-md-4 px-lg-5 py-1 d-flex align-items-center justify-content-between gap-2 gap-md-3 w-100">
-        <div className="flex-shrink-0">
+      <div
+        className="bg-white border-bottom px-3 px-md-4 px-lg-5 py-1 d-grid align-items-center gap-2 gap-md-3 w-100"
+        style={{ gridTemplateColumns: "1fr auto 1fr" }}
+      >
+        <div className="min-w-0" style={{ justifySelf: "start" }}>
           <img
             src="/JJM Logo.png"
             alt="JJM Hospital"
             style={{ height: "clamp(34px, 3.8vw, 72px)", width: "auto", objectFit: "contain" }}
           />
         </div>
-        <div className="flex-grow-1 text-center">
+        <div className="text-center" style={{ justifySelf: "center" }}>
           <h1
             className="mb-0 fw-bold"
             style={{
@@ -481,7 +483,10 @@ const QueueDisplayComponent = () => {
           </h1>
          
         </div>
-        <div className="d-flex align-items-center justify-content-end gap-2 flex-shrink-0 text-end pe-5 pe-md-6">
+        <div
+          className="d-flex align-items-center justify-content-end gap-2 text-end pe-5 pe-md-6 min-w-0"
+          style={{ justifySelf: "end" }}
+        >
           <span aria-hidden style={{ color: HEADER_PURPLE }}>
             <Clock size={48} strokeWidth={1.6} />
           </span>
@@ -512,14 +517,14 @@ const QueueDisplayComponent = () => {
       </div>
 
       {/* Main content: doctor info left, queue right */}
-      <div className="flex-grow-1 d-flex flex-column flex-md-row align-items-stretch p-2 p-md-3 p-lg-4 p-xl-4 gap-3 gap-md-4 gap-xl-4 w-100 overflow-hidden">
+      <div className="flex-grow-1 d-flex flex-column flex-md-row align-items-stretch px-2 px-md-3 px-lg-4 px-xl-4 py-1 py-md-2 gap-3 gap-md-4 gap-xl-4 w-100 overflow-hidden">
         {/* Left: Doctor info */}
         <div
           className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1 d-flex flex-column"
           style={{
             maxWidth: "clamp(240px, 22%, 420px)",
             padding: "clamp(0.2rem, 0.45vw, 0.45rem)",
-            height: "71vh",
+            height: "76vh",
           }}
         >
           <div
@@ -539,7 +544,7 @@ const QueueDisplayComponent = () => {
             />
           </div>
           <h2
-            className="fw-bold mb-0 mx-auto"
+            className="fw-bold mb-2 mx-auto"
             style={{
               color: HEADER_PURPLE,
               fontSize: "clamp(1rem, 1.75vw, 3rem)",
@@ -551,15 +556,17 @@ const QueueDisplayComponent = () => {
           </h2>
           <div className="mt-1 d-flex flex-column gap-1">
             <div
-              className="d-flex align-items-center gap-1 rounded-2 p-1"
+              className="d-flex align-items-center gap-2 rounded-2 p-2"
               style={{ backgroundColor: DOCTOR_INFO_BG }}
             >
               <span
                 className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
                 style={{
-                  width: "clamp(20px, 1.3vw, 26px)",
-                  height: "clamp(20px, 1.3vw, 26px)",
+                  width: "clamp(28px, 2vw, 42px)",
+                  height: "clamp(28px, 2vw, 42px)",
                   backgroundColor: HEADER_PURPLE,
+                  fontSize: "clamp(1rem, 1.35vw, 1.65rem)",
+                  flexShrink: 0,
                 }}
               >
                 <i className="ti ti-briefcase" />
@@ -577,15 +584,17 @@ const QueueDisplayComponent = () => {
               </div>
             </div>
             <div
-              className="d-flex align-items-center gap-1 rounded-2 p-1"
+              className="d-flex align-items-center gap-2 rounded-2 p-2"
               style={{ backgroundColor: DOCTOR_INFO_BG }}
             >
               <span
                 className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
                 style={{
-                  width: "clamp(20px, 1.3vw, 26px)",
-                  height: "clamp(20px, 1.3vw, 26px)",
+                  width: "clamp(28px, 2vw, 42px)",
+                  height: "clamp(28px, 2vw, 42px)",
                   backgroundColor: HEADER_PURPLE,
+                  fontSize: "clamp(1rem, 1.35vw, 1.65rem)",
+                  flexShrink: 0,
                 }}
               >
                 <i className="ti ti-briefcase-2" />
@@ -605,15 +614,17 @@ const QueueDisplayComponent = () => {
               </div>
             </div>
             <div
-              className="d-flex align-items-center gap-1 rounded-2 p-1"
+              className="d-flex align-items-center gap-2 rounded-2 p-2"
               style={{ backgroundColor: DOCTOR_INFO_BG }}
             >
               <span
                 className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
                 style={{
-                  width: "clamp(20px, 1.3vw, 26px)",
-                  height: "clamp(20px, 1.3vw, 26px)",
+                  width: "clamp(28px, 2vw, 42px)",
+                  height: "clamp(28px, 2vw, 42px)",
                   backgroundColor: HEADER_PURPLE,
+                  fontSize: "clamp(1rem, 1.35vw, 1.65rem)",
+                  flexShrink: 0,
                 }}
               >
                 <i className="ti ti-calendar-time" />
@@ -636,7 +647,7 @@ const QueueDisplayComponent = () => {
         {/* Right: Queue table */}
         <div
           className="flex-grow-1 min-w-0 rounded-3 border shadow-sm order-1 order-md-2 d-flex flex-column overflow-hidden"
-          style={{ minWidth: "0", height: "71vh" }}
+          style={{ minWidth: "0", height: "76vh" }}
         >
           <div className="table-responsive w-100 flex-grow-1">
             <table className="table mb-0 w-100">
@@ -675,11 +686,7 @@ const QueueDisplayComponent = () => {
                 ) : (
                   <>
                     {visibleQueue.map((entry) => {
-                    const normalizedStatus = entry.status?.toLowerCase() ?? "";
                     const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
-                    const isConsulting = normalizedStatus === "consulting" || normalizedStatus === "in progress";
-                    const isMR = entry.visitType?.toLowerCase() === "mr";
-                    const isEmergency = isEmergencyVisit(entry);
                     const tokenLabel = formatTokenWithVisitPrefix(entry.tokenNumber, entry.visitType);
                     return (
                       <tr key={entry._id} style={statusDisplay.rowStyle}>
