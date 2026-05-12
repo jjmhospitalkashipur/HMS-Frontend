@@ -1,7 +1,7 @@
 "use client";
 
 import Modals from "./modals/modals";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import { Department, Service_Name, StatusActive } from "@/core/common/selectOption";
@@ -25,11 +25,35 @@ interface IProcedureRow {
   roomCharges?: number;
 }
 
+interface IProceduresPagination {
+  currentPage?: number;
+  limit?: number;
+  count?: number;
+  totalCount?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+}
+
+interface IBootstrapModalInstance {
+  hide?: () => void;
+}
+
+interface IBootstrapWindow extends Window {
+  bootstrap?: {
+    Modal?: {
+      getInstance?: (element: HTMLElement) => IBootstrapModalInstance | null;
+    };
+  };
+}
+
 const ProceduresComponent = () => {
   const router = useRouter();
   const [procedures, setProcedures] = useState<IProcedureRow[]>([]);
   const [proceduresLoading, setProceduresLoading] = useState(false);
   const [proceduresTotal, setProceduresTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [procedureToDelete, setProcedureToDelete] = useState<{ id: string } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const columns = [
@@ -111,38 +135,59 @@ const ProceduresComponent = () => {
 
   const handleSearch = (value: string) => {
     setSearchText(value);
+    setPage(1);
   };
 
   const [sliderValueDefault, setSliderValueDefault] = useState(0);
-  const handleChangeDefault = (value: any) => {
-    setSliderValueDefault(value);
+  const handleChangeDefault = (value: number | number[]) => {
+    setSliderValueDefault(Array.isArray(value) ? value[0] ?? 0 : value);
   };
 
-  const fetchProcedures = async () => {
+  const fetchProcedures = useCallback(async () => {
     if (!API_BASE_URL) return;
     try {
       setProceduresLoading(true);
+      const trimmedSearch = searchText.trim();
       const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-        params: { limit: 20 },
+        params: {
+          page,
+          limit,
+          search: trimmedSearch || undefined,
+        },
       });
       if (res.data?.code === 200) {
         const list = res.data?.data?.procedures ?? [];
         setProcedures(list as IProcedureRow[]);
-        const count = res.data?.data?.count;
-        setProceduresTotal(count != null ? count : list.length);
+        const pagination = res.data?.data?.pagination as IProceduresPagination | undefined;
+        const totalCount =
+          typeof pagination?.totalCount === "number"
+            ? pagination.totalCount
+            : typeof res.data?.data?.totalCount === "number"
+              ? res.data.data.totalCount
+              : typeof res.data?.data?.count === "number"
+                ? res.data.data.count
+                : list.length;
+        setProceduresTotal(totalCount);
       } else {
         setProcedures([]);
+        setProceduresTotal(0);
       }
     } catch {
       setProcedures([]);
+      setProceduresTotal(0);
     } finally {
       setProceduresLoading(false);
     }
-  };
+  }, [page, limit, searchText]);
 
   useEffect(() => {
     fetchProcedures();
-  }, []);
+  }, [fetchProcedures]);
+
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setPage(newPageSize !== limit ? 1 : newPage);
+    setLimit(newPageSize);
+  };
 
   const handleDeleteProcedure = async () => {
     const id = procedureToDelete?.id;
@@ -154,9 +199,8 @@ const ProceduresComponent = () => {
         setProcedureToDelete(null);
         const modalEl = document.getElementById("delete_procedure");
         if (modalEl) {
-          const bsModal = (window as any).bootstrap?.Modal?.getInstance
-            ? (window as any).bootstrap.Modal.getInstance(modalEl)
-            : null;
+          const getModalInstance = (window as IBootstrapWindow).bootstrap?.Modal?.getInstance;
+          const bsModal = getModalInstance?.(modalEl) ?? null;
           if (bsModal && typeof bsModal.hide === "function") {
             bsModal.hide();
           } else {
@@ -384,8 +428,12 @@ const ProceduresComponent = () => {
                 columns={columns}
                 dataSource={proceduresDataSource}
                 Selection={false}
-                searchText={searchText}
+                searchText=""
                 onRowClick={handleProcedureRowClick}
+                total={proceduresTotal}
+                currentPage={page}
+                pageSize={limit}
+                onPaginationChange={handlePaginationChange}
               />
             )}
           </div>
