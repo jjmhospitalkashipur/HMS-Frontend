@@ -1,3 +1,10 @@
+## [1.0.1](https://gitlab.com/pathbyte/hmsfrontend/compare/v1.0.0...v1.0.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* patch security vulnerabilities via npm audit fix ([915bfd0](https://gitlab.com/pathbyte/hmsfrontend/commit/915bfd05aef24fe411d816d4800b20c7c4ba7e9f))
+
 # 1.0.0 (2026-05-12)
 
 
