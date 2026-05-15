@@ -33,6 +33,10 @@ import dayjs from "dayjs";
 import Select from "react-select";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
+import {
+  formatPatientPhoneForApi,
+  validateIndianMobilePhone,
+} from "@/core/utils/formatPatientPhoneForApi";
 
 interface ISlot {
   session: string;
@@ -802,6 +806,12 @@ const Modals = () => {
       return;
     }
 
+    const phoneValidation = validateIndianMobilePhone(phone);
+    if (!phoneValidation.valid) {
+      alert(phoneValidation.message);
+      return;
+    }
+
     try {
       if (!API_BASE_URL) {
         console.error("API_BASE_URL is undefined. Check .env.local file.");
@@ -832,7 +842,7 @@ const Modals = () => {
           ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
           : undefined,
         email: email || undefined,
-        phone: phone || "",
+        phone: formatPatientPhoneForApi(phone),
         dob: formatDob(),
         yearsOfExperience: parseInt(yearsOfExperience) || 0,
         department: department?.value !== "Select" ? department?.value : "",

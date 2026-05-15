@@ -21,6 +21,10 @@ import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import Select from "react-select";
+import {
+  formatPatientPhoneForApi,
+  validateIndianMobilePhone,
+} from "@/core/utils/formatPatientPhoneForApi";
 
 const AddDoctorComponent = () => {
   const router = useRouter();
@@ -94,6 +98,11 @@ const AddDoctorComponent = () => {
       alert("Phone Number is required.");
       return;
     }
+    const phoneValidation = validateIndianMobilePhone(phone);
+    if (!phoneValidation.valid) {
+      alert(phoneValidation.message);
+      return;
+    }
     if (!email?.trim()) {
       alert("Email is required.");
       return;
@@ -148,7 +157,7 @@ const AddDoctorComponent = () => {
           : "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg",
         email: email.trim(),
         password: password.trim(),
-        phone: phone || "",
+        phone: formatPatientPhoneForApi(phone),
         yearsOfExperience: parseInt(yearsOfExperience) || 0,
         department: department?.value !== "Select" ? department?.value : "",
         designation: designation?.value !== "Select" ? designation?.value : "",

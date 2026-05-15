@@ -14,6 +14,10 @@ import "react-phone-number-input/style.css";
 import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import {
+  formatPatientPhoneForApi,
+  validateIndianMobilePhone,
+} from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 
@@ -244,6 +248,12 @@ const Modals = () => {
       return;
     }
 
+    const phoneValidation = validateIndianMobilePhone(phone);
+    if (!phoneValidation.valid) {
+      alert(phoneValidation.message);
+      return;
+    }
+
     try {
       if (!API_BASE_URL) {
         console.error("API_BASE_URL is undefined. Check .env.local file.");
@@ -255,7 +265,7 @@ const Modals = () => {
       const patientData = {
         title: title?.value || "",
         name: name,
-        phone: phone,
+        phone: formatPatientPhoneForApi(phone),
         email: email || undefined,
         dob: formatDob() || undefined,
         age: calculateAge(),

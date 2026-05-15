@@ -6,6 +6,10 @@ import Link from "next/link";
 import { all_routes } from "../../../../../routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import {
+  formatPatientPhoneForApi,
+  validateIndianMobilePhone,
+} from "@/core/utils/formatPatientPhoneForApi";
 import dayjs from "dayjs";
 import { DatePicker, TimePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
@@ -383,6 +387,15 @@ const EditAppointmentComponent = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!visitId || !API_BASE_URL) return;
+
+    if (patientId && appointmentType === "OPD") {
+      const phoneValidation = validateIndianMobilePhone(phone);
+      if (!phoneValidation.valid) {
+        setError(phoneValidation.message ?? "Invalid phone number.");
+        return;
+      }
+    }
+
     const hasDiscountMismatch = Math.abs(discount - discountFromApi) > 0.0001;
     if (discount > 0 && hasDiscountMismatch) {
       setDiscountPassword("");
@@ -431,7 +444,7 @@ const EditAppointmentComponent = () => {
             const patientPatch: Record<string, unknown> = {
               title: title?.value || "",
               name: name.trim(),
-              phone: phone || "",
+              phone: formatPatientPhoneForApi(phone),
               email: email || undefined,
               age: calculatePatientAgeYears(),
               months: parseAgeComponent(ageMonths),

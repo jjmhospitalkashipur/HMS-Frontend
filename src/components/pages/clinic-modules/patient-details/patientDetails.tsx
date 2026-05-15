@@ -63,6 +63,12 @@ interface IPatient {
   division?: string;
 }
 
+interface IVisitDoctorEmbed {
+  _id?: string;
+  name?: string;
+  designation?: string;
+}
+
 interface IVisit {
   _id: string;
   visitId: string;
@@ -74,7 +80,7 @@ interface IVisit {
   visitTime: string;
   sessionSlot: string;
   status: string;
-  [key: string]: any;
+  doctor?: IVisitDoctorEmbed;
 }
 
 interface IDoctor {
@@ -155,6 +161,47 @@ const PatientDetailsComponent = () => {
     }
   };
 
+  const fetchDoctorsByIdMap = async (): Promise<Record<string, IDoctor>> => {
+    if (!API_BASE_URL) return {};
+    try {
+      const res = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
+        params: { limit: 500 },
+      });
+      const list = res.data?.data?.doctors ?? res.data?.data ?? [];
+      if (!Array.isArray(list)) return {};
+      return list.reduce<Record<string, IDoctor>>((acc, d: { _id?: string; name?: string; designation?: string }) => {
+        if (!d?._id) return acc;
+        acc[d._id] = {
+          _id: d._id,
+          name: d.name ?? "",
+          designation: d.designation ?? "",
+        };
+        return acc;
+      }, {});
+    } catch {
+      return {};
+    }
+  };
+
+  const resolveDoctorForVisit = (
+    visit: IVisit,
+    doctorsById: Record<string, IDoctor>
+  ): IDoctor | null => {
+    const embedded = visit.doctor;
+    if (embedded?.name) {
+      return {
+        _id: embedded._id ?? visit.doctorId ?? "",
+        name: embedded.name,
+        designation: embedded.designation ?? "",
+      };
+    }
+    const doctorId = visit.doctorId?.trim();
+    if (doctorId && doctorsById[doctorId]) {
+      return doctorsById[doctorId];
+    }
+    return null;
+  };
+
   const fetchAppointments = async () => {
     try {
       if (!patientId || !API_BASE_URL) {
@@ -162,51 +209,36 @@ const PatientDetailsComponent = () => {
       }
 
       setAppointmentsLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/hospital/visits/patient/${patientId}`);
+      const [visitsResponse, doctorsById] = await Promise.all([
+        axios.get(`${API_BASE_URL}/hospital/visits/patient/${patientId}`),
+        fetchDoctorsByIdMap(),
+      ]);
 
-      if (response.data?.code === 200 && response.data?.data?.visits) {
-        const visits: IVisit[] = response.data.data.visits;
-        
-        // Fetch doctor details for each visit
-        const transformedAppointments = await Promise.all(
-          visits.map(async (visit) => {
-            let doctor: IDoctor | null = null;
+      if (visitsResponse.data?.code === 200 && visitsResponse.data?.data?.visits) {
+        const visits: IVisit[] = visitsResponse.data.data.visits;
 
-            try {
-              const doctorResponse = await axios.get(`${API_BASE_URL}/hospital/doctors/${visit.doctorId}`);
-              if (doctorResponse.data?.code === 200 && doctorResponse.data?.data?.doctor) {
-                doctor = {
-                  _id: doctorResponse.data.data.doctor._id,
-                  name: doctorResponse.data.data.doctor.name,
-                  designation: doctorResponse.data.data.doctor.designation,
-                };
-              }
-            } catch (err) {
-              console.error(`Error fetching doctor ${visit.doctorId}:`, err);
-            }
+        const transformedAppointments = visits.map((visit) => {
+          const doctor = resolveDoctorForVisit(visit, doctorsById);
+          const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
+          const visitTime = visit.visitTime || "";
+          const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
 
-            // Format date and time
-            const visitDate = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
-            const visitTime = visit.visitTime || "";
-            const dateTime = visitDate && visitTime ? `${visitDate} - ${visitTime}` : visitDate || visitTime;
-
-            return {
-              id: visit._id,
-              Case_ID: visit.visitId || visit._id,
-              Date_Time: dateTime,
-              Doctor: doctor?.name || "Unknown Doctor",
-              role: doctor?.designation || "",
-              Mode: visit.appointmentType || "In-person",
-              Status: visit.status || "Scheduled",
-            } as IAppointment;
-          })
-        );
+          return {
+            id: visit._id,
+            Case_ID: visit.visitId || visit._id,
+            Date_Time: dateTime,
+            Doctor: doctor?.name || "Unknown Doctor",
+            role: doctor?.designation || "",
+            Mode: visit.appointmentType || "In-person",
+            Status: visit.status || "Scheduled",
+          } as IAppointment;
+        });
 
         setAppointments(transformedAppointments);
       } else {
         setAppointments([]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching appointments:", error);
       setAppointments([]);
     } finally {

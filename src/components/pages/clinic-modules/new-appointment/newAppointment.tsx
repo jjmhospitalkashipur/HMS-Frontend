@@ -14,10 +14,12 @@ import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { DatePicker, TimePicker } from "antd";
 import Modals from "./modals/modals";
 import Link from "next/link";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import {
+  formatPatientPhoneForApi,
+  validateIndianMobilePhone,
+} from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 
@@ -825,6 +827,13 @@ const NewAppointmentComponent = () => {
       setDaycareError("Please fill required fields: Doctor, Patient name, Phone.");
       return;
     }
+    if (!daycareSelectedPatient?._id) {
+      const daycarePhoneValidation = validateIndianMobilePhone(daycarePhone);
+      if (!daycarePhoneValidation.valid) {
+        setDaycareError(daycarePhoneValidation.message ?? "Invalid phone number.");
+        return;
+      }
+    }
     setDaycareLoading(true);
     try {
       const bedChargesTypeLabel = daycareBedChargesType?.label?.split("(")[0]?.trim() ?? "";
@@ -900,7 +909,7 @@ const NewAppointmentComponent = () => {
         const patientPayload = {
           title: daycareTitle?.value || "",
           name: daycareName.trim(),
-          phone: daycarePhone,
+          phone: formatPatientPhoneForApi(daycarePhone),
           email: daycareEmail || undefined,
           age: calculateDaycareAge(),
           gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
@@ -994,6 +1003,16 @@ const NewAppointmentComponent = () => {
         setError(errorMsg);
         alert(errorMsg);
         return;
+      }
+
+      if (!selectedPatient) {
+        const phoneValidation = validateIndianMobilePhone(phone);
+        if (!phoneValidation.valid) {
+          const errorMsg = phoneValidation.message ?? "Invalid phone number.";
+          setError(errorMsg);
+          alert(errorMsg);
+          return;
+        }
       }
 
       if (!visitDate) {
@@ -1093,7 +1112,7 @@ const NewAppointmentComponent = () => {
       const patientPayload: Record<string, unknown> = {
         title: title?.value || "",
         name: name.trim(),
-        phone: phone || "",
+        phone: formatPatientPhoneForApi(phone),
         email: email || undefined,
         age: calculateAge(),
         months: parseAgeComponent(ageMonths),
