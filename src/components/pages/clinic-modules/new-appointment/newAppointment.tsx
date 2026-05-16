@@ -22,6 +22,12 @@ import {
 } from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
+import IpdBedSelectionStep from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/IpdBedSelectionStep";
+import { fetchIpdBedBlockView } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/fetchIpdBedBlockView";
+import type {
+  IIpdBed,
+  IIpdBedBlockViewData,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/ipdBedTypes";
 
 interface IVisitTypeCharge {
   visitType?: string;
@@ -109,10 +115,10 @@ const NewAppointmentComponent = () => {
   const [attendantName, setAttendantName] = useState<string>("");
   const [attendantRelation, setAttendantRelation] = useState<string>("");
 
-  // Tab: OPD | Daycare (separate forms)
+  // Tab: OPD | Daycare | IPD (separate forms)
   const tabParam = searchParams?.get("tab")?.toLowerCase();
-  const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare">(
-    tabParam === "daycare" ? "Daycare" : "OPD"
+  const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare" | "IPD">(
+    tabParam === "daycare" ? "Daycare" : tabParam === "ipd" ? "IPD" : "OPD"
   );
 
   // Daycare form state (separate from OPD)
@@ -179,6 +185,55 @@ const NewAppointmentComponent = () => {
   const daycareDocVisitCharges = daycareDoctorVisitCharges === "Yes" ? daycareTotal : 0;
   const daycareSubtotal = daycareBedCharges + daycareProceduresCharges + daycareDocVisitCharges;
   const daycareBalance = daycareSubtotal - (daycareDiscount || 0) - (daycareAmountReceived || 0);
+
+  // IPD form state (like Daycare, without daycare/bed charges or hours)
+  const [ipdPhone, setIpdPhone] = useState<string>("");
+  const [ipdTitle, setIpdTitle] = useState<Option | null>(Title[0] || null);
+  const [ipdName, setIpdName] = useState<string>("");
+  const [ipdEmail, setIpdEmail] = useState<string>("");
+  const [ipdGender, setIpdGender] = useState<Option | null>(Gender[0] || null);
+  const [ipdDob, setIpdDob] = useState<any>(null);
+  const [ipdAgeYears, setIpdAgeYears] = useState<string>("");
+  const [ipdAgeMonths, setIpdAgeMonths] = useState<string>("");
+  const [ipdAgeDays, setIpdAgeDays] = useState<string>("");
+  const [ipdBloodGroup, setIpdBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
+  const [ipdAddress, setIpdAddress] = useState<string>("");
+  const [ipdAadharNo, setIpdAadharNo] = useState<string>("");
+  const [ipdAyushmanNo, setIpdAyushmanNo] = useState<string>("");
+  const [ipdAttendantName, setIpdAttendantName] = useState<string>("");
+  const [ipdAttendantRelation, setIpdAttendantRelation] = useState<string>("");
+  const [ipdSelectedPatient, setIpdSelectedPatient] = useState<IPatient | null>(null);
+  const [ipdPatientSearchResults, setIpdPatientSearchResults] = useState<IPatient[]>([]);
+  const [ipdShowPatientDropdown, setIpdShowPatientDropdown] = useState<boolean>(false);
+  const [ipdSearchingPatients, setIpdSearchingPatients] = useState<boolean>(false);
+  const [ipdSelectedDoctor, setIpdSelectedDoctor] = useState<Option | null>(null);
+  const [ipdDoctorVisitCharges, setIpdDoctorVisitCharges] = useState<"Yes" | "No">("No");
+  const [ipdMlc, setIpdMlc] = useState(false);
+  const [ipdNotes, setIpdNotes] = useState("");
+  const [ipdAddedProcedures, setIpdAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  const [ipdAddProcedureSelect, setIpdAddProcedureSelect] = useState<Option | null>(null);
+  const [ipdProceduresOptions, setIpdProceduresOptions] = useState<Option[]>([]);
+  const [ipdProceduresLoading, setIpdProceduresLoading] = useState(false);
+  const [ipdProcedurePriceById, setIpdProcedurePriceById] = useState<Record<string, number>>({});
+  const [ipdPaymentMode, setIpdPaymentMode] = useState<string>("Cash");
+  const [ipdTotal, setIpdTotal] = useState<number>(0);
+  const [ipdDiscount, setIpdDiscount] = useState<number>(0);
+  const [ipdAmountReceived, setIpdAmountReceived] = useState<number>(0);
+  const [ipdLoading, setIpdLoading] = useState<boolean>(false);
+  const [ipdError, setIpdError] = useState<string>("");
+  const [ipdShowDiscountPasswordDialog, setIpdShowDiscountPasswordDialog] = useState<boolean>(false);
+  const [ipdDiscountPassword, setIpdDiscountPassword] = useState<string>("");
+  const [ipdDiscountPasswordError, setIpdDiscountPasswordError] = useState<string>("");
+  const ipdProceduresCharges = ipdAddedProcedures.reduce((sum, p) => sum + p.price, 0);
+  const ipdDocVisitCharges = ipdDoctorVisitCharges === "Yes" ? ipdTotal : 0;
+  const ipdSubtotal = ipdProceduresCharges + ipdDocVisitCharges;
+  const ipdBalance = ipdSubtotal - (ipdDiscount || 0) - (ipdAmountReceived || 0);
+  const [ipdFormStep, setIpdFormStep] = useState<1 | 2>(1);
+  const [ipdBedBlockData, setIpdBedBlockData] = useState<IIpdBedBlockViewData | null>(null);
+  const [ipdBedsLoading, setIpdBedsLoading] = useState(false);
+  const [ipdBedsError, setIpdBedsError] = useState<string>("");
+  const [ipdSelectedBedId, setIpdSelectedBedId] = useState<string | null>(null);
+  const [ipdSelectedBed, setIpdSelectedBed] = useState<IIpdBed | null>(null);
 
   // Payment form state
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
@@ -1261,6 +1316,427 @@ const NewAppointmentComponent = () => {
     setDaycareDiscountPasswordError("");
   };
 
+  const handleIpdAddProcedure = useCallback((option: Option | null) => {
+    if (!option?.value) return;
+    if (ipdProcedurePriceById[option.value] == null) return;
+    const price = ipdProcedurePriceById[option.value] ?? 0;
+    setIpdAddedProcedures((prev) => {
+      if (prev.some((p) => p.id === option.value)) return prev;
+      return [...prev, { id: option.value, name: option.label, price }];
+    });
+    setIpdAddProcedureSelect(null);
+  }, [ipdProcedurePriceById]);
+
+  const handleIpdRemoveProcedure = useCallback((id: string) => {
+    setIpdAddedProcedures((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const handleIpdDoctorChange = useCallback((option: Option | null) => {
+    setIpdSelectedDoctor(option);
+    setIpdTotal(0);
+  }, []);
+
+  const updateIpdTotalFromDoctorCharge = useCallback(() => {
+    if (!ipdSelectedDoctor?.value) {
+      setIpdTotal(0);
+      return;
+    }
+    const doctor = doctors.find((d) => d._id === ipdSelectedDoctor.value);
+    const visitTypes = doctor?.visitTypes;
+    if (!visitTypes?.length) {
+      setIpdTotal(0);
+      return;
+    }
+    const match = visitTypes.find((vt) => {
+      if (vt.visitType != null && vt.appointmentType != null) {
+        return vt.visitType === "New" && (vt.appointmentType === "IPD" || vt.appointmentType === "In Patient");
+      }
+      if (vt.type != null) return vt.type === "IPD";
+      return false;
+    });
+    setIpdTotal(match?.charge ?? 0);
+  }, [ipdSelectedDoctor, doctors]);
+
+  useEffect(() => {
+    updateIpdTotalFromDoctorCharge();
+  }, [updateIpdTotalFromDoctorCharge]);
+
+  useEffect(() => {
+    const fetchIpdProcedures = async () => {
+      if (!API_BASE_URL) return;
+      try {
+        setIpdProceduresLoading(true);
+        const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50 } });
+        const list = res.data?.data?.procedures ?? res.data?.data ?? [];
+        const arr = Array.isArray(list) ? list : [];
+        setIpdProceduresOptions(
+          arr.map((p: { _id: string; procedureName?: string }) => ({
+            value: p._id,
+            label: p.procedureName ?? "—",
+          }))
+        );
+        const priceMap: Record<string, number> = {};
+        arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
+          priceMap[p._id] = p.price ?? p.basePrice ?? 0;
+        });
+        setIpdProcedurePriceById(priceMap);
+      } catch {
+        setIpdProceduresOptions([]);
+        setIpdProcedurePriceById({});
+      } finally {
+        setIpdProceduresLoading(false);
+      }
+    };
+    if (appointmentTab === "IPD") void fetchIpdProcedures();
+  }, [appointmentTab]);
+
+  useEffect(() => {
+    if (appointmentTab !== "IPD") {
+      setIpdFormStep(1);
+      setIpdSelectedBedId(null);
+      setIpdSelectedBed(null);
+      setIpdBedBlockData(null);
+      setIpdBedsError("");
+    }
+  }, [appointmentTab]);
+
+  const loadIpdBedBlockView = useCallback(async () => {
+    setIpdBedsLoading(true);
+    setIpdBedsError("");
+    try {
+      const data = await fetchIpdBedBlockView();
+      setIpdBedBlockData(data);
+    } catch {
+      setIpdBedsError("Could not load beds. Showing sample layout.");
+      const data = await fetchIpdBedBlockView();
+      setIpdBedBlockData(data);
+    } finally {
+      setIpdBedsLoading(false);
+    }
+  }, []);
+
+  const validateIpdStep1 = (): boolean => {
+    setIpdError("");
+    if (!ipdSelectedDoctor?.value || !ipdName.trim() || !ipdPhone) {
+      setIpdError("Please fill required fields: Doctor, Patient name, Phone.");
+      return false;
+    }
+    if (!ipdSelectedPatient?._id) {
+      const ipdPhoneValidation = validateIndianMobilePhone(ipdPhone);
+      if (!ipdPhoneValidation.valid) {
+        setIpdError(ipdPhoneValidation.message ?? "Invalid phone number.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleIpdGoToBedStep = async () => {
+    if (!validateIpdStep1()) return;
+    setIpdFormStep(2);
+    await loadIpdBedBlockView();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleIpdBackToDetails = () => {
+    setIpdFormStep(1);
+    setIpdError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleIpdSelectBed = (bed: IIpdBed) => {
+    setIpdSelectedBedId(bed._id);
+    setIpdSelectedBed(bed);
+    setIpdError("");
+  };
+
+  const searchIpdPatients = useCallback(async (searchText: string) => {
+    try {
+      if (!API_BASE_URL) return;
+      setIpdSearchingPatients(true);
+      const response = await axios.get(`${API_BASE_URL}/hospital/patients`, {
+        params: { limit: 20, page: 1, search: searchText.trim() },
+      });
+      if (response.data?.code === 200 && response.data?.data?.patients) {
+        const patients = response.data.data.patients;
+        setIpdPatientSearchResults(patients);
+        setIpdShowPatientDropdown(patients.length > 0 && !ipdSelectedPatient);
+      } else {
+        setIpdPatientSearchResults([]);
+        setIpdShowPatientDropdown(false);
+      }
+    } catch {
+      setIpdPatientSearchResults([]);
+      setIpdShowPatientDropdown(false);
+    } finally {
+      setIpdSearchingPatients(false);
+    }
+  }, [ipdSelectedPatient]);
+
+  useEffect(() => {
+    if (!ipdPhone || ipdPhone.trim().length === 0) {
+      setIpdPatientSearchResults([]);
+      setIpdShowPatientDropdown(false);
+      setIpdSelectedPatient(null);
+      return;
+    }
+    const searchTimeout = setTimeout(() => {
+      if (ipdPhone.trim().length >= 2) void searchIpdPatients(ipdPhone.trim());
+      else {
+        setIpdPatientSearchResults([]);
+        setIpdShowPatientDropdown(false);
+        setIpdSelectedPatient(null);
+      }
+    }, 500);
+    return () => clearTimeout(searchTimeout);
+  }, [ipdPhone, searchIpdPatients]);
+
+  const handleIpdPatientSelect = async (patient: IPatient) => {
+    setIpdSelectedPatient(patient);
+    setIpdShowPatientDropdown(false);
+    setIpdName(patient.name || "");
+    setIpdEmail(patient.email || "");
+    setIpdPhone(patient.phone || "");
+    if (patient.title) {
+      const titleOption = Title.find((t) => t.value === patient.title);
+      if (titleOption) setIpdTitle(titleOption);
+    }
+    if (patient.gender) {
+      const genderOption = Gender.find((g) => g.value === patient.gender);
+      if (genderOption) setIpdGender(genderOption);
+    }
+    if (patient.bloodGroup) {
+      const bloodGroupOption = Blood_Group.find((b) => b.value === patient.bloodGroup);
+      if (bloodGroupOption) setIpdBloodGroup(bloodGroupOption);
+    }
+    if (patient.dob) {
+      const dobDate = dayjs(patient.dob);
+      setIpdDob(dobDate);
+      handleIpdDobChange(dobDate);
+    }
+    if (patient.age) setIpdAgeYears(patient.age.toString());
+    setIpdAddress(patient.address || "");
+    setIpdAadharNo((patient as { aadharNo?: string }).aadharNo || "");
+    setIpdAyushmanNo((patient as { ayushmanCardNo?: string }).ayushmanCardNo || "");
+  };
+
+  const handleIpdDobChange = (date: unknown) => {
+    setIpdDob(date);
+    if (date) {
+      const birthDate = dayjs.isDayjs(date) ? date.toDate() : new Date(date as string);
+      const today = new Date();
+      let years = today.getFullYear() - birthDate.getFullYear();
+      let months = today.getMonth() - birthDate.getMonth();
+      let days = today.getDate() - birthDate.getDate();
+      if (days < 0) {
+        months--;
+        days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      setIpdAgeYears(years.toString());
+      setIpdAgeMonths(months.toString());
+      setIpdAgeDays(days.toString());
+    } else {
+      setIpdAgeYears("");
+      setIpdAgeMonths("");
+      setIpdAgeDays("");
+    }
+  };
+
+  const handleIpdTitleChange = useCallback((option: Option | null) => {
+    setIpdTitle(option);
+    if (option?.value === "Mr") {
+      const male = Gender.find((g) => g.value === "Male");
+      if (male) setIpdGender(male);
+    } else if (option?.value === "Mrs" || option?.value === "Ms") {
+      const female = Gender.find((g) => g.value === "Female");
+      if (female) setIpdGender(female);
+    } else {
+      setIpdGender(Gender.find((g) => g.value === "Select") ?? Gender[0]);
+    }
+  }, []);
+
+  const calculateIpdAge = (): number => {
+    if (ipdAgeYears) return parseInt(ipdAgeYears, 10);
+    if (ipdDob) {
+      const birthDate = dayjs.isDayjs(ipdDob) ? ipdDob.toDate() : new Date(ipdDob);
+      return dayjs().diff(dayjs(birthDate), "year");
+    }
+    return 0;
+  };
+
+  const formatIpdVisitDate = (): string => {
+    return dayjs().format("YYYY-MM-DD");
+  };
+
+  const doIpdSubmit = async (discountPwd?: string) => {
+    setIpdError("");
+    if (!API_BASE_URL) {
+      setIpdError("API configuration error. Please contact support.");
+      return;
+    }
+    if (!validateIpdStep1()) return;
+    if (!ipdSelectedBedId) {
+      setIpdError("Please select an available bed.");
+      setIpdFormStep(2);
+      return;
+    }
+    const doctorId = ipdSelectedDoctor?.value;
+    if (!doctorId) {
+      setIpdError("Please select a consulting doctor.");
+      return;
+    }
+    setIpdLoading(true);
+    try {
+      const procedureIds = Array.from(
+        new Set(
+          ipdAddedProcedures
+            .map((p) => p.id)
+            .filter((pid) => Boolean(pid) && ipdProcedurePriceById[pid] != null)
+        )
+      );
+      const doctorVisitCharges = ipdDoctorVisitCharges === "Yes";
+      const appointmentDate = formatIpdVisitDate() || undefined;
+      const ipdNotesTrimmed = ipdNotes.trim();
+      const ipdExtraFields = {
+        mlc: ipdMlc,
+        ...(ipdNotesTrimmed ? { notes: ipdNotesTrimmed } : {}),
+      };
+      const addIpdTransactionIfAmountReceived = async (visitId: string) => {
+        const amount = Number(ipdAmountReceived) || 0;
+        if (amount <= 0) return;
+        await axios.post(`${API_BASE_URL}/hospital/transactions`, {
+          visitId,
+          transactionType: "Payment",
+          amount,
+          paymentMode: ipdPaymentMode,
+        });
+      };
+      const ipdDiscountNum = Number(ipdDiscount) || 0;
+      const ipdBasePayload: { discount: number; discountPassword?: string } = {
+        discount: ipdDiscountNum,
+      };
+      const trimmedIpdDiscountPwd = discountPwd?.trim() ?? "";
+      if (ipdDiscountNum > 0 && trimmedIpdDiscountPwd) {
+        ipdBasePayload.discountPassword = trimmedIpdDiscountPwd;
+      }
+
+      const bedPayload = {
+        bedId: ipdSelectedBedId,
+        ...(ipdSelectedBed?.bedCode ? { bedCode: ipdSelectedBed.bedCode } : {}),
+      };
+
+      if (ipdSelectedPatient?._id) {
+        const response = await axios.post(`${API_BASE_URL}/hospital/ipd-appointments`, {
+          patientId: ipdSelectedPatient._id,
+          doctorId,
+          procedureIds,
+          doctorVisitCharges,
+          appointmentDate,
+          ...bedPayload,
+          ...ipdBasePayload,
+          ...ipdExtraFields,
+        });
+        const visitId =
+          response?.data?.data?._id ??
+          response?.data?.data?.ipdAppointment?._id ??
+          response?.data?._id;
+        if (visitId && ipdAmountReceived > 0) {
+          try {
+            await addIpdTransactionIfAmountReceived(visitId);
+          } catch (txErr) {
+            console.error("IPD created but transaction failed:", txErr);
+          }
+        }
+      } else {
+        const patientPayload = {
+          title: ipdTitle?.value || "",
+          name: ipdName.trim(),
+          phone: formatPatientPhoneForApi(ipdPhone),
+          email: ipdEmail || undefined,
+          age: calculateIpdAge(),
+          gender: ipdGender?.value !== "Select" ? ipdGender?.value : "",
+          bloodGroup: ipdBloodGroup?.value !== "Select" ? ipdBloodGroup?.value : undefined,
+          address: ipdAddress || undefined,
+          aadharNo: ipdAadharNo || undefined,
+          ayushmanCardNo: ipdAyushmanNo || undefined,
+        };
+        const response = await axios.post(`${API_BASE_URL}/hospital/ipd-appointments/with-patient`, {
+          patient: patientPayload,
+          doctorId,
+          procedureIds,
+          doctorVisitCharges,
+          appointmentDate,
+          ...bedPayload,
+          ...ipdBasePayload,
+          ...ipdExtraFields,
+        });
+        const visitId =
+          response?.data?.data?._id ??
+          response?.data?.data?.ipdAppointment?._id ??
+          response?.data?._id;
+        if (visitId && ipdAmountReceived > 0) {
+          try {
+            await addIpdTransactionIfAmountReceived(visitId);
+          } catch (txErr) {
+            console.error("IPD created but transaction failed:", txErr);
+          }
+        }
+      }
+      router.push(all_routes.ipdAppointments);
+    } catch (err: unknown) {
+      const ipdErrMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to create IPD appointment.";
+      if (discountPwd !== undefined && (Number(ipdDiscount) || 0) > 0) {
+        setIpdDiscountPasswordError(String(ipdErrMessage));
+        setIpdShowDiscountPasswordDialog(true);
+        setIpdError("");
+      } else {
+        setIpdError(ipdErrMessage);
+      }
+    } finally {
+      setIpdLoading(false);
+    }
+  };
+
+  const handleIpdSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (ipdFormStep === 1) {
+      void handleIpdGoToBedStep();
+      return;
+    }
+    if (!ipdSelectedBedId) {
+      setIpdError("Please select an available bed.");
+      return;
+    }
+    if (ipdDiscount > 0) {
+      setIpdDiscountPassword("");
+      setIpdDiscountPasswordError("");
+      setIpdShowDiscountPasswordDialog(true);
+      return;
+    }
+    void doIpdSubmit();
+  };
+
+  const handleIpdDiscountPasswordConfirm = () => {
+    if (!ipdDiscountPassword.trim()) {
+      setIpdDiscountPasswordError("Please enter the discount password.");
+      return;
+    }
+    setIpdDiscountPasswordError("");
+    void doIpdSubmit(ipdDiscountPassword.trim());
+  };
+
+  const handleIpdDiscountPasswordCancel = () => {
+    setIpdShowDiscountPasswordDialog(false);
+    setIpdDiscountPassword("");
+    setIpdDiscountPasswordError("");
+  };
+
   return (
     <>
       {/* OPD Discount password dialog */}
@@ -1369,6 +1845,61 @@ const NewAppointmentComponent = () => {
         `,
         }}
       />
+      {/* IPD Discount password dialog */}
+      {ipdShowDiscountPasswordDialog && (
+        <div
+          className="modal fade show d-block"
+          id="ipd-discount-password-modal"
+          tabIndex={-1}
+          aria-labelledby="ipd-discount-password-label"
+          aria-modal="true"
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="ipd-discount-password-label">
+                  Discount password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={handleIpdDiscountPasswordCancel}
+                />
+              </div>
+              <div className="modal-body">
+                <label htmlFor="ipd-discount-password-input" className="form-label">
+                  Enter password to apply discount
+                </label>
+                {ipdDiscountPasswordError ? (
+                  <div className="alert alert-danger py-2 mb-2" role="alert">
+                    {ipdDiscountPasswordError}
+                  </div>
+                ) : null}
+                <input
+                  id="ipd-discount-password-input"
+                  type="password"
+                  className="form-control"
+                  value={ipdDiscountPassword}
+                  onChange={(e) => setIpdDiscountPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={(e) => e.key === "Enter" && handleIpdDiscountPasswordConfirm()}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={handleIpdDiscountPasswordCancel}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleIpdDiscountPasswordConfirm}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Daycare Discount password dialog */}
       {daycareShowDiscountPasswordDialog && (
         <div
@@ -1461,6 +1992,12 @@ const NewAppointmentComponent = () => {
                   <button type="button" className="btn-close" onClick={() => setDaycareError("")} aria-label="Close" />
                 </div>
               )}
+              {ipdError && appointmentTab === "IPD" && (
+                <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                  <strong>Error:</strong> {ipdError}
+                  <button type="button" className="btn-close" onClick={() => setIpdError("")} aria-label="Close" />
+                </div>
+              )}
               <ul className="nav nav-tabs border-0 mb-0 flex-shrink-0">
                 <li className="nav-item">
                   <button
@@ -1482,6 +2019,17 @@ const NewAppointmentComponent = () => {
                     onClick={() => setAppointmentTab("Daycare")}
                   >
                     Daycare
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={appointmentTab === "IPD"}
+                    className={`nav-link${appointmentTab === "IPD" ? " active" : ""}`}
+                    onClick={() => setAppointmentTab("IPD")}
+                  >
+                    IPD
                   </button>
                 </li>
               </ul>
@@ -2494,6 +3042,463 @@ const NewAppointmentComponent = () => {
                     <div className="d-flex align-items-center justify-content-end mt-3">
                       <Link href={all_routes.appointments} className="btn font-weight-bold fs-15 fw-medium rounded btn-light me-2">Cancel</Link>
                       <button type="submit" className="btn font-weight-bold fs-15 fw-medium rounded btn-primary" disabled={daycareLoading}>{daycareLoading ? "Creating..." : "Create Daycare Appointment"}</button>
+                    </div>
+                  </form>
+                </div>
+                <div className={`tab-pane ${appointmentTab === "IPD" ? "show active" : ""}`} id="ipd">
+                  <form onSubmit={handleIpdSubmit}>
+                    <div className="d-flex flex-wrap align-items-center justify-content-center gap-2 gap-md-4 mb-3 pb-2 border-bottom">
+                      <div className="d-flex align-items-center gap-2">
+                        <span
+                          className={`rounded-circle d-inline-flex align-items-center justify-content-center fw-bold fs-13 ${ipdFormStep === 1 ? "bg-primary text-white" : "bg-light text-muted border"}`}
+                          style={{ width: 28, height: 28 }}
+                        >
+                          1
+                        </span>
+                        <span className={`fs-14 fw-medium ${ipdFormStep === 1 ? "text-primary" : "text-muted"}`}>
+                          Patient &amp; payment
+                        </span>
+                      </div>
+                      <i className="ti ti-chevron-right text-muted d-none d-sm-inline" />
+                      <div className="d-flex align-items-center gap-2">
+                        <span
+                          className={`rounded-circle d-inline-flex align-items-center justify-content-center fw-bold fs-13 ${ipdFormStep === 2 ? "bg-primary text-white" : "bg-light text-muted border"}`}
+                          style={{ width: 28, height: 28 }}
+                        >
+                          2
+                        </span>
+                        <span className={`fs-14 fw-medium ${ipdFormStep === 2 ? "text-primary" : "text-muted"}`}>
+                          Select bed
+                        </span>
+                      </div>
+                    </div>
+                    {ipdFormStep === 1 && (
+                    <div className="card mb-3">
+                      <div className="card-body">
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                          <div className="d-flex align-items-center gap-2">
+                            <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
+                            {ipdSelectedPatient && (
+                              <span className="badge badge-soft-success border border-success fw-medium">
+                                Existing Patient
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="col-md-3">
+                            <div className="mb-3 position-relative ipd-patient-search-container">
+                              <label className="form-label mb-1 fw-medium">Phone Number<span className="text-danger ms-1">*</span></label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                value={ipdPhone}
+                                onChange={(e) => { setIpdPhone(e.target.value || ""); setIpdSelectedPatient(null); }}
+                                placeholder="Enter phone number or name"
+                                required
+                              />
+                              {ipdShowPatientDropdown && ipdPatientSearchResults.length > 0 && (
+                                <div className="dropdown-menu show position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto" }}>
+                                  {ipdPatientSearchResults.map((patient) => (
+                                    <button key={patient._id} type="button" className="dropdown-item d-flex align-items-center justify-content-between" onClick={() => handleIpdPatientSelect(patient)} onMouseDown={(e) => e.preventDefault()}>
+                                      <div><div className="fw-medium text-dark">{patient.name}</div><div className="fs-13 text-muted">{patient.phone}</div></div>
+                                      <i className="ti ti-arrow-right fs-12 text-muted" />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {ipdSearchingPatients && !ipdShowPatientDropdown && (
+                                <div className="position-absolute top-100 start-0 w-100 mt-1 p-2 bg-white border rounded shadow-sm">
+                                  <div className="text-center text-muted fs-13"><i className="ti ti-loader-2 fs-14 me-1" style={{ animation: "spin 1s linear infinite" }} /> Searching...</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="col-md-2">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Title<span className="text-danger ms-1">*</span></label>
+                              <CommonSelect options={Title} className="select" value={ipdTitle} onChange={handleIpdTitleChange} />
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Name<span className="text-danger ms-1">*</span></label>
+                              <input type="text" className="form-control" placeholder="Enter patient name..." value={ipdName} onChange={(e) => setIpdName(e.target.value)} required />
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Gender<span className="text-danger ms-1">*</span></label>
+                              <CommonSelect options={Gender} className="select" value={ipdGender} onChange={setIpdGender} />
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Email Address</label>
+                              <input type="email" className="form-control" placeholder="Enter email address" value={ipdEmail} onChange={(e) => setIpdEmail(e.target.value)} />
+                            </div>
+                          </div>
+                          <div className="col-md-2">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Date of Birth</label>
+                              <div className="input-icon-end position-relative">
+                                <DatePicker className="form-control datetimepicker" format={{ format: "DD-MM-YYYY", type: "mask" }} getPopupContainer={getModalContainer} placeholder="Select DOB" suffixIcon={null} value={ipdDob} onChange={handleIpdDobChange} />
+                                <span className="input-icon-addon"><i className="ti ti-calendar" /></span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Age<span className="text-danger ms-1">*</span></label>
+                              <div className="row g-2">
+                                <div className="col-4"><input type="text" className="form-control" placeholder="Years" value={ipdAgeYears} onChange={(e) => setIpdAgeYears(e.target.value)} /></div>
+                                <div className="col-4"><input type="text" className="form-control" placeholder="Months" value={ipdAgeMonths} onChange={(e) => setIpdAgeMonths(e.target.value)} /></div>
+                                <div className="col-4"><input type="text" className="form-control" placeholder="Days" value={ipdAgeDays} onChange={(e) => setIpdAgeDays(e.target.value)} /></div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Blood Group</label>
+                              <CommonSelect options={Blood_Group} className="select" value={ipdBloodGroup} onChange={setIpdBloodGroup} />
+                            </div>
+                          </div>
+                          <div className="col-md-5">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Address</label>
+                              <input type="text" className="form-control" placeholder="Enter address" value={ipdAddress} onChange={(e) => setIpdAddress(e.target.value)} />
+                            </div>
+                            <div className="row g-2">
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Attendant Name</label>
+                                  <input type="text" className="form-control" placeholder="Enter attendant name" value={ipdAttendantName} onChange={(e) => setIpdAttendantName(e.target.value)} />
+                                </div>
+                              </div>
+                              <div className="col-md-6">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Relation to Patient</label>
+                                  <input type="text" className="form-control" placeholder="Son, Daughter, etc." value={ipdAttendantRelation} onChange={(e) => setIpdAttendantRelation(e.target.value)} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Aadhar No</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter Aadhar number"
+                                value={ipdAadharNo}
+                                onChange={(e) => setIpdAadharNo(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-md-3">
+                            <div className="mb-3">
+                              <label className="form-label mb-1 fw-medium">Ayushman No</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Enter Ayushman card number"
+                                value={ipdAyushmanNo}
+                                onChange={(e) => setIpdAyushmanNo(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    )}
+                    <div className="row mb-3 align-items-stretch g-3">
+                      {ipdFormStep === 1 ? (
+                      <div className="col-12 col-lg-7 pe-lg-3">
+                        <div className="card h-100">
+                          <div className="card-body p-3">
+                            <h6 className="fw-bold text-primary mb-2">IPD Details</h6>
+                            <div className="row">
+                              <div className="col-12">
+                                <div className="d-flex align-items-end gap-3 w-100 mb-3 flex-nowrap">
+                                  <div style={{ width: "62%", minWidth: 0 }}>
+                                    <label className="form-label mb-1 fw-medium d-block">
+                                      Consulting Doc<span className="text-danger ms-1">*</span>
+                                    </label>
+                                    <CommonSelect
+                                      options={doctorOptions}
+                                      value={ipdSelectedDoctor}
+                                      onChange={handleIpdDoctorChange}
+                                        onInputChange={handleDoctorInputChange}
+                                        isLoading={doctorSearchLoading}
+                                        placeholder="Search doctor..."
+                                      />
+                                    </div>
+                                  <div className="flex-shrink-0">
+                                    <label className="form-label mb-1 fw-medium d-block text-nowrap">
+                                      Doctor Visit Charges
+                                    </label>
+                                    <div className="d-flex gap-3 flex-nowrap pb-1">
+                                      <div className="form-check mb-0">
+                                        <input
+                                          className="form-check-input"
+                                          type="radio"
+                                          name="ipdDoctorVisitCharges"
+                                          id="ipdDvcYes"
+                                            value="Yes"
+                                            checked={ipdDoctorVisitCharges === "Yes"}
+                                            onChange={() => setIpdDoctorVisitCharges("Yes")}
+                                            disabled={!ipdSelectedDoctor}
+                                          />
+                                          <label className="form-check-label" htmlFor="ipdDvcYes">
+                                            Yes
+                                          </label>
+                                        </div>
+                                      <div className="form-check mb-0">
+                                        <input
+                                          className="form-check-input"
+                                          type="radio"
+                                          name="ipdDoctorVisitCharges"
+                                          id="ipdDvcNo"
+                                            value="No"
+                                            checked={ipdDoctorVisitCharges === "No"}
+                                            onChange={() => setIpdDoctorVisitCharges("No")}
+                                            disabled={!ipdSelectedDoctor}
+                                          />
+                                          <label className="form-check-label" htmlFor="ipdDvcNo">
+                                            No
+                                          </label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  <div className="flex-shrink-0">
+                                    <label className="form-label mb-1 fw-medium d-block text-nowrap">MLC</label>
+                                    <div className="form-check form-switch mb-0 pb-1">
+                                      <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        role="switch"
+                                        id="ipd-new-mlc-toggle"
+                                          checked={ipdMlc}
+                                          onChange={(e) => setIpdMlc(e.target.checked)}
+                                          aria-label="Medico-legal case (MLC)"
+                                        />
+                                        <label
+                                          className="form-check-label fw-medium"
+                                          htmlFor="ipd-new-mlc-toggle"
+                                        >
+                                          {ipdMlc ? "Yes" : "No"}
+                                        </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-12">
+                                <div className="mb-3">
+                                  <label className="form-label mb-1 fw-medium">Add Procedures</label>
+                                  <CommonSelect
+                                    options={ipdProceduresOptions}
+                                    value={ipdAddProcedureSelect}
+                                    onChange={handleIpdAddProcedure}
+                                    placeholder="Select procedure..."
+                                    isLoading={ipdProceduresLoading}
+                                  />
+                                </div>
+                                <div className="mt-1">
+                                  <div className="border rounded overflow-hidden">
+                                    <div
+                                      className="d-flex border-bottom bg-light px-2 py-1 fw-medium text-dark"
+                                      style={{ fontSize: "0.95rem" }}
+                                    >
+                                      <span className="col-1 text-nowrap">S.No</span>
+                                      <span className="col text-nowrap ps-3">Procedure</span>
+                                      <span className="col text-end pe-4 text-nowrap">Price</span>
+                                    </div>
+                                    <div
+                                      className="text-dark"
+                                      style={{ maxHeight: "170px", overflowY: "auto", fontSize: "0.95rem" }}
+                                    >
+                                      {ipdAddedProcedures.length === 0 ? (
+                                        <div className="px-2 py-3 text-center">No procedures added</div>
+                                      ) : (
+                                        ipdAddedProcedures.map((proc, idx) => (
+                                          <div
+                                            key={proc.id}
+                                            className="d-flex align-items-center border-bottom px-2 py-2"
+                                          >
+                                            <span className="col-1">{idx + 1}</span>
+                                            <span className="col ps-3">{proc.name}</span>
+                                            <span className="col d-flex align-items-center justify-content-end gap-1">
+                                              <span>{proc.price}</span>
+                                              <button
+                                                type="button"
+                                                className="btn btn-link p-0 text-danger min-w-0"
+                                                aria-label="Remove procedure"
+                                                onClick={() => handleIpdRemoveProcedure(proc.id)}
+                                              >
+                                                <i className="ti ti-trash ps-1 fs-16" />
+                                              </button>
+                                            </span>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mb-0 mt-3">
+                                  <label htmlFor="ipd-new-notes" className="form-label mb-1 fw-medium">
+                                    Notes
+                                  </label>
+                                  <textarea
+                                    id="ipd-new-notes"
+                                    className="form-control"
+                                    rows={3}
+                                    value={ipdNotes}
+                                    onChange={(e) => setIpdNotes(e.target.value)}
+                                    placeholder="Add notes for this IPD admission…"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      ) : (
+                      <div className="col-12 col-lg-7 pe-lg-3">
+                        <IpdBedSelectionStep
+                          data={ipdBedBlockData}
+                          loading={ipdBedsLoading}
+                          error={ipdBedsError}
+                          selectedBedId={ipdSelectedBedId}
+                          onSelectBed={handleIpdSelectBed}
+                        />
+                      </div>
+                      )}
+                      <div className="col-12 col-lg-5 ps-lg-3">
+                        <div className="card h-100">
+                          <div className="card-body p-3">
+                            <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
+                            <div className="mb-2 d-flex align-items-center flex-wrap gap-2">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
+                                Payment Mode
+                              </label>
+                              <div className="d-flex gap-3 flex-wrap ms-auto justify-content-end">
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="ipdPaymentMode"
+                                    id="ipd-cash"
+                                    value="Cash"
+                                    checked={ipdPaymentMode === "Cash"}
+                                    onChange={(e) => setIpdPaymentMode(e.target.value)}
+                                  />
+                                  <label className="form-check-label" htmlFor="ipd-cash">Cash</label>
+                                </div>
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="ipdPaymentMode"
+                                    id="ipd-upi"
+                                    value="UPI"
+                                    checked={ipdPaymentMode === "UPI"}
+                                    onChange={(e) => setIpdPaymentMode(e.target.value)}
+                                  />
+                                  <label className="form-check-label" htmlFor="ipd-upi">UPI</label>
+                                </div>
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="radio"
+                                    name="ipdPaymentMode"
+                                    id="ipd-card"
+                                    value="Card"
+                                    checked={ipdPaymentMode === "Card"}
+                                    onChange={(e) => setIpdPaymentMode(e.target.value)}
+                                  />
+                                  <label className="form-check-label" htmlFor="ipd-card">Card</label>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Total</label>
+                              <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
+                                ₹{ipdSubtotal.toFixed(2)}
+                              </div>
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Discount</label>
+                              <input
+                                type="number"
+                                className="form-control fs-15"
+                                placeholder="0"
+                                value={ipdDiscount || ""}
+                                onChange={(e) => {
+                                  setIpdDiscount(parseFloat(e.target.value) || 0);
+                                }}
+                                min="0"
+                              />
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Final Amount</label>
+                              <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
+                                ₹{(ipdSubtotal - (ipdDiscount || 0)).toFixed(2)}
+                              </div>
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Amount Received</label>
+                              <input
+                                type="number"
+                                className="form-control fs-15"
+                                placeholder="0"
+                                value={ipdAmountReceived || ""}
+                                onChange={(e) => setIpdAmountReceived(parseFloat(e.target.value) || 0)}
+                                min="0"
+                              />
+                            </div>
+                            <div className="mb-2 d-flex align-items-center">
+                              <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Balance</label>
+                              <div
+                                className="form-control d-flex align-items-center justify-content-between fs-15"
+                                style={{
+                                  pointerEvents: "none",
+                                  backgroundColor: "#fff3cd",
+                                  borderColor: "#ffc107",
+                                }}
+                              >
+                                <span>₹{ipdBalance.toFixed(2)}</span>
+                                <i className="ti ti-alert-triangle text-warning fs-16" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="d-flex align-items-center justify-content-end mt-3 flex-wrap gap-2">
+                      <Link href={all_routes.ipdAppointments} className="btn font-weight-bold fs-15 fw-medium rounded btn-light me-2">
+                        Cancel
+                      </Link>
+                      {ipdFormStep === 2 ? (
+                        <button
+                          type="button"
+                          className="btn font-weight-bold fs-15 fw-medium rounded btn-light me-2"
+                          onClick={handleIpdBackToDetails}
+                          disabled={ipdLoading}
+                        >
+                          Back
+                        </button>
+                      ) : null}
+                      <button
+                        type="submit"
+                        className="btn font-weight-bold fs-15 fw-medium rounded btn-primary"
+                        disabled={ipdLoading || ipdBedsLoading}
+                      >
+                        {ipdLoading
+                          ? "Creating..."
+                          : ipdFormStep === 1
+                            ? "Next: Select bed"
+                            : "Create IPD Appointment"}
+                      </button>
                     </div>
                   </form>
                 </div>

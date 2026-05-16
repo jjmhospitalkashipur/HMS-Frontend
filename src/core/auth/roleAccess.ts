@@ -41,6 +41,9 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.daycareAppointments,
     all_routes.daycareAppointmentDetails,
     all_routes.editDaycareAppointment,
+    all_routes.ipdAppointments,
+    all_routes.ipdAppointmentDetails,
+    all_routes.editIpdAppointment,
   ],
   DIALYSIS: [
     all_routes.dialysis,
@@ -60,6 +63,9 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.daycareAppointments,
     all_routes.daycareAppointmentDetails,
     all_routes.editDaycareAppointment,
+    all_routes.ipdAppointments,
+    all_routes.ipdAppointmentDetails,
+    all_routes.editIpdAppointment,
   ],
   RECEPTIONIST2: [
     all_routes.patients,

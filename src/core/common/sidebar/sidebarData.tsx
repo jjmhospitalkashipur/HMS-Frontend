@@ -46,6 +46,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "IPD Appointments",
+        link: routes.ipdAppointments,
+        submenu: false,
+        showSubRoute: false,
+        icon: "bed",
+        base: "IpdAppointments",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Pharma Appointments",
         link: routes.pharmaTokens,
         submenu: false,
