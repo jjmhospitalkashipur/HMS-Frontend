@@ -151,7 +151,7 @@ export const fetchIpdWardOptions = async (): Promise<IIpdWardOption[]> => {
         value: String(w._id ?? w.id ?? ""),
         label: String(w.name ?? w.wardName ?? w.label ?? "Ward"),
       }))
-      .filter((w) => w.value);
+      .filter((w: IIpdWardOption) => Boolean(w.value));
   } catch {
     return [];
   }

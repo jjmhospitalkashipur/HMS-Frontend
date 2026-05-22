@@ -25,5 +25,5 @@ export const appendDefaultDoctorVisitingCharge = <T extends { type: string }>(
   charges: T[],
   doctorId: string
 ): T[] => {
-  return [...charges, { type: "doctor", doctorId, units: 1 } as T];
+  return [...charges, { type: "doctor", doctorId, units: 1 } as unknown as T];
 };
