@@ -133,7 +133,7 @@ const FormGridGuttersComponent = () => {
                           {/* start row */}
                           <div className="row">
                             <label className="form-label mb-1">
-                              Maritial Status
+                              Marital Status
                             </label>
                             <div className="col-xl-6">
                               <div className="form-check">

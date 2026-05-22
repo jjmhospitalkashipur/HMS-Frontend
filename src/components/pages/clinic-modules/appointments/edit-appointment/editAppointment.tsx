@@ -561,16 +561,23 @@ const EditAppointmentComponent = () => {
           .page-wrapper textarea:-ms-input-placeholder {
             color: #000 !important;
           }
-          /* Darker borders and black text inside appointment cards */
+          /* Darker borders and black text on form fields only (not section headings) */
+          .page-wrapper .card .form-label,
+          .page-wrapper .card .form-check-label,
           .page-wrapper .card .form-control,
           .page-wrapper .card .ant-picker,
-          .page-wrapper .card .ant-picker-input > input {
+          .page-wrapper .card .ant-picker-input > input,
+          .page-wrapper .card input:not([type="radio"]):not([type="checkbox"]),
+          .page-wrapper .card textarea,
+          .page-wrapper .card .react-select__single-value {
             border-color: #000 !important;
             color: #000 !important;
           }
-          .page-wrapper .card,
-          .page-wrapper .card * {
-            color: #000 !important;
+          .page-wrapper .card .ant-picker {
+            border-color: #000 !important;
+          }
+          .page-wrapper .card h6.fw-bold.text-primary {
+            color: #2E37A4 !important;
           }
           .page-wrapper .card .btn.btn-primary,
           .page-wrapper .card .btn.btn-primary:hover,
@@ -651,7 +658,7 @@ const EditAppointmentComponent = () => {
           <h6 className="fw-bold mb-0 d-flex align-items-center">
             <Link href={all_routes.appointments} className="text-dark">
               <i className="ti ti-chevron-left me-1" />
-              Appointments
+              Edit Appointments
             </Link>
           </h6>
         </div>
@@ -668,17 +675,11 @@ const EditAppointmentComponent = () => {
           </div>
         )}
 
-        {/* Edit Form */}
-        <div className="card">
-          <div className="card-body">
-            <div className="border-bottom d-flex align-items-center justify-content-between pb-3 mb-3">
-              <h5 className="fs-18 fw-bold mb-0">Edit Appointment</h5>
-            </div>
-            <form onSubmit={handleEditSubmit}>
-              {/* Patient Details (read-only in edit) */}
-              <div className="mb-4">
-                <h6 className="fw-bold text-primary mb-3">Patient Details</h6>
-                <div className="row">
+        <form onSubmit={handleEditSubmit}>
+          <div className="card mb-3">
+            <div className="card-body">
+              <h6 className="fw-bold text-primary mb-3">Patient Details</h6>
+              <div className="row">
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Phone Number</label>
@@ -830,12 +831,14 @@ const EditAppointmentComponent = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+            </div>
+          </div>
 
-              {/* Doctor Details and Payment Details */}
-              <div className="row mb-4">
-                <div className="col-lg-7 pe-3">
-                  <h6 className="fw-bold text-primary mb-3">Doctor Details</h6>
+          <div className="row mb-3">
+            <div className="col-lg-7 pe-lg-3 mb-3 mb-lg-0">
+              <div className="card h-100">
+                <div className="card-body p-3">
+                  <h6 className="fw-bold text-primary mb-2">Doctor Details</h6>
                   <div className="row">
                     <div className="col-md-6">
                       <div className="mb-3">
@@ -925,11 +928,12 @@ const EditAppointmentComponent = () => {
                     </div>
                   </div>
                 </div>
-                {/* Payment Details (read-only) */}
-                <div className="col-lg-5 ps-3">
-                  <div className="card h-100">
-                    <div className="card-body p-3">
-                      <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
+              </div>
+            </div>
+            <div className="col-lg-5 ps-lg-3">
+              <div className="card h-100">
+                <div className="card-body p-3">
+                  <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
                       <div className="mb-2 d-flex align-items-center flex-wrap gap-2">
                         <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
                           Payment Mode
@@ -1046,22 +1050,20 @@ const EditAppointmentComponent = () => {
                           <i className="ti ti-alert-triangle text-warning fs-16" />
                         </div>
                       </div>
-                    </div>
-                  </div>
                 </div>
               </div>
-
-              <div className="d-flex justify-content-end gap-2 border-top pt-3">
-                <Link href={all_routes.appointments} className="btn btn-light">
-                  Cancel
-                </Link>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
+
+          <div className="d-flex justify-content-end gap-2">
+            <Link href={all_routes.appointments} className="btn btn-light">
+              Cancel
+            </Link>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

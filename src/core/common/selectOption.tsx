@@ -193,6 +193,14 @@ export const Gender = [
   { value: "Female", label: "Female" },
   { value: "Others", label: "Others" },
 ];
+export const Marital_Status = [
+  { value: "Select", label: "Select" },
+  { value: "Single", label: "Single" },
+  { value: "Married", label: "Married" },
+  { value: "Divorced", label: "Divorced" },
+  { value: "Widowed", label: "Widowed" },
+  { value: "Separated", label: "Separated" },
+];
 export const Title = [
   { value: "Select", label: "Select" },
   { value: "Mr.", label: "Mr." },

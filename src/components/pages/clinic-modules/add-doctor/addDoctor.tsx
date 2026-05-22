@@ -60,6 +60,7 @@ const AddDoctorComponent = () => {
     { type: "Follow-up report", charge: "" },
     { type: "MR", charge: "" },
     { type: "Day Care", charge: "" },
+    { type: "IPD", charge: "" },
   ]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
@@ -133,13 +134,14 @@ const AddDoctorComponent = () => {
       setLoading(true);
 
       // Map visit types to API shape: visitType, appointmentType, charge
-      // OPD and Day care → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
+      // OPD, Day Care, IPD → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
       const visitTypesData = visitTypes
         .filter(vt => vt.charge && vt.charge.trim() !== "")
         .map(vt => {
           const charge = parseFloat(vt.charge) || 0;
           if (vt.type === "OPD") return { visitType: "New", appointmentType: "OPD", charge };
           if (vt.type === "Day Care") return { visitType: "New", appointmentType: "Day Care", charge };
+          if (vt.type === "IPD") return { visitType: "New", appointmentType: "IPD", charge };
           if (vt.type === "Follow-up report") return { visitType: "Follow-up-report", appointmentType: "OPD", charge };
           return { visitType: vt.type, appointmentType: "OPD", charge };
         });

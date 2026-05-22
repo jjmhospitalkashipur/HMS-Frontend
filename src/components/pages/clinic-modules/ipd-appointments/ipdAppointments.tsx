@@ -14,6 +14,7 @@ import { DatePicker } from "antd";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
+import { getIpdProcedureNamesForListing } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 
 interface IDoctor {
   _id: string;
@@ -45,7 +46,8 @@ interface IIpdPatient {
 
 interface IIpdAppointment {
   _id: string;
-  ipdId: string;
+  ipdId?: string;
+  ipdNumber?: string;
   patientId: string;
   doctorId: string;
   ipdChargesType?: string;
@@ -53,6 +55,13 @@ interface IIpdAppointment {
   bedChargesType?: string;
   bedChargesTotal?: number;
   procedures?: IIpdProcedure[];
+  billingCharges?: Array<{
+    type?: string;
+    procedureId?: string;
+    procedureName?: string;
+    price?: number;
+    units?: number;
+  }>;
   procedureChargesTotal?: number;
   doctorVisitCharges?: boolean;
   doctorChargesAmount?: number;
@@ -60,6 +69,7 @@ interface IIpdAppointment {
   discount?: number;
   totalPrice?: number;
   appointmentDate?: string;
+  admissionDate?: string;
   status?: string;
   createdAt?: string;
   paymentStatus?: string;
@@ -82,10 +92,23 @@ interface IIpdPagination {
 
 interface IIpdAppointmentsResponseData {
   appointments?: IIpdAppointment[];
+  ipds?: IIpdAppointment[];
+  records?: IIpdAppointment[];
   pagination?: IIpdPagination;
   total?: number;
   count?: number;
 }
+
+const extractIpdListFromResponse = (
+  data: IIpdAppointment[] | IIpdAppointmentsResponseData | undefined
+): IIpdAppointment[] => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.ipds)) return data.ipds;
+  if (Array.isArray(data.appointments)) return data.appointments;
+  if (Array.isArray(data.records)) return data.records;
+  return [];
+};
 
 interface IRow {
   id: string;
@@ -248,14 +271,11 @@ const IpdAppointmentsComponent = () => {
         setLoading(true);
         setError("");
         const params = getIpdQueryParams(true);
-        const res = await axios.get(`${API_BASE_URL}/hospital/ipd-appointments`, { params });
-        if (res.data?.code === 200 && res.data?.data) {
+        const res = await axios.get(`${API_BASE_URL}/hospital/ipd`, { params });
+        const ok = res.data?.code === 200 || (res.status >= 200 && res.status < 300);
+        if (ok && res.data?.data != null) {
           const raw = res.data.data as IIpdAppointment[] | IIpdAppointmentsResponseData;
-          const list: IIpdAppointment[] = Array.isArray(raw)
-            ? raw
-            : Array.isArray(raw.appointments)
-            ? raw.appointments
-            : [];
+          const list = extractIpdListFromResponse(raw);
 
           const pagination = Array.isArray(raw) ? undefined : raw?.pagination;
           if (pagination && typeof pagination === "object") {
@@ -277,8 +297,8 @@ const IpdAppointmentsComponent = () => {
             return;
           }
           const mapped: IRow[] = list.map((item) => {
-            const dateStr = item.appointmentDate
-              ? dayjs(item.appointmentDate).format("DD MMM YYYY")
+            const dateStr = (item.admissionDate ?? item.appointmentDate)
+              ? dayjs(item.admissionDate ?? item.appointmentDate).format("DD MMM YYYY")
               : "";
             const timeStr = formatInstantInIST(item.createdAt, "hh:mm A");
             const doctorName = item.doctor?.name ?? "";
@@ -292,16 +312,13 @@ const IpdAppointmentsComponent = () => {
               item.patient?.days
             );
             const gender = item.patient?.gender;
-            const proceduresList =
-              item.procedures && item.procedures.length
-                ? item.procedures.map((p) => p.procedureName || "").filter(Boolean)
-                : [];
+            const proceduresList = getIpdProcedureNamesForListing(item);
 
             return {
               id: item._id,
               _doctorId: item.doctor?._id || item.doctorId,
               _patientId: item.patient?._id || item.patientId,
-              IPD_ID: item.ipdId,
+              IPD_ID: item.ipdId ?? item.ipdNumber ?? "",
               Date: dateStr,
               Time: timeStr,
               Patient: patientName,

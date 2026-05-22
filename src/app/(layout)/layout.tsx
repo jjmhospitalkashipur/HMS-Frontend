@@ -21,6 +21,8 @@ export default function ThemeLayouts({ children }: { children: React.ReactNode }
     all_routes.doctorsList,
     all_routes.users,
     all_routes.createUser,
+    all_routes.wards,
+    all_routes.beds,
     all_routes.rolesPermissions,
     all_routes.permissions,
     all_routes.deleteaccountrequest,

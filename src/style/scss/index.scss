@@ -823,3 +823,10 @@
 .offcanvas-header .ti-x:before{
   content: none !important;
 }
+
+// IPD bed selection — theme overrides .text-white / .text-bg-* badge text
+.ipd-selected-bed-badge {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background-color: #2e37a4 !important;
+}

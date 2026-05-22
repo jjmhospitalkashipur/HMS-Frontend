@@ -100,6 +100,7 @@ $value in $theme-colors {
 $value in $theme-colors {
     .text-bg-#{$color} {
         background-color: var(--#{$color}) !important;
+        color: #fff !important;
     }
 }
 .text-bg-info {

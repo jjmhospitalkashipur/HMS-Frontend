@@ -164,6 +164,8 @@ export const all_routes = {
   transactions: "/transactions",
 
   //Administration
+  wards: "/wards",
+  beds: "/beds",
   users: "/users",
   createUser: "/users/create",
   rolesPermissions: "/roles-and-permissions",

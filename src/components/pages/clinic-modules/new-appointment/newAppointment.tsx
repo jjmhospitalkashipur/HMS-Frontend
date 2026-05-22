@@ -8,6 +8,7 @@ import {
   Gender,
   Visit_Type,
   Blood_Group,
+  Marital_Status,
   Appointment_Type,
 } from "@/core/common/selectOption";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
@@ -22,12 +23,37 @@ import {
 } from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
-import IpdBedSelectionStep from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/IpdBedSelectionStep";
-import { fetchIpdBedBlockView } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/fetchIpdBedBlockView";
+import IpdBedSelectionStep, {
+  IpdBedWardFilter,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/IpdBedSelectionStep";
+import {
+  fetchIpdBedBlockView,
+  fetchIpdWardOptions,
+  type IIpdWardOption,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/fetchIpdBedBlockView";
 import type {
   IIpdBed,
   IIpdBedBlockViewData,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/ipdBedTypes";
+import {
+  appendDefaultDoctorVisitingCharge,
+  getIpdDoctorVisitingCharge,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitingCharge";
+import IpdAddProceduresField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddProceduresField";
+import IpdFormStepIndicator from "@/components/pages/clinic-modules/ipd-appointments/IpdFormStepIndicator";
+import IpdMlcFields, {
+  emptyIpdMlcData,
+  type IIpdMlcData,
+} from "@/components/pages/clinic-modules/ipd-appointments/IpdMlcFields";
+import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
+import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
+import {
+  addIpdProcedureRow,
+  calcIpdProceduresTotal,
+  decrementIpdProcedureUnits,
+  incrementIpdProcedureUnits,
+  removeIpdProcedureRow,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 
 interface IVisitTypeCharge {
   visitType?: string;
@@ -64,6 +90,10 @@ interface IPatient {
   months?: number;
   days?: number;
   bloodGroup?: string;
+  maritalStatus?: string;
+  maritialStatus?: string;
+  drugSensitivity?: string;
+  occupation?: string;
   address?: string;
   companyName?: string;
   division?: string;
@@ -71,6 +101,40 @@ interface IPatient {
     name: string;
     number: string;
   }>;
+}
+
+type IIpdBillingCharge =
+  | { type: "procedure"; procedureId: string; units: number }
+  | { type: "doctor"; doctorId: string; units: number };
+
+interface IIpdCreatePayload {
+  patientId?: string;
+  patientData?: {
+    title: string;
+    name: string;
+    phone: string;
+    age: number;
+    months: number;
+    days: number;
+    gender: string;
+    bloodGroup?: string;
+    address?: string;
+    maritalStatus?: string;
+    occupation?: string;
+    drugSensitivity?: string;
+  };
+  doctorId: string;
+  bedId: string;
+  admissionDate: string;
+  reason: string;
+  billingCharges: IIpdBillingCharge[];
+  isMLC?: boolean;
+  mlc?: IIpdMlcData;
+  transaction?: {
+    transactionType: "Payment";
+    amount: number;
+    paymentMode: string;
+  };
 }
 
 const NewAppointmentComponent = () => {
@@ -202,21 +266,23 @@ const NewAppointmentComponent = () => {
   const [ipdAyushmanNo, setIpdAyushmanNo] = useState<string>("");
   const [ipdAttendantName, setIpdAttendantName] = useState<string>("");
   const [ipdAttendantRelation, setIpdAttendantRelation] = useState<string>("");
+  const [ipdMaritalStatus, setIpdMaritalStatus] = useState<Option | null>(Marital_Status[0] || null);
+  const [ipdDrugSensitivity, setIpdDrugSensitivity] = useState<string>("");
+  const [ipdOccupation, setIpdOccupation] = useState<string>("");
   const [ipdSelectedPatient, setIpdSelectedPatient] = useState<IPatient | null>(null);
   const [ipdPatientSearchResults, setIpdPatientSearchResults] = useState<IPatient[]>([]);
   const [ipdShowPatientDropdown, setIpdShowPatientDropdown] = useState<boolean>(false);
   const [ipdSearchingPatients, setIpdSearchingPatients] = useState<boolean>(false);
   const [ipdSelectedDoctor, setIpdSelectedDoctor] = useState<Option | null>(null);
-  const [ipdDoctorVisitCharges, setIpdDoctorVisitCharges] = useState<"Yes" | "No">("No");
   const [ipdMlc, setIpdMlc] = useState(false);
+  const [ipdMlcData, setIpdMlcData] = useState<IIpdMlcData>(emptyIpdMlcData);
   const [ipdNotes, setIpdNotes] = useState("");
-  const [ipdAddedProcedures, setIpdAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  const [ipdAddedProcedures, setIpdAddedProcedures] = useState<IIpdProcedureRow[]>([]);
   const [ipdAddProcedureSelect, setIpdAddProcedureSelect] = useState<Option | null>(null);
   const [ipdProceduresOptions, setIpdProceduresOptions] = useState<Option[]>([]);
   const [ipdProceduresLoading, setIpdProceduresLoading] = useState(false);
   const [ipdProcedurePriceById, setIpdProcedurePriceById] = useState<Record<string, number>>({});
   const [ipdPaymentMode, setIpdPaymentMode] = useState<string>("Cash");
-  const [ipdTotal, setIpdTotal] = useState<number>(0);
   const [ipdDiscount, setIpdDiscount] = useState<number>(0);
   const [ipdAmountReceived, setIpdAmountReceived] = useState<number>(0);
   const [ipdLoading, setIpdLoading] = useState<boolean>(false);
@@ -224,14 +290,17 @@ const NewAppointmentComponent = () => {
   const [ipdShowDiscountPasswordDialog, setIpdShowDiscountPasswordDialog] = useState<boolean>(false);
   const [ipdDiscountPassword, setIpdDiscountPassword] = useState<string>("");
   const [ipdDiscountPasswordError, setIpdDiscountPasswordError] = useState<string>("");
-  const ipdProceduresCharges = ipdAddedProcedures.reduce((sum, p) => sum + p.price, 0);
-  const ipdDocVisitCharges = ipdDoctorVisitCharges === "Yes" ? ipdTotal : 0;
-  const ipdSubtotal = ipdProceduresCharges + ipdDocVisitCharges;
+  const [ipdVisitingCharge, setIpdVisitingCharge] = useState(0);
+  const ipdProceduresCharges = calcIpdProceduresTotal(ipdAddedProcedures);
+  const ipdSubtotal = ipdProceduresCharges + ipdVisitingCharge;
   const ipdBalance = ipdSubtotal - (ipdDiscount || 0) - (ipdAmountReceived || 0);
-  const [ipdFormStep, setIpdFormStep] = useState<1 | 2>(1);
+  const [ipdFormStep, setIpdFormStep] = useState<1 | 2 | 3>(1);
   const [ipdBedBlockData, setIpdBedBlockData] = useState<IIpdBedBlockViewData | null>(null);
   const [ipdBedsLoading, setIpdBedsLoading] = useState(false);
   const [ipdBedsError, setIpdBedsError] = useState<string>("");
+  const [ipdWardOptions, setIpdWardOptions] = useState<IIpdWardOption[]>([]);
+  const [ipdWardsLoading, setIpdWardsLoading] = useState(false);
+  const [ipdSelectedWardFilterId, setIpdSelectedWardFilterId] = useState<string | null>(null);
   const [ipdSelectedBedId, setIpdSelectedBedId] = useState<string | null>(null);
   const [ipdSelectedBed, setIpdSelectedBed] = useState<IIpdBed | null>(null);
 
@@ -1320,46 +1389,36 @@ const NewAppointmentComponent = () => {
     if (!option?.value) return;
     if (ipdProcedurePriceById[option.value] == null) return;
     const price = ipdProcedurePriceById[option.value] ?? 0;
-    setIpdAddedProcedures((prev) => {
-      if (prev.some((p) => p.id === option.value)) return prev;
-      return [...prev, { id: option.value, name: option.label, price }];
-    });
+    setIpdAddedProcedures((prev) =>
+      addIpdProcedureRow(prev, { id: option.value, name: option.label, price })
+    );
     setIpdAddProcedureSelect(null);
   }, [ipdProcedurePriceById]);
 
+  const handleIpdIncrementProcedureUnits = useCallback((id: string) => {
+    setIpdAddedProcedures((prev) => incrementIpdProcedureUnits(prev, id));
+  }, []);
+
+  const handleIpdDecrementProcedureUnits = useCallback((id: string) => {
+    setIpdAddedProcedures((prev) => decrementIpdProcedureUnits(prev, id));
+  }, []);
+
   const handleIpdRemoveProcedure = useCallback((id: string) => {
-    setIpdAddedProcedures((prev) => prev.filter((p) => p.id !== id));
+    setIpdAddedProcedures((prev) => removeIpdProcedureRow(prev, id));
   }, []);
 
   const handleIpdDoctorChange = useCallback((option: Option | null) => {
     setIpdSelectedDoctor(option);
-    setIpdTotal(0);
   }, []);
 
-  const updateIpdTotalFromDoctorCharge = useCallback(() => {
+  useEffect(() => {
     if (!ipdSelectedDoctor?.value) {
-      setIpdTotal(0);
+      setIpdVisitingCharge(0);
       return;
     }
     const doctor = doctors.find((d) => d._id === ipdSelectedDoctor.value);
-    const visitTypes = doctor?.visitTypes;
-    if (!visitTypes?.length) {
-      setIpdTotal(0);
-      return;
-    }
-    const match = visitTypes.find((vt) => {
-      if (vt.visitType != null && vt.appointmentType != null) {
-        return vt.visitType === "New" && (vt.appointmentType === "IPD" || vt.appointmentType === "In Patient");
-      }
-      if (vt.type != null) return vt.type === "IPD";
-      return false;
-    });
-    setIpdTotal(match?.charge ?? 0);
-  }, [ipdSelectedDoctor, doctors]);
-
-  useEffect(() => {
-    updateIpdTotalFromDoctorCharge();
-  }, [updateIpdTotalFromDoctorCharge]);
+    setIpdVisitingCharge(getIpdDoctorVisitingCharge(doctor?.visitTypes));
+  }, [ipdSelectedDoctor?.value, doctors]);
 
   useEffect(() => {
     const fetchIpdProcedures = async () => {
@@ -1392,28 +1451,73 @@ const NewAppointmentComponent = () => {
 
   useEffect(() => {
     if (appointmentTab !== "IPD") {
-      setIpdFormStep(1);
+      setIpdFormStep(1 as 1 | 2 | 3);
       setIpdSelectedBedId(null);
       setIpdSelectedBed(null);
       setIpdBedBlockData(null);
       setIpdBedsError("");
+      setIpdSelectedWardFilterId(null);
     }
   }, [appointmentTab]);
 
-  const loadIpdBedBlockView = useCallback(async () => {
+  const loadIpdWardOptions = useCallback(async () => {
+    setIpdWardsLoading(true);
+    try {
+      const options = await fetchIpdWardOptions();
+      setIpdWardOptions(options);
+    } catch {
+      setIpdWardOptions([]);
+    } finally {
+      setIpdWardsLoading(false);
+    }
+  }, []);
+
+  const loadIpdBedBlockView = useCallback(async (wardId?: string | null) => {
     setIpdBedsLoading(true);
     setIpdBedsError("");
     try {
-      const data = await fetchIpdBedBlockView();
+      const data = await fetchIpdBedBlockView(wardId);
       setIpdBedBlockData(data);
+      if (!data?.wards?.length) {
+        setIpdBedsError(
+          wardId
+            ? "No beds found for this ward."
+            : "No beds found. Add beds in Administration → Beds."
+        );
+      }
     } catch {
-      setIpdBedsError("Could not load beds. Showing sample layout.");
-      const data = await fetchIpdBedBlockView();
-      setIpdBedBlockData(data);
+      setIpdBedBlockData(null);
+      setIpdBedsError("Could not load beds. Please try again.");
     } finally {
       setIpdBedsLoading(false);
     }
   }, []);
+
+  const handleIpdWardFilterChange = useCallback(
+    (wardId: string | null) => {
+      setIpdSelectedWardFilterId(wardId);
+      setIpdSelectedBedId(null);
+      setIpdSelectedBed(null);
+      void loadIpdBedBlockView(wardId);
+    },
+    [loadIpdBedBlockView]
+  );
+
+  const validateIpdPatientStep = (): boolean => {
+    setIpdError("");
+    if (!ipdName.trim() || !ipdPhone) {
+      setIpdError("Please fill required fields: Patient name, Phone.");
+      return false;
+    }
+    if (!ipdSelectedPatient?._id) {
+      const ipdPhoneValidation = validateIndianMobilePhone(ipdPhone);
+      if (!ipdPhoneValidation.valid) {
+        setIpdError(ipdPhoneValidation.message ?? "Invalid phone number.");
+        return false;
+      }
+    }
+    return true;
+  };
 
   const validateIpdStep1 = (): boolean => {
     setIpdError("");
@@ -1431,16 +1535,18 @@ const NewAppointmentComponent = () => {
     return true;
   };
 
-  const handleIpdGoToBedStep = async () => {
-    if (!validateIpdStep1()) return;
+  const handleIpdGoToIpdDetailsStep = () => {
+    if (!validateIpdPatientStep()) return;
     setIpdFormStep(2);
-    await loadIpdBedBlockView();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleIpdBackToDetails = () => {
-    setIpdFormStep(1);
-    setIpdError("");
+  const handleIpdGoToBedStep = async () => {
+    if (!validateIpdStep1()) return;
+    setIpdFormStep(3);
+    setIpdSelectedWardFilterId(null);
+    void loadIpdWardOptions();
+    await loadIpdBedBlockView(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -1514,10 +1620,21 @@ const NewAppointmentComponent = () => {
       setIpdDob(dobDate);
       handleIpdDobChange(dobDate);
     }
-    if (patient.age) setIpdAgeYears(patient.age.toString());
+    if (patient.age != null) setIpdAgeYears(String(patient.age));
+    if (patient.months != null) setIpdAgeMonths(String(patient.months));
+    if (patient.days != null) setIpdAgeDays(String(patient.days));
     setIpdAddress(patient.address || "");
     setIpdAadharNo((patient as { aadharNo?: string }).aadharNo || "");
     setIpdAyushmanNo((patient as { ayushmanCardNo?: string }).ayushmanCardNo || "");
+    const maritalStatusValue = getPatientMaritalStatus(patient);
+    if (maritalStatusValue) {
+      const maritalOption = Marital_Status.find((m) => m.value === maritalStatusValue);
+      if (maritalOption) setIpdMaritalStatus(maritalOption);
+    } else {
+      setIpdMaritalStatus(Marital_Status[0] || null);
+    }
+    setIpdDrugSensitivity(patient.drugSensitivity || "");
+    setIpdOccupation(patient.occupation || "");
   };
 
   const handleIpdDobChange = (date: unknown) => {
@@ -1548,13 +1665,14 @@ const NewAppointmentComponent = () => {
 
   const handleIpdTitleChange = useCallback((option: Option | null) => {
     setIpdTitle(option);
-    if (option?.value === "Mr") {
+    if (!option?.value) return;
+    if (option.value === "Mr." || option.value === "Master") {
       const male = Gender.find((g) => g.value === "Male");
       if (male) setIpdGender(male);
-    } else if (option?.value === "Mrs" || option?.value === "Ms") {
+    } else if (option.value === "Mrs." || option.value === "Ms.") {
       const female = Gender.find((g) => g.value === "Female");
       if (female) setIpdGender(female);
-    } else {
+    } else if (option.value === "Dr." || option.value === "Prof." || option.value === "Baby") {
       setIpdGender(Gender.find((g) => g.value === "Select") ?? Gender[0]);
     }
   }, []);
@@ -1572,7 +1690,79 @@ const NewAppointmentComponent = () => {
     return dayjs().format("YYYY-MM-DD");
   };
 
-  const doIpdSubmit = async (discountPwd?: string) => {
+  const buildIpdCreatePayload = (): IIpdCreatePayload | null => {
+    const doctorId = ipdSelectedDoctor?.value;
+    const bedId = ipdSelectedBedId;
+    if (!doctorId || !bedId) return null;
+
+    const procedureCharges: IIpdBillingCharge[] = ipdAddedProcedures
+      .filter((p) => p.id && ipdProcedurePriceById[p.id] != null && p.units > 0)
+      .map((p) => ({
+        type: "procedure",
+        procedureId: p.id,
+        units: p.units,
+      }));
+    const billingCharges = appendDefaultDoctorVisitingCharge(procedureCharges, doctorId);
+
+    const payload: IIpdCreatePayload = {
+      doctorId,
+      bedId,
+      admissionDate: formatIpdVisitDate(),
+      reason: ipdNotes.trim(),
+      billingCharges,
+    };
+
+    if (ipdSelectedPatient?._id) {
+      payload.patientId = ipdSelectedPatient._id;
+    } else {
+      payload.patientData = {
+        title: ipdTitle?.value && ipdTitle.value !== "Select" ? ipdTitle.value : "",
+        name: ipdName.trim(),
+        phone: formatPatientPhoneForApi(ipdPhone),
+        age: calculateIpdAge(),
+        months: parseAgeComponent(ipdAgeMonths),
+        days: parseAgeComponent(ipdAgeDays),
+        gender: ipdGender?.value !== "Select" ? ipdGender?.value ?? "" : "",
+        ...(ipdBloodGroup?.value && ipdBloodGroup.value !== "Select"
+          ? { bloodGroup: ipdBloodGroup.value }
+          : {}),
+        ...(ipdAddress.trim() ? { address: ipdAddress.trim() } : {}),
+        ...(ipdMaritalStatus?.value && ipdMaritalStatus.value !== "Select"
+          ? { maritalStatus: ipdMaritalStatus.value }
+          : {}),
+        ...(ipdOccupation.trim() ? { occupation: ipdOccupation.trim() } : {}),
+        ...(ipdDrugSensitivity.trim() ? { drugSensitivity: ipdDrugSensitivity.trim() } : {}),
+      };
+    }
+
+    const amount = Number(ipdAmountReceived) || 0;
+    if (amount > 0) {
+      payload.transaction = {
+        transactionType: "Payment",
+        amount,
+        paymentMode: ipdPaymentMode,
+      };
+    }
+
+    payload.isMLC = ipdMlc;
+    if (ipdMlc) {
+      payload.mlc = {
+        markOfIdentification: ipdMlcData.markOfIdentification.trim(),
+        thanaName: ipdMlcData.thanaName.trim(),
+        patientBroughtBy: ipdMlcData.patientBroughtBy.trim(),
+        placeOfAccident: ipdMlcData.placeOfAccident.trim(),
+      };
+    }
+
+    return payload;
+  };
+
+  const handleIpdMlcToggle = (checked: boolean) => {
+    setIpdMlc(checked);
+    if (!checked) setIpdMlcData(emptyIpdMlcData());
+  };
+
+  const doIpdSubmit = async () => {
     setIpdError("");
     if (!API_BASE_URL) {
       setIpdError("API configuration error. Please contact support.");
@@ -1581,7 +1771,7 @@ const NewAppointmentComponent = () => {
     if (!validateIpdStep1()) return;
     if (!ipdSelectedBedId) {
       setIpdError("Please select an available bed.");
-      setIpdFormStep(2);
+      setIpdFormStep(3);
       return;
     }
     const doctorId = ipdSelectedDoctor?.value;
@@ -1589,115 +1779,34 @@ const NewAppointmentComponent = () => {
       setIpdError("Please select a consulting doctor.");
       return;
     }
+    const reason = ipdNotes.trim();
+    if (!reason) {
+      setIpdError("Please enter reason for admission in Notes.");
+      setIpdFormStep(2);
+      return;
+    }
+
+    const payload = buildIpdCreatePayload();
+    if (!payload) {
+      setIpdError("Please complete required IPD fields.");
+      return;
+    }
+
     setIpdLoading(true);
     try {
-      const procedureIds = Array.from(
-        new Set(
-          ipdAddedProcedures
-            .map((p) => p.id)
-            .filter((pid) => Boolean(pid) && ipdProcedurePriceById[pid] != null)
-        )
-      );
-      const doctorVisitCharges = ipdDoctorVisitCharges === "Yes";
-      const appointmentDate = formatIpdVisitDate() || undefined;
-      const ipdNotesTrimmed = ipdNotes.trim();
-      const ipdExtraFields = {
-        mlc: ipdMlc,
-        ...(ipdNotesTrimmed ? { notes: ipdNotesTrimmed } : {}),
-      };
-      const addIpdTransactionIfAmountReceived = async (visitId: string) => {
-        const amount = Number(ipdAmountReceived) || 0;
-        if (amount <= 0) return;
-        await axios.post(`${API_BASE_URL}/hospital/transactions`, {
-          visitId,
-          transactionType: "Payment",
-          amount,
-          paymentMode: ipdPaymentMode,
-        });
-      };
-      const ipdDiscountNum = Number(ipdDiscount) || 0;
-      const ipdBasePayload: { discount: number; discountPassword?: string } = {
-        discount: ipdDiscountNum,
-      };
-      const trimmedIpdDiscountPwd = discountPwd?.trim() ?? "";
-      if (ipdDiscountNum > 0 && trimmedIpdDiscountPwd) {
-        ipdBasePayload.discountPassword = trimmedIpdDiscountPwd;
-      }
-
-      const bedPayload = {
-        bedId: ipdSelectedBedId,
-        ...(ipdSelectedBed?.bedCode ? { bedCode: ipdSelectedBed.bedCode } : {}),
-      };
-
-      if (ipdSelectedPatient?._id) {
-        const response = await axios.post(`${API_BASE_URL}/hospital/ipd-appointments`, {
-          patientId: ipdSelectedPatient._id,
-          doctorId,
-          procedureIds,
-          doctorVisitCharges,
-          appointmentDate,
-          ...bedPayload,
-          ...ipdBasePayload,
-          ...ipdExtraFields,
-        });
-        const visitId =
-          response?.data?.data?._id ??
-          response?.data?.data?.ipdAppointment?._id ??
-          response?.data?._id;
-        if (visitId && ipdAmountReceived > 0) {
-          try {
-            await addIpdTransactionIfAmountReceived(visitId);
-          } catch (txErr) {
-            console.error("IPD created but transaction failed:", txErr);
-          }
-        }
-      } else {
-        const patientPayload = {
-          title: ipdTitle?.value || "",
-          name: ipdName.trim(),
-          phone: formatPatientPhoneForApi(ipdPhone),
-          email: ipdEmail || undefined,
-          age: calculateIpdAge(),
-          gender: ipdGender?.value !== "Select" ? ipdGender?.value : "",
-          bloodGroup: ipdBloodGroup?.value !== "Select" ? ipdBloodGroup?.value : undefined,
-          address: ipdAddress || undefined,
-          aadharNo: ipdAadharNo || undefined,
-          ayushmanCardNo: ipdAyushmanNo || undefined,
-        };
-        const response = await axios.post(`${API_BASE_URL}/hospital/ipd-appointments/with-patient`, {
-          patient: patientPayload,
-          doctorId,
-          procedureIds,
-          doctorVisitCharges,
-          appointmentDate,
-          ...bedPayload,
-          ...ipdBasePayload,
-          ...ipdExtraFields,
-        });
-        const visitId =
-          response?.data?.data?._id ??
-          response?.data?.data?.ipdAppointment?._id ??
-          response?.data?._id;
-        if (visitId && ipdAmountReceived > 0) {
-          try {
-            await addIpdTransactionIfAmountReceived(visitId);
-          } catch (txErr) {
-            console.error("IPD created but transaction failed:", txErr);
-          }
-        }
+      const response = await axios.post(`${API_BASE_URL}/hospital/ipd`, payload);
+      const ok = response?.status >= 200 && response?.status < 300;
+      const codeOk = response?.data?.code === 200 || response?.data?.code === "200";
+      if (!ok && !codeOk) {
+        setIpdError(response?.data?.message ?? "Failed to create IPD admission.");
+        return;
       }
       router.push(all_routes.ipdAppointments);
     } catch (err: unknown) {
       const ipdErrMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to create IPD appointment.";
-      if (discountPwd !== undefined && (Number(ipdDiscount) || 0) > 0) {
-        setIpdDiscountPasswordError(String(ipdErrMessage));
-        setIpdShowDiscountPasswordDialog(true);
-        setIpdError("");
-      } else {
-        setIpdError(ipdErrMessage);
-      }
+        "Failed to create IPD admission.";
+      setIpdError(ipdErrMessage);
     } finally {
       setIpdLoading(false);
     }
@@ -1706,17 +1815,15 @@ const NewAppointmentComponent = () => {
   const handleIpdSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (ipdFormStep === 1) {
+      handleIpdGoToIpdDetailsStep();
+      return;
+    }
+    if (ipdFormStep === 2) {
       void handleIpdGoToBedStep();
       return;
     }
     if (!ipdSelectedBedId) {
       setIpdError("Please select an available bed.");
-      return;
-    }
-    if (ipdDiscount > 0) {
-      setIpdDiscountPassword("");
-      setIpdDiscountPasswordError("");
-      setIpdShowDiscountPasswordDialog(true);
       return;
     }
     void doIpdSubmit();
@@ -1728,7 +1835,7 @@ const NewAppointmentComponent = () => {
       return;
     }
     setIpdDiscountPasswordError("");
-    void doIpdSubmit(ipdDiscountPassword.trim());
+    void doIpdSubmit();
   };
 
   const handleIpdDiscountPasswordCancel = () => {
@@ -1815,16 +1922,30 @@ const NewAppointmentComponent = () => {
           .page-wrapper textarea:-ms-input-placeholder {
             color: #000 !important;
           }
-          /* Darker borders and black text inside appointment cards */
+          /* Darker borders and black text on form fields only (not section headings) */
+          .page-wrapper .card .form-label,
+          .page-wrapper .card .form-check-label,
           .page-wrapper .card .form-control,
           .page-wrapper .card .ant-picker,
-          .page-wrapper .card .ant-picker-input > input {
+          .page-wrapper .card .ant-picker-input > input,
+          .page-wrapper .card input:not([type="radio"]):not([type="checkbox"]),
+          .page-wrapper .card textarea,
+          .page-wrapper .card .react-select__single-value {
             border-color: #000 !important;
             color: #000 !important;
           }
-          .page-wrapper .card,
-          .page-wrapper .card * {
-            color: #000 !important;
+          .page-wrapper .card .ant-picker {
+            border-color: #000 !important;
+          }
+          .page-wrapper .card h6.fw-bold.text-primary {
+            color: #2E37A4 !important;
+          }
+          .page-wrapper .card .btn.btn-primary,
+          .page-wrapper .card .btn.btn-primary:hover,
+          .page-wrapper .card .btn.btn-primary:focus,
+          .page-wrapper .card .btn.btn-primary:active,
+          .page-wrapper .card .btn.btn-primary:disabled {
+            color: #fff !important;
           }
           /* react-select menu lives inside .card; the rule above forces black text with !important
              and beats inline/emotion styles. Exceptions must be more specific (3+ classes). */
@@ -3047,306 +3168,213 @@ const NewAppointmentComponent = () => {
                 </div>
                 <div className={`tab-pane ${appointmentTab === "IPD" ? "show active" : ""}`} id="ipd">
                   <form onSubmit={handleIpdSubmit}>
-                    <div className="d-flex flex-wrap align-items-center justify-content-center gap-2 gap-md-4 mb-3 pb-2 border-bottom">
-                      <div className="d-flex align-items-center gap-2">
-                        <span
-                          className={`rounded-circle d-inline-flex align-items-center justify-content-center fw-bold fs-13 ${ipdFormStep === 1 ? "bg-primary text-white" : "bg-light text-muted border"}`}
-                          style={{ width: 28, height: 28 }}
-                        >
-                          1
-                        </span>
-                        <span className={`fs-14 fw-medium ${ipdFormStep === 1 ? "text-primary" : "text-muted"}`}>
-                          Patient &amp; payment
-                        </span>
+                    <IpdFormStepIndicator currentStep={ipdFormStep} />
+
+                    {/* ── Error Alert ── */}
+                    {ipdError && (
+                      <div className="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3">
+                        <i className="ti ti-alert-circle fs-16" />
+                        <span className="fs-14">{ipdError}</span>
                       </div>
-                      <i className="ti ti-chevron-right text-muted d-none d-sm-inline" />
-                      <div className="d-flex align-items-center gap-2">
-                        <span
-                          className={`rounded-circle d-inline-flex align-items-center justify-content-center fw-bold fs-13 ${ipdFormStep === 2 ? "bg-primary text-white" : "bg-light text-muted border"}`}
-                          style={{ width: 28, height: 28 }}
-                        >
-                          2
-                        </span>
-                        <span className={`fs-14 fw-medium ${ipdFormStep === 2 ? "text-primary" : "text-muted"}`}>
-                          Select bed
-                        </span>
-                      </div>
-                    </div>
-                    {ipdFormStep === 1 && (
-                    <div className="card mb-3">
-                      <div className="card-body">
-                        <div className="d-flex align-items-center justify-content-between mb-3">
-                          <div className="d-flex align-items-center gap-2">
-                            <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
-                            {ipdSelectedPatient && (
-                              <span className="badge badge-soft-success border border-success fw-medium">
-                                Existing Patient
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="row">
-                          <div className="col-md-3">
-                            <div className="mb-3 position-relative ipd-patient-search-container">
-                              <label className="form-label mb-1 fw-medium">Phone Number<span className="text-danger ms-1">*</span></label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                value={ipdPhone}
-                                onChange={(e) => { setIpdPhone(e.target.value || ""); setIpdSelectedPatient(null); }}
-                                placeholder="Enter phone number or name"
-                                required
-                              />
-                              {ipdShowPatientDropdown && ipdPatientSearchResults.length > 0 && (
-                                <div className="dropdown-menu show position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto" }}>
-                                  {ipdPatientSearchResults.map((patient) => (
-                                    <button key={patient._id} type="button" className="dropdown-item d-flex align-items-center justify-content-between" onClick={() => handleIpdPatientSelect(patient)} onMouseDown={(e) => e.preventDefault()}>
-                                      <div><div className="fw-medium text-dark">{patient.name}</div><div className="fs-13 text-muted">{patient.phone}</div></div>
-                                      <i className="ti ti-arrow-right fs-12 text-muted" />
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              {ipdSearchingPatients && !ipdShowPatientDropdown && (
-                                <div className="position-absolute top-100 start-0 w-100 mt-1 p-2 bg-white border rounded shadow-sm">
-                                  <div className="text-center text-muted fs-13"><i className="ti ti-loader-2 fs-14 me-1" style={{ animation: "spin 1s linear infinite" }} /> Searching...</div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="col-md-2">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Title<span className="text-danger ms-1">*</span></label>
-                              <CommonSelect options={Title} className="select" value={ipdTitle} onChange={handleIpdTitleChange} />
-                            </div>
-                          </div>
-                          <div className="col-md-4">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Name<span className="text-danger ms-1">*</span></label>
-                              <input type="text" className="form-control" placeholder="Enter patient name..." value={ipdName} onChange={(e) => setIpdName(e.target.value)} required />
-                            </div>
-                          </div>
-                          <div className="col-md-3">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Gender<span className="text-danger ms-1">*</span></label>
-                              <CommonSelect options={Gender} className="select" value={ipdGender} onChange={setIpdGender} />
-                            </div>
-                          </div>
-                          <div className="col-md-3">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Email Address</label>
-                              <input type="email" className="form-control" placeholder="Enter email address" value={ipdEmail} onChange={(e) => setIpdEmail(e.target.value)} />
-                            </div>
-                          </div>
-                          <div className="col-md-2">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Date of Birth</label>
-                              <div className="input-icon-end position-relative">
-                                <DatePicker className="form-control datetimepicker" format={{ format: "DD-MM-YYYY", type: "mask" }} getPopupContainer={getModalContainer} placeholder="Select DOB" suffixIcon={null} value={ipdDob} onChange={handleIpdDobChange} />
-                                <span className="input-icon-addon"><i className="ti ti-calendar" /></span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-md-4">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Age<span className="text-danger ms-1">*</span></label>
-                              <div className="row g-2">
-                                <div className="col-4"><input type="text" className="form-control" placeholder="Years" value={ipdAgeYears} onChange={(e) => setIpdAgeYears(e.target.value)} /></div>
-                                <div className="col-4"><input type="text" className="form-control" placeholder="Months" value={ipdAgeMonths} onChange={(e) => setIpdAgeMonths(e.target.value)} /></div>
-                                <div className="col-4"><input type="text" className="form-control" placeholder="Days" value={ipdAgeDays} onChange={(e) => setIpdAgeDays(e.target.value)} /></div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-md-3">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Blood Group</label>
-                              <CommonSelect options={Blood_Group} className="select" value={ipdBloodGroup} onChange={setIpdBloodGroup} />
-                            </div>
-                          </div>
-                          <div className="col-md-5">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Address</label>
-                              <input type="text" className="form-control" placeholder="Enter address" value={ipdAddress} onChange={(e) => setIpdAddress(e.target.value)} />
-                            </div>
-                            <div className="row g-2">
-                              <div className="col-md-6">
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Attendant Name</label>
-                                  <input type="text" className="form-control" placeholder="Enter attendant name" value={ipdAttendantName} onChange={(e) => setIpdAttendantName(e.target.value)} />
-                                </div>
-                              </div>
-                              <div className="col-md-6">
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Relation to Patient</label>
-                                  <input type="text" className="form-control" placeholder="Son, Daughter, etc." value={ipdAttendantRelation} onChange={(e) => setIpdAttendantRelation(e.target.value)} />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-md-4">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Aadhar No</label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Enter Aadhar number"
-                                value={ipdAadharNo}
-                                onChange={(e) => setIpdAadharNo(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="col-md-3">
-                            <div className="mb-3">
-                              <label className="form-label mb-1 fw-medium">Ayushman No</label>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Enter Ayushman card number"
-                                value={ipdAyushmanNo}
-                                onChange={(e) => setIpdAyushmanNo(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
                     )}
-                    <div className="row mb-3 align-items-stretch g-3">
-                      {ipdFormStep === 1 ? (
-                      <div className="col-12 col-lg-7 pe-lg-3">
-                        <div className="card h-100">
-                          <div className="card-body p-3">
-                            <h6 className="fw-bold text-primary mb-2">IPD Details</h6>
-                            <div className="row">
-                              <div className="col-12">
-                                <div className="d-flex align-items-end gap-3 w-100 mb-3 flex-nowrap">
-                                  <div style={{ width: "62%", minWidth: 0 }}>
-                                    <label className="form-label mb-1 fw-medium d-block">
-                                      Consulting Doc<span className="text-danger ms-1">*</span>
-                                    </label>
-                                    <CommonSelect
-                                      options={doctorOptions}
-                                      value={ipdSelectedDoctor}
-                                      onChange={handleIpdDoctorChange}
-                                        onInputChange={handleDoctorInputChange}
-                                        isLoading={doctorSearchLoading}
-                                        placeholder="Search doctor..."
-                                      />
-                                    </div>
-                                  <div className="flex-shrink-0">
-                                    <label className="form-label mb-1 fw-medium d-block text-nowrap">
-                                      Doctor Visit Charges
-                                    </label>
-                                    <div className="d-flex gap-3 flex-nowrap pb-1">
-                                      <div className="form-check mb-0">
-                                        <input
-                                          className="form-check-input"
-                                          type="radio"
-                                          name="ipdDoctorVisitCharges"
-                                          id="ipdDvcYes"
-                                            value="Yes"
-                                            checked={ipdDoctorVisitCharges === "Yes"}
-                                            onChange={() => setIpdDoctorVisitCharges("Yes")}
-                                            disabled={!ipdSelectedDoctor}
-                                          />
-                                          <label className="form-check-label" htmlFor="ipdDvcYes">
-                                            Yes
-                                          </label>
-                                        </div>
-                                      <div className="form-check mb-0">
-                                        <input
-                                          className="form-check-input"
-                                          type="radio"
-                                          name="ipdDoctorVisitCharges"
-                                          id="ipdDvcNo"
-                                            value="No"
-                                            checked={ipdDoctorVisitCharges === "No"}
-                                            onChange={() => setIpdDoctorVisitCharges("No")}
-                                            disabled={!ipdSelectedDoctor}
-                                          />
-                                          <label className="form-check-label" htmlFor="ipdDvcNo">
-                                            No
-                                          </label>
-                                        </div>
+
+                    {/* ── Main Content: left form + right payment card ── */}
+                    <div className="row g-3 align-items-start">
+                      {/* LEFT COLUMN */}
+                      <div className="col-12 col-lg-8">
+
+                        {/* STEP 1 — Patient Details */}
+                        {ipdFormStep === 1 && (
+                          <div className="card mb-3">
+                            <div className="card-body">
+                              <h6 className="fw-bold text-primary mb-3 d-flex align-items-center flex-wrap gap-2">
+                                Patient Details
+                                {ipdSelectedPatient ? (
+                                  <span className="badge badge-soft-success border border-success fw-medium fs-12">
+                                    Existing Patient
+                                  </span>
+                                ) : null}
+                              </h6>
+                              <div className="row g-3">
+                                <div className="col-md-4">
+                                  <div className="position-relative ipd-patient-search-container">
+                                    <label className="form-label mb-1 fw-medium fs-14">Phone Number <span className="text-danger">*</span></label>
+                                    <input
+                                      type="text"
+                                      className="form-control"
+                                      value={ipdPhone}
+                                      onChange={(e) => { setIpdPhone(e.target.value || ""); setIpdSelectedPatient(null); }}
+                                      placeholder="Phone number or name"
+                                      required
+                                    />
+                                    {ipdShowPatientDropdown && ipdPatientSearchResults.length > 0 && (
+                                      <div className="dropdown-menu show position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto" }}>
+                                        {ipdPatientSearchResults.map((patient) => (
+                                          <button key={patient._id} type="button" className="dropdown-item d-flex align-items-center justify-content-between" onClick={() => handleIpdPatientSelect(patient)} onMouseDown={(e) => e.preventDefault()}>
+                                            <div><div className="fw-medium text-dark fs-14">{patient.name}</div><div className="fs-13 text-muted">{patient.phone}</div></div>
+                                            <i className="ti ti-arrow-right fs-12 text-muted" />
+                                          </button>
+                                        ))}
                                       </div>
-                                    </div>
-                                  <div className="flex-shrink-0">
-                                    <label className="form-label mb-1 fw-medium d-block text-nowrap">MLC</label>
-                                    <div className="form-check form-switch mb-0 pb-1">
+                                    )}
+                                    {ipdSearchingPatients && !ipdShowPatientDropdown && (
+                                      <div className="position-absolute top-100 start-0 w-100 mt-1 p-2 bg-white border rounded shadow-sm">
+                                        <div className="text-center text-muted fs-13"><i className="ti ti-loader-2 fs-14 me-1" /> Searching...</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="col-md-2">
+                                  <label className="form-label mb-1 fw-medium fs-14">Title <span className="text-danger">*</span></label>
+                                  <CommonSelect options={Title} className="select" value={ipdTitle} onChange={handleIpdTitleChange} />
+                                </div>
+                                <div className="col-md-6">
+                                  <label className="form-label mb-1 fw-medium fs-14">Full Name <span className="text-danger">*</span></label>
+                                  <input type="text" className="form-control" placeholder="Enter patient name" value={ipdName} onChange={(e) => setIpdName(e.target.value)} required />
+                                </div>
+                                <div className="col-md-3">
+                                  <label className="form-label mb-1 fw-medium fs-14">Gender <span className="text-danger">*</span></label>
+                                  <CommonSelect options={Gender} className="select" value={ipdGender} onChange={setIpdGender} />
+                                </div>
+                                <div className="col-md-5">
+                                  <label className="form-label mb-1 fw-medium fs-14">Email Address</label>
+                                  <input type="email" className="form-control" placeholder="Enter email" value={ipdEmail} onChange={(e) => setIpdEmail(e.target.value)} />
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Blood Group</label>
+                                  <CommonSelect options={Blood_Group} className="select" value={ipdBloodGroup} onChange={setIpdBloodGroup} />
+                                </div>
+                                <div className="col-md-3">
+                                  <label className="form-label mb-1 fw-medium fs-14">Date of Birth</label>
+                                  <div className="input-icon-end position-relative">
+                                    <DatePicker className="form-control datetimepicker" format={{ format: "DD-MM-YYYY", type: "mask" }} getPopupContainer={getModalContainer} placeholder="DD-MM-YYYY" suffixIcon={null} value={ipdDob} onChange={handleIpdDobChange} />
+                                    <span className="input-icon-addon"><i className="ti ti-calendar" /></span>
+                                  </div>
+                                </div>
+                                <div className="col-md-5">
+                                  <label className="form-label mb-1 fw-medium fs-14">Age <span className="text-danger">*</span></label>
+                                  <div className="row g-2">
+                                    <div className="col-4"><input type="text" className="form-control" placeholder="Years" value={ipdAgeYears} onChange={(e) => setIpdAgeYears(e.target.value)} /></div>
+                                    <div className="col-4"><input type="text" className="form-control" placeholder="Months" value={ipdAgeMonths} onChange={(e) => setIpdAgeMonths(e.target.value)} /></div>
+                                    <div className="col-4"><input type="text" className="form-control" placeholder="Days" value={ipdAgeDays} onChange={(e) => setIpdAgeDays(e.target.value)} /></div>
+                                  </div>
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Aadhar No</label>
+                                  <input type="text" className="form-control" placeholder="Enter Aadhar number" value={ipdAadharNo} onChange={(e) => setIpdAadharNo(e.target.value)} />
+                                </div>
+                                <div className="col-md-3">
+                                  <label className="form-label mb-1 fw-medium fs-14">Marital Status</label>
+                                  <CommonSelect
+                                    options={Marital_Status}
+                                    className="select"
+                                    value={ipdMaritalStatus}
+                                    onChange={setIpdMaritalStatus}
+                                  />
+                                </div>
+                                <div className="col-md-5">
+                                  <label className="form-label mb-1 fw-medium fs-14">Ayushman No</label>
+                                  <input type="text" className="form-control" placeholder="Enter Ayushman card number" value={ipdAyushmanNo} onChange={(e) => setIpdAyushmanNo(e.target.value)} />
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Occupation</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Enter occupation"
+                                    value={ipdOccupation}
+                                    onChange={(e) => setIpdOccupation(e.target.value)}
+                                  />
+                                </div>
+                                <div className="w-100" />
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Drug Sensitivity</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="e.g. Penicillin, Aspirin"
+                                    value={ipdDrugSensitivity}
+                                    onChange={(e) => setIpdDrugSensitivity(e.target.value)}
+                                  />
+                                </div>
+                                <div className="col-md-8">
+                                  <label className="form-label mb-1 fw-medium fs-14">Address</label>
+                                  <input type="text" className="form-control" placeholder="Enter address" value={ipdAddress} onChange={(e) => setIpdAddress(e.target.value)} />
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Attendant Name</label>
+                                  <input type="text" className="form-control" placeholder="Attendant name" value={ipdAttendantName} onChange={(e) => setIpdAttendantName(e.target.value)} />
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Relation to Patient</label>
+                                  <input type="text" className="form-control" placeholder="Son, Daughter, Spouse…" value={ipdAttendantRelation} onChange={(e) => setIpdAttendantRelation(e.target.value)} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* STEP 2 — IPD Details */}
+                        {ipdFormStep === 2 && (
+                          <div className="card mb-3">
+                            <div className="card-body">
+                              <h6 className="fw-bold text-primary mb-3">IPD Details</h6>
+                              <div className="row g-3">
+                                <div className="col-md-8">
+                                  <label className="form-label mb-1 fw-medium fs-14">Consulting Doctor <span className="text-danger">*</span></label>
+                                  <CommonSelect
+                                    options={doctorOptions}
+                                    value={ipdSelectedDoctor}
+                                    onChange={handleIpdDoctorChange}
+                                    onInputChange={handleDoctorInputChange}
+                                    isLoading={doctorSearchLoading}
+                                    placeholder="Search doctor..."
+                                  />
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">MLC</label>
+                                  <div className="d-flex align-items-center gap-2 pt-1">
+                                    <div className="form-check form-switch mb-0">
                                       <input
                                         className="form-check-input"
                                         type="checkbox"
                                         role="switch"
                                         id="ipd-new-mlc-toggle"
-                                          checked={ipdMlc}
-                                          onChange={(e) => setIpdMlc(e.target.checked)}
-                                          aria-label="Medico-legal case (MLC)"
-                                        />
-                                        <label
-                                          className="form-check-label fw-medium"
-                                          htmlFor="ipd-new-mlc-toggle"
-                                        >
-                                          {ipdMlc ? "Yes" : "No"}
-                                        </label>
+                                        checked={ipdMlc}
+                                        onChange={(e) => handleIpdMlcToggle(e.target.checked)}
+                                        aria-label="Medico-legal case (MLC)"
+                                      />
+                                      <label className="form-check-label fw-medium fs-14" htmlFor="ipd-new-mlc-toggle">
+                                        {ipdMlc ? "Yes" : "No"}
+                                      </label>
                                     </div>
+                                    {ipdMlc ? (
+                                      <span className="badge" style={{ background: "#fef9c3", color: "#854d0e", fontSize: "0.7rem" }}>
+                                        MLC
+                                      </span>
+                                    ) : null}
                                   </div>
                                 </div>
-                              </div>
-                              <div className="col-12">
-                                <div className="mb-3">
-                                  <label className="form-label mb-1 fw-medium">Add Procedures</label>
-                                  <CommonSelect
-                                    options={ipdProceduresOptions}
-                                    value={ipdAddProcedureSelect}
-                                    onChange={handleIpdAddProcedure}
-                                    placeholder="Select procedure..."
-                                    isLoading={ipdProceduresLoading}
+                                {ipdMlc ? (
+                                  <IpdMlcFields
+                                    idPrefix="ipd-new-mlc"
+                                    value={ipdMlcData}
+                                    onChange={setIpdMlcData}
                                   />
-                                </div>
-                                <div className="mt-1">
-                                  <div className="border rounded overflow-hidden">
-                                    <div
-                                      className="d-flex border-bottom bg-light px-2 py-1 fw-medium text-dark"
-                                      style={{ fontSize: "0.95rem" }}
-                                    >
-                                      <span className="col-1 text-nowrap">S.No</span>
-                                      <span className="col text-nowrap ps-3">Procedure</span>
-                                      <span className="col text-end pe-4 text-nowrap">Price</span>
-                                    </div>
-                                    <div
-                                      className="text-dark"
-                                      style={{ maxHeight: "170px", overflowY: "auto", fontSize: "0.95rem" }}
-                                    >
-                                      {ipdAddedProcedures.length === 0 ? (
-                                        <div className="px-2 py-3 text-center">No procedures added</div>
-                                      ) : (
-                                        ipdAddedProcedures.map((proc, idx) => (
-                                          <div
-                                            key={proc.id}
-                                            className="d-flex align-items-center border-bottom px-2 py-2"
-                                          >
-                                            <span className="col-1">{idx + 1}</span>
-                                            <span className="col ps-3">{proc.name}</span>
-                                            <span className="col d-flex align-items-center justify-content-end gap-1">
-                                              <span>{proc.price}</span>
-                                              <button
-                                                type="button"
-                                                className="btn btn-link p-0 text-danger min-w-0"
-                                                aria-label="Remove procedure"
-                                                onClick={() => handleIpdRemoveProcedure(proc.id)}
-                                              >
-                                                <i className="ti ti-trash ps-1 fs-16" />
-                                              </button>
-                                            </span>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="mb-0 mt-3">
-                                  <label htmlFor="ipd-new-notes" className="form-label mb-1 fw-medium">
-                                    Notes
+                                ) : null}
+                                <IpdAddProceduresField
+                                  proceduresOptions={ipdProceduresOptions}
+                                  addProcedureSelect={ipdAddProcedureSelect}
+                                  onAddProcedure={handleIpdAddProcedure}
+                                  proceduresLoading={ipdProceduresLoading}
+                                  procedures={ipdAddedProcedures}
+                                  onIncrementUnits={handleIpdIncrementProcedureUnits}
+                                  onDecrementUnits={handleIpdDecrementProcedureUnits}
+                                  onRemove={handleIpdRemoveProcedure}
+                                />
+                                <div className="col-12">
+                                  <label htmlFor="ipd-new-notes" className="form-label mb-1 fw-medium fs-14">
+                                    Reason for Admission <span className="text-danger">*</span>
                                   </label>
                                   <textarea
                                     id="ipd-new-notes"
@@ -3354,26 +3382,51 @@ const NewAppointmentComponent = () => {
                                     rows={3}
                                     value={ipdNotes}
                                     onChange={(e) => setIpdNotes(e.target.value)}
-                                    placeholder="Add notes for this IPD admission…"
+                                    placeholder="e.g. Diabetes complications"
+                                    required
                                   />
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* STEP 3 — Bed Details */}
+                        {ipdFormStep === 3 && (
+                          <div className="card mb-3">
+                            <div className="card-body p-0">
+                              <div className="px-3 pt-3 pb-2">
+                                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                  <h6 className="fw-bold text-primary mb-0 d-flex align-items-center flex-wrap gap-2">
+                                    Bed Details
+                                    {ipdSelectedBed ? (
+                                      <span className="badge badge-soft-success border border-success fw-medium fs-12">
+                                        {ipdSelectedBed.bedCode} selected
+                                      </span>
+                                    ) : null}
+                                  </h6>
+                                  <IpdBedWardFilter
+                                    wardOptions={ipdWardOptions}
+                                    selectedWardId={ipdSelectedWardFilterId}
+                                    onWardFilterChange={handleIpdWardFilterChange}
+                                    wardsLoading={ipdWardsLoading}
+                                  />
+                                </div>
+                              </div>
+                              <IpdBedSelectionStep
+                                data={ipdBedBlockData}
+                                loading={ipdBedsLoading}
+                                error={ipdBedsError}
+                                selectedBedId={ipdSelectedBedId}
+                                onSelectBed={handleIpdSelectBed}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      ) : (
-                      <div className="col-12 col-lg-7 pe-lg-3">
-                        <IpdBedSelectionStep
-                          data={ipdBedBlockData}
-                          loading={ipdBedsLoading}
-                          error={ipdBedsError}
-                          selectedBedId={ipdSelectedBedId}
-                          onSelectBed={handleIpdSelectBed}
-                        />
-                      </div>
-                      )}
-                      <div className="col-12 col-lg-5 ps-lg-3">
+
+                      {/* RIGHT COLUMN — Payment Card (always visible) */}
+                      <div className="col-12 col-lg-4">
                         <div className="card h-100">
                           <div className="card-body p-3">
                             <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
@@ -3433,9 +3486,7 @@ const NewAppointmentComponent = () => {
                                 className="form-control fs-15"
                                 placeholder="0"
                                 value={ipdDiscount || ""}
-                                onChange={(e) => {
-                                  setIpdDiscount(parseFloat(e.target.value) || 0);
-                                }}
+                                onChange={(e) => setIpdDiscount(parseFloat(e.target.value) || 0)}
                                 min="0"
                               />
                             </div>
@@ -3474,30 +3525,26 @@ const NewAppointmentComponent = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="d-flex align-items-center justify-content-end mt-3 flex-wrap gap-2">
-                      <Link href={all_routes.ipdAppointments} className="btn font-weight-bold fs-15 fw-medium rounded btn-light me-2">
+
+                    {/* ── Footer Actions ── */}
+                    <div className="d-flex align-items-center justify-content-end mt-4 flex-wrap gap-2">
+                      <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
                         Cancel
                       </Link>
-                      {ipdFormStep === 2 ? (
-                        <button
-                          type="button"
-                          className="btn font-weight-bold fs-15 fw-medium rounded btn-light me-2"
-                          onClick={handleIpdBackToDetails}
-                          disabled={ipdLoading}
-                        >
-                          Back
-                        </button>
-                      ) : null}
                       <button
                         type="submit"
                         className="btn font-weight-bold fs-15 fw-medium rounded btn-primary"
                         disabled={ipdLoading || ipdBedsLoading}
                       >
-                        {ipdLoading
-                          ? "Creating..."
-                          : ipdFormStep === 1
-                            ? "Next: Select bed"
-                            : "Create IPD Appointment"}
+                        {ipdLoading ? (
+                          <><i className="ti ti-loader-2 me-1" />Creating...</>
+                        ) : ipdFormStep === 1 ? (
+                          <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
+                        ) : ipdFormStep === 2 ? (
+                          <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
+                        ) : (
+                          <>Create IPD Appointment<i className="ti ti-check ms-1" /></>
+                        )}
                       </button>
                     </div>
                   </form>

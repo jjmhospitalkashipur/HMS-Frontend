@@ -535,15 +535,13 @@ const EditDaycareAppointmentComponent = () => {
         </div>
       )}
       <div className="content">
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h4 className="fw-bold mb-0">Edit Daycare Appointment</h4>
-          <button
-            type="button"
-            className="btn btn-light"
-            onClick={() => router.push(all_routes.daycareAppointments)}
-          >
-            Back to Daycare Appointments
-          </button>
+        <div className="mb-4">
+          <h6 className="fw-bold mb-0 d-flex align-items-center">
+            <Link href={all_routes.daycareAppointments} className="text-dark">
+              <i className="ti ti-chevron-left me-1" />
+              Edit Daycare Appointments
+            </Link>
+          </h6>
         </div>
 
         {error && (

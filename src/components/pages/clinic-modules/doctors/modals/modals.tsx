@@ -529,6 +529,7 @@ const Modals = () => {
     { type: "Follow-up report", charge: "" },
     { type: "MR", charge: "" },
     { type: "Day Care", charge: "" },
+    { type: "IPD", charge: "" },
   ]);
 
   // Reset form function
@@ -552,6 +553,7 @@ const Modals = () => {
       { type: "OPD", charge: "" },
       { type: "Emergency", charge: "" },
       { type: "Day Care", charge: "" },
+      { type: "IPD", charge: "" },
       { type: "Follow-up", charge: "" },
       { type: "Follow-up report", charge: "" },
       { type: "MR", charge: "" },
@@ -605,12 +607,14 @@ const Modals = () => {
             { type: "Follow-up report", charge: "" },
             { type: "MR", charge: "" },
             { type: "Day Care", charge: "" },
+            { type: "IPD", charge: "" },
           ];
           const mappedVisitTypes = defaultVisitTypes.map(vt => {
             const found = doctor.visitTypes.find((v: any) => {
               if (v.visitType != null && v.appointmentType != null) {
                 if (vt.type === "OPD") return v.visitType === "New" && v.appointmentType === "OPD";
                 if (vt.type === "Day Care") return v.visitType === "New" && v.appointmentType === "Day Care";
+                if (vt.type === "IPD") return v.visitType === "New" && v.appointmentType === "IPD";
                 if (vt.type === "Follow-up report") return v.visitType === "Follow-up-report" && v.appointmentType === "OPD";
                 return v.visitType === vt.type && v.appointmentType === "OPD";
               }
@@ -821,13 +825,14 @@ const Modals = () => {
       setLoading(true);
 
       // Map visit types to API shape: visitType, appointmentType, charge
-      // OPD and Day care → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
+      // OPD, Day Care, IPD → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
       const visitTypesData = visitTypes
         .filter(vt => vt.charge && vt.charge.trim() !== "")
         .map(vt => {
           const charge = parseFloat(vt.charge) || 0;
           if (vt.type === "OPD") return { visitType: "New", appointmentType: "OPD", charge };
           if (vt.type === "Day Care") return { visitType: "New", appointmentType: "Day Care", charge };
+          if (vt.type === "IPD") return { visitType: "New", appointmentType: "IPD", charge };
           if (vt.type === "Follow-up report") return { visitType: "Follow-up-report", appointmentType: "OPD", charge };
           return { visitType: vt.type, appointmentType: "OPD", charge };
         });

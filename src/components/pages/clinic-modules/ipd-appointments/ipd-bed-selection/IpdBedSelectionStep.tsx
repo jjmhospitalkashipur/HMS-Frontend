@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import {
   computeBedSummary,
   type IIpdBed,
@@ -8,6 +9,7 @@ import {
   type IIpdBedSummary,
   type IpdBedStatus,
 } from "./ipdBedTypes";
+import type { IIpdWardOption } from "./fetchIpdBedBlockView";
 
 const BED_STATUS_STYLES: Record<
   IpdBedStatus,
@@ -31,7 +33,72 @@ const getBedSubtitle = (bed: IIpdBed): string => {
   if (bed.status === "available") return "Available";
   if (bed.status === "maintenance") return bed.conditionLabel ?? "Maintenance";
   if (bed.status === "reserved") return bed.conditionLabel ?? "Reserved";
-  return bed.patientName ?? bed.conditionLabel ?? "—";
+  if (bed.patientName && bed.conditionLabel) {
+    return `${bed.patientName} · ${bed.conditionLabel}`;
+  }
+  return bed.patientName ?? bed.conditionLabel ?? "Occupied";
+};
+
+const ALL_WARDS_VALUE = "__all__";
+
+const shellClass = "px-3 px-md-4 pb-4 w-100 bg-white";
+
+interface IIpdBedWardFilterProps {
+  wardOptions?: IIpdWardOption[];
+  selectedWardId?: string | null;
+  onWardFilterChange?: (wardId: string | null) => void;
+  wardsLoading?: boolean;
+}
+
+export const IpdBedWardFilter = ({
+  wardOptions = [],
+  selectedWardId = null,
+  onWardFilterChange,
+  wardsLoading = false,
+}: IIpdBedWardFilterProps) => {
+  const wardSelectOptions: Option[] = useMemo(
+    () => [
+      { value: ALL_WARDS_VALUE, label: "All Wards" },
+      ...wardOptions.map((w) => ({ value: w.value, label: w.label })),
+    ],
+    [wardOptions]
+  );
+
+  const wardSelectValue: Option | null = useMemo(() => {
+    if (!selectedWardId) {
+      return wardSelectOptions[0] ?? null;
+    }
+    return wardSelectOptions.find((o) => o.value === selectedWardId) ?? null;
+  }, [selectedWardId, wardSelectOptions]);
+
+  const handleWardChange = (option: Option | null) => {
+    if (!onWardFilterChange) return;
+    const wardId =
+      !option?.value || option.value === ALL_WARDS_VALUE ? null : option.value;
+    onWardFilterChange(wardId);
+  };
+
+  if (!onWardFilterChange) return null;
+
+  return (
+    <div
+      className="d-flex align-items-center gap-2 flex-shrink-0 ms-md-auto"
+      style={{ minWidth: "140px", maxWidth: "220px", width: "100%" }}
+    >
+      <span className="form-label mb-0 fw-medium fs-13 text-nowrap text-muted flex-shrink-0">
+        Ward
+      </span>
+      <div className="flex-grow-1 ipd-ward-filter-select" style={{ minWidth: 0 }}>
+        <CommonSelect
+          options={wardSelectOptions}
+          value={wardSelectValue}
+          onChange={handleWardChange}
+          placeholder="All"
+          isLoading={wardsLoading}
+        />
+      </div>
+    </div>
+  );
 };
 
 const IpdBedSelectionStep = ({
@@ -48,24 +115,28 @@ const IpdBedSelectionStep = ({
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading beds…</span>
+      <div className={shellClass}>
+        <div className="d-flex justify-content-center align-items-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading beds…</span>
+          </div>
         </div>
       </div>
     );
   }
 
   if (!data?.wards?.length) {
-    return <div className="alert alert-info mb-0">No beds available to display.</div>;
+    return (
+      <div className={shellClass}>
+        {error ? <div className="alert alert-warning py-2 mb-0">{error}</div> : null}
+        {!error ? <div className="alert alert-info mb-0">No beds available to display.</div> : null}
+      </div>
+    );
   }
 
   return (
-    <div className="rounded-3 p-3 p-md-4 w-100" style={{ backgroundColor: "#eef0f4" }}>
+    <div className={shellClass}>
       {error ? <div className="alert alert-warning py-2 mb-3">{error}</div> : null}
-      <h5 className="fw-bold text-center mb-1" style={{ color: "#1e2a5a" }}>
-        Bed &amp; Ward Management — Block View
-      </h5>
       <div className="d-flex flex-wrap justify-content-center align-items-center gap-2 gap-md-3 mb-4 pb-2">
         {(Object.keys(BED_STATUS_STYLES) as IpdBedStatus[]).map((status) => {
           const style = BED_STATUS_STYLES[status];
@@ -150,7 +221,10 @@ const IpdBedSelectionStep = ({
 
       {selectedBedId ? (
         <div className="mt-3 text-center">
-          <span className="badge bg-primary fs-13 px-3 py-2">
+          <span
+            className="badge ipd-selected-bed-badge fs-13 px-3 py-2"
+            style={{ color: "#ffffff", backgroundColor: "#2E37A4" }}
+          >
             Selected:{" "}
             {data.wards.flatMap((w) => w.beds).find((b) => b._id === selectedBedId)?.bedCode ??
               selectedBedId}
