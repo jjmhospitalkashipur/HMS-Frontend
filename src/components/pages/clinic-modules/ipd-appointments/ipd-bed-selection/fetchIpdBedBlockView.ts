@@ -61,6 +61,12 @@ const mapBed = (raw: Record<string, unknown>): IIpdBed => {
   };
 };
 
+const parseChargePerDay = (raw: unknown): number | undefined => {
+  if (raw == null || raw === "") return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 const mapWard = (raw: Record<string, unknown>): IIpdWard => {
   const bedsRaw = raw.beds ?? raw.bedList;
   const beds = Array.isArray(bedsRaw)
@@ -72,6 +78,7 @@ const mapWard = (raw: Record<string, unknown>): IIpdWard => {
     _id: String(raw._id ?? raw.id ?? ""),
     name: String(raw.name ?? raw.wardName ?? raw.label ?? "Ward"),
     beds,
+    chargePerDay: parseChargePerDay(raw.chargePerDay),
   };
 };
 
@@ -121,7 +128,12 @@ const groupBedsByWard = (bedsRaw: unknown[]): IIpdWard[] => {
           : "Ward";
 
     if (!wardMap.has(wardId)) {
-      wardMap.set(wardId, { _id: wardId, name: wardName, beds: [] });
+      wardMap.set(wardId, {
+        _id: wardId,
+        name: wardName,
+        beds: [],
+        chargePerDay: parseChargePerDay(wardRecord?.chargePerDay),
+      });
     }
     wardMap.get(wardId)?.beds.push(mapBed(bed));
   }
@@ -132,6 +144,7 @@ const groupBedsByWard = (bedsRaw: unknown[]): IIpdWard[] => {
 export interface IIpdWardOption {
   value: string;
   label: string;
+  chargePerDay?: number;
 }
 
 export const fetchIpdWardOptions = async (): Promise<IIpdWardOption[]> => {
@@ -150,6 +163,7 @@ export const fetchIpdWardOptions = async (): Promise<IIpdWardOption[]> => {
       .map((w: Record<string, unknown>) => ({
         value: String(w._id ?? w.id ?? ""),
         label: String(w.name ?? w.wardName ?? w.label ?? "Ward"),
+        chargePerDay: parseChargePerDay(w.chargePerDay),
       }))
       .filter((w: IIpdWardOption) => Boolean(w.value));
   } catch {

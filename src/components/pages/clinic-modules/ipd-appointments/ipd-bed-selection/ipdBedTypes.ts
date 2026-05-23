@@ -13,6 +13,7 @@ export interface IIpdWard {
   _id: string;
   name: string;
   beds: IIpdBed[];
+  chargePerDay?: number;
 }
 
 export interface IIpdBedSummary {

@@ -11,14 +11,13 @@ const stepCircleClass = (current: number, step: number): string => {
 };
 
 const stepLabelClass = (current: number, step: number): string => {
-  if (current === step) return "fw-semibold fs-14 text-dark d-none d-sm-inline";
-  if (current > step) return "fw-semibold fs-14 text-muted d-none d-sm-inline";
+  if (current === step) return "fw-semibold fs-14 text-primary d-none d-sm-inline";
   return "fw-semibold fs-14 text-muted d-none d-sm-inline";
 };
 
 const IpdFormStepIndicator = ({ currentStep }: IIpdFormStepIndicatorProps) => {
   return (
-    <div className="mb-4">
+    <div className="mb-3 pb-3 border-bottom">
       <div className="d-flex align-items-center justify-content-center gap-0">
         <div className="d-flex align-items-center gap-2">
           <div

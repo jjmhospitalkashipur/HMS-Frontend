@@ -13,8 +13,36 @@ import {
   enrichIPDDoctorForReceipt,
   type IIpdAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
+import {
+  extractIpdFromGetResponse,
+  mapIpdApiToAppointmentDetail,
+  type IIpdApiRecord,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
+
+const DETAIL_LABEL_CLASS = "form-label mb-1 fw-medium text-dark fs-14";
+const DETAIL_VALUE_CLASS = "fw-bold text-dark";
+const PAYMENT_VALUE_CLASS = "text-dark";
+const DETAIL_TABLE_HEAD_CLASS = "table-light";
+
+const formatPatientAgeForDisplay = (
+  years?: number | null,
+  months?: number | null,
+  days?: number | null
+): string | undefined => {
+  if (years != null && Number.isFinite(Number(years))) {
+    const y = Number(years);
+    if (y === 0) {
+      const m = months != null ? Number(months) : 0;
+      if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+      if (days != null) return `${days} ${Number(days) === 1 ? "Day" : "Days"}`;
+      return undefined;
+    }
+    return `${y} ${y === 1 ? "Year" : "Years"}`;
+  }
+  return undefined;
+};
 
 const IpdAppointmentDetailsComponent = () => {
   const params = useParams();
@@ -29,15 +57,10 @@ const IpdAppointmentDetailsComponent = () => {
   const [amount, setAmount] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
-  const [notes, setNotes] = useState<string>("");
-  const [mlc, setMlc] = useState<boolean>(false);
-  const [notesSaving, setNotesSaving] = useState(false);
-  const [mlcSaving, setMlcSaving] = useState(false);
-  const [fieldUpdateError, setFieldUpdateError] = useState<string>("");
 
   useEffect(() => {
     if (id) {
-      fetchIPDDetails();
+      void fetchIPDDetails();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -50,33 +73,39 @@ const IpdAppointmentDetailsComponent = () => {
         setError("API configuration error");
         return;
       }
-      const res = await axios.get(`${API_BASE_URL}/hospital/ipd-appointments/${id}`);
-      if (res.data?.code === 200 && res.data?.data) {
-        const data = res.data.data?.ipdAppointment ?? res.data.data;
-        const responseReceiptId = res.data?.data?.receiptId as string | undefined;
-        let next: IIpdAppointmentDetail = {
-          ...(data as IIpdAppointmentDetail),
-          receiptId: (data as IIpdAppointmentDetail)?.receiptId ?? responseReceiptId,
-        };
-        next = await enrichIPDDoctorForReceipt(next);
-        setIpd(next);
-        setNotes(next.notes ?? "");
-        setMlc(Boolean(next.mlc ?? next.isMlc));
-      } else {
-        setError("IPD appointment not found");
+      const res = await axios.get(`${API_BASE_URL}/hospital/ipd/${id}`);
+      const ok = res.data?.code === 200 || (res.status >= 200 && res.status < 300);
+      const raw = extractIpdFromGetResponse(res.data?.data) as IIpdApiRecord | null;
+      if (!ok || !raw?._id) {
+        setError(res.data?.message ?? "IPD admission not found");
+        return;
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load ipd appointment");
+
+      const responseReceiptId = res.data?.data?.receiptId as string | undefined;
+      let next = mapIpdApiToAppointmentDetail(raw, responseReceiptId);
+
+      if (!next.patient && next.patientId) {
+        try {
+          const pRes = await axios.get(`${API_BASE_URL}/hospital/patients/${next.patientId}`);
+          const pData = pRes.data?.data?.patient ?? pRes.data?.data;
+          if (pData && typeof pData === "object") {
+            next = { ...next, patient: { ...(pData as IIpdAppointmentDetail["patient"]), _id: next.patientId } };
+          }
+        } catch {
+          /* optional patient fetch */
+        }
+      }
+
+      next = await enrichIPDDoctorForReceipt(next);
+      setIpd(next);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to load IPD admission";
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateAgeFromDob = (dob?: string) => {
-    if (!dob) return undefined;
-    const birth = dayjs(dob);
-    if (!birth.isValid()) return undefined;
-    return dayjs().diff(birth, "year");
   };
 
   if (loading) {
@@ -98,7 +127,7 @@ const IpdAppointmentDetailsComponent = () => {
       <div className="page-wrapper">
         <div className="content">
           <div className="alert alert-danger">
-            <strong>Error:</strong> {error || "IPD appointment not found"}
+            <strong>Error:</strong> {error || "IPD admission not found"}
           </div>
           <Link href={all_routes.ipdAppointments} className="btn btn-primary">
             Back to IPD Appointments
@@ -109,24 +138,29 @@ const IpdAppointmentDetailsComponent = () => {
   }
 
   const doctor = ipd.doctor;
+  const patient = ipd.patient;
   const transactions = ipd.transactions || [];
   const baseTotal = ipd.totalPrice ?? ipd.subtotal ?? 0;
   const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalPaid = ipd.amountPaid != null ? ipd.amountPaid : totalPaidFromTx;
   const dueAmount = Math.max(0, baseTotal - totalPaid);
-  const primaryProceduresLabel =
-    ipd.procedures && ipd.procedures.length
-      ? ipd.procedures
-          .map((p) => p.procedureName || "")
-          .filter(Boolean)
-          .join(", ")
-      : "N/A";
-  const proceduresPrice =
-    ipd.procedureChargesTotal ??
-    (ipd.procedures && ipd.procedures.length
-      ? ipd.procedures[0].price ?? 0
-      : 0);
+  const proceduresPrice = ipd.procedureChargesTotal ?? 0;
   const doctorChargesPrice = ipd.doctorChargesAmount ?? 0;
+  const bedChargesPrice = ipd.bedChargesTotal ?? 0;
+  const admissionDateLabel = ipd.admissionDate ?? ipd.appointmentDate;
+  const patientAgeUi = formatPatientAgeForDisplay(
+    patient?.age,
+    patient?.months,
+    patient?.days
+  );
+  const bedNumber = ipd.bed?.bedNumber ?? ipd.bed?.bedCode;
+  const wardName = ipd.bed?.ward?.name;
+  const bedRate =
+    ipd.bed?.ward?.chargePerDay != null && Number.isFinite(Number(ipd.bed.ward.chargePerDay))
+      ? `₹${Number(ipd.bed.ward.chargePerDay).toLocaleString("en-IN")}/day`
+      : null;
+  const isMlc = Boolean(ipd.mlc ?? ipd.isMlc);
+  const reasonLabel = (ipd.reason ?? ipd.notes ?? "").trim() || "—";
 
   const handleAddTransaction = async () => {
     if (!ipd || !API_BASE_URL || submitting) return;
@@ -158,9 +192,12 @@ const IpdAppointmentDetailsComponent = () => {
       } else {
         alert(res.data?.message || "Failed to add transaction");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error adding ipd transaction:", err);
-      alert(err?.response?.data?.message || "Failed to add transaction. Please try again.");
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to add transaction. Please try again.";
+      alert(message);
     } finally {
       setSubmitting(false);
     }
@@ -170,53 +207,6 @@ const IpdAppointmentDetailsComponent = () => {
     setShowAddTransaction(false);
     setAmount("0");
     setPaymentMode("Cash");
-  };
-
-  const patchIpdFields = async (payload: { notes?: string; mlc?: boolean }) => {
-    if (!API_BASE_URL || !id) return false;
-    try {
-      const res = await axios.patch(`${API_BASE_URL}/hospital/ipd-appointments/${id}`, payload);
-      const ok = res?.status >= 200 && res?.status < 300;
-      const codeOk = res?.data?.code === 200 || res?.data?.code === "200";
-      if (!ok && !codeOk) {
-        setFieldUpdateError(res?.data?.message ?? "Failed to update IPD appointment.");
-        return false;
-      }
-      setFieldUpdateError("");
-      setIpd((prev) => (prev ? { ...prev, ...payload, ...(payload.mlc !== undefined ? { isMlc: payload.mlc } : {}) } : prev));
-      return true;
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Failed to update IPD appointment.";
-      setFieldUpdateError(message);
-      return false;
-    }
-  };
-
-  const handleMlcToggle = async (checked: boolean) => {
-    if (!ipd || mlcSaving) return;
-    const previous = mlc;
-    setMlc(checked);
-    setMlcSaving(true);
-    const saved = await patchIpdFields({ mlc: checked });
-    if (!saved) {
-      setMlc(previous);
-    }
-    setMlcSaving(false);
-  };
-
-  const handleSaveNotes = async () => {
-    if (!ipd || notesSaving) return;
-    const trimmed = notes.trim();
-    const current = (ipd.notes ?? "").trim();
-    if (trimmed === current) return;
-    setNotesSaving(true);
-    const saved = await patchIpdFields({ notes: trimmed || undefined });
-    if (saved) {
-      setNotes(trimmed);
-    }
-    setNotesSaving(false);
   };
 
   const handleTransactionPaymentModeChange = async (
@@ -238,8 +228,11 @@ const IpdAppointmentDetailsComponent = () => {
           ),
         };
       });
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to update payment mode.");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to update payment mode.";
+      alert(message);
       await fetchIPDDetails();
     } finally {
       setTransactionModeUpdatingId(null);
@@ -256,252 +249,255 @@ const IpdAppointmentDetailsComponent = () => {
               IPD Appointments
             </Link>
           </h6>
-          
-          <button
-            type="button"
-            className="btn btn-primary btn-sm d-inline-flex align-items-center"
-            onClick={() => setShowPrintReceipt(true)}
-          >
-            <i className="ti ti-receipt me-1" />
-            Print Receipt
-          </button>
+
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <Link
+              href={`${all_routes.editIpdAppointment}/${ipd._id}`}
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+            >
+              <i className="ti ti-edit me-1" />
+              Edit
+            </Link>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => setShowPrintReceipt(true)}
+            >
+              <i className="ti ti-receipt me-1" />
+              Print Receipt
+            </button>
+          </div>
         </div>
 
-        {fieldUpdateError ? (
-          <div className="alert alert-danger py-2 mb-3" role="alert">
-            {fieldUpdateError}
-          </div>
-        ) : null}
-
         <div className="row">
-          {/* Left column: IPD & patient/doctor details */}
-          <div className="col-lg-7 pe-3">
+          <div className="col-lg-7 pe-lg-3">
             <div className="card mb-3">
               <div className="card-body p-3">
-                <div className="d-flex justify-content-between align-items-center">
-                  <h6 className="fw-bold text-primary mb-3">IPD Information</h6>
-                  <span
-                    className={`badge ${
-                      ipd.status === "Completed"
-                        ? "badge-soft-success"
-                        : ipd.status === "Cancelled"
-                        ? "badge-soft-danger"
-                        : ipd.status === "In Progress"
-                        ? "badge-soft-warning text-dark"
-                        : "badge-soft-primary"
-                    }`}
-                  >
-                    {ipd.status || "Scheduled"}
-                  </span>
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                  <h6 className="fw-bold text-primary mb-0">IPD Information</h6>
+                  <div className="d-flex align-items-center flex-wrap gap-2">
+                    <span
+                      className={`badge ${
+                        ipd.status === "Completed"
+                          ? "badge-soft-success"
+                          : ipd.status === "Cancelled"
+                            ? "badge-soft-danger"
+                            : ipd.status === "In Progress"
+                              ? "badge-soft-warning text-dark"
+                              : "badge-soft-primary"
+                      }`}
+                    >
+                      {ipd.status || "Admitted"}
+                    </span>
+                    {isMlc ? (
+                      <span className="badge badge-soft-warning border border-warning fs-12 px-2 py-1">
+                        MLC
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
+
                 <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
                   <h6 className="fw-bold text-primary mb-0">Patient Details</h6>
                   <Link
-                    href={`${all_routes.patientDetails}?id=${ipd.patient?._id ?? ipd.patientId ?? ""}`}
+                    href={`${all_routes.patientDetails}?id=${patient?._id ?? ipd.patientId ?? ""}`}
                     className={`btn btn-sm d-inline-flex align-items-center ${
-                      ipd.patient?._id || ipd.patientId ? "btn-primary" : "btn-light disabled"
+                      patient?._id || ipd.patientId ? "btn-primary" : "btn-light disabled"
                     }`}
-                    aria-disabled={!(ipd.patient?._id || ipd.patientId)}
+                    aria-disabled={!(patient?._id || ipd.patientId)}
                   >
                     <i className="ti ti-user-circle me-1" />
                     Open Profile
                   </Link>
                 </div>
+
                 <div className="row g-2 mb-3">
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14">IPD ID</label>
-                      <div className="fw-bold text-dark">{ipd.ipdId}</div>
+                  <div className="col-md-3 col-sm-6">
+                    <label className={DETAIL_LABEL_CLASS}>Patient Name</label>
+                    <div className={DETAIL_VALUE_CLASS}>
+                      {patient?.title ? `${patient.title} ` : ""}
+                      {patient?.name || "N/A"}
                     </div>
                   </div>
-                  {ipd.patient?.mrd && (
-                    <div className="col-md-4">
-                      <div className="mb-2">
-                        <label className="form-label mb-1 fw-medium text-dark fs-14">MRD</label>
-                        <div className="fw-bold text-dark">{ipd.patient.mrd}</div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14">Appointment Date</label>
-                      <div className="fw-bold text-dark">
-                        {ipd.appointmentDate
-                          ? dayjs(ipd.appointmentDate).format("DD MMM YYYY")
-                          : "N/A"}
-                      </div>
+                  <div className="col-md-3 col-sm-6">
+                    <label className={DETAIL_LABEL_CLASS}>Age / Gender</label>
+                    <div className={DETAIL_VALUE_CLASS}>
+                      {patientAgeUi || "N/A"} / {patient?.gender || "N/A"}
                     </div>
                   </div>
-                  <div className="col-md-4 col-sm-6">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">MLC</label>
-                      <div className="form-check form-switch mb-0 pt-1">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          role="switch"
-                          id="ipd-mlc-toggle"
-                          checked={mlc}
-                          disabled={mlcSaving}
-                          onChange={(e) => void handleMlcToggle(e.target.checked)}
-                          aria-label="Medico-legal case (MLC)"
-                        />
-                        <label className="form-check-label fw-medium text-dark" htmlFor="ipd-mlc-toggle">
-                          {mlcSaving ? "Saving…" : mlc ? "Yes" : "No"}
-                        </label>
-                      </div>
+                  {patient?.mrd ? (
+                    <div className="col-md-3 col-sm-6">
+                      <label className={DETAIL_LABEL_CLASS}>MRD</label>
+                      <div className={DETAIL_VALUE_CLASS}>{patient.mrd}</div>
+                    </div>
+                  ) : null}
+                  <div className="col-md-3 col-sm-6">
+                    <label className={DETAIL_LABEL_CLASS}>Phone</label>
+                    <div className={DETAIL_VALUE_CLASS}>{patient?.phone || "N/A"}</div>
+                  </div>
+                  <div className="col-md-3 col-sm-6">
+                    <label className={DETAIL_LABEL_CLASS}>IPD ID</label>
+                    <div className={DETAIL_VALUE_CLASS}>{ipd.ipdId || "—"}</div>
+                  </div>
+                  <div className="col-md-3 col-sm-6">
+                    <label className={DETAIL_LABEL_CLASS}>Admission Date</label>
+                    <div className={DETAIL_VALUE_CLASS}>
+                      {admissionDateLabel
+                        ? dayjs(admissionDateLabel).format("DD MMM YYYY")
+                        : "N/A"}
                     </div>
                   </div>
-                  
                 </div>
+
+                {(bedNumber || wardName || bedRate) ? (
+                  <div className="row g-2 mb-3">
+                    <div className="col-md-4 col-sm-6">
+                      <label className={DETAIL_LABEL_CLASS}>Bed No.</label>
+                      <div className={DETAIL_VALUE_CLASS}>{bedNumber || "—"}</div>
+                    </div>
+                    {wardName ? (
+                      <div className="col-md-4 col-sm-6">
+                        <label className={DETAIL_LABEL_CLASS}>Ward</label>
+                        <div className={DETAIL_VALUE_CLASS}>{wardName}</div>
+                      </div>
+                    ) : null}
+                    {bedRate ? (
+                      <div className="col-md-4 col-sm-6">
+                        <label className={DETAIL_LABEL_CLASS}>Bed Rate</label>
+                        <div className={DETAIL_VALUE_CLASS}>{bedRate}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="mb-3">
-                  <label htmlFor="ipd-notes" className="form-label mb-1 fw-medium text-dark fs-14">
-                    Notes
-                  </label>
-                  <textarea
-                    id="ipd-notes"
-                    className="form-control"
-                    rows={4}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    onBlur={() => void handleSaveNotes()}
-                    placeholder="Add notes for this IPD admission…"
-                    disabled={notesSaving}
-                  />
-                  <div className="d-flex align-items-center justify-content-end mt-2 gap-2 flex-wrap">
-                    {notesSaving ? (
-                      <span className="text-muted fs-13">Saving notes…</span>
+                  <label className={DETAIL_LABEL_CLASS}>Reason for Admission</label>
+                  <div className={DETAIL_VALUE_CLASS}>{reasonLabel}</div>
+                </div>
+
+                <div className="row g-2 mb-1">
+                  <div className="col-md-4 col-sm-6">
+                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Procedure Charges</label>
+                    <div className={DETAIL_VALUE_CLASS}>₹{proceduresPrice.toFixed(2)}</div>
+                  </div>
+                  {bedChargesPrice > 0 ? (
+                    <div className="col-md-4 col-sm-6">
+                      <label className={`${DETAIL_LABEL_CLASS} d-block`}>Bed Charges</label>
+                      <div className={DETAIL_VALUE_CLASS}>₹{bedChargesPrice.toFixed(2)}</div>
+                    </div>
+                  ) : null}
+                  <div className="col-md-4 col-sm-6">
+                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Doctor Visit Charges</label>
+                    <div className={DETAIL_VALUE_CLASS}>₹{doctorChargesPrice.toFixed(2)}</div>
+                  </div>
+                  <div className="col-md-4 col-sm-6">
+                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Total Amount</label>
+                    <div className={DETAIL_VALUE_CLASS}>₹{baseTotal.toFixed(2)}</div>
+                  </div>
+                  {ipd.discount != null && ipd.discount > 0 ? (
+                    <div className="col-md-4 col-sm-6">
+                      <label className={`${DETAIL_LABEL_CLASS} d-block`}>Discount</label>
+                      <div className={DETAIL_VALUE_CLASS}>₹{ipd.discount.toFixed(2)}</div>
+                    </div>
+                  ) : null}
+                  <div className="col-md-4 col-sm-6">
+                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Paid</label>
+                    <div className={DETAIL_VALUE_CLASS}>₹{totalPaid.toFixed(2)}</div>
+                  </div>
+                  <div className="col-md-4 col-sm-6">
+                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Due</label>
+                    <div className={DETAIL_VALUE_CLASS}>₹{dueAmount.toFixed(2)}</div>
+                  </div>
+                </div>
+
+                {(doctor || (ipd.doctorVisits && ipd.doctorVisits.length > 0)) ? (
+                  <div className="mt-3">
+                    <h6 className="fw-bold text-primary mb-2">Doctor Visits</h6>
+                    {doctor ? (
+                      <div className="row g-2 mb-2">
+                        <div className="col-md-4 col-sm-6">
+                          <label className={DETAIL_LABEL_CLASS}>Consulting Doctor</label>
+                          <div className={DETAIL_VALUE_CLASS}>{doctor.name}</div>
+                        </div>
+                        {doctor.designation ? (
+                          <div className="col-md-4 col-sm-6">
+                            <label className={DETAIL_LABEL_CLASS}>Designation</label>
+                            <div className={DETAIL_VALUE_CLASS}>{doctor.designation}</div>
+                          </div>
+                        ) : null}
+                        {doctor.department ? (
+                          <div className="col-md-4 col-sm-6">
+                            <label className={DETAIL_LABEL_CLASS}>Department</label>
+                            <div className={DETAIL_VALUE_CLASS}>{doctor.department}</div>
+                          </div>
+                        ) : null}
+                      </div>
                     ) : null}
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary"
-                      onClick={() => void handleSaveNotes()}
-                      disabled={notesSaving}
-                    >
-                      Save Notes
-                    </button>
-                  </div>
-                </div>
-
-                <div className="row g-2 mb-1">
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
-                        Procedure Charges
-                      </label>
-                      <div className="fw-bold text-dark">
-                        ₹{(proceduresPrice ?? 0).toFixed(2)}
+                    {ipd.doctorVisits && ipd.doctorVisits.length > 0 ? (
+                      <div className="table-responsive">
+                        <table className="table table-sm mb-0">
+                          <thead className={DETAIL_TABLE_HEAD_CLASS}>
+                            <tr>
+                              <th style={{ width: "60px" }} className={`${DETAIL_LABEL_CLASS} border-0`}>
+                                S.No
+                              </th>
+                              <th className={`${DETAIL_LABEL_CLASS} border-0`}>Doctor</th>
+                              <th
+                                className={`${DETAIL_LABEL_CLASS} border-0 text-center`}
+                                style={{ width: "80px" }}
+                              >
+                                Days
+                              </th>
+                              <th className={`${DETAIL_LABEL_CLASS} border-0 text-end`}>Price</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ipd.doctorVisits.map((visit, index) => (
+                              <tr key={visit.doctorId || `${visit.doctorName}-${index}`}>
+                                <td className={DETAIL_VALUE_CLASS}>{index + 1}</td>
+                                <td className={DETAIL_VALUE_CLASS}>{visit.doctorName || "N/A"}</td>
+                                <td className={`text-center ${DETAIL_VALUE_CLASS}`}>{visit.days}</td>
+                                <td className={`text-end ${DETAIL_VALUE_CLASS}`}>
+                                  ₹{(visit.price ?? 0).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
+                    ) : (
+                      <p className={`mb-0 ${DETAIL_VALUE_CLASS}`}>No doctor visit charges recorded.</p>
+                    )}
                   </div>
-                </div>
+                ) : null}
 
-                <div className="row g-2 mb-1">
-                 
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
-                        Doctor Visit Charges
-                      </label>
-                      <div className="fw-bold text-dark">
-                        ₹{doctorChargesPrice.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="mb-2">
-                      <label className="form-label mb-1 fw-medium text-dark fs-14 d-block">
-                        Total Amount
-                      </label>
-                      <div className="fw-bold text-dark">
-                        ₹{baseTotal.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {doctor && (
-                  <>
-                    <h6 className="fw-bold text-primary ">Doctor Details</h6>
-                    <div className="row g-2">
-                      <div className="col-md-4">
-                        <div className="mb-2">
-                          <label className="form-label mb-1 fw-medium text-dark fs-14">
-                            Doctor Name
-                          </label>
-                          <div className="fw-bold text-dark">{doctor.name}</div>
-                        </div>
-                      </div>
-                      {doctor.designation && (
-                        <div className="col-md-4">
-                          <div className="mb-2">
-                            <label className="form-label mb-1 fw-medium text-dark fs-14">
-                              Designation
-                            </label>
-                            <div className="fw-bold text-dark">{doctor.designation}</div>
-                          </div>
-                        </div>
-                      )}
-                      {doctor.department && (
-                        <div className="col-md-4">
-                          <div className="mb-2">
-                            <label className="form-label mb-1 fw-medium text-dark fs-14">
-                              Department
-                            </label>
-                            <div className="fw-bold text-dark">{doctor.department}</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {ipd.procedures && ipd.procedures.length > 0 && (
+                {ipd.procedures && ipd.procedures.length > 0 ? (
                   <div className="mt-3">
                     <h6 className="fw-bold text-primary mb-2">Procedures</h6>
                     <div className="table-responsive">
-                      <table className="table table-sm mb-0 text-dark">
-                        <thead>
+                      <table className="table table-sm mb-0">
+                        <thead className={DETAIL_TABLE_HEAD_CLASS}>
                           <tr>
-                            <th style={{ width: "60px" }} className="text-dark">
+                            <th style={{ width: "60px" }} className={`${DETAIL_LABEL_CLASS} border-0`}>
                               S.No
                             </th>
-                            <th className="text-dark">Procedure</th>
-                            <th className="text-end text-dark">Price</th>
-                            <th className="text-end text-dark" style={{ width: "140px" }}>
-                              Action
+                            <th className={`${DETAIL_LABEL_CLASS} border-0`}>Procedure</th>
+                            <th className={`${DETAIL_LABEL_CLASS} border-0 text-center`} style={{ width: "80px" }}>
+                              Units
                             </th>
+                            <th className={`${DETAIL_LABEL_CLASS} border-0 text-end`}>Price</th>
                           </tr>
                         </thead>
                         <tbody>
                           {ipd.procedures.map((proc, index) => (
                             <tr key={proc.procedureId || `${proc.procedureName}-${index}`}>
-                              <td className="text-dark">{index + 1}</td>
-                              <td className="text-dark">{proc.procedureName || "N/A"}</td>
-                              <td className="text-end text-dark">
-                                ₹{(proc.price ?? 0).toFixed(2)}
+                              <td className={DETAIL_VALUE_CLASS}>{index + 1}</td>
+                              <td className={DETAIL_VALUE_CLASS}>{proc.procedureName || "N/A"}</td>
+                              <td className={`text-center ${DETAIL_VALUE_CLASS}`}>
+                                {proc.units ?? 1}
                               </td>
-                              <td className="text-end">
-                                {proc.isDialysis ? (
-                                  proc.dialysisSessionId ? (
-                                    <Link
-                                      href={`${all_routes.dialysisAppointment}?patientId=${ipd.patientId || ""}&sessionId=${proc.dialysisSessionId}`}
-                                      className="btn btn-sm btn-outline-primary"
-                                    >
-                                      Dialysis
-                                    </Link>
-                                  ) : (
-                                    <Link
-                                      href={`${all_routes.dialysisAppointment}?patientId=${ipd.patientId || ""}`}
-                                      className="btn btn-sm btn-outline-primary"
-                                    >
-                                      Dialysis
-                                    </Link>
-                                  )
-                                ) : (
-                                  <span className="text-muted fs-13">—</span>
-                                )}
+                              <td className={`text-end ${DETAIL_VALUE_CLASS}`}>
+                                ₹{(proc.price ?? 0).toFixed(2)}
                               </td>
                             </tr>
                           ))}
@@ -509,13 +505,12 @@ const IpdAppointmentDetailsComponent = () => {
                       </table>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
 
-          {/* Right column: Payment History with Add Transaction */}
-          <div className="col-lg-5 ps-3">
+          <div className="col-lg-5 ps-lg-3">
             <div className="card">
               <div className="card-body p-3">
                 <h6 className="fw-bold text-primary mb-2">Payment History</h6>
@@ -527,32 +522,32 @@ const IpdAppointmentDetailsComponent = () => {
                 ) : (
                   <div className="table-responsive">
                     <table className="table table-hover mb-0">
-                      <thead>
+                      <thead className={DETAIL_TABLE_HEAD_CLASS}>
                         <tr>
-                          <th className="border-0 fs-13 fw-medium">ID</th>
-                          <th className="border-0 fs-13 fw-medium">Date - Time</th>
-                          <th className="border-0 fs-13 fw-medium">Amount</th>
-                          <th className="border-0 fs-13 fw-medium">Mode</th>
+                          <th className="border-0 fs-13 fw-medium text-dark">ID</th>
+                          <th className="border-0 fs-13 fw-medium text-dark">Date - Time</th>
+                          <th className="border-0 fs-13 fw-medium text-dark">Amount</th>
+                          <th className="border-0 fs-13 fw-medium text-dark">Mode</th>
                         </tr>
                       </thead>
                       <tbody>
                         {transactions.map((txn) => (
                           <tr key={txn._id}>
-                            <td className="fs-15 text-dark fw-medium">{txn.transactionId}</td>
-                            <td className="fs-15 text-dark">
+                            <td className={`fs-15 ${PAYMENT_VALUE_CLASS} fw-medium`}>{txn.transactionId}</td>
+                            <td className={`fs-15 ${PAYMENT_VALUE_CLASS}`}>
                               {dayjs(txn.transactionDate).format("DD MMM YYYY")}
                               <br />
-                              <small className="text-dark">
+                              <small className={PAYMENT_VALUE_CLASS}>
                                 {dayjs(txn.createdAt).format("HH:mm")}
                               </small>
                             </td>
-                            <td className="fs-15 text-dark fw-medium">
+                            <td className={`fs-15 ${PAYMENT_VALUE_CLASS} fw-medium`}>
                               <i className="ti ti-check fs-14 me-1 text-success" />
                               ₹{txn.amount?.toFixed(2) || "0.00"}
                             </td>
-                            <td className="fs-15 text-dark">
+                            <td className={`fs-15 ${PAYMENT_VALUE_CLASS}`}>
                               <select
-                                className="form-select form-select-sm"
+                                className="form-select form-select-sm text-dark"
                                 style={{ minWidth: "6.5rem", maxWidth: "10rem" }}
                                 value={
                                   TRANSACTION_PAYMENT_MODES.includes(
@@ -604,16 +599,15 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </div>
       </div>
-      {/* Print Receipt */}
-      {showPrintReceipt && ipd && (
+
+      {showPrintReceipt && ipd ? (
         <PrintReceipt
           receiptData={buildIPDReceiptData(ipd, dueAmount)}
           onClose={() => setShowPrintReceipt(false)}
         />
-      )}
+      ) : null}
 
-      {/* Add Transaction Modal */}
-      {showAddTransaction && ipd && (
+      {showAddTransaction && ipd ? (
         <>
           <div
             className="modal-backdrop fade show"
@@ -629,7 +623,7 @@ const IpdAppointmentDetailsComponent = () => {
             <div className="modal-dialog modal-dialog-centered" role="document">
               <div className="modal-content">
                 <div className="modal-header">
-                  <h5 className="modal-title fw-bold">Add Transaction</h5>
+                  <h5 className="modal-title fw-bold text-dark">Add Transaction</h5>
                   <button
                     type="button"
                     className="btn-close"
@@ -705,10 +699,9 @@ const IpdAppointmentDetailsComponent = () => {
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 };
 
 export default IpdAppointmentDetailsComponent;
-

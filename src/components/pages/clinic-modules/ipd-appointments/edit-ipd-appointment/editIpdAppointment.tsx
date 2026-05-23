@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
@@ -9,9 +9,7 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import IpdBedSelectionStep, {
-  IpdBedWardFilter,
-} from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/IpdBedSelectionStep";
+import IpdBedSelectionStep from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/IpdBedSelectionStep";
 import {
   fetchIpdBedBlockView,
   fetchIpdWardOptions,
@@ -21,16 +19,29 @@ import type {
   IIpdBed,
   IIpdBedBlockViewData,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/ipdBedTypes";
+import { getIpdDoctorVisitingCharge } from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitingCharge";
+import IpdAddDoctorVisitsField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddDoctorVisitsField";
 import {
-  appendDefaultDoctorVisitingCharge,
-  getIpdDoctorVisitingCharge,
-} from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitingCharge";
+  addIpdDoctorVisitRow,
+  buildIpdDoctorBillingCharges,
+  calcIpdDoctorChargesTotalWithConsulting,
+  decrementIpdDoctorVisitDays,
+  incrementIpdDoctorVisitDays,
+  ipdDoctorVisitRowsFromBilling,
+  removeIpdDoctorVisitRow,
+  type IIpdDoctorVisitRow,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitRows";
 import IpdAddProceduresField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddProceduresField";
 import IpdFormStepIndicator from "@/components/pages/clinic-modules/ipd-appointments/IpdFormStepIndicator";
+import IpdAdmissionSummarySidebar, {
+  resolveIpdBedSummary,
+  type IIpdSummaryBed,
+} from "@/components/pages/clinic-modules/ipd-appointments/IpdAdmissionSummarySidebar";
 import IpdMlcFields, {
   emptyIpdMlcData,
   type IIpdMlcData,
 } from "@/components/pages/clinic-modules/ipd-appointments/IpdMlcFields";
+import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
 import {
@@ -42,6 +53,10 @@ import {
   ipdProcedureRowsFromLegacy,
   removeIpdProcedureRow,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
+import {
+  extractIpdFromGetResponse,
+  type IIpdApiRecord,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
 
 interface IVisitTypeCharge {
   visitType?: string;
@@ -53,6 +68,7 @@ interface IVisitTypeCharge {
 interface IDoctor {
   _id: string;
   name: string;
+  department?: string;
   visitTypes?: IVisitTypeCharge[];
 }
 
@@ -74,6 +90,8 @@ interface IIpdPatient {
   occupation?: string;
   drugSensitivity?: string;
   aadharNo?: string;
+  aadharS3Url?: string;
+  imageUrl?: string;
   ayushmanCardNo?: string;
   attendantName?: string;
   attendantRelation?: string;
@@ -108,42 +126,6 @@ interface IIpdUpdatePayload {
   };
 }
 
-interface IIpdDetail {
-  _id: string;
-  patientId: string;
-  doctorId: string;
-  bedId?: string;
-  reason?: string;
-  notes?: string;
-  admissionDate?: string;
-  appointmentDate?: string;
-  billingCharges?: IIpdBillingCharge[];
-  procedures?: Array<{
-    procedureId?: string;
-    procedureName?: string;
-    price?: number;
-  }>;
-  doctorVisitCharges?: boolean;
-  doctor?: { _id: string; name: string };
-  patient?: IIpdPatient;
-  bed?: { _id: string; bedCode?: string };
-  mlc?: IIpdMlcData;
-  isMlc?: boolean;
-  isMLC?: boolean;
-  discount?: number;
-  amountPaid?: number;
-  transactions?: Array<{ amount?: number; paymentMode?: string }>;
-}
-
-const extractIpdFromGetResponse = (data: unknown): IIpdDetail | null => {
-  if (!data || typeof data !== "object") return null;
-  const root = data as Record<string, unknown>;
-  const nested = root.ipd ?? root.ipdAppointment;
-  if (nested && typeof nested === "object") return nested as unknown as IIpdDetail;
-  if (root._id) return root as unknown as IIpdDetail;
-  return null;
-};
-
 const EditIpdAppointmentComponent = () => {
   const params = useParams();
   const router = useRouter();
@@ -156,6 +138,10 @@ const EditIpdAppointmentComponent = () => {
   const [ipdRecordId, setIpdRecordId] = useState<string | null>(null);
   const [patientId, setPatientId] = useState<string | null>(null);
   const [patient, setPatient] = useState<IIpdPatient | null>(null);
+  const [patientPhotoFile, setPatientPhotoFile] = useState<File | null>(null);
+  const [patientAadharFile, setPatientAadharFile] = useState<File | null>(null);
+  const [patientPhotoUrl, setPatientPhotoUrl] = useState<string>("");
+  const [patientAadharDocUrl, setPatientAadharDocUrl] = useState<string>("");
 
   const [formStep, setFormStep] = useState<1 | 2 | 3>(1);
 
@@ -163,6 +149,7 @@ const EditIpdAppointmentComponent = () => {
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [doctorSearchLoading, setDoctorSearchLoading] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
+  const [addVisitingDoctorSelect, setAddVisitingDoctorSelect] = useState<Option | null>(null);
 
   const [proceduresOptions, setProceduresOptions] = useState<Option[]>([]);
   const [procedurePriceById, setProcedurePriceById] = useState<Record<string, number>>({});
@@ -183,6 +170,7 @@ const EditIpdAppointmentComponent = () => {
   const [selectedWardFilterId, setSelectedWardFilterId] = useState<string | null>(null);
   const [selectedBedId, setSelectedBedId] = useState<string | null>(null);
   const [selectedBed, setSelectedBed] = useState<IIpdBed | null>(null);
+  const [bedSummarySnapshot, setBedSummarySnapshot] = useState<IIpdSummaryBed | null>(null);
 
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [amountPaidFromApi, setAmountPaidFromApi] = useState(0);
@@ -191,11 +179,47 @@ const EditIpdAppointmentComponent = () => {
 
   const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [visitingCharge, setVisitingCharge] = useState(0);
+  const [doctorVisits, setDoctorVisits] = useState<IIpdDoctorVisitRow[]>([]);
+  const summaryDoctor = useMemo(
+    () => doctors.find((doctor) => doctor._id === selectedDoctor?.value),
+    [doctors, selectedDoctor?.value]
+  );
   const proceduresTotal = calcIpdProceduresTotal(addedProcedures);
-  const subtotal = proceduresTotal + visitingCharge;
+  const consultingDoctorCharge = getIpdDoctorVisitingCharge(summaryDoctor?.visitTypes);
+  const doctorChargesTotal = calcIpdDoctorChargesTotalWithConsulting(
+    doctorVisits,
+    consultingDoctorCharge,
+    selectedDoctor?.value
+  );
+  const subtotal = proceduresTotal + doctorChargesTotal;
   const finalAmount = subtotal - (discount || 0);
   const balance = finalAmount - (amountReceived || 0);
+  const summaryBed = useMemo(() => {
+    const resolved = resolveIpdBedSummary(
+      bedBlockData,
+      selectedBedId,
+      selectedBed?.bedCode,
+      wardOptions
+    );
+    if (resolved.wardName || resolved.ratePerDay != null) return resolved;
+    return bedSummarySnapshot ?? resolved;
+  }, [bedBlockData, selectedBedId, selectedBed?.bedCode, wardOptions, bedSummarySnapshot]);
+  const summaryPackageLabel = useMemo(() => {
+    const labels = addedProcedures.map((procedure) => procedure.name).filter(Boolean);
+    return labels.length ? labels.join(", ") : undefined;
+  }, [addedProcedures]);
+
+  useEffect(() => {
+    if (!patient) {
+      setPatientPhotoUrl("");
+      setPatientAadharDocUrl("");
+      return;
+    }
+    setPatientPhotoUrl(patient.imageUrl ?? "");
+    setPatientAadharDocUrl(patient.aadharS3Url ?? "");
+    setPatientPhotoFile(null);
+    setPatientAadharFile(null);
+  }, [patient]);
 
   const fetchDoctors = useCallback(async (search = "") => {
     if (!API_BASE_URL) return;
@@ -275,11 +299,34 @@ const EditIpdAppointmentComponent = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (loading || !selectedBedId) return;
+    void loadWardOptions();
+    void loadBedBlockView(null);
+  }, [loading, selectedBedId, loadWardOptions, loadBedBlockView]);
+
+  useEffect(() => {
+    if (!selectedBedId) {
+      setBedSummarySnapshot(null);
+      return;
+    }
+    const resolved = resolveIpdBedSummary(
+      bedBlockData,
+      selectedBedId,
+      selectedBed?.bedCode,
+      wardOptions
+    );
+    if (resolved.wardName || resolved.ratePerDay != null || resolved.bedCode) {
+      setBedSummarySnapshot(resolved);
+    }
+  }, [bedBlockData, selectedBedId, selectedBed?.bedCode, wardOptions]);
+
   const handleWardFilterChange = useCallback(
     (wardId: string | null) => {
       setSelectedWardFilterId(wardId);
       setSelectedBedId(null);
       setSelectedBed(null);
+      setBedSummarySnapshot(null);
       void loadBedBlockView(wardId);
     },
     [loadBedBlockView]
@@ -306,7 +353,7 @@ const EditIpdAppointmentComponent = () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/hospital/ipd/${ipdIdParam}`);
         const ok = res.data?.code === 200 || (res.status >= 200 && res.status < 300);
-        const data = extractIpdFromGetResponse(res.data?.data);
+        const data = extractIpdFromGetResponse(res.data?.data) as IIpdApiRecord | null;
         if (!ok || !data?._id) {
           setError(res.data?.message ?? "IPD admission not found.");
           return;
@@ -342,14 +389,17 @@ const EditIpdAppointmentComponent = () => {
         setAdmissionDate(admission);
         setReason((data.reason ?? data.notes ?? "").trim());
         setMlc(Boolean(data.isMLC ?? data.isMlc));
-        const mlcRecord = data.mlc && typeof data.mlc === "object" ? data.mlc : null;
+        const mlcRecord =
+          data.mlc && typeof data.mlc === "object" && !Array.isArray(data.mlc)
+            ? (data.mlc as unknown as IIpdMlcData)
+            : null;
         setMlcData(
           mlcRecord
             ? {
-                markOfIdentification: mlcRecord.markOfIdentification ?? "",
-                thanaName: mlcRecord.thanaName ?? "",
-                patientBroughtBy: mlcRecord.patientBroughtBy ?? "",
-                placeOfAccident: mlcRecord.placeOfAccident ?? "",
+                markOfIdentification: String(mlcRecord.markOfIdentification ?? ""),
+                thanaName: String(mlcRecord.thanaName ?? ""),
+                patientBroughtBy: String(mlcRecord.patientBroughtBy ?? ""),
+                placeOfAccident: String(mlcRecord.placeOfAccident ?? ""),
               }
             : emptyIpdMlcData()
         );
@@ -363,6 +413,15 @@ const EditIpdAppointmentComponent = () => {
             bedCode: data.bed.bedCode ?? "",
             status: "occupied",
           } as IIpdBed);
+          const wardFromApi = data.bed.ward;
+          setBedSummarySnapshot({
+            bedCode: data.bed.bedNumber ?? data.bed.bedCode,
+            wardName: wardFromApi?.name,
+            ratePerDay:
+              wardFromApi?.chargePerDay != null
+                ? Number(wardFromApi.chargePerDay)
+                : undefined,
+          });
         }
 
         const txTotal = Array.isArray(data.transactions)
@@ -401,9 +460,10 @@ const EditIpdAppointmentComponent = () => {
       if (!API_BASE_URL || !routeId) return;
       try {
         const res = await axios.get(`${API_BASE_URL}/hospital/ipd/${routeId}`);
-        const data = extractIpdFromGetResponse(res.data?.data);
+        const data = extractIpdFromGetResponse(res.data?.data) as IIpdApiRecord | null;
         if (!data) return;
         const billing = Array.isArray(data.billingCharges) ? data.billingCharges : [];
+        setDoctorVisits(ipdDoctorVisitRowsFromBilling(billing));
         if (billing.length) {
           setAddedProcedures(ipdProcedureRowsFromBilling(billing, procedurePriceById));
           return;
@@ -416,19 +476,39 @@ const EditIpdAppointmentComponent = () => {
       }
     };
     void reloadProcedures();
-  }, [procedurePriceById, loading, routeId]);
-
-  useEffect(() => {
-    if (!selectedDoctor?.value) {
-      setVisitingCharge(0);
-      return;
-    }
-    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
-    setVisitingCharge(getIpdDoctorVisitingCharge(doctor?.visitTypes));
-  }, [selectedDoctor?.value, doctors]);
+  }, [procedurePriceById, loading, routeId, doctors]);
 
   const handleDoctorChange = useCallback((option: Option | null) => {
     setSelectedDoctor(option);
+  }, []);
+
+  const handleAddVisitingDoctor = useCallback(
+    (option: Option | null) => {
+      if (!option?.value) return;
+      const doctor = doctors.find((d) => d._id === option.value);
+      const chargePerDay = getIpdDoctorVisitingCharge(doctor?.visitTypes);
+      setDoctorVisits((prev) =>
+        addIpdDoctorVisitRow(prev, {
+          doctorId: option.value,
+          name: option.label ?? doctor?.name ?? "—",
+          chargePerDay,
+        })
+      );
+      setAddVisitingDoctorSelect(null);
+    },
+    [doctors]
+  );
+
+  const handleIncrementDoctorVisitDays = useCallback((doctorId: string) => {
+    setDoctorVisits((prev) => incrementIpdDoctorVisitDays(prev, doctorId));
+  }, []);
+
+  const handleDecrementDoctorVisitDays = useCallback((doctorId: string) => {
+    setDoctorVisits((prev) => decrementIpdDoctorVisitDays(prev, doctorId));
+  }, []);
+
+  const handleRemoveVisitingDoctor = useCallback((doctorId: string) => {
+    setDoctorVisits((prev) => removeIpdDoctorVisitRow(prev, doctorId));
   }, []);
 
   const handleAddProcedure = useCallback(
@@ -458,6 +538,9 @@ const EditIpdAppointmentComponent = () => {
   const handleSelectBed = (bed: IIpdBed) => {
     setSelectedBedId(bed._id);
     setSelectedBed(bed);
+    setBedSummarySnapshot(
+      resolveIpdBedSummary(bedBlockData, bed._id, bed.bedCode, wardOptions)
+    );
     setError("");
   };
 
@@ -473,7 +556,10 @@ const EditIpdAppointmentComponent = () => {
         units: p.units,
       }));
 
-    return appendDefaultDoctorVisitingCharge(procedureCharges, doctorId);
+    return [
+      ...procedureCharges,
+      ...buildIpdDoctorBillingCharges(doctorVisits, doctorId),
+    ];
   };
 
   const buildUpdatePayload = (): IIpdUpdatePayload | null => {
@@ -512,6 +598,22 @@ const EditIpdAppointmentComponent = () => {
     return payload;
   };
 
+  const buildUpdateMultipartBody = (payload: IIpdUpdatePayload): FormData => {
+    const formData = new FormData();
+    formData.append("patientId", payload.patientId);
+    formData.append("doctorId", payload.doctorId);
+    formData.append("bedId", payload.bedId);
+    formData.append("admissionDate", payload.admissionDate);
+    formData.append("reason", payload.reason);
+    formData.append("billingCharges", JSON.stringify(payload.billingCharges));
+    if (payload.isMLC != null) formData.append("isMLC", String(payload.isMLC));
+    if (payload.mlc) formData.append("mlc", JSON.stringify(payload.mlc));
+    if (payload.transaction) formData.append("transaction", JSON.stringify(payload.transaction));
+    if (patientPhotoFile) formData.append("patientPhoto", patientPhotoFile);
+    if (patientAadharFile) formData.append("aadharDocument", patientAadharFile);
+    return formData;
+  };
+
   const handleMlcToggle = (checked: boolean) => {
     setMlc(checked);
     if (!checked) setMlcData(emptyIpdMlcData());
@@ -533,7 +635,12 @@ const EditIpdAppointmentComponent = () => {
     setSubmitLoading(true);
     setError("");
     try {
-      const res = await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdRecordId}`, payload);
+      const hasUploads = !!(patientPhotoFile || patientAadharFile);
+      const res = hasUploads
+        ? await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdRecordId}`, buildUpdateMultipartBody(payload), {
+            headers: { "Content-Type": "multipart/form-data" },
+          })
+        : await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdRecordId}`, payload);
       const ok = res?.status >= 200 && res?.status < 300;
       const codeOk = res?.data?.code === 200 || res?.data?.code === "200";
       if (ok || codeOk) {
@@ -628,19 +735,20 @@ const EditIpdAppointmentComponent = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <IpdFormStepIndicator currentStep={formStep} />
-            {error ? (
-              <div className="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3">
-                <i className="ti ti-alert-circle fs-16" />
-                <span className="fs-14">{error}</span>
-              </div>
-            ) : null}
-
             <div className="row g-3 align-items-start">
-              <div className="col-12 col-lg-8">
+              <div className="col-12 col-lg-8 d-flex flex-column">
+                <div className="card mb-3">
+                  <div className="card-body">
+                    <IpdFormStepIndicator currentStep={formStep} />
+                    {error ? (
+                      <div className="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3">
+                        <i className="ti ti-alert-circle fs-16" />
+                        <span className="fs-14">{error}</span>
+                      </div>
+                    ) : null}
+
                 {formStep === 1 && (
-                  <div className="card mb-3">
-                    <div className="card-body">
+                  <>
                       <h6 className="fw-bold text-primary mb-3 d-flex align-items-center flex-wrap gap-2">
                         Patient Details
                         <span className="badge badge-soft-success border border-success fw-medium fs-12">
@@ -648,39 +756,58 @@ const EditIpdAppointmentComponent = () => {
                         </span>
                       </h6>
                       <div className="row g-3">
-                        <div className="col-md-4">
-                          <label className="form-label mb-1 fw-medium fs-14">Phone Number</label>
-                          <input type="text" className="form-control bg-light" value={patient?.phone ?? ""} readOnly disabled />
-                        </div>
-                        <div className="col-md-2">
-                          <label className="form-label mb-1 fw-medium fs-14">Title</label>
-                          <input type="text" className="form-control bg-light" value={patientTitleLabel} readOnly disabled />
-                        </div>
-                        <div className="col-md-6">
-                          <label className="form-label mb-1 fw-medium fs-14">Full Name</label>
-                          {patient?._id ? (
-                            <Link
-                              href={`${all_routes.patientDetails}?id=${patient._id}`}
-                              className="form-control bg-light text-decoration-none text-dark d-flex align-items-center"
-                            >
-                              <span className="flex-grow-1 text-start">{patient?.name ?? "—"}</span>
-                              <i className="ti ti-arrow-right fs-12 text-muted" />
-                            </Link>
-                          ) : (
-                            <input type="text" className="form-control bg-light" value={patient?.name ?? ""} readOnly disabled />
-                          )}
-                        </div>
-                        <div className="col-md-3">
-                          <label className="form-label mb-1 fw-medium fs-14">Gender</label>
-                          <input type="text" className="form-control bg-light" value={patientGenderLabel} readOnly disabled />
-                        </div>
-                        <div className="col-md-5">
-                          <label className="form-label mb-1 fw-medium fs-14">Email Address</label>
-                          <input type="text" className="form-control bg-light" value={patient?.email ?? ""} readOnly disabled />
-                        </div>
-                        <div className="col-md-4">
-                          <label className="form-label mb-1 fw-medium fs-14">Blood Group</label>
-                          <input type="text" className="form-control bg-light" value={patientBloodLabel} readOnly disabled />
+                        <div className="col-12">
+                          <div className="d-flex flex-column flex-md-row gap-3 align-items-start">
+                            <IpdPatientCompactUpload
+                              label="Patient photo"
+                              placeholder="Add patient photo"
+                              hint="Jpg / Png · drag or click"
+                              accept="image/jpeg,image/png,image/jpg"
+                              file={patientPhotoFile}
+                              previewUrl={patientPhotoUrl || undefined}
+                              onFileChange={setPatientPhotoFile}
+                            />
+                            <div className="flex-grow-1 w-100">
+                              <div className="row g-3 m-0">
+                                <div className="col-12 col-sm-6 col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Phone Number</label>
+                                  <input type="text" className="form-control bg-light" value={patient?.phone ?? ""} readOnly disabled />
+                                </div>
+                                <div className="col-6 col-md-2">
+                                  <label className="form-label mb-1 fw-medium fs-14">Title</label>
+                                  <input type="text" className="form-control bg-light" value={patientTitleLabel} readOnly disabled />
+                                </div>
+                                <div className="col-12 col-sm-6 col-md">
+                                  <label className="form-label mb-1 fw-medium fs-14">Full Name</label>
+                                  {patient?._id ? (
+                                    <Link
+                                      href={`${all_routes.patientDetails}?id=${patient._id}`}
+                                      className="form-control bg-light text-decoration-none text-dark d-flex align-items-center"
+                                    >
+                                      <span className="flex-grow-1 text-start">{patient?.name ?? "—"}</span>
+                                      <i className="ti ti-arrow-right fs-12 text-muted" />
+                                    </Link>
+                                  ) : (
+                                    <input type="text" className="form-control bg-light" value={patient?.name ?? ""} readOnly disabled />
+                                  )}
+                                </div>
+                              </div>
+                              <div className="row g-3 m-0">
+                                <div className="col-12 col-sm-6 col-md-3">
+                                  <label className="form-label mb-1 fw-medium fs-14">Gender</label>
+                                  <input type="text" className="form-control bg-light" value={patientGenderLabel} readOnly disabled />
+                                </div>
+                                <div className="col-12 col-sm-6 col-md-5">
+                                  <label className="form-label mb-1 fw-medium fs-14">Email Address</label>
+                                  <input type="text" className="form-control bg-light" value={patient?.email ?? ""} readOnly disabled />
+                                </div>
+                                <div className="col-12 col-md-4">
+                                  <label className="form-label mb-1 fw-medium fs-14">Blood Group</label>
+                                  <input type="text" className="form-control bg-light" value={patientBloodLabel} readOnly disabled />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         <div className="col-md-3">
                           <label className="form-label mb-1 fw-medium fs-14">Date of Birth</label>
@@ -737,7 +864,6 @@ const EditIpdAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium fs-14">Occupation</label>
                           <input type="text" className="form-control bg-light" value={patient?.occupation ?? ""} readOnly disabled />
                         </div>
-                        <div className="w-100" />
                         <div className="col-md-4">
                           <label className="form-label mb-1 fw-medium fs-14">Drug Sensitivity</label>
                           <input type="text" className="form-control bg-light" value={patient?.drugSensitivity ?? ""} readOnly disabled />
@@ -754,14 +880,26 @@ const EditIpdAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium fs-14">Relation to Patient</label>
                           <input type="text" className="form-control bg-light" value={patient?.attendantRelation ?? ""} readOnly disabled />
                         </div>
+                        <div className="col-md-4">
+                          <label className="form-label mb-1 fw-medium fs-14">Aadhar Document</label>
+                          <input
+                            type="file"
+                            className="form-control"
+                            accept="image/jpeg,image/png,image/jpg,application/pdf"
+                            onChange={(e) => setPatientAadharFile(e.target.files?.[0] ?? null)}
+                          />
+                          {patientAadharFile?.name ? (
+                            <small className="text-muted d-block mt-1 text-truncate">{patientAadharFile.name}</small>
+                          ) : patientAadharDocUrl ? (
+                            <small className="text-muted d-block mt-1">Existing document on file</small>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                  </>
                 )}
 
                 {formStep === 2 && (
-                  <div className="card mb-3">
-                    <div className="card-body">
+                  <>
                       <h6 className="fw-bold text-primary mb-3">IPD Details</h6>
                       <div className="row g-3">
                         <div className="col-md-8">
@@ -802,6 +940,16 @@ const EditIpdAppointmentComponent = () => {
                         {mlc ? (
                           <IpdMlcFields idPrefix="edit-ipd-mlc" value={mlcData} onChange={setMlcData} />
                         ) : null}
+                        <IpdAddDoctorVisitsField
+                          doctorOptions={doctorOptions}
+                          addDoctorSelect={addVisitingDoctorSelect}
+                          onAddDoctor={handleAddVisitingDoctor}
+                          doctorsLoading={doctorSearchLoading}
+                          visits={doctorVisits}
+                          onIncrementDays={handleIncrementDoctorVisitDays}
+                          onDecrementDays={handleDecrementDoctorVisitDays}
+                          onRemove={handleRemoveVisitingDoctor}
+                        />
                         <IpdAddProceduresField
                           proceduresOptions={proceduresOptions}
                           addProcedureSelect={addProcedureSelect}
@@ -827,79 +975,119 @@ const EditIpdAppointmentComponent = () => {
                           />
                         </div>
                       </div>
-                    </div>
-                  </div>
+                  </>
                 )}
 
                 {formStep === 3 && (
-                  <div className="card mb-3">
-                    <div className="card-body p-0">
-                      <div className="px-3 pt-3 pb-2">
-                        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                          <h6 className="fw-bold text-primary mb-0 d-flex align-items-center flex-wrap gap-2">
-                            Bed Details
-                            {selectedBed ? (
-                              <span className="badge badge-soft-success border border-success fw-medium fs-12">
-                                {selectedBed.bedCode} selected
-                              </span>
-                            ) : null}
-                          </h6>
-                          <IpdBedWardFilter
-                            wardOptions={wardOptions}
-                            selectedWardId={selectedWardFilterId}
-                            onWardFilterChange={handleWardFilterChange}
-                            wardsLoading={wardsLoading}
-                          />
-                        </div>
-                      </div>
+                  <>
+                      <h6 className="fw-bold text-primary mb-0 d-flex align-items-center flex-wrap gap-2">
+                        Bed Details
+                        {selectedBed ? (
+                          <span className="badge badge-soft-success border border-success fw-medium fs-12">
+                            {selectedBed.bedCode} selected
+                          </span>
+                        ) : null}
+                      </h6>
                       <IpdBedSelectionStep
                         data={bedBlockData}
                         loading={bedsLoading}
                         error={bedsError}
                         selectedBedId={selectedBedId}
                         onSelectBed={handleSelectBed}
+                        wardOptions={wardOptions}
+                        selectedWardId={selectedWardFilterId}
+                        onWardFilterChange={handleWardFilterChange}
+                        wardsLoading={wardsLoading}
                       />
-                    </div>
-                  </div>
+                  </>
                 )}
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-center justify-content-end mt-2 flex-wrap gap-2">
+                  <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
+                    Cancel
+                  </Link>
+                  {formStep === 2 && (
+                    <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(1); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
+                      <i className="ti ti-arrow-left me-1" />Back
+                    </button>
+                  )}
+                  {formStep === 3 && (
+                    <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(2); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
+                      <i className="ti ti-arrow-left me-1" />Back
+                    </button>
+                  )}
+                  <button type="submit" className="btn font-weight-bold fs-15 fw-medium rounded btn-primary" disabled={submitLoading || bedsLoading}>
+                    {submitLoading ? (
+                      <><i className="ti ti-loader-2 me-1" />Saving...</>
+                    ) : formStep === 1 ? (
+                      <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
+                    ) : formStep === 2 ? (
+                      <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
+                    ) : (
+                      <>Save IPD Admission<i className="ti ti-check ms-1" /></>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="col-12 col-lg-4">
-                <div className="card h-100">
-                  <div className="card-body p-3">
-                    <h6 className="fw-bold text-primary mb-2">Payment Details</h6>
+                <IpdAdmissionSummarySidebar
+                  patient={{
+                    title: patientTitleLabel !== "—" ? patientTitleLabel : undefined,
+                    name: patient?.name,
+                    phone: patient?.phone?.trim() || undefined,
+                    gender: patientGenderLabel !== "—" ? patientGenderLabel : undefined,
+                    ageYears: patientAgeYears || undefined,
+                    bloodGroup: patientBloodLabel !== "—" ? patientBloodLabel : undefined,
+                    drugSensitivity: patient?.drugSensitivity,
+                    isNewPatient: false,
+                  }}
+                  admission={{
+                    consultingDoctor: selectedDoctor?.label ?? summaryDoctor?.name,
+                    admissionDate: admissionDate
+                      ? dayjs(admissionDate).format("DD MMM YYYY")
+                      : undefined,
+                    reason: reason.trim() || undefined,
+                    proceduresLabel: summaryPackageLabel,
+                    isMlc: mlc,
+                  }}
+                  bed={summaryBed}
+                  payment={
+                    <>
                     <div className="mb-2 d-flex align-items-center flex-wrap gap-2">
-                      <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
+                      <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>
                         Payment Mode
                       </label>
                       <div className="d-flex gap-3 flex-wrap ms-auto justify-content-end">
                         <div className="form-check">
                           <input className="form-check-input" type="radio" name="editIpdPaymentMode" id="edit-ipd-cash" value="Cash" checked={paymentMode === "Cash"} onChange={(e) => setPaymentMode(e.target.value)} />
-                          <label className="form-check-label" htmlFor="edit-ipd-cash">Cash</label>
+                          <label className="form-check-label text-dark" htmlFor="edit-ipd-cash">Cash</label>
                         </div>
                         <div className="form-check">
                           <input className="form-check-input" type="radio" name="editIpdPaymentMode" id="edit-ipd-upi" value="UPI" checked={paymentMode === "UPI"} onChange={(e) => setPaymentMode(e.target.value)} />
-                          <label className="form-check-label" htmlFor="edit-ipd-upi">UPI</label>
+                          <label className="form-check-label text-dark" htmlFor="edit-ipd-upi">UPI</label>
                         </div>
                         <div className="form-check">
                           <input className="form-check-input" type="radio" name="editIpdPaymentMode" id="edit-ipd-card" value="Card" checked={paymentMode === "Card"} onChange={(e) => setPaymentMode(e.target.value)} />
-                          <label className="form-check-label" htmlFor="edit-ipd-card">Card</label>
+                          <label className="form-check-label text-dark" htmlFor="edit-ipd-card">Card</label>
                         </div>
                       </div>
                     </div>
                     <div className="mb-2 d-flex align-items-center">
-                      <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
+                      <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>
                         Total
                       </label>
-                      <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
+                      <div className="form-control bg-light fs-15 text-dark" style={{ pointerEvents: "none" }}>
                         ₹{subtotal.toFixed(2)}
                       </div>
                     </div>
                     <div className="mb-2 d-flex align-items-center">
-                      <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Discount</label>
+                      <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>Discount</label>
                       <input
                         type="number"
-                        className="form-control fs-15"
+                        className="form-control fs-15 text-dark"
                         placeholder="0"
                         value={discount || ""}
                         onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
@@ -907,68 +1095,35 @@ const EditIpdAppointmentComponent = () => {
                       />
                     </div>
                     <div className="mb-2 d-flex align-items-center">
-                      <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Final Amount</label>
-                      <div className="form-control bg-light fs-15" style={{ pointerEvents: "none" }}>
+                      <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>Final Amount</label>
+                      <div className="form-control bg-light fs-15 text-dark" style={{ pointerEvents: "none" }}>
                         ₹{finalAmount.toFixed(2)}
                       </div>
                     </div>
                     <div className="mb-2 d-flex align-items-center">
-                      <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>Amount Received</label>
+                      <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>Amount Received</label>
                       <input
                         type="number"
-                        className="form-control fs-15"
+                        className="form-control fs-15 text-dark"
                         placeholder="0"
                         value={amountReceived || ""}
                         onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
                         min={0}
                       />
                     </div>
-                    <div className="mb-2 d-flex align-items-center">
-                      <label className="form-label mb-0 fw-medium me-2" style={{ minWidth: "120px" }}>
+                    <div className="mb-0 d-flex align-items-center">
+                      <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>
                         Balance
                       </label>
-                      <div
-                        className="form-control d-flex align-items-center justify-content-between fs-15"
-                        style={{
-                          pointerEvents: "none",
-                          backgroundColor: "#fff3cd",
-                          borderColor: "#ffc107",
-                        }}
-                      >
+                      <div className="form-control d-flex align-items-center justify-content-between fs-15 text-dark bg-warning-subtle border border-warning">
                         <span>₹{balance.toFixed(2)}</span>
                         <i className="ti ti-alert-triangle text-warning fs-16" />
                       </div>
                     </div>
-                  </div>
-                </div>
+                    </>
+                  }
+                />
               </div>
-            </div>
-
-            <div className="d-flex align-items-center justify-content-end mt-4 flex-wrap gap-2">
-              <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
-                Cancel
-              </Link>
-              {formStep === 2 && (
-                <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(1); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
-                  <i className="ti ti-arrow-left me-1" />Back
-                </button>
-              )}
-              {formStep === 3 && (
-                <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(2); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
-                  <i className="ti ti-arrow-left me-1" />Back
-                </button>
-              )}
-              <button type="submit" className="btn font-weight-bold fs-15 fw-medium rounded btn-primary" disabled={submitLoading || bedsLoading}>
-                {submitLoading ? (
-                  <><i className="ti ti-loader-2 me-1" />Saving...</>
-                ) : formStep === 1 ? (
-                  <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
-                ) : formStep === 2 ? (
-                  <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
-                ) : (
-                  <>Save IPD Admission<i className="ti ti-check ms-1" /></>
-                )}
-              </button>
             </div>
           </form>
         )}

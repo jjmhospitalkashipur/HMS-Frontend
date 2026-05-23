@@ -21,9 +21,15 @@ export const getIpdDoctorVisitingCharge = (
   return match?.charge ?? 0;
 };
 
-export const appendDefaultDoctorVisitingCharge = <T extends { type: string }>(
+export const appendDefaultDoctorVisitingCharge = <
+  T extends { type: string; doctorId?: string },
+>(
   charges: T[],
   doctorId: string
 ): T[] => {
+  if (!doctorId) return charges;
+  if (charges.some((c) => c.type === "doctor" && c.doctorId === doctorId)) {
+    return charges;
+  }
   return [...charges, { type: "doctor", doctorId, units: 1 } as unknown as T];
 };

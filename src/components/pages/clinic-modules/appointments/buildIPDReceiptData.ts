@@ -67,8 +67,18 @@ export interface IIpdProcedure {
   procedureId: string;
   procedureName?: string;
   price?: number;
+  units?: number;
+  unitPrice?: number;
   isDialysis?: boolean;
   dialysisSessionId?: string;
+}
+
+export interface IIpdDoctorVisit {
+  doctorId: string;
+  doctorName?: string;
+  days: number;
+  chargePerDay?: number;
+  price: number;
 }
 
 export interface IIpdTransaction {
@@ -80,6 +90,23 @@ export interface IIpdTransaction {
   createdAt: string;
 }
 
+export interface IIpdBedSummary {
+  _id?: string;
+  bedNumber?: string;
+  bedCode?: string;
+  ward?: { _id?: string; name?: string; chargePerDay?: number };
+}
+
+export interface IIpdBillingChargeSummary {
+  type?: string;
+  procedureId?: string;
+  procedureName?: string;
+  price?: number;
+  units?: number;
+  totalCharge?: number;
+  charge?: number;
+}
+
 export interface IIpdAppointmentDetail {
   _id: string;
   ipdId: string;
@@ -87,14 +114,20 @@ export interface IIpdAppointmentDetail {
   appointmentId: string;
   patientId: string;
   doctorId: string;
+  bedId?: string;
   procedures?: IIpdProcedure[];
+  doctorVisits?: IIpdDoctorVisit[];
+  billingCharges?: IIpdBillingChargeSummary[];
   procedureChargesTotal?: number;
   doctorVisitCharges?: boolean;
   doctorChargesAmount?: number;
+  bedChargesTotal?: number;
   subtotal?: number;
   discount?: number;
   totalPrice?: number;
   appointmentDate?: string;
+  admissionDate?: string;
+  reason?: string;
   status?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -105,6 +138,7 @@ export interface IIpdAppointmentDetail {
   isMlc?: boolean;
   doctor?: IIpdDoctor;
   patient?: IIpdPatient;
+  bed?: IIpdBedSummary;
   transactions?: IIpdTransaction[];
 }
 
@@ -167,7 +201,7 @@ export const buildIPDReceiptData = (
   }
 
   const docTotal = ipd.doctorChargesAmount ?? 0;
-  if (ipd.doctorVisitCharges && docTotal > 0) {
+  if (docTotal > 0) {
     charges.push({
       _id: `${ipd._id}-doc`,
       transactionId: "",
