@@ -81,12 +81,14 @@ export interface IIpdApiRecord {
   transactions?: IIpdTransaction[];
 }
 
+const asIpdApiRecord = (value: object): IIpdApiRecord => value as unknown as IIpdApiRecord;
+
 export const extractIpdFromGetResponse = (data: unknown): IIpdApiRecord | null => {
   if (!data || typeof data !== "object") return null;
   const root = data as Record<string, unknown>;
   const nested = root.ipd ?? root.ipdAppointment;
-  if (nested && typeof nested === "object") return nested as IIpdApiRecord;
-  if (root._id) return root as IIpdApiRecord;
+  if (nested && typeof nested === "object") return asIpdApiRecord(nested);
+  if (root._id) return asIpdApiRecord(root);
   return null;
 };
 
