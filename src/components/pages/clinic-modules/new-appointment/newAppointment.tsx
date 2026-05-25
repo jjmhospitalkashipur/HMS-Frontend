@@ -34,7 +34,7 @@ import type {
   IIpdBedBlockViewData,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/ipdBedTypes";
 import { getIpdDoctorVisitingCharge } from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitingCharge";
-import IpdAddDoctorVisitsField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddDoctorVisitsField";
+import IpdAddChargesField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddChargesField";
 import {
   addIpdDoctorVisitRow,
   buildIpdDoctorBillingCharges,
@@ -44,7 +44,6 @@ import {
   removeIpdDoctorVisitRow,
   type IIpdDoctorVisitRow,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitRows";
-import IpdAddProceduresField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddProceduresField";
 import IpdFormStepIndicator from "@/components/pages/clinic-modules/ipd-appointments/IpdFormStepIndicator";
 import IpdAdmissionSummarySidebar, {
   resolveIpdBedSummary,
@@ -113,8 +112,10 @@ interface IPatient {
   }>;
   aadharNo?: string;
   aadharS3Url?: string;
-  imageUrl?: string;
+  imageS3Url?: string;
   ayushmanCardNo?: string;
+  ayushmanCardS3Url?: string;
+  otherDocsS3Urls?: string[];
 }
 
 type IIpdBillingCharge =
@@ -138,8 +139,10 @@ interface IIpdCreatePayload {
     drugSensitivity?: string;
     aadharNo?: string;
     aadharS3Url?: string;
-    imageUrl?: string;
+    imageS3Url?: string;
     ayushmanCardNo?: string;
+    ayushmanCardS3Url?: string;
+    otherDocsS3Urls?: string[];
   };
   doctorId: string;
   bedId: string;
@@ -283,8 +286,12 @@ const NewAppointmentComponent = () => {
   const [ipdAadharNo, setIpdAadharNo] = useState<string>("");
   const [ipdPhotoFile, setIpdPhotoFile] = useState<File | null>(null);
   const [ipdAadharFile, setIpdAadharFile] = useState<File | null>(null);
-  const [ipdPatientPhotoUrl, setIpdPatientPhotoUrl] = useState<string>("");
-  const [ipdPatientAadharDocUrl, setIpdPatientAadharDocUrl] = useState<string>("");
+  const [ipdAyushmanFile, setIpdAyushmanFile] = useState<File | null>(null);
+  const [ipdOtherDocFile, setIpdOtherDocFile] = useState<File | null>(null);
+  const [ipdImageS3Url, setIpdImageS3Url] = useState<string>("");
+  const [ipdAadharS3Url, setIpdAadharS3Url] = useState<string>("");
+  const [ipdAyushmanCardS3Url, setIpdAyushmanCardS3Url] = useState<string>("");
+  const [ipdOtherDocsS3Urls, setIpdOtherDocsS3Urls] = useState<string[]>([]);
   const [ipdAyushmanNo, setIpdAyushmanNo] = useState<string>("");
   const [ipdAttendantName, setIpdAttendantName] = useState<string>("");
   const [ipdAttendantRelation, setIpdAttendantRelation] = useState<string>("");
@@ -296,12 +303,10 @@ const NewAppointmentComponent = () => {
   const [ipdShowPatientDropdown, setIpdShowPatientDropdown] = useState<boolean>(false);
   const [ipdSearchingPatients, setIpdSearchingPatients] = useState<boolean>(false);
   const [ipdSelectedDoctor, setIpdSelectedDoctor] = useState<Option | null>(null);
-  const [ipdAddVisitingDoctorSelect, setIpdAddVisitingDoctorSelect] = useState<Option | null>(null);
   const [ipdMlc, setIpdMlc] = useState(false);
   const [ipdMlcData, setIpdMlcData] = useState<IIpdMlcData>(emptyIpdMlcData);
   const [ipdNotes, setIpdNotes] = useState("");
   const [ipdAddedProcedures, setIpdAddedProcedures] = useState<IIpdProcedureRow[]>([]);
-  const [ipdAddProcedureSelect, setIpdAddProcedureSelect] = useState<Option | null>(null);
   const [ipdProceduresOptions, setIpdProceduresOptions] = useState<Option[]>([]);
   const [ipdProceduresLoading, setIpdProceduresLoading] = useState(false);
   const [ipdProcedurePriceById, setIpdProcedurePriceById] = useState<Record<string, number>>({});
@@ -337,7 +342,17 @@ const NewAppointmentComponent = () => {
     ipdConsultingDoctorCharge,
     ipdSelectedDoctor?.value
   );
-  const ipdSubtotal = ipdProceduresCharges + ipdDoctorChargesTotal;
+  const ipdBedChargesAmount = useMemo(() => {
+    const resolved = resolveIpdBedSummary(
+      ipdBedBlockData,
+      ipdSelectedBedId,
+      ipdSelectedBed?.bedCode,
+      ipdWardOptions
+    );
+    const rate = resolved.ratePerDay ?? ipdBedSummarySnapshot?.ratePerDay ?? 0;
+    return Number.isFinite(rate) ? rate : 0;
+  }, [ipdBedBlockData, ipdSelectedBedId, ipdSelectedBed?.bedCode, ipdWardOptions, ipdBedSummarySnapshot]);
+  const ipdSubtotal = ipdProceduresCharges + ipdDoctorChargesTotal + ipdBedChargesAmount;
   const ipdBalance = ipdSubtotal - (ipdDiscount || 0) - (ipdAmountReceived || 0);
   const ipdSummaryBed = useMemo(() => {
     const resolved = resolveIpdBedSummary(
@@ -1448,7 +1463,6 @@ const NewAppointmentComponent = () => {
     setIpdAddedProcedures((prev) =>
       addIpdProcedureRow(prev, { id: option.value, name: option.label, price })
     );
-    setIpdAddProcedureSelect(null);
   }, [ipdProcedurePriceById]);
 
   const handleIpdIncrementProcedureUnits = useCallback((id: string) => {
@@ -1479,7 +1493,6 @@ const NewAppointmentComponent = () => {
           chargePerDay,
         })
       );
-      setIpdAddVisitingDoctorSelect(null);
     },
     [doctors]
   );
@@ -1496,32 +1509,42 @@ const NewAppointmentComponent = () => {
     setIpdDoctorVisits((prev) => removeIpdDoctorVisitRow(prev, doctorId));
   }, []);
 
+  const fetchIpdProcedures = useCallback(async (search = "") => {
+    if (!API_BASE_URL) return;
+    try {
+      setIpdProceduresLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { limit: 50, search: search || undefined },
+      });
+      const list = res.data?.data?.procedures ?? res.data?.data ?? [];
+      const arr = Array.isArray(list) ? list : [];
+      setIpdProceduresOptions(
+        arr.map((p: { _id: string; procedureName?: string }) => ({
+          value: p._id,
+          label: p.procedureName ?? "—",
+        }))
+      );
+      const priceMap: Record<string, number> = {};
+      arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
+        priceMap[p._id] = p.price ?? p.basePrice ?? 0;
+      });
+      setIpdProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
+    } catch {
+      setIpdProceduresOptions([]);
+    } finally {
+      setIpdProceduresLoading(false);
+    }
+  }, []);
+
+  const handleIpdChargesSearchInput = useCallback(
+    (value: string) => {
+      void fetchDoctorsWithSearch(value);
+      void fetchIpdProcedures(value);
+    },
+    [fetchDoctorsWithSearch, fetchIpdProcedures]
+  );
+
   useEffect(() => {
-    const fetchIpdProcedures = async () => {
-      if (!API_BASE_URL) return;
-      try {
-        setIpdProceduresLoading(true);
-        const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50 } });
-        const list = res.data?.data?.procedures ?? res.data?.data ?? [];
-        const arr = Array.isArray(list) ? list : [];
-        setIpdProceduresOptions(
-          arr.map((p: { _id: string; procedureName?: string }) => ({
-            value: p._id,
-            label: p.procedureName ?? "—",
-          }))
-        );
-        const priceMap: Record<string, number> = {};
-        arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
-          priceMap[p._id] = p.price ?? p.basePrice ?? 0;
-        });
-        setIpdProcedurePriceById(priceMap);
-      } catch {
-        setIpdProceduresOptions([]);
-        setIpdProcedurePriceById({});
-      } finally {
-        setIpdProceduresLoading(false);
-      }
-    };
     if (appointmentTab === "IPD") void fetchIpdProcedures();
   }, [appointmentTab]);
 
@@ -1730,8 +1753,12 @@ const NewAppointmentComponent = () => {
     setIpdAadharNo(patient.aadharNo || "");
     setIpdPhotoFile(null);
     setIpdAadharFile(null);
-    setIpdPatientPhotoUrl(patient.imageUrl || "");
-    setIpdPatientAadharDocUrl(patient.aadharS3Url || "");
+    setIpdAyushmanFile(null);
+    setIpdOtherDocFile(null);
+    setIpdImageS3Url(patient.imageS3Url || "");
+    setIpdAadharS3Url(patient.aadharS3Url || "");
+    setIpdAyushmanCardS3Url(patient.ayushmanCardS3Url || "");
+    setIpdOtherDocsS3Urls(patient.otherDocsS3Urls || []);
     setIpdAyushmanNo(patient.ayushmanCardNo || "");
     const maritalStatusValue = getPatientMaritalStatus(patient);
     if (maritalStatusValue) {
@@ -1797,7 +1824,7 @@ const NewAppointmentComponent = () => {
     return dayjs().format("YYYY-MM-DD");
   };
 
-  const buildIpdCreatePayload = (): IIpdCreatePayload | null => {
+  const buildIpdCreatePayload = (uploadedUrls?: { imageS3Url?: string; aadharS3Url?: string; ayushmanCardS3Url?: string; otherDocUrl?: string }): IIpdCreatePayload | null => {
     const doctorId = ipdSelectedDoctor?.value;
     const bedId = ipdSelectedBedId;
     if (!doctorId || !bedId) return null;
@@ -1825,6 +1852,13 @@ const NewAppointmentComponent = () => {
     if (ipdSelectedPatient?._id) {
       payload.patientId = ipdSelectedPatient._id;
     } else {
+      const finalImageUrl = uploadedUrls?.imageS3Url || ipdImageS3Url || "";
+      const finalAadharUrl = uploadedUrls?.aadharS3Url || ipdAadharS3Url || "";
+      const finalAyushmanUrl = uploadedUrls?.ayushmanCardS3Url || ipdAyushmanCardS3Url || "";
+      const finalOtherDocs = uploadedUrls?.otherDocUrl
+        ? [...ipdOtherDocsS3Urls, uploadedUrls.otherDocUrl]
+        : ipdOtherDocsS3Urls;
+
       payload.patientData = {
         title: ipdTitle?.value && ipdTitle.value !== "Select" ? ipdTitle.value : "",
         name: ipdName.trim(),
@@ -1844,10 +1878,10 @@ const NewAppointmentComponent = () => {
         ...(ipdDrugSensitivity.trim() ? { drugSensitivity: ipdDrugSensitivity.trim() } : {}),
         ...(ipdAadharNo.trim() ? { aadharNo: ipdAadharNo.trim() } : {}),
         ...(ipdAyushmanNo.trim() ? { ayushmanCardNo: ipdAyushmanNo.trim() } : {}),
-        ...(ipdPatientAadharDocUrl && !ipdAadharFile
-          ? { aadharS3Url: ipdPatientAadharDocUrl }
-          : {}),
-        ...(ipdPatientPhotoUrl && !ipdPhotoFile ? { imageUrl: ipdPatientPhotoUrl } : {}),
+        ...(finalImageUrl ? { imageS3Url: finalImageUrl } : {}),
+        ...(finalAadharUrl ? { aadharS3Url: finalAadharUrl } : {}),
+        ...(finalAyushmanUrl ? { ayushmanCardS3Url: finalAyushmanUrl } : {}),
+        ...(finalOtherDocs.length > 0 ? { otherDocsS3Urls: finalOtherDocs } : {}),
       };
     }
 
@@ -1873,21 +1907,16 @@ const NewAppointmentComponent = () => {
     return payload;
   };
 
-  const buildIpdMultipartBody = (payload: IIpdCreatePayload): FormData => {
+  const uploadFileToS3 = async (file: File, folder: string): Promise<string> => {
     const formData = new FormData();
-    formData.append("doctorId", payload.doctorId);
-    formData.append("bedId", payload.bedId);
-    formData.append("admissionDate", payload.admissionDate);
-    formData.append("reason", payload.reason);
-    formData.append("billingCharges", JSON.stringify(payload.billingCharges));
-    if (payload.patientId) formData.append("patientId", payload.patientId);
-    if (payload.patientData) formData.append("patientData", JSON.stringify(payload.patientData));
-    if (payload.isMLC != null) formData.append("isMLC", String(payload.isMLC));
-    if (payload.mlc) formData.append("mlc", JSON.stringify(payload.mlc));
-    if (payload.transaction) formData.append("transaction", JSON.stringify(payload.transaction));
-    if (ipdPhotoFile) formData.append("patientPhoto", ipdPhotoFile);
-    if (ipdAadharFile) formData.append("aadharDocument", ipdAadharFile);
-    return formData;
+    formData.append("file", file);
+    const res = await axios.post(`${API_BASE_URL}/upload/pathlab?folder=${folder}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const d = res.data;
+    const signedUrl = d?.data?.signedUrl || "";
+    if (signedUrl) return signedUrl.split("?")[0];
+    return d?.data?.originalUrl || d?.data?.url || d?.url || "";
   };
 
   const handleIpdMlcToggle = (checked: boolean) => {
@@ -1919,20 +1948,38 @@ const NewAppointmentComponent = () => {
       return;
     }
 
-    const payload = buildIpdCreatePayload();
-    if (!payload) {
-      setIpdError("Please complete required IPD fields.");
-      return;
-    }
-
     setIpdLoading(true);
     try {
-      const hasUploads = !!(ipdPhotoFile || ipdAadharFile);
-      const response = hasUploads
-        ? await axios.post(`${API_BASE_URL}/hospital/ipd`, buildIpdMultipartBody(payload), {
-            headers: { "Content-Type": "multipart/form-data" },
-          })
-        : await axios.post(`${API_BASE_URL}/hospital/ipd`, payload);
+      let uploadedImageUrl = "";
+      let uploadedAadharUrl = "";
+      let uploadedAyushmanUrl = "";
+      let uploadedOtherDocUrl = "";
+
+      if (ipdPhotoFile) {
+        uploadedImageUrl = await uploadFileToS3(ipdPhotoFile, "ipd_patient_photos");
+      }
+      if (ipdAadharFile) {
+        uploadedAadharUrl = await uploadFileToS3(ipdAadharFile, "ipd_aadhar_docs");
+      }
+      if (ipdAyushmanFile) {
+        uploadedAyushmanUrl = await uploadFileToS3(ipdAyushmanFile, "ipd_ayushman_docs");
+      }
+      if (ipdOtherDocFile) {
+        uploadedOtherDocUrl = await uploadFileToS3(ipdOtherDocFile, "ipd_other_docs");
+      }
+
+      const payload = buildIpdCreatePayload({
+        imageS3Url: uploadedImageUrl || undefined,
+        aadharS3Url: uploadedAadharUrl || undefined,
+        ayushmanCardS3Url: uploadedAyushmanUrl || undefined,
+        otherDocUrl: uploadedOtherDocUrl || undefined,
+      });
+      if (!payload) {
+        setIpdError("Please complete required IPD fields.");
+        return;
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/hospital/ipd`, payload);
       const ok = response?.status >= 200 && response?.status < 300;
       const codeOk = response?.data?.code === 200 || response?.data?.code === "200";
       if (!ok && !codeOk) {
@@ -3339,7 +3386,7 @@ const NewAppointmentComponent = () => {
                                       hint="Jpg / Png · drag or click"
                                       accept="image/jpeg,image/png,image/jpg"
                                       file={ipdPhotoFile}
-                                      previewUrl={ipdPatientPhotoUrl || undefined}
+                                      previewUrl={ipdImageS3Url || undefined}
                                       onFileChange={setIpdPhotoFile}
                                     />
                                     <div className="flex-grow-1 w-100">
@@ -3356,8 +3403,12 @@ const NewAppointmentComponent = () => {
                                                 setIpdSelectedPatient(null);
                                                 setIpdPhotoFile(null);
                                                 setIpdAadharFile(null);
-                                                setIpdPatientPhotoUrl("");
-                                                setIpdPatientAadharDocUrl("");
+                                                setIpdAyushmanFile(null);
+                                                setIpdOtherDocFile(null);
+                                                setIpdImageS3Url("");
+                                                setIpdAadharS3Url("");
+                                                setIpdAyushmanCardS3Url("");
+                                                setIpdOtherDocsS3Urls([]);
                                               }}
                                               placeholder="Phone number or name"
                                               required
@@ -3469,19 +3520,94 @@ const NewAppointmentComponent = () => {
                                   <label className="form-label mb-1 fw-medium fs-14">Relation to Patient</label>
                                   <input type="text" className="form-control" placeholder="Son, Daughter, Spouse…" value={ipdAttendantRelation} onChange={(e) => setIpdAttendantRelation(e.target.value)} />
                                 </div>
-                                <div className="col-md-4">
-                                  <label className="form-label mb-1 fw-medium fs-14">Aadhar Document</label>
-                                  <input
-                                    type="file"
-                                    className="form-control"
-                                    accept="image/jpeg,image/png,image/jpg,application/pdf"
-                                    onChange={(e) => setIpdAadharFile(e.target.files?.[0] ?? null)}
-                                  />
-                                  {ipdAadharFile?.name ? (
-                                    <small className="text-muted d-block mt-1 text-truncate">{ipdAadharFile.name}</small>
-                                  ) : ipdPatientAadharDocUrl ? (
-                                    <small className="text-muted d-block mt-1">Existing document on file</small>
-                                  ) : null}
+                              </div>
+
+                              {/* Documents Section */}
+                              <h6 className="fw-bold text-primary mb-3 border-top pt-3 mt-3">Documents</h6>
+                              <div className="row g-3">
+                                <div className="col-md-6">
+                                  <label className="form-label mb-2 fw-medium">Aadhar Card</label>
+                                  <div
+                                    className="border border-dashed rounded p-3 text-center position-relative"
+                                    style={{ minHeight: "100px", cursor: "pointer", backgroundColor: "#f8f9fa" }}
+                                    onClick={() => (document.getElementById("ipd-aadhar-upload") as HTMLInputElement)?.click()}
+                                  >
+                                    <input id="ipd-aadhar-upload" type="file" className="d-none" accept="image/*,.pdf" onChange={(e) => setIpdAadharFile(e.target.files?.[0] ?? null)} />
+                                    {ipdAadharFile ? (
+                                      <div>
+                                        <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                        <p className="mb-0 text-dark fw-medium">{ipdAadharFile.name}</p>
+                                        <button className="btn btn-sm btn-link text-danger mt-2" onClick={(e) => { e.stopPropagation(); setIpdAadharFile(null); }}>Remove</button>
+                                      </div>
+                                    ) : ipdAadharS3Url ? (
+                                      <div>
+                                        <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                        <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                        <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                        <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="col-md-6">
+                                  <label className="form-label mb-2 fw-medium">Ayushman Card</label>
+                                  <div
+                                    className="border border-dashed rounded p-3 text-center position-relative"
+                                    style={{ minHeight: "100px", cursor: "pointer", backgroundColor: "#f8f9fa" }}
+                                    onClick={() => (document.getElementById("ipd-ayushman-upload") as HTMLInputElement)?.click()}
+                                  >
+                                    <input id="ipd-ayushman-upload" type="file" className="d-none" accept="image/*,.pdf" onChange={(e) => setIpdAyushmanFile(e.target.files?.[0] ?? null)} />
+                                    {ipdAyushmanFile ? (
+                                      <div>
+                                        <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                        <p className="mb-0 text-dark fw-medium">{ipdAyushmanFile.name}</p>
+                                        <button className="btn btn-sm btn-link text-danger mt-2" onClick={(e) => { e.stopPropagation(); setIpdAyushmanFile(null); }}>Remove</button>
+                                      </div>
+                                    ) : ipdAyushmanCardS3Url ? (
+                                      <div>
+                                        <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                        <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                        <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                        <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="col-md-6">
+                                  <label className="form-label mb-2 fw-medium">Other Document</label>
+                                  <div
+                                    className="border border-dashed rounded p-3 text-center position-relative"
+                                    style={{ minHeight: "100px", cursor: "pointer", backgroundColor: "#f8f9fa" }}
+                                    onClick={() => (document.getElementById("ipd-other-doc-upload") as HTMLInputElement)?.click()}
+                                  >
+                                    <input id="ipd-other-doc-upload" type="file" className="d-none" accept="image/*,.pdf" onChange={(e) => setIpdOtherDocFile(e.target.files?.[0] ?? null)} />
+                                    {ipdOtherDocFile ? (
+                                      <div>
+                                        <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                        <p className="mb-0 text-dark fw-medium">{ipdOtherDocFile.name}</p>
+                                        <button className="btn btn-sm btn-link text-danger mt-2" onClick={(e) => { e.stopPropagation(); setIpdOtherDocFile(null); }}>Remove</button>
+                                      </div>
+                                    ) : ipdOtherDocsS3Urls.length > 0 ? (
+                                      <div>
+                                        <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                        <p className="mb-0 text-dark fw-medium">{ipdOtherDocsS3Urls.length} document(s) on file</p>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                        <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                        <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                           </>
@@ -3534,25 +3660,22 @@ const NewAppointmentComponent = () => {
                                     onChange={setIpdMlcData}
                                   />
                                 ) : null}
-                                <IpdAddDoctorVisitsField
-                                  doctorOptions={doctorOptions}
-                                  addDoctorSelect={ipdAddVisitingDoctorSelect}
-                                  onAddDoctor={handleIpdAddVisitingDoctor}
-                                  doctorsLoading={doctorSearchLoading}
-                                  visits={ipdDoctorVisits}
-                                  onIncrementDays={handleIpdIncrementDoctorVisitDays}
-                                  onDecrementDays={handleIpdDecrementDoctorVisitDays}
-                                  onRemove={handleIpdRemoveVisitingDoctor}
-                                />
-                                <IpdAddProceduresField
-                                  proceduresOptions={ipdProceduresOptions}
-                                  addProcedureSelect={ipdAddProcedureSelect}
-                                  onAddProcedure={handleIpdAddProcedure}
-                                  proceduresLoading={ipdProceduresLoading}
+                                <IpdAddChargesField
                                   procedures={ipdAddedProcedures}
-                                  onIncrementUnits={handleIpdIncrementProcedureUnits}
-                                  onDecrementUnits={handleIpdDecrementProcedureUnits}
-                                  onRemove={handleIpdRemoveProcedure}
+                                  doctorVisits={ipdDoctorVisits}
+                                  proceduresOptions={ipdProceduresOptions}
+                                  doctorOptions={doctorOptions}
+                                  proceduresLoading={ipdProceduresLoading}
+                                  doctorsLoading={doctorSearchLoading}
+                                  onAddProcedure={handleIpdAddProcedure}
+                                  onAddDoctor={handleIpdAddVisitingDoctor}
+                                  onIncrementProcedureUnits={handleIpdIncrementProcedureUnits}
+                                  onDecrementProcedureUnits={handleIpdDecrementProcedureUnits}
+                                  onRemoveProcedure={handleIpdRemoveProcedure}
+                                  onIncrementDoctorDays={handleIpdIncrementDoctorVisitDays}
+                                  onDecrementDoctorDays={handleIpdDecrementDoctorVisitDays}
+                                  onRemoveDoctor={handleIpdRemoveVisitingDoctor}
+                                  onSearchInputChange={handleIpdChargesSearchInput}
                                 />
                                 <div className="col-12">
                                   <label htmlFor="ipd-new-notes" className="form-label mb-1 fw-medium fs-14">

@@ -20,7 +20,7 @@ import type {
   IIpdBedBlockViewData,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/ipdBedTypes";
 import { getIpdDoctorVisitingCharge } from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitingCharge";
-import IpdAddDoctorVisitsField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddDoctorVisitsField";
+import IpdAddChargesField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddChargesField";
 import {
   addIpdDoctorVisitRow,
   buildIpdDoctorBillingCharges,
@@ -31,7 +31,6 @@ import {
   removeIpdDoctorVisitRow,
   type IIpdDoctorVisitRow,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitRows";
-import IpdAddProceduresField from "@/components/pages/clinic-modules/ipd-appointments/IpdAddProceduresField";
 import IpdFormStepIndicator from "@/components/pages/clinic-modules/ipd-appointments/IpdFormStepIndicator";
 import IpdAdmissionSummarySidebar, {
   resolveIpdBedSummary,
@@ -91,8 +90,10 @@ interface IIpdPatient {
   drugSensitivity?: string;
   aadharNo?: string;
   aadharS3Url?: string;
-  imageUrl?: string;
+  imageS3Url?: string;
   ayushmanCardNo?: string;
+  ayushmanCardS3Url?: string;
+  otherDocsS3Urls?: string[];
   attendantName?: string;
   attendantRelation?: string;
 }
@@ -124,6 +125,10 @@ interface IIpdUpdatePayload {
     amount: number;
     paymentMode: string;
   };
+  imageS3Url?: string;
+  aadharS3Url?: string;
+  ayushmanCardS3Url?: string;
+  otherDocsS3Urls?: string[];
 }
 
 const EditIpdAppointmentComponent = () => {
@@ -140,8 +145,12 @@ const EditIpdAppointmentComponent = () => {
   const [patient, setPatient] = useState<IIpdPatient | null>(null);
   const [patientPhotoFile, setPatientPhotoFile] = useState<File | null>(null);
   const [patientAadharFile, setPatientAadharFile] = useState<File | null>(null);
-  const [patientPhotoUrl, setPatientPhotoUrl] = useState<string>("");
-  const [patientAadharDocUrl, setPatientAadharDocUrl] = useState<string>("");
+  const [patientAyushmanFile, setPatientAyushmanFile] = useState<File | null>(null);
+  const [patientOtherDocFile, setPatientOtherDocFile] = useState<File | null>(null);
+  const [patientImageS3Url, setPatientImageS3Url] = useState<string>("");
+  const [patientAadharS3Url, setPatientAadharS3Url] = useState<string>("");
+  const [patientAyushmanCardS3Url, setPatientAyushmanCardS3Url] = useState<string>("");
+  const [patientOtherDocsS3Urls, setPatientOtherDocsS3Urls] = useState<string[]>([]);
 
   const [formStep, setFormStep] = useState<1 | 2 | 3>(1);
 
@@ -149,13 +158,11 @@ const EditIpdAppointmentComponent = () => {
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [doctorSearchLoading, setDoctorSearchLoading] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
-  const [addVisitingDoctorSelect, setAddVisitingDoctorSelect] = useState<Option | null>(null);
 
   const [proceduresOptions, setProceduresOptions] = useState<Option[]>([]);
   const [procedurePriceById, setProcedurePriceById] = useState<Record<string, number>>({});
   const [proceduresLoading, setProceduresLoading] = useState(false);
   const [addedProcedures, setAddedProcedures] = useState<IIpdProcedureRow[]>([]);
-  const [addProcedureSelect, setAddProcedureSelect] = useState<Option | null>(null);
 
   const [reason, setReason] = useState("");
   const [admissionDate, setAdmissionDate] = useState<string>("");
@@ -178,6 +185,7 @@ const EditIpdAppointmentComponent = () => {
   const [amountReceived, setAmountReceived] = useState(0);
 
   const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chargesLoadedRef = useRef(false);
 
   const [doctorVisits, setDoctorVisits] = useState<IIpdDoctorVisitRow[]>([]);
   const summaryDoctor = useMemo(
@@ -191,7 +199,17 @@ const EditIpdAppointmentComponent = () => {
     consultingDoctorCharge,
     selectedDoctor?.value
   );
-  const subtotal = proceduresTotal + doctorChargesTotal;
+  const bedChargesAmount = useMemo(() => {
+    const resolved = resolveIpdBedSummary(
+      bedBlockData,
+      selectedBedId,
+      selectedBed?.bedCode,
+      wardOptions
+    );
+    const rate = resolved.ratePerDay ?? bedSummarySnapshot?.ratePerDay ?? 0;
+    return Number.isFinite(rate) ? rate : 0;
+  }, [bedBlockData, selectedBedId, selectedBed?.bedCode, wardOptions, bedSummarySnapshot]);
+  const subtotal = proceduresTotal + doctorChargesTotal + bedChargesAmount;
   const finalAmount = subtotal - (discount || 0);
   const balance = finalAmount - (amountReceived || 0);
   const summaryBed = useMemo(() => {
@@ -211,14 +229,20 @@ const EditIpdAppointmentComponent = () => {
 
   useEffect(() => {
     if (!patient) {
-      setPatientPhotoUrl("");
-      setPatientAadharDocUrl("");
+      setPatientImageS3Url("");
+      setPatientAadharS3Url("");
+      setPatientAyushmanCardS3Url("");
+      setPatientOtherDocsS3Urls([]);
       return;
     }
-    setPatientPhotoUrl(patient.imageUrl ?? "");
-    setPatientAadharDocUrl(patient.aadharS3Url ?? "");
+    setPatientImageS3Url(patient.imageS3Url ?? "");
+    setPatientAadharS3Url(patient.aadharS3Url ?? "");
+    setPatientAyushmanCardS3Url(patient.ayushmanCardS3Url ?? "");
+    setPatientOtherDocsS3Urls(patient.otherDocsS3Urls ?? []);
     setPatientPhotoFile(null);
     setPatientAadharFile(null);
+    setPatientAyushmanFile(null);
+    setPatientOtherDocFile(null);
   }, [patient]);
 
   const fetchDoctors = useCallback(async (search = "") => {
@@ -240,11 +264,13 @@ const EditIpdAppointmentComponent = () => {
     }
   }, []);
 
-  const fetchProcedures = useCallback(async () => {
+  const fetchProcedures = useCallback(async (search = "") => {
     if (!API_BASE_URL) return;
     setProceduresLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50 } });
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { limit: 50, search: search || undefined },
+      });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
       setProceduresOptions(
@@ -257,10 +283,9 @@ const EditIpdAppointmentComponent = () => {
       arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
       });
-      setProcedurePriceById(priceMap);
+      setProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
     } catch {
       setProceduresOptions([]);
-      setProcedurePriceById({});
     } finally {
       setProceduresLoading(false);
     }
@@ -343,6 +368,14 @@ const EditIpdAppointmentComponent = () => {
       }, 300);
     },
     [fetchDoctors]
+  );
+
+  const handleChargesSearchInput = useCallback(
+    (value: string) => {
+      void fetchDoctors(value);
+      void fetchProcedures(value);
+    },
+    [fetchDoctors, fetchProcedures]
   );
 
   const fetchIPD = useCallback(
@@ -455,13 +488,14 @@ const EditIpdAppointmentComponent = () => {
   }, [routeId, fetchDoctors, fetchProcedures, fetchIPD]);
 
   useEffect(() => {
-    if (!procedurePriceById || loading) return;
+    if (!procedurePriceById || loading || chargesLoadedRef.current) return;
     const reloadProcedures = async () => {
       if (!API_BASE_URL || !routeId) return;
       try {
         const res = await axios.get(`${API_BASE_URL}/hospital/ipd/${routeId}`);
         const data = extractIpdFromGetResponse(res.data?.data) as IIpdApiRecord | null;
         if (!data) return;
+        chargesLoadedRef.current = true;
         const billing = Array.isArray(data.billingCharges) ? data.billingCharges : [];
         setDoctorVisits(ipdDoctorVisitRowsFromBilling(billing));
         if (billing.length) {
@@ -476,7 +510,7 @@ const EditIpdAppointmentComponent = () => {
       }
     };
     void reloadProcedures();
-  }, [procedurePriceById, loading, routeId, doctors]);
+  }, [procedurePriceById, loading, routeId]);
 
   const handleDoctorChange = useCallback((option: Option | null) => {
     setSelectedDoctor(option);
@@ -494,7 +528,6 @@ const EditIpdAppointmentComponent = () => {
           chargePerDay,
         })
       );
-      setAddVisitingDoctorSelect(null);
     },
     [doctors]
   );
@@ -518,7 +551,6 @@ const EditIpdAppointmentComponent = () => {
       setAddedProcedures((prev) =>
         addIpdProcedureRow(prev, { id: option.value, name: option.label, price })
       );
-      setAddProcedureSelect(null);
     },
     [procedurePriceById]
   );
@@ -598,20 +630,16 @@ const EditIpdAppointmentComponent = () => {
     return payload;
   };
 
-  const buildUpdateMultipartBody = (payload: IIpdUpdatePayload): FormData => {
+  const uploadFileToS3 = async (file: File, folder: string): Promise<string> => {
     const formData = new FormData();
-    formData.append("patientId", payload.patientId);
-    formData.append("doctorId", payload.doctorId);
-    formData.append("bedId", payload.bedId);
-    formData.append("admissionDate", payload.admissionDate);
-    formData.append("reason", payload.reason);
-    formData.append("billingCharges", JSON.stringify(payload.billingCharges));
-    if (payload.isMLC != null) formData.append("isMLC", String(payload.isMLC));
-    if (payload.mlc) formData.append("mlc", JSON.stringify(payload.mlc));
-    if (payload.transaction) formData.append("transaction", JSON.stringify(payload.transaction));
-    if (patientPhotoFile) formData.append("patientPhoto", patientPhotoFile);
-    if (patientAadharFile) formData.append("aadharDocument", patientAadharFile);
-    return formData;
+    formData.append("file", file);
+    const res = await axios.post(`${API_BASE_URL}/upload/pathlab?folder=${folder}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const d = res.data;
+    const signedUrl = d?.data?.signedUrl || "";
+    if (signedUrl) return signedUrl.split("?")[0];
+    return d?.data?.originalUrl || d?.data?.url || d?.url || "";
   };
 
   const handleMlcToggle = (checked: boolean) => {
@@ -635,12 +663,30 @@ const EditIpdAppointmentComponent = () => {
     setSubmitLoading(true);
     setError("");
     try {
-      const hasUploads = !!(patientPhotoFile || patientAadharFile);
-      const res = hasUploads
-        ? await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdRecordId}`, buildUpdateMultipartBody(payload), {
-            headers: { "Content-Type": "multipart/form-data" },
-          })
-        : await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdRecordId}`, payload);
+      let uploadedImageUrl = "";
+      let uploadedAadharUrl = "";
+      let uploadedAyushmanUrl = "";
+      let uploadedOtherDocUrl = "";
+
+      if (patientPhotoFile) {
+        uploadedImageUrl = await uploadFileToS3(patientPhotoFile, "ipd_patient_photos");
+      }
+      if (patientAadharFile) {
+        uploadedAadharUrl = await uploadFileToS3(patientAadharFile, "ipd_aadhar_docs");
+      }
+      if (patientAyushmanFile) {
+        uploadedAyushmanUrl = await uploadFileToS3(patientAyushmanFile, "ipd_ayushman_docs");
+      }
+      if (patientOtherDocFile) {
+        uploadedOtherDocUrl = await uploadFileToS3(patientOtherDocFile, "ipd_other_docs");
+      }
+
+      if (uploadedImageUrl) payload.imageS3Url = uploadedImageUrl;
+      if (uploadedAadharUrl) payload.aadharS3Url = uploadedAadharUrl;
+      if (uploadedAyushmanUrl) payload.ayushmanCardS3Url = uploadedAyushmanUrl;
+      if (uploadedOtherDocUrl) payload.otherDocsS3Urls = [...patientOtherDocsS3Urls, uploadedOtherDocUrl];
+
+      const res = await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdRecordId}`, payload);
       const ok = res?.status >= 200 && res?.status < 300;
       const codeOk = res?.data?.code === 200 || res?.data?.code === "200";
       if (ok || codeOk) {
@@ -764,8 +810,9 @@ const EditIpdAppointmentComponent = () => {
                               hint="Jpg / Png · drag or click"
                               accept="image/jpeg,image/png,image/jpg"
                               file={patientPhotoFile}
-                              previewUrl={patientPhotoUrl || undefined}
+                              previewUrl={patientImageS3Url || undefined}
                               onFileChange={setPatientPhotoFile}
+                              disabled
                             />
                             <div className="flex-grow-1 w-100">
                               <div className="row g-3 m-0">
@@ -880,19 +927,70 @@ const EditIpdAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium fs-14">Relation to Patient</label>
                           <input type="text" className="form-control bg-light" value={patient?.attendantRelation ?? ""} readOnly disabled />
                         </div>
-                        <div className="col-md-4">
-                          <label className="form-label mb-1 fw-medium fs-14">Aadhar Document</label>
-                          <input
-                            type="file"
-                            className="form-control"
-                            accept="image/jpeg,image/png,image/jpg,application/pdf"
-                            onChange={(e) => setPatientAadharFile(e.target.files?.[0] ?? null)}
-                          />
-                          {patientAadharFile?.name ? (
-                            <small className="text-muted d-block mt-1 text-truncate">{patientAadharFile.name}</small>
-                          ) : patientAadharDocUrl ? (
-                            <small className="text-muted d-block mt-1">Existing document on file</small>
-                          ) : null}
+                      </div>
+
+                      {/* Documents Section (read-only in edit) */}
+                      <h6 className="fw-bold text-primary mb-3 border-top pt-3 mt-3">Documents</h6>
+                      <div className="row g-3 opacity-50 pe-none">
+                        <div className="col-md-6">
+                          <label className="form-label mb-2 fw-medium">Aadhar Card</label>
+                          <div
+                            className="border border-dashed rounded p-3 text-center position-relative"
+                            style={{ minHeight: "100px", cursor: "not-allowed", backgroundColor: "#f8f9fa" }}
+                          >
+                            <input id="edit-ipd-aadhar-upload" type="file" className="d-none" accept="image/*,.pdf" disabled />
+                            {patientAadharS3Url ? (
+                              <div>
+                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                <p className="mb-1 text-muted fw-medium">Upload disabled in edit</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label mb-2 fw-medium">Ayushman Card</label>
+                          <div
+                            className="border border-dashed rounded p-3 text-center position-relative"
+                            style={{ minHeight: "100px", cursor: "not-allowed", backgroundColor: "#f8f9fa" }}
+                          >
+                            <input id="edit-ipd-ayushman-upload" type="file" className="d-none" accept="image/*,.pdf" disabled />
+                            {patientAyushmanCardS3Url ? (
+                              <div>
+                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                <p className="mb-1 text-muted fw-medium">Upload disabled in edit</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label mb-2 fw-medium">Other Document</label>
+                          <div
+                            className="border border-dashed rounded p-3 text-center position-relative"
+                            style={{ minHeight: "100px", cursor: "not-allowed", backgroundColor: "#f8f9fa" }}
+                          >
+                            <input id="edit-ipd-other-doc-upload" type="file" className="d-none" accept="image/*,.pdf" disabled />
+                            {patientOtherDocsS3Urls.length > 0 ? (
+                              <div>
+                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                <p className="mb-0 text-dark fw-medium">{patientOtherDocsS3Urls.length} document(s) on file</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                <p className="mb-1 text-muted fw-medium">Upload disabled in edit</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                   </>
@@ -940,25 +1038,22 @@ const EditIpdAppointmentComponent = () => {
                         {mlc ? (
                           <IpdMlcFields idPrefix="edit-ipd-mlc" value={mlcData} onChange={setMlcData} />
                         ) : null}
-                        <IpdAddDoctorVisitsField
-                          doctorOptions={doctorOptions}
-                          addDoctorSelect={addVisitingDoctorSelect}
-                          onAddDoctor={handleAddVisitingDoctor}
-                          doctorsLoading={doctorSearchLoading}
-                          visits={doctorVisits}
-                          onIncrementDays={handleIncrementDoctorVisitDays}
-                          onDecrementDays={handleDecrementDoctorVisitDays}
-                          onRemove={handleRemoveVisitingDoctor}
-                        />
-                        <IpdAddProceduresField
-                          proceduresOptions={proceduresOptions}
-                          addProcedureSelect={addProcedureSelect}
-                          onAddProcedure={handleAddProcedure}
-                          proceduresLoading={proceduresLoading}
+                        <IpdAddChargesField
                           procedures={addedProcedures}
-                          onIncrementUnits={handleIncrementProcedureUnits}
-                          onDecrementUnits={handleDecrementProcedureUnits}
-                          onRemove={handleRemoveProcedure}
+                          doctorVisits={doctorVisits}
+                          proceduresOptions={proceduresOptions}
+                          doctorOptions={doctorOptions}
+                          proceduresLoading={proceduresLoading}
+                          doctorsLoading={doctorSearchLoading}
+                          onAddProcedure={handleAddProcedure}
+                          onAddDoctor={handleAddVisitingDoctor}
+                          onIncrementProcedureUnits={handleIncrementProcedureUnits}
+                          onDecrementProcedureUnits={handleDecrementProcedureUnits}
+                          onRemoveProcedure={handleRemoveProcedure}
+                          onIncrementDoctorDays={handleIncrementDoctorVisitDays}
+                          onDecrementDoctorDays={handleDecrementDoctorVisitDays}
+                          onRemoveDoctor={handleRemoveVisitingDoctor}
+                          onSearchInputChange={handleChargesSearchInput}
                         />
                         <div className="col-12">
                           <label htmlFor="edit-ipd-reason" className="form-label mb-1 fw-medium fs-14">

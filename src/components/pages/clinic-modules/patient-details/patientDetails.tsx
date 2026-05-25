@@ -2,7 +2,7 @@
 
 
 import { all_routes } from "../../../../routes/all_routes";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
@@ -129,12 +129,35 @@ const PatientDetailsComponent = () => {
   const [patientTransactions, setPatientTransactions] = useState<IPatientTransaction[]>([]);
   const [patientTransactionsLoading, setPatientTransactionsLoading] = useState<boolean>(false);
 
+  type TabKey = "appointments" | "transactions" | "dialysis" | "pathlab-cases";
+  const [activeTab, setActiveTab] = useState<TabKey>("appointments");
+  const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
+
   useEffect(() => {
     if (patientId) {
       fetchPatientDetails();
       fetchAppointments();
-      fetchDialysisSessions();
-      fetchPatientTransactions();
+      fetchedTabsRef.current.add("appointments");
+    }
+  }, [patientId]);
+
+  const handleTabChange = useCallback((tab: TabKey) => {
+    setActiveTab(tab);
+    if (!patientId || fetchedTabsRef.current.has(tab)) return;
+    fetchedTabsRef.current.add(tab);
+
+    switch (tab) {
+      case "appointments":
+        fetchAppointments();
+        break;
+      case "transactions":
+        fetchPatientTransactions();
+        break;
+      case "dialysis":
+        fetchDialysisSessions();
+        break;
+      case "pathlab-cases":
+        break;
     }
   }, [patientId]);
 
@@ -781,51 +804,30 @@ const PatientDetailsComponent = () => {
           {/* row end */}
           {/* tab start */}
           <ul className="nav nav-tabs nav-bordered mb-3">
-            <li className="nav-item">
-              <Link
-                href="#appointments"
-                data-bs-toggle="tab"
-                aria-expanded="false"
-                className="nav-link active bg-transparent"
-              >
-                <span>Appointments</span>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                href="#transactions"
-                data-bs-toggle="tab"
-                aria-expanded="true"
-                className="nav-link bg-transparent"
-              >
-                <span>Transactions</span>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                href="#dialysis"
-                data-bs-toggle="tab"
-                aria-expanded="false"
-                className="nav-link bg-transparent"
-              >
-                <span>Dialysis</span>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                href="#pathlab-cases"
-                data-bs-toggle="tab"
-                aria-expanded="false"
-                className="nav-link bg-transparent"
-              >
-                <span>Pathlab Cases</span>
-              </Link>
-            </li>
+            {(
+              [
+                { key: "appointments", label: "Appointments" },
+                { key: "transactions", label: "Transactions" },
+                { key: "dialysis", label: "Dialysis" },
+                { key: "pathlab-cases", label: "Pathlab Cases" },
+              ] as const
+            ).map(({ key, label }) => (
+              <li key={key} className="nav-item">
+                <button
+                  type="button"
+                  className={`nav-link bg-transparent${activeTab === key ? " active" : ""}`}
+                  onClick={() => handleTabChange(key)}
+                  aria-selected={activeTab === key}
+                >
+                  <span>{label}</span>
+                </button>
+              </li>
+            ))}
           </ul>
           {/* tab end */}
           {/* tab content start */}
           <div className="tab-content">
-            <div className="tab-pane show active" id="appointments">
+            <div className={`tab-pane${activeTab === "appointments" ? " show active" : ""}`} id="appointments">
               {/*  Start Filter */}
               <div className="d-none align-items-center justify-content-between flex-wrap">
                 <div className="d-flex align-items-center gap-2">
@@ -1311,7 +1313,7 @@ const PatientDetailsComponent = () => {
               </div>
               {/*  End Table */}
             </div>
-            <div className="tab-pane" id="transactions">
+            <div className={`tab-pane${activeTab === "transactions" ? " show active" : ""}`} id="transactions">
               {/*  Start Filter */}
               <div className="d-none align-items-center justify-content-between flex-wrap">
                 <div className="d-flex align-items-center gap-2">
@@ -1847,7 +1849,7 @@ const PatientDetailsComponent = () => {
               </div>
               {/*  End Table */}
             </div>
-            <div className="tab-pane" id="dialysis">
+            <div className={`tab-pane${activeTab === "dialysis" ? " show active" : ""}`} id="dialysis">
               <div className="table-responsive">
                 {dialysisLoading ? (
                   <p className="text-muted mb-0">Loading dialysis sessions…</p>
@@ -1924,7 +1926,7 @@ const PatientDetailsComponent = () => {
                 )}
               </div>
             </div>
-            <div className="tab-pane" id="pathlab-cases">
+            <div className={`tab-pane${activeTab === "pathlab-cases" ? " show active" : ""}`} id="pathlab-cases">
               <div className="table-responsive">
                 {!patient?.pathlabCases?.length ? (
                   <p className="text-muted mb-0">No pathlab cases found.</p>

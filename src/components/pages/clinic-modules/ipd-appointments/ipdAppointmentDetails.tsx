@@ -7,7 +7,7 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import PrintReceipt from "@/components/pages/clinic-modules/appointments/printReceipt";
+import PrintReceipt, { type IReceiptData } from "@/components/pages/clinic-modules/appointments/printReceipt";
 import {
   buildIPDReceiptData,
   enrichIPDDoctorForReceipt,
@@ -57,6 +57,7 @@ const IpdAppointmentDetailsComponent = () => {
   const [amount, setAmount] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
+  const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -144,8 +145,6 @@ const IpdAppointmentDetailsComponent = () => {
   const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalPaid = ipd.amountPaid != null ? ipd.amountPaid : totalPaidFromTx;
   const dueAmount = Math.max(0, baseTotal - totalPaid);
-  const proceduresPrice = ipd.procedureChargesTotal ?? 0;
-  const doctorChargesPrice = ipd.doctorChargesAmount ?? 0;
   const bedChargesPrice = ipd.bedChargesTotal ?? 0;
   const admissionDateLabel = ipd.admissionDate ?? ipd.appointmentDate;
   const patientAgeUi = formatPatientAgeForDisplay(
@@ -349,131 +348,56 @@ const IpdAppointmentDetailsComponent = () => {
                   </div>
                 </div>
 
-                {(bedNumber || wardName || bedRate) ? (
+                <div className="row g-2 mb-3">
+                  {(bedNumber || wardName || bedRate) ? (
+                    <div className="col-md-3 col-sm-6 d-flex align-items-end">
+                      <div
+                        className="rounded-2 text-white d-inline-flex flex-column justify-content-center"
+                        style={{
+                          backgroundColor: "#e8837a",
+                          padding: "12px 16px",
+                        }}
+                      >
+                        <span className="fw-bold fs-14 lh-sm">{bedNumber || "—"}</span>
+                        {wardName ? (
+                          <span className="fs-12 mt-1 opacity-95 lh-sm">{wardName}</span>
+                        ) : null}
+                        {bedRate ? (
+                          <span className="fs-12 mt-1 opacity-90 lh-sm">{bedRate}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="col-md-3 col-sm-6">
+                    <label className={DETAIL_LABEL_CLASS}>Reason for Admission</label>
+                    <div className={DETAIL_VALUE_CLASS}>{reasonLabel}</div>
+                  </div>
+                </div>
+
+                {doctor ? (
                   <div className="row g-2 mb-3">
                     <div className="col-md-4 col-sm-6">
-                      <label className={DETAIL_LABEL_CLASS}>Bed No.</label>
-                      <div className={DETAIL_VALUE_CLASS}>{bedNumber || "—"}</div>
+                      <label className={DETAIL_LABEL_CLASS}>Consulting Doctor</label>
+                      <div className={DETAIL_VALUE_CLASS}>{doctor.name}</div>
                     </div>
-                    {wardName ? (
+                    {doctor.designation ? (
                       <div className="col-md-4 col-sm-6">
-                        <label className={DETAIL_LABEL_CLASS}>Ward</label>
-                        <div className={DETAIL_VALUE_CLASS}>{wardName}</div>
+                        <label className={DETAIL_LABEL_CLASS}>Designation</label>
+                        <div className={DETAIL_VALUE_CLASS}>{doctor.designation}</div>
                       </div>
                     ) : null}
-                    {bedRate ? (
+                    {doctor.department ? (
                       <div className="col-md-4 col-sm-6">
-                        <label className={DETAIL_LABEL_CLASS}>Bed Rate</label>
-                        <div className={DETAIL_VALUE_CLASS}>{bedRate}</div>
+                        <label className={DETAIL_LABEL_CLASS}>Department</label>
+                        <div className={DETAIL_VALUE_CLASS}>{doctor.department}</div>
                       </div>
                     ) : null}
                   </div>
                 ) : null}
 
-                <div className="mb-3">
-                  <label className={DETAIL_LABEL_CLASS}>Reason for Admission</label>
-                  <div className={DETAIL_VALUE_CLASS}>{reasonLabel}</div>
-                </div>
-
-                <div className="row g-2 mb-1">
-                  <div className="col-md-4 col-sm-6">
-                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Procedure Charges</label>
-                    <div className={DETAIL_VALUE_CLASS}>₹{proceduresPrice.toFixed(2)}</div>
-                  </div>
-                  {bedChargesPrice > 0 ? (
-                    <div className="col-md-4 col-sm-6">
-                      <label className={`${DETAIL_LABEL_CLASS} d-block`}>Bed Charges</label>
-                      <div className={DETAIL_VALUE_CLASS}>₹{bedChargesPrice.toFixed(2)}</div>
-                    </div>
-                  ) : null}
-                  <div className="col-md-4 col-sm-6">
-                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Doctor Visit Charges</label>
-                    <div className={DETAIL_VALUE_CLASS}>₹{doctorChargesPrice.toFixed(2)}</div>
-                  </div>
-                  <div className="col-md-4 col-sm-6">
-                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Total Amount</label>
-                    <div className={DETAIL_VALUE_CLASS}>₹{baseTotal.toFixed(2)}</div>
-                  </div>
-                  {ipd.discount != null && ipd.discount > 0 ? (
-                    <div className="col-md-4 col-sm-6">
-                      <label className={`${DETAIL_LABEL_CLASS} d-block`}>Discount</label>
-                      <div className={DETAIL_VALUE_CLASS}>₹{ipd.discount.toFixed(2)}</div>
-                    </div>
-                  ) : null}
-                  <div className="col-md-4 col-sm-6">
-                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Paid</label>
-                    <div className={DETAIL_VALUE_CLASS}>₹{totalPaid.toFixed(2)}</div>
-                  </div>
-                  <div className="col-md-4 col-sm-6">
-                    <label className={`${DETAIL_LABEL_CLASS} d-block`}>Due</label>
-                    <div className={DETAIL_VALUE_CLASS}>₹{dueAmount.toFixed(2)}</div>
-                  </div>
-                </div>
-
-                {(doctor || (ipd.doctorVisits && ipd.doctorVisits.length > 0)) ? (
-                  <div className="mt-3">
-                    <h6 className="fw-bold text-primary mb-2">Doctor Visits</h6>
-                    {doctor ? (
-                      <div className="row g-2 mb-2">
-                        <div className="col-md-4 col-sm-6">
-                          <label className={DETAIL_LABEL_CLASS}>Consulting Doctor</label>
-                          <div className={DETAIL_VALUE_CLASS}>{doctor.name}</div>
-                        </div>
-                        {doctor.designation ? (
-                          <div className="col-md-4 col-sm-6">
-                            <label className={DETAIL_LABEL_CLASS}>Designation</label>
-                            <div className={DETAIL_VALUE_CLASS}>{doctor.designation}</div>
-                          </div>
-                        ) : null}
-                        {doctor.department ? (
-                          <div className="col-md-4 col-sm-6">
-                            <label className={DETAIL_LABEL_CLASS}>Department</label>
-                            <div className={DETAIL_VALUE_CLASS}>{doctor.department}</div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {ipd.doctorVisits && ipd.doctorVisits.length > 0 ? (
-                      <div className="table-responsive">
-                        <table className="table table-sm mb-0">
-                          <thead className={DETAIL_TABLE_HEAD_CLASS}>
-                            <tr>
-                              <th style={{ width: "60px" }} className={`${DETAIL_LABEL_CLASS} border-0`}>
-                                S.No
-                              </th>
-                              <th className={`${DETAIL_LABEL_CLASS} border-0`}>Doctor</th>
-                              <th
-                                className={`${DETAIL_LABEL_CLASS} border-0 text-center`}
-                                style={{ width: "80px" }}
-                              >
-                                Days
-                              </th>
-                              <th className={`${DETAIL_LABEL_CLASS} border-0 text-end`}>Price</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {ipd.doctorVisits.map((visit, index) => (
-                              <tr key={visit.doctorId || `${visit.doctorName}-${index}`}>
-                                <td className={DETAIL_VALUE_CLASS}>{index + 1}</td>
-                                <td className={DETAIL_VALUE_CLASS}>{visit.doctorName || "N/A"}</td>
-                                <td className={`text-center ${DETAIL_VALUE_CLASS}`}>{visit.days}</td>
-                                <td className={`text-end ${DETAIL_VALUE_CLASS}`}>
-                                  ₹{(visit.price ?? 0).toFixed(2)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className={`mb-0 ${DETAIL_VALUE_CLASS}`}>No doctor visit charges recorded.</p>
-                    )}
-                  </div>
-                ) : null}
-
-                {ipd.procedures && ipd.procedures.length > 0 ? (
-                  <div className="mt-3">
-                    <h6 className="fw-bold text-primary mb-2">Procedures</h6>
+                {((ipd.procedures && ipd.procedures.length > 0) || (ipd.doctorVisits && ipd.doctorVisits.length > 0)) ? (
+                  <div className="mt-2">
+                    <h6 className="fw-bold text-primary mb-2">Charges</h6>
                     <div className="table-responsive">
                       <table className="table table-sm mb-0">
                         <thead className={DETAIL_TABLE_HEAD_CLASS}>
@@ -481,7 +405,7 @@ const IpdAppointmentDetailsComponent = () => {
                             <th style={{ width: "60px" }} className={`${DETAIL_LABEL_CLASS} border-0`}>
                               S.No
                             </th>
-                            <th className={`${DETAIL_LABEL_CLASS} border-0`}>Procedure</th>
+                            <th className={`${DETAIL_LABEL_CLASS} border-0`}>Name</th>
                             <th className={`${DETAIL_LABEL_CLASS} border-0 text-center`} style={{ width: "80px" }}>
                               Units
                             </th>
@@ -489,10 +413,13 @@ const IpdAppointmentDetailsComponent = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {ipd.procedures.map((proc, index) => (
-                            <tr key={proc.procedureId || `${proc.procedureName}-${index}`}>
+                          {(ipd.procedures ?? []).map((proc, index) => (
+                            <tr key={proc.procedureId || `proc-${proc.procedureName}-${index}`}>
                               <td className={DETAIL_VALUE_CLASS}>{index + 1}</td>
-                              <td className={DETAIL_VALUE_CLASS}>{proc.procedureName || "N/A"}</td>
+                              <td className={DETAIL_VALUE_CLASS}>
+                                {proc.procedureName || "N/A"}
+                                <span className="badge badge-soft-primary border border-primary fs-10 px-2 py-1 ms-2">Procedure</span>
+                              </td>
                               <td className={`text-center ${DETAIL_VALUE_CLASS}`}>
                                 {proc.units ?? 1}
                               </td>
@@ -501,11 +428,45 @@ const IpdAppointmentDetailsComponent = () => {
                               </td>
                             </tr>
                           ))}
+                          {(ipd.doctorVisits ?? []).map((visit, index) => (
+                            <tr key={visit.doctorId || `doc-${visit.doctorName}-${index}`}>
+                              <td className={DETAIL_VALUE_CLASS}>{(ipd.procedures?.length ?? 0) + index + 1}</td>
+                              <td className={DETAIL_VALUE_CLASS}>
+                                {visit.doctorName || "N/A"}
+                                <span className="badge badge-soft-info border border-info fs-10 px-2 py-1 ms-2">Doctor</span>
+                              </td>
+                              <td className={`text-center ${DETAIL_VALUE_CLASS}`}>{visit.days}</td>
+                              <td className={`text-end ${DETAIL_VALUE_CLASS}`}>
+                                ₹{(visit.price ?? 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 ) : null}
+
+                <div className="d-flex align-items-start justify-content-between flex-wrap gap-2 mt-3 pt-2 border-top">
+                  <div>
+                    <label className={`${DETAIL_LABEL_CLASS} d-block mb-0`}>Total</label>
+                    <div className={DETAIL_VALUE_CLASS}>₹{baseTotal.toFixed(2)}</div>
+                  </div>
+                  {ipd.discount != null && ipd.discount > 0 ? (
+                    <div>
+                      <label className={`${DETAIL_LABEL_CLASS} d-block mb-0`}>Discount</label>
+                      <div className={DETAIL_VALUE_CLASS}>₹{ipd.discount.toFixed(2)}</div>
+                    </div>
+                  ) : null}
+                  <div>
+                    <label className={`${DETAIL_LABEL_CLASS} d-block mb-0`}>Paid</label>
+                    <div className="fw-bold text-success">₹{totalPaid.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <label className={`${DETAIL_LABEL_CLASS} d-block mb-0`}>Due</label>
+                    <div className={`fw-bold ${dueAmount > 0 ? "text-danger" : "text-dark"}`}>₹{dueAmount.toFixed(2)}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -528,6 +489,7 @@ const IpdAppointmentDetailsComponent = () => {
                           <th className="border-0 fs-13 fw-medium text-dark">Date - Time</th>
                           <th className="border-0 fs-13 fw-medium text-dark">Amount</th>
                           <th className="border-0 fs-13 fw-medium text-dark">Mode</th>
+                          <th className="border-0 fs-13 fw-medium text-dark" style={{ width: "40px" }} />
                         </tr>
                       </thead>
                       <tbody>
@@ -577,6 +539,16 @@ const IpdAppointmentDetailsComponent = () => {
                                 ))}
                               </select>
                             </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-link p-0 text-primary"
+                                onClick={() => setPrintTransactionId(txn._id)}
+                                aria-label={`Print receipt for ${txn.transactionId}`}
+                              >
+                                <i className="ti ti-download fs-16" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -606,6 +578,49 @@ const IpdAppointmentDetailsComponent = () => {
           onClose={() => setShowPrintReceipt(false)}
         />
       ) : null}
+
+      {printTransactionId && ipd ? (() => {
+        const txn = transactions.find((t) => t._id === printTransactionId);
+        if (!txn) return null;
+        const txnReceipt: IReceiptData = {
+          visitId: ipd.ipdId,
+          appointmentId: ipd.appointmentId,
+          visitDate: txn.transactionDate,
+          visitType: "IPD",
+          appointmentType: "IPD",
+          status: ipd.status,
+          patientName: patient?.name,
+          patientTitle: patient?.title,
+          mrd: patient?.mrd,
+          age: patientAgeUi,
+          gender: patient?.gender,
+          phone: patient?.phone,
+          address: patient?.address,
+          doctorName: doctor?.name,
+          doctorDepartment: doctor?.department,
+          medicalLicenseNo: doctor?.medicalLicenseNo,
+          receiptId: txn.transactionId,
+          transactions: [{
+            _id: txn._id,
+            transactionId: txn.transactionId,
+            transactionType: "Payment",
+            amount: txn.amount,
+            paymentMode: txn.paymentMode,
+            transactionDate: txn.transactionDate,
+            createdAt: txn.createdAt,
+          }],
+          totalAmount: txn.amount,
+          discount: 0,
+          dueAmount: 0,
+          paidAmount: txn.amount,
+        };
+        return (
+          <PrintReceipt
+            receiptData={txnReceipt}
+            onClose={() => setPrintTransactionId(null)}
+          />
+        );
+      })() : null}
 
       {showAddTransaction && ipd ? (
         <>

@@ -12,7 +12,7 @@ export interface IIpdDoctorVisitRow {
 export const calcIpdDoctorVisitsTotal = (rows: IIpdDoctorVisitRow[]): number =>
   rows.reduce((sum, row) => sum + row.chargePerDay * row.days, 0);
 
-/** Includes consulting doctor day charge when not already listed in visit rows. */
+/** Always includes consulting doctor day charge separately from visit rows. */
 export const calcIpdDoctorChargesTotalWithConsulting = (
   visits: IIpdDoctorVisitRow[],
   consultingChargePerDay: number,
@@ -20,7 +20,6 @@ export const calcIpdDoctorChargesTotalWithConsulting = (
 ): number => {
   const visitsTotal = calcIpdDoctorVisitsTotal(visits);
   if (!consultingDoctorId) return visitsTotal;
-  if (visits.some((visit) => visit.doctorId === consultingDoctorId)) return visitsTotal;
   return visitsTotal + consultingChargePerDay;
 };
 

@@ -7,7 +7,7 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import PrintReceipt from "@/components/pages/clinic-modules/appointments/printReceipt";
+import PrintReceipt, { type IReceiptData } from "@/components/pages/clinic-modules/appointments/printReceipt";
 import {
   buildDaycareReceiptData,
   enrichDaycareDoctorForReceipt,
@@ -29,6 +29,7 @@ const DaycareAppointmentDetailsComponent = () => {
   const [amount, setAmount] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
+  const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -453,6 +454,7 @@ const DaycareAppointmentDetailsComponent = () => {
                           <th className="border-0 fs-13 fw-medium">Date - Time</th>
                           <th className="border-0 fs-13 fw-medium">Amount</th>
                           <th className="border-0 fs-13 fw-medium">Mode</th>
+                          <th className="border-0 fs-13 fw-medium" style={{ width: "40px" }} />
                         </tr>
                       </thead>
                       <tbody>
@@ -502,6 +504,16 @@ const DaycareAppointmentDetailsComponent = () => {
                                 ))}
                               </select>
                             </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-link p-0 text-primary"
+                                onClick={() => setPrintTransactionId(txn._id)}
+                                aria-label={`Print receipt for ${txn.transactionId}`}
+                              >
+                                <i className="ti ti-download fs-16" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -531,6 +543,50 @@ const DaycareAppointmentDetailsComponent = () => {
           onClose={() => setShowPrintReceipt(false)}
         />
       )}
+
+      {printTransactionId && daycare ? (() => {
+        const txn = transactions.find((t) => t._id === printTransactionId);
+        if (!txn) return null;
+        const patient = daycare.patient;
+        const txnReceipt: IReceiptData = {
+          visitId: daycare.daycareId,
+          appointmentId: daycare.appointmentId,
+          visitDate: txn.transactionDate,
+          visitType: "Daycare",
+          appointmentType: "Daycare",
+          status: daycare.status,
+          patientName: patient?.name,
+          patientTitle: patient?.title,
+          mrd: patient?.mrd,
+          age: patient?.age != null ? `${patient.age} Years` : undefined,
+          gender: patient?.gender,
+          phone: patient?.phone,
+          address: patient?.address,
+          doctorName: doctor?.name,
+          doctorDepartment: doctor?.department,
+          medicalLicenseNo: doctor?.medicalLicenseNo,
+          receiptId: txn.transactionId,
+          transactions: [{
+            _id: txn._id,
+            transactionId: txn.transactionId,
+            transactionType: "Payment",
+            amount: txn.amount,
+            paymentMode: txn.paymentMode,
+            transactionDate: txn.transactionDate,
+            createdAt: txn.createdAt,
+          }],
+          totalAmount: txn.amount,
+          discount: 0,
+          dueAmount: 0,
+          paidAmount: txn.amount,
+        };
+        return (
+          <PrintReceipt
+            receiptData={txnReceipt}
+            onClose={() => setPrintTransactionId(null)}
+          />
+        );
+      })() : null}
 
       {/* Add Transaction Modal */}
       {showAddTransaction && daycare && (

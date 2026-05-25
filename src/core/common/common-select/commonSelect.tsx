@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useId, useMemo } from "react";
-import Select, { InputActionMeta } from "react-select";
+import Select, { InputActionMeta, FormatOptionLabelMeta } from "react-select";
 
 export type Option = {
   value: string;
@@ -22,6 +22,8 @@ export interface SelectProps {
   onMenuOpen?: () => void;
   /** Show loading indicator while options are being fetched */
   isLoading?: boolean;
+  /** Custom renderer for option labels in menu and selected value */
+  formatOptionLabel?: (option: Option, meta: FormatOptionLabelMeta<Option>) => React.ReactNode;
 }
 
 const CommonSelect: React.FC<SelectProps> = ({
@@ -36,6 +38,7 @@ const CommonSelect: React.FC<SelectProps> = ({
   onInputChange,
   onMenuOpen,
   isLoading = false,
+  formatOptionLabel,
 }) => {
   const [selectedOption, setSelectedOption] = useState<Option | undefined>(value || defaultValue);
   const reactId = useId();
@@ -102,6 +105,7 @@ const CommonSelect: React.FC<SelectProps> = ({
         isSearchable={true}
         menuPortalTarget={typeof window !== "undefined" ? document.body : null}
         menuPosition="fixed"
+        formatOptionLabel={formatOptionLabel}
       />
     </div>
   );

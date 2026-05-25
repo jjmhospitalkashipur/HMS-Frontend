@@ -93,6 +93,7 @@ const AppointmentDetailsComponent = () => {
   const [amount, setAmount] = useState<string>("0");
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
+  const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (visitId) {
@@ -551,6 +552,7 @@ const AppointmentDetailsComponent = () => {
                           <th className="border-0 fs-13 fw-medium">Date - Time</th>
                           <th className="border-0 fs-13 fw-medium">Amount</th>
                           <th className="border-0 fs-13 fw-medium">Mode</th>
+                          <th className="border-0 fs-13 fw-medium" style={{ width: "40px" }} />
                         </tr>
                       </thead>
                       <tbody>
@@ -599,6 +601,16 @@ const AppointmentDetailsComponent = () => {
                                   </option>
                                 ))}
                               </select>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-link p-0 text-primary"
+                                onClick={() => setPrintTransactionId(txn._id)}
+                                aria-label={`Print receipt for ${txn.transactionId}`}
+                              >
+                                <i className="ti ti-download fs-16" />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -654,7 +666,6 @@ const AppointmentDetailsComponent = () => {
             doctorDepartment: doctor?.department,
             medicalLicenseNo: doctor?.medicalLicenseNo,
             receiptId: visit.receiptId,
-            // Use visit price as the single charge row
             transactions: [visitCharge],
             totalAmount: visit.price || 0,
             discount: visit.discount || 0,
@@ -666,6 +677,50 @@ const AppointmentDetailsComponent = () => {
             <PrintReceipt
               receiptData={receiptData}
               onClose={() => setShowPrintReceipt(false)}
+            />
+          );
+        })()}
+
+        {printTransactionId && visit && (() => {
+          const txn = transactions.find((t) => t._id === printTransactionId);
+          if (!txn) return null;
+          const txnReceipt: IReceiptData = {
+            visitId: visit.visitId,
+            appointmentId: visit.appointmentId,
+            visitDate: txn.transactionDate,
+            visitTime: visit.visitTime,
+            visitType: visit.visitType,
+            appointmentType: visit.appointmentType,
+            status: visit.status,
+            patientName: patient?.name,
+            patientTitle: patient?.title,
+            mrd: patient?.mrd,
+            age: patientAgeReceipt,
+            gender: patient?.gender,
+            phone: patient?.phone,
+            address: patient?.address,
+            doctorName: doctor?.name,
+            doctorDepartment: doctor?.department,
+            medicalLicenseNo: doctor?.medicalLicenseNo,
+            receiptId: txn.transactionId,
+            transactions: [{
+              _id: txn._id,
+              transactionId: txn.transactionId,
+              transactionType: "Payment",
+              amount: txn.amount,
+              paymentMode: txn.paymentMode,
+              transactionDate: txn.transactionDate,
+              createdAt: txn.createdAt,
+            }],
+            totalAmount: txn.amount,
+            discount: 0,
+            dueAmount: 0,
+            paidAmount: txn.amount,
+          };
+          return (
+            <PrintReceipt
+              receiptData={txnReceipt}
+              onClose={() => setPrintTransactionId(null)}
             />
           );
         })()}
