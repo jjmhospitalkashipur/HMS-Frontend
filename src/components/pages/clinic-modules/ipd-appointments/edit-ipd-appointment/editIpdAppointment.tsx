@@ -161,6 +161,7 @@ const EditIpdAppointmentComponent = () => {
 
   const [proceduresOptions, setProceduresOptions] = useState<Option[]>([]);
   const [procedurePriceById, setProcedurePriceById] = useState<Record<string, number>>({});
+  const [procedureCategoryById, setProcedureCategoryById] = useState<Record<string, string>>({});
   const [proceduresLoading, setProceduresLoading] = useState(false);
   const [addedProcedures, setAddedProcedures] = useState<IIpdProcedureRow[]>([]);
 
@@ -269,7 +270,7 @@ const EditIpdAppointmentComponent = () => {
     setProceduresLoading(true);
     try {
       const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-        params: { limit: 50, search: search || undefined },
+        params: { limit: 50, search: search || undefined, type: "ipd,both" },
       });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
@@ -280,10 +281,13 @@ const EditIpdAppointmentComponent = () => {
         }))
       );
       const priceMap: Record<string, number> = {};
-      arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
+      const catMap: Record<string, string> = {};
+      arr.forEach((p: { _id: string; price?: number; basePrice?: number; category?: string }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
+        if (p.category) catMap[p._id] = p.category;
       });
       setProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
+      setProcedureCategoryById((prev) => ({ ...prev, ...catMap }));
     } catch {
       setProceduresOptions([]);
     } finally {
@@ -548,11 +552,12 @@ const EditIpdAppointmentComponent = () => {
     (option: Option | null) => {
       if (!option?.value || procedurePriceById[option.value] == null) return;
       const price = procedurePriceById[option.value] ?? 0;
+      const category = procedureCategoryById[option.value];
       setAddedProcedures((prev) =>
-        addIpdProcedureRow(prev, { id: option.value, name: option.label, price })
+        addIpdProcedureRow(prev, { id: option.value, name: option.label, price, category })
       );
     },
-    [procedurePriceById]
+    [procedurePriceById, procedureCategoryById]
   );
 
   const handleIncrementProcedureUnits = useCallback((id: string) => {
@@ -931,63 +936,73 @@ const EditIpdAppointmentComponent = () => {
 
                       {/* Documents Section (read-only in edit) */}
                       <h6 className="fw-bold text-primary mb-3 border-top pt-3 mt-3">Documents</h6>
-                      <div className="row g-3 opacity-50 pe-none">
-                        <div className="col-md-6">
+                      <div className="row g-3">
+                        <div className="col-md-4">
                           <label className="form-label mb-2 fw-medium">Aadhar Card</label>
                           <div
-                            className="border border-dashed rounded p-3 text-center position-relative"
-                            style={{ minHeight: "100px", cursor: "not-allowed", backgroundColor: "#f8f9fa" }}
+                            className="border rounded p-3 text-center"
+                            style={{ minHeight: "100px", backgroundColor: "#f8f9fa" }}
                           >
-                            <input id="edit-ipd-aadhar-upload" type="file" className="d-none" accept="image/*,.pdf" disabled />
                             {patientAadharS3Url ? (
                               <div>
-                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
-                                <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                                <i className="ti ti-file-check fs-24 text-success mb-2" />
+                                <p className="mb-2 text-dark fw-medium">Document on file</p>
+                                <a href={patientAadharS3Url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">
+                                  <i className="ti ti-external-link me-1" />Open
+                                </a>
                               </div>
                             ) : (
                               <div>
-                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
-                                <p className="mb-1 text-muted fw-medium">Upload disabled in edit</p>
+                                <i className="ti ti-file-off fs-24 text-muted mb-2" />
+                                <p className="mb-0 text-muted fw-medium">No document</p>
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="col-md-6">
+                        <div className="col-md-4">
                           <label className="form-label mb-2 fw-medium">Ayushman Card</label>
                           <div
-                            className="border border-dashed rounded p-3 text-center position-relative"
-                            style={{ minHeight: "100px", cursor: "not-allowed", backgroundColor: "#f8f9fa" }}
+                            className="border rounded p-3 text-center"
+                            style={{ minHeight: "100px", backgroundColor: "#f8f9fa" }}
                           >
-                            <input id="edit-ipd-ayushman-upload" type="file" className="d-none" accept="image/*,.pdf" disabled />
                             {patientAyushmanCardS3Url ? (
                               <div>
-                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
-                                <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                                <i className="ti ti-file-check fs-24 text-success mb-2" />
+                                <p className="mb-2 text-dark fw-medium">Document on file</p>
+                                <a href={patientAyushmanCardS3Url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">
+                                  <i className="ti ti-external-link me-1" />Open
+                                </a>
                               </div>
                             ) : (
                               <div>
-                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
-                                <p className="mb-1 text-muted fw-medium">Upload disabled in edit</p>
+                                <i className="ti ti-file-off fs-24 text-muted mb-2" />
+                                <p className="mb-0 text-muted fw-medium">No document</p>
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="col-md-6">
+                        <div className="col-md-4">
                           <label className="form-label mb-2 fw-medium">Other Document</label>
                           <div
-                            className="border border-dashed rounded p-3 text-center position-relative"
-                            style={{ minHeight: "100px", cursor: "not-allowed", backgroundColor: "#f8f9fa" }}
+                            className="border rounded p-3 text-center"
+                            style={{ minHeight: "100px", backgroundColor: "#f8f9fa" }}
                           >
-                            <input id="edit-ipd-other-doc-upload" type="file" className="d-none" accept="image/*,.pdf" disabled />
                             {patientOtherDocsS3Urls.length > 0 ? (
                               <div>
-                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
-                                <p className="mb-0 text-dark fw-medium">{patientOtherDocsS3Urls.length} document(s) on file</p>
+                                <i className="ti ti-file-check fs-24 text-success mb-2" />
+                                <p className="mb-2 text-dark fw-medium">{patientOtherDocsS3Urls.length} document(s)</p>
+                                <div className="d-flex flex-wrap justify-content-center gap-1">
+                                  {patientOtherDocsS3Urls.map((url, i) => (
+                                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">
+                                      <i className="ti ti-external-link me-1" />Open {patientOtherDocsS3Urls.length > 1 ? i + 1 : ""}
+                                    </a>
+                                  ))}
+                                </div>
                               </div>
                             ) : (
                               <div>
-                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
-                                <p className="mb-1 text-muted fw-medium">Upload disabled in edit</p>
+                                <i className="ti ti-file-off fs-24 text-muted mb-2" />
+                                <p className="mb-0 text-muted fw-medium">No document</p>
                               </div>
                             )}
                           </div>
@@ -1045,6 +1060,7 @@ const EditIpdAppointmentComponent = () => {
                           doctorOptions={doctorOptions}
                           proceduresLoading={proceduresLoading}
                           doctorsLoading={doctorSearchLoading}
+                          procedureCategoryById={procedureCategoryById}
                           onAddProcedure={handleAddProcedure}
                           onAddDoctor={handleAddVisitingDoctor}
                           onIncrementProcedureUnits={handleIncrementProcedureUnits}
@@ -1145,7 +1161,6 @@ const EditIpdAppointmentComponent = () => {
                       ? dayjs(admissionDate).format("DD MMM YYYY")
                       : undefined,
                     reason: reason.trim() || undefined,
-                    proceduresLabel: summaryPackageLabel,
                     isMlc: mlc,
                   }}
                   bed={summaryBed}

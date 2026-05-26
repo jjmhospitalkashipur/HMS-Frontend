@@ -23,6 +23,12 @@ const STATUS_OPTIONS: Option[] = [
   { value: "Inactive", label: "Inactive" },
 ];
 
+const TYPE_OPTIONS: Option[] = [
+  { value: "both", label: "Both" },
+  { value: "daycare", label: "Daycare" },
+  { value: "ipd", label: "IPD" },
+];
+
 const getProcedureErrorMessage = (err: unknown, fallback: string) => {
   if (!axios.isAxiosError(err)) return fallback;
   const data = err.response?.data as { message?: unknown } | undefined;
@@ -35,6 +41,7 @@ const AddProcedureComponent = () => {
   const [department, setDepartment] = useState<Option | null>(null);
   const [category, setCategory] = useState<Option | null>(null);
   const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
+  const [procedureType, setProcedureType] = useState<Option | null>(TYPE_OPTIONS[0]);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,6 +72,7 @@ const AddProcedureComponent = () => {
         department: department?.value || undefined,
         category: category?.value || undefined,
         status: status?.value ?? "Active",
+        type: procedureType?.value ?? "both",
         price: priceNum,
         metaData: "",
         description: description.trim() || undefined,
@@ -122,7 +130,7 @@ const AddProcedureComponent = () => {
                   <form onSubmit={handleSubmit}>
                     <div className="pb-0">
                       <div className="row">
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">
                               Procedure Name
@@ -147,7 +155,7 @@ const AddProcedureComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">Category</label>
                             <CommonSelect
@@ -166,6 +174,17 @@ const AddProcedureComponent = () => {
                               className="select"
                               value={status}
                               onChange={setStatus}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-2">
+                          <div className="mb-3">
+                            <label className="form-label">Type</label>
+                            <CommonSelect
+                              options={TYPE_OPTIONS}
+                              className="select"
+                              value={procedureType}
+                              onChange={setProcedureType}
                             />
                           </div>
                         </div>

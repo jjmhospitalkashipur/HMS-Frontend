@@ -36,6 +36,7 @@ export interface IReceiptData {
   /** Shown in square brackets after doctor name on print */
   medicalLicenseNo?: string;
   receiptId?: string;
+  printTitle?: string;
   transactions?: IReceiptTransaction[];
   totalAmount?: number;
   discount?: number;
@@ -96,7 +97,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Receipt - ${receiptData.visitId || "Visit"}</title>
+            <title>${receiptData.printTitle ?? "Receipt"} - ${receiptData.visitId || "Visit"}</title>
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body {
@@ -254,7 +255,7 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
             </div>
           </div>
           <div className="header-center">
-            <div className="receipt-title">Receipt</div>
+            <div className="receipt-title">{receiptData.printTitle ?? "Receipt"}</div>
           </div>
           <div className="header-right">
             <div className="address">

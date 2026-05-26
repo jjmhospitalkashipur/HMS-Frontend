@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Datatable from "@/core/common/dataTable";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
+import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 
@@ -34,6 +35,16 @@ const renderCellText = (text: string, semibold = false) => (
 );
 
 const WardsListComponent = () => {
+  const isAdmin = useMemo(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { role?: string } | null;
+      return normalizeRole(parsed?.role) === "ADMIN";
+    } catch {
+      return false;
+    }
+  }, []);
   const [rows, setRows] = useState<IWardRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -296,15 +307,17 @@ const WardsListComponent = () => {
           >
             <i className="ti ti-edit fs-16" />
           </button>
-          <button
-            type="button"
-            className="btn btn-link p-0 text-danger"
-            onClick={() => handleDelete(record.id)}
-            disabled={deletingId === record.id}
-            aria-label="Delete ward"
-          >
-            <i className="ti ti-trash fs-16" />
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="btn btn-link p-0 text-danger"
+              onClick={() => handleDelete(record.id)}
+              disabled={deletingId === record.id}
+              aria-label="Delete ward"
+            >
+              <i className="ti ti-trash fs-16" />
+            </button>
+          ) : null}
         </div>
       ),
     },

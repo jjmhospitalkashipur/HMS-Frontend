@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
+import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
@@ -58,6 +59,17 @@ const IpdAppointmentDetailsComponent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
   const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
+
+  const isAdmin = useMemo(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { role?: string } | null;
+      return normalizeRole(parsed?.role) === "ADMIN";
+    } catch {
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -263,7 +275,7 @@ const IpdAppointmentDetailsComponent = () => {
               onClick={() => setShowPrintReceipt(true)}
             >
               <i className="ti ti-receipt me-1" />
-              Print Receipt
+              Print IPD Summary
             </button>
           </div>
         </div>
@@ -414,11 +426,13 @@ const IpdAppointmentDetailsComponent = () => {
                         </thead>
                         <tbody>
                           {(ipd.procedures ?? []).map((proc, index) => (
-                            <tr key={proc.procedureId || `proc-${proc.procedureName}-${index}`}>
+                            <tr key={`proc-${proc.procedureId || index}`}>
                               <td className={DETAIL_VALUE_CLASS}>{index + 1}</td>
                               <td className={DETAIL_VALUE_CLASS}>
                                 {proc.procedureName || "N/A"}
-                                <span className="badge badge-soft-primary border border-primary fs-10 px-2 py-1 ms-2">Procedure</span>
+                                {proc.category ? (
+                                  <span className="badge badge-soft-primary border border-primary fs-10 px-2 py-1 ms-2">{proc.category}</span>
+                                ) : null}
                               </td>
                               <td className={`text-center ${DETAIL_VALUE_CLASS}`}>
                                 {proc.units ?? 1}
@@ -429,11 +443,10 @@ const IpdAppointmentDetailsComponent = () => {
                             </tr>
                           ))}
                           {(ipd.doctorVisits ?? []).map((visit, index) => (
-                            <tr key={visit.doctorId || `doc-${visit.doctorName}-${index}`}>
+                            <tr key={`doc-${index}-${visit.doctorId}`}>
                               <td className={DETAIL_VALUE_CLASS}>{(ipd.procedures?.length ?? 0) + index + 1}</td>
                               <td className={DETAIL_VALUE_CLASS}>
                                 {visit.doctorName || "N/A"}
-                                <span className="badge badge-soft-info border border-info fs-10 px-2 py-1 ms-2">Doctor</span>
                               </td>
                               <td className={`text-center ${DETAIL_VALUE_CLASS}`}>{visit.days}</td>
                               <td className={`text-end ${DETAIL_VALUE_CLASS}`}>
@@ -508,36 +521,40 @@ const IpdAppointmentDetailsComponent = () => {
                               ₹{txn.amount?.toFixed(2) || "0.00"}
                             </td>
                             <td className={`fs-15 ${PAYMENT_VALUE_CLASS}`}>
-                              <select
-                                className="form-select form-select-sm text-dark"
-                                style={{ minWidth: "6.5rem", maxWidth: "10rem" }}
-                                value={
-                                  TRANSACTION_PAYMENT_MODES.includes(
+                              {isAdmin ? (
+                                <select
+                                  className="form-select form-select-sm text-dark"
+                                  style={{ minWidth: "6.5rem", maxWidth: "10rem" }}
+                                  value={
+                                    TRANSACTION_PAYMENT_MODES.includes(
+                                      txn.paymentMode as (typeof TRANSACTION_PAYMENT_MODES)[number]
+                                    )
+                                      ? txn.paymentMode
+                                      : txn.paymentMode || "Cash"
+                                  }
+                                  disabled={transactionModeUpdatingId === txn._id}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (v === txn.paymentMode) return;
+                                    void handleTransactionPaymentModeChange(txn._id, v);
+                                  }}
+                                  aria-label="Payment mode"
+                                >
+                                  {txn.paymentMode &&
+                                  !TRANSACTION_PAYMENT_MODES.includes(
                                     txn.paymentMode as (typeof TRANSACTION_PAYMENT_MODES)[number]
-                                  )
-                                    ? txn.paymentMode
-                                    : txn.paymentMode || "Cash"
-                                }
-                                disabled={transactionModeUpdatingId === txn._id}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === txn.paymentMode) return;
-                                  void handleTransactionPaymentModeChange(txn._id, v);
-                                }}
-                                aria-label="Payment mode"
-                              >
-                                {txn.paymentMode &&
-                                !TRANSACTION_PAYMENT_MODES.includes(
-                                  txn.paymentMode as (typeof TRANSACTION_PAYMENT_MODES)[number]
-                                ) ? (
-                                  <option value={txn.paymentMode}>{txn.paymentMode}</option>
-                                ) : null}
-                                {TRANSACTION_PAYMENT_MODES.map((m) => (
-                                  <option key={m} value={m}>
-                                    {m}
-                                  </option>
-                                ))}
-                              </select>
+                                  ) ? (
+                                    <option value={txn.paymentMode}>{txn.paymentMode}</option>
+                                  ) : null}
+                                  {TRANSACTION_PAYMENT_MODES.map((m) => (
+                                    <option key={m} value={m}>
+                                      {m}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="fw-medium">{txn.paymentMode || "—"}</span>
+                              )}
                             </td>
                             <td>
                               <button

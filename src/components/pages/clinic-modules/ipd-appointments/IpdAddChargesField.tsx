@@ -13,6 +13,7 @@ interface IChargeRow {
   name: string;
   rate: number;
   units: number;
+  category?: string;
 }
 
 interface IIpdAddChargesFieldProps {
@@ -22,6 +23,7 @@ interface IIpdAddChargesFieldProps {
   doctorOptions: Option[];
   proceduresLoading: boolean;
   doctorsLoading: boolean;
+  procedureCategoryById?: Record<string, string>;
   onAddProcedure: (option: Option | null) => void;
   onAddDoctor: (option: Option | null) => void;
   onIncrementProcedureUnits: (id: string) => void;
@@ -43,6 +45,7 @@ const IpdAddChargesField = ({
   doctorOptions,
   proceduresLoading,
   doctorsLoading,
+  procedureCategoryById = {},
   onAddProcedure,
   onAddDoctor,
   onIncrementProcedureUnits,
@@ -69,18 +72,21 @@ const IpdAddChargesField = ({
   }, [proceduresOptions, doctorOptions]);
 
   const formatChargeOptionLabel = useCallback((option: Option) => {
-    const isDoctor = option.value.startsWith(DOCTOR_OPTION_PREFIX);
-    return (
-      <span className="d-flex align-items-center gap-2">
-        {option.label}
-        {isDoctor ? (
-          <span className="badge badge-soft-info border border-info fs-10 px-2 py-1">Doctor</span>
-        ) : (
-          <span className="badge badge-soft-primary border border-primary fs-10 px-2 py-1">Procedure</span>
-        )}
-      </span>
-    );
-  }, []);
+    const isProcedure = option.value.startsWith(PROCEDURE_OPTION_PREFIX);
+    if (isProcedure) {
+      const procId = option.value.slice(PROCEDURE_OPTION_PREFIX.length);
+      const cat = procedureCategoryById[procId];
+      return (
+        <span className="d-flex align-items-center gap-2">
+          {option.label}
+          {cat ? (
+            <span className="badge badge-soft-primary border border-primary fs-10 px-2 py-1">{cat}</span>
+          ) : null}
+        </span>
+      );
+    }
+    return <span>{option.label}</span>;
+  }, [procedureCategoryById]);
 
   const handleChange = useCallback(
     (option: Option | null) => {
@@ -119,6 +125,7 @@ const IpdAddChargesField = ({
       name: p.name,
       rate: p.price,
       units: p.units,
+      category: p.category || procedureCategoryById[p.id],
     }));
     const docRows: IChargeRow[] = doctorVisits.map((d) => ({
       id: d.doctorId,
@@ -128,7 +135,7 @@ const IpdAddChargesField = ({
       units: d.days,
     }));
     return [...procRows, ...docRows];
-  }, [procedures, doctorVisits]);
+  }, [procedures, doctorVisits, procedureCategoryById]);
 
   const handleIncrement = useCallback(
     (row: IChargeRow) => {
@@ -154,12 +161,21 @@ const IpdAddChargesField = ({
     [onRemoveProcedure, onRemoveDoctor]
   );
 
-  const typeBadge = (type: ChargeItemType) =>
-    type === "doctor" ? (
-      <span className="badge badge-soft-info border border-info fs-10 px-2 py-1 ms-1">Doctor</span>
-    ) : (
-      <span className="badge badge-soft-primary border border-primary fs-10 px-2 py-1 ms-1">Procedure</span>
+  const categoryBadge = (row: IChargeRow) => {
+    if (!row.category) return null;
+    const isDoctor = row.type === "doctor";
+    return (
+      <span
+        className={`badge fs-10 px-2 py-1 ms-1 ${
+          isDoctor
+            ? "badge-soft-info border border-info"
+            : "badge-soft-primary border border-primary"
+        }`}
+      >
+        {row.category}
+      </span>
     );
+  };
 
   const unitsLabel = (type: ChargeItemType) => (type === "doctor" ? "Days" : "Units");
 
@@ -203,7 +219,7 @@ const IpdAddChargesField = ({
                   <span className="col-1">{idx + 1}</span>
                   <span className="col ps-3 d-flex align-items-center flex-wrap gap-1">
                     {row.name}
-                    {typeBadge(row.type)}
+                    {categoryBadge(row)}
                   </span>
                   <span className="col-3 d-flex align-items-center justify-content-center gap-1">
                     <button

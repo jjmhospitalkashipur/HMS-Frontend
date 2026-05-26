@@ -21,6 +21,12 @@ const STATUS_OPTIONS: Option[] = [
   { value: "Inactive", label: "Inactive" },
 ];
 
+const TYPE_OPTIONS: Option[] = [
+  { value: "both", label: "Both" },
+  { value: "daycare", label: "Daycare" },
+  { value: "ipd", label: "IPD" },
+];
+
 interface IModalsProps {
   onDeleteConfirm?: () => void;
   deleteLoading?: boolean;
@@ -51,6 +57,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
   const [department, setDepartment] = useState<Option | null>(null);
   const [category, setCategory] = useState<Option | null>(null);
   const [status, setStatus] = useState<Option | null>(STATUS_OPTIONS[0]);
+  const [procedureType, setProcedureType] = useState<Option | null>(TYPE_OPTIONS[0]);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [editLoading, setEditLoading] = useState(false);
@@ -62,6 +69,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
     setDepartment(null);
     setCategory(null);
     setStatus(STATUS_OPTIONS[0]);
+    setProcedureType(TYPE_OPTIONS[0]);
     setPrice("");
     setDescription("");
     setProcedureId(null);
@@ -88,6 +96,9 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
       );
       setStatus(
         STATUS_OPTIONS.find((s) => s.value === data.status) ?? STATUS_OPTIONS[0]
+      );
+      setProcedureType(
+        TYPE_OPTIONS.find((t) => t.value === data.type) ?? TYPE_OPTIONS[0]
       );
       setPrice(data.price != null || data.basePrice != null ? String(data.price ?? data.basePrice) : "");
       setDescription(data.description ?? "");
@@ -135,6 +146,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
         department: department?.value || undefined,
         category: category?.value || undefined,
         status: status?.value ?? "Active",
+        type: procedureType?.value ?? "both",
         price: priceNum,
         metaData: "",
         description: description.trim() || undefined,
@@ -307,6 +319,17 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                           className="select"
                           value={status}
                           onChange={setStatus}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-lg-2">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Type</label>
+                        <CommonSelect
+                          options={TYPE_OPTIONS}
+                          className="select"
+                          value={procedureType}
+                          onChange={setProcedureType}
                         />
                       </div>
                     </div>

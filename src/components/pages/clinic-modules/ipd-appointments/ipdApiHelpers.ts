@@ -12,6 +12,8 @@ export interface IIpdBillingCharge {
   type?: string;
   procedureId?: string;
   procedureName?: string;
+  category?: string;
+  procedureCategory?: string;
   doctorId?: string;
   doctorName?: string;
   price?: number;
@@ -137,6 +139,7 @@ const proceduresFromBilling = (charges: IIpdBillingCharge[]): IIpdProcedure[] =>
     .map((c) => ({
       procedureId: c.procedureId as string,
       procedureName: c.procedureName,
+      category: c.procedureCategory ?? c.category,
       units: Math.max(1, Number(c.units) || 1),
       unitPrice: Number(c.price) || 0,
       price: getIpdBillingChargeAmount(c),
@@ -163,6 +166,7 @@ const procedureRowsFromBilling = (charges: IIpdBillingCharge[]): IIpdProcedureRo
       name: c.procedureName ?? "—",
       price: Number(c.price) || 0,
       units: Math.max(1, Number(c.units) || 1),
+      category: c.procedureCategory ?? c.category,
     }));
 
 export const mapIpdApiToAppointmentDetail = (
@@ -178,6 +182,7 @@ export const mapIpdApiToAppointmentDetail = (
           .map((p) => ({
             procedureId: p.procedureId as string,
             procedureName: p.procedureName,
+            category: p.category,
             price: p.price,
             units: Math.max(1, Number(p.units) || 1),
             isDialysis: p.isDialysis,

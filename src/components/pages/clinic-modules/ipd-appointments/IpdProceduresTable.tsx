@@ -5,6 +5,7 @@ export interface IIpdProcedureRow {
   name: string;
   price: number;
   units: number;
+  category?: string;
 }
 
 interface IpdProceduresTableProps {

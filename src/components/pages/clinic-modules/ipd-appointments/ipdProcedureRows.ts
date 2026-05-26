@@ -5,7 +5,7 @@ export const calcIpdProceduresTotal = (rows: IIpdProcedureRow[]): number =>
 
 export const addIpdProcedureRow = (
   prev: IIpdProcedureRow[],
-  row: { id: string; name: string; price: number }
+  row: { id: string; name: string; price: number; category?: string }
 ): IIpdProcedureRow[] => {
   const existing = prev.find((p) => p.id === row.id);
   if (existing) {
@@ -37,13 +37,16 @@ interface IBillingProcedureCharge {
   type?: string;
   procedureId?: string;
   procedureName?: string;
+  category?: string;
+  procedureCategory?: string;
   price?: number;
   units?: number;
 }
 
 export const ipdProcedureRowsFromBilling = (
   charges: IBillingProcedureCharge[],
-  priceMap: Record<string, number>
+  priceMap: Record<string, number>,
+  categoryMap: Record<string, string> = {}
 ): IIpdProcedureRow[] =>
   charges
     .filter((c) => c.type === "procedure" && c.procedureId)
@@ -54,12 +57,14 @@ export const ipdProcedureRowsFromBilling = (
         name: c.procedureName ?? "—",
         price: c.price ?? priceMap[procId] ?? 0,
         units: Math.max(1, Number(c.units) || 1),
+        category: c.procedureCategory ?? c.category ?? categoryMap[procId] ?? undefined,
       };
     });
 
 export const ipdProcedureRowsFromLegacy = (
-  procedures: Array<{ procedureId?: string; procedureName?: string; price?: number }>,
-  priceMap: Record<string, number>
+  procedures: Array<{ procedureId?: string; procedureName?: string; price?: number; category?: string }>,
+  priceMap: Record<string, number>,
+  categoryMap: Record<string, string> = {}
 ): IIpdProcedureRow[] =>
   procedures
     .filter((p) => p.procedureId)
@@ -68,6 +73,7 @@ export const ipdProcedureRowsFromLegacy = (
       name: p.procedureName ?? "—",
       price: p.price ?? priceMap[p.procedureId as string] ?? 0,
       units: 1,
+      category: p.category ?? categoryMap[p.procedureId as string] ?? undefined,
     }));
 
 /** List/detail views: API may return `procedures` or only `billingCharges` with procedureName. */

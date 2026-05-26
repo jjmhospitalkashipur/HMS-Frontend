@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Datatable from "@/core/common/dataTable";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import { all_routes } from "@/routes/all_routes";
+import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
@@ -138,6 +139,16 @@ const getAxiosMessage = (err: unknown, fallback: string) => {
 
 const IpdAppointmentsComponent = () => {
   const router = useRouter();
+  const isAdmin = useMemo(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { role?: string } | null;
+      return normalizeRole(parsed?.role) === "ADMIN";
+    } catch {
+      return false;
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState<"all" | "today">("today");
   const [rows, setRows] = useState<IRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -355,7 +366,7 @@ const IpdAppointmentsComponent = () => {
     setIPDDeleteLoading(true);
     try {
       const res = await axios.delete(
-        `${API_BASE_URL}/hospital/ipd-appointments/${targetId}`
+        `${API_BASE_URL}/hospital/ipd/${targetId}`
       );
       if (res.data?.code === 200 || res.status === 200 || res.status === 204) {
         setIPDDeleteTarget(null);
@@ -531,20 +542,9 @@ const IpdAppointmentsComponent = () => {
       }),
       render: (text: string, record: IRow) => (
         <div style={{ minWidth: 0, maxWidth: "100%", lineHeight: 1.3 }}>
-          {record._doctorId ? (
-            <Link
-              href={`${all_routes.doctordetails}?id=${record._doctorId}`}
-              className="fw-semibold text-dark fs-14 d-inline"
-              style={{ wordBreak: "break-word" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {text || "—"}
-            </Link>
-          ) : (
-            <span className="fw-semibold text-dark fs-14" style={{ wordBreak: "break-word" }}>
-              {text || "—"}
-            </span>
-          )}
+          <span className="fw-semibold text-dark fs-14" style={{ wordBreak: "break-word" }}>
+            {text || "—"}
+          </span>
           {record.DoctorDesignation ? (
             <p className="mb-0 mt-1 fs-13 text-muted" style={{ wordBreak: "break-word" }}>
               {record.DoctorDesignation}
@@ -632,21 +632,23 @@ const IpdAppointmentsComponent = () => {
           >
             <i className="ti ti-edit fs-16" />
           </Link>
-          <button
-            type="button"
-            className="btn btn-link text-danger p-0 border-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIPDDeleteTarget({
-                id: String(record.id ?? ""),
-                label: String(record.IPD_ID ?? record.id ?? ""),
-              });
-            }}
-            title="Delete ipd appointment"
-            aria-label="Delete ipd appointment"
-          >
-            <i className="ti ti-trash fs-16" />
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="btn btn-link text-danger p-0 border-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIPDDeleteTarget({
+                  id: String(record.id ?? ""),
+                  label: String(record.IPD_ID ?? record.id ?? ""),
+                });
+              }}
+              title="Delete ipd appointment"
+              aria-label="Delete ipd appointment"
+            >
+              <i className="ti ti-trash fs-16" />
+            </button>
+          ) : null}
         </div>
       ),
     },

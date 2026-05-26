@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   computeBedSummary,
   type IIpdBed,
@@ -52,7 +52,7 @@ const formatWardHeading = (name: string, charge?: number): string => {
   return chargeLabel ? `${name} · ${chargeLabel}` : name;
 };
 
-const shellClass = "px-3 px-md-4 pt-3 pb-4 w-100";
+const shellClass = "px-3 px-md-4 pt-1 pb-4 w-100";
 
 const EMPTY_BED_SUMMARY: IIpdBedSummary = {
   total: 0,
@@ -65,29 +65,57 @@ const EMPTY_BED_SUMMARY: IIpdBedSummary = {
 
 interface IBedStatusLegendProps {
   summary: IIpdBedSummary;
+  activeStatus: IpdBedStatus | null;
+  onStatusFilter: (status: IpdBedStatus | null) => void;
 }
 
-const BedStatusLegend = ({ summary }: IBedStatusLegendProps) => (
+const BedStatusLegend = ({ summary, activeStatus, onStatusFilter }: IBedStatusLegendProps) => (
   <div className="d-flex flex-wrap justify-content-center align-items-center gap-2 gap-md-3 mb-3">
-    {(Object.keys(BED_STATUS_STYLES) as IpdBedStatus[]).map((status) => {
+    {(Object.keys(BED_STATUS_STYLES) as IpdBedStatus[]).filter((s) => s !== "reserved").map((status) => {
       const style = BED_STATUS_STYLES[status];
       const count = summary[style.countKey] ?? 0;
+      const isActive = activeStatus === status;
       return (
-        <div
+        <button
           key={status}
-          className="d-flex align-items-center gap-2 bg-white rounded-2 px-2 py-1 border"
+          type="button"
+          onClick={() => onStatusFilter(isActive ? null : status)}
+          className={`d-flex align-items-center gap-1 rounded-pill px-2 py-1 fs-12 fw-medium text-nowrap ${
+            isActive ? "text-white" : "bg-white text-dark"
+          }`}
+          style={{
+            cursor: "pointer",
+            backgroundColor: isActive ? style.bg : undefined,
+            border: isActive ? `1px solid ${style.bg}` : "1px solid #dee2e6",
+            lineHeight: 1.4,
+            transition: "all 0.2s ease",
+          }}
+          aria-pressed={isActive}
         >
           <span
-            className="rounded-1 d-inline-block flex-shrink-0"
-            style={{ width: 12, height: 12, backgroundColor: style.bg }}
+            className="rounded-circle d-inline-block flex-shrink-0"
+            style={{
+              width: 8,
+              height: 8,
+              backgroundColor: isActive ? "#fff" : style.bg,
+            }}
             aria-hidden
           />
-          <span className="fs-13 text-dark fw-medium text-nowrap">
-            {style.label} <span className="fw-bold">({count})</span>
-          </span>
-        </div>
+          {style.label} ({count})
+        </button>
       );
     })}
+    {activeStatus ? (
+      <button
+        type="button"
+        onClick={() => onStatusFilter(null)}
+        className="btn btn-sm btn-outline-secondary rounded-pill fs-12 fw-medium px-2 py-1"
+        style={{ lineHeight: 1.4 }}
+      >
+        <i className="ti ti-x me-1" style={{ fontSize: 10 }} aria-hidden />
+        Clear
+      </button>
+    ) : null}
     <span className="d-none d-md-inline text-muted">|</span>
     <span className="fs-13 text-dark fw-medium text-nowrap">
       Total <span className="fw-bold">({summary.total})</span>
@@ -175,6 +203,8 @@ const IpdBedSelectionStep = ({
   onWardFilterChange,
   wardsLoading = false,
 }: IIpdBedSelectionStepProps) => {
+  const [statusFilter, setStatusFilter] = useState<IpdBedStatus | null>(null);
+
   const wardChargeById = useMemo(
     () =>
       Object.fromEntries(
@@ -191,12 +221,22 @@ const IpdBedSelectionStep = ({
     return EMPTY_BED_SUMMARY;
   }, [data]);
 
-  const hasWards = (data?.wards?.length ?? 0) > 0;
+  const filteredWards = useMemo(() => {
+    if (!statusFilter || !data?.wards) return data?.wards ?? [];
+    return data.wards
+      .map((ward) => ({
+        ...ward,
+        beds: ward.beds.filter((bed) => bed.status === statusFilter),
+      }))
+      .filter((ward) => ward.beds.length > 0);
+  }, [data, statusFilter]);
+
+  const hasWards = filteredWards.length > 0;
 
   return (
     <div className={shellClass}>
       <div className="mb-3">
-        <BedStatusLegend summary={summary} />
+        <BedStatusLegend summary={summary} activeStatus={statusFilter} onStatusFilter={setStatusFilter} />
         <IpdBedWardFilter
           wardOptions={wardOptions}
           selectedWardId={selectedWardId}
@@ -215,6 +255,10 @@ const IpdBedSelectionStep = ({
         <>
           {error ? (
             <div className="alert alert-warning py-2 mb-0">{error}</div>
+          ) : statusFilter ? (
+            <div className="alert alert-info mb-0">
+              No <span className="fw-semibold">{statusFilter}</span> beds to display.
+            </div>
           ) : (
             <div className="alert alert-info mb-0">No beds available to display.</div>
           )}
@@ -223,7 +267,7 @@ const IpdBedSelectionStep = ({
         <>
           {error ? <div className="alert alert-warning py-2 mb-3">{error}</div> : null}
           <div className="d-flex flex-column gap-4">
-            {data?.wards.map((ward) => {
+            {filteredWards.map((ward) => {
           const chargePerDay = ward.chargePerDay ?? wardChargeById[ward._id];
 
           return (

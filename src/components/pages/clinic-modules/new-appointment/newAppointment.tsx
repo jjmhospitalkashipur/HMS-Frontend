@@ -310,6 +310,7 @@ const NewAppointmentComponent = () => {
   const [ipdProceduresOptions, setIpdProceduresOptions] = useState<Option[]>([]);
   const [ipdProceduresLoading, setIpdProceduresLoading] = useState(false);
   const [ipdProcedurePriceById, setIpdProcedurePriceById] = useState<Record<string, number>>({});
+  const [ipdProcedureCategoryById, setIpdProcedureCategoryById] = useState<Record<string, string>>({});
   const [ipdPaymentMode, setIpdPaymentMode] = useState<string>("Cash");
   const [ipdDiscount, setIpdDiscount] = useState<number>(0);
   const [ipdAmountReceived, setIpdAmountReceived] = useState<number>(0);
@@ -603,12 +604,13 @@ const NewAppointmentComponent = () => {
 
   // Fetch procedures for Daycare (used for procedureIds)
   useEffect(() => {
+    if (appointmentTab !== "Daycare") return;
     const fetchProcedures = async () => {
       if (!API_BASE_URL) return;
       try {
         setDaycareProceduresLoading(true);
         const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-          params: { limit: 50 },
+          params: { limit: 50, type: "daycare,both" },
         });
         if (res.data?.code === 200 && Array.isArray(res.data?.data?.procedures)) {
           const list = res.data.data.procedures as Array<{
@@ -640,7 +642,7 @@ const NewAppointmentComponent = () => {
       }
     };
     fetchProcedures();
-  }, []);
+  }, [appointmentTab]);
 
   // When Day Care is selected, set visit type to "New" and date to today
   useEffect(() => {
@@ -1460,10 +1462,11 @@ const NewAppointmentComponent = () => {
     if (!option?.value) return;
     if (ipdProcedurePriceById[option.value] == null) return;
     const price = ipdProcedurePriceById[option.value] ?? 0;
+    const category = ipdProcedureCategoryById[option.value];
     setIpdAddedProcedures((prev) =>
-      addIpdProcedureRow(prev, { id: option.value, name: option.label, price })
+      addIpdProcedureRow(prev, { id: option.value, name: option.label, price, category })
     );
-  }, [ipdProcedurePriceById]);
+  }, [ipdProcedurePriceById, ipdProcedureCategoryById]);
 
   const handleIpdIncrementProcedureUnits = useCallback((id: string) => {
     setIpdAddedProcedures((prev) => incrementIpdProcedureUnits(prev, id));
@@ -1514,7 +1517,7 @@ const NewAppointmentComponent = () => {
     try {
       setIpdProceduresLoading(true);
       const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-        params: { limit: 50, search: search || undefined },
+        params: { limit: 50, search: search || undefined, type: "ipd,both" },
       });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
@@ -1525,10 +1528,13 @@ const NewAppointmentComponent = () => {
         }))
       );
       const priceMap: Record<string, number> = {};
-      arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
+      const catMap: Record<string, string> = {};
+      arr.forEach((p: { _id: string; price?: number; basePrice?: number; category?: string }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
+        if (p.category) catMap[p._id] = p.category;
       });
       setIpdProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
+      setIpdProcedureCategoryById((prev) => ({ ...prev, ...catMap }));
     } catch {
       setIpdProceduresOptions([]);
     } finally {
@@ -3525,7 +3531,7 @@ const NewAppointmentComponent = () => {
                               {/* Documents Section */}
                               <h6 className="fw-bold text-primary mb-3 border-top pt-3 mt-3">Documents</h6>
                               <div className="row g-3">
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                   <label className="form-label mb-2 fw-medium">Aadhar Card</label>
                                   <div
                                     className="border border-dashed rounded p-3 text-center position-relative"
@@ -3553,7 +3559,7 @@ const NewAppointmentComponent = () => {
                                     )}
                                   </div>
                                 </div>
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                   <label className="form-label mb-2 fw-medium">Ayushman Card</label>
                                   <div
                                     className="border border-dashed rounded p-3 text-center position-relative"
@@ -3581,7 +3587,7 @@ const NewAppointmentComponent = () => {
                                     )}
                                   </div>
                                 </div>
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                   <label className="form-label mb-2 fw-medium">Other Document</label>
                                   <div
                                     className="border border-dashed rounded p-3 text-center position-relative"
@@ -3667,6 +3673,7 @@ const NewAppointmentComponent = () => {
                                   doctorOptions={doctorOptions}
                                   proceduresLoading={ipdProceduresLoading}
                                   doctorsLoading={doctorSearchLoading}
+                                  procedureCategoryById={ipdProcedureCategoryById}
                                   onAddProcedure={handleIpdAddProcedure}
                                   onAddDoctor={handleIpdAddVisitingDoctor}
                                   onIncrementProcedureUnits={handleIpdIncrementProcedureUnits}
@@ -3804,7 +3811,6 @@ const NewAppointmentComponent = () => {
                             consultingDoctor: ipdSelectedDoctor?.label ?? ipdSummaryDoctor?.name,
                             admissionDate: dayjs().format("DD MMM YYYY"),
                             reason: ipdNotes.trim() || undefined,
-                            proceduresLabel: ipdSummaryPackageLabel,
                             isMlc: ipdMlc,
                           }}
                           bed={ipdSummaryBed}

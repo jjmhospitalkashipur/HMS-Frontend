@@ -19,7 +19,6 @@ export interface IIpdSummaryAdmission {
   consultingDoctor?: string;
   admissionDate?: string;
   reason?: string;
-  proceduresLabel?: string;
   isMlc?: boolean;
 }
 
@@ -209,7 +208,6 @@ const IpdAdmissionSummarySidebar = ({
           <SummaryRow label="Doctor" value={admission?.consultingDoctor} hideIfEmpty />
           <SummaryRow label="Admitted" value={admission?.admissionDate} hideIfEmpty />
           <SummaryRow label="Reason" value={admission?.reason} hideIfEmpty />
-          <SummaryRow label="Procedures" value={admission?.proceduresLabel} hideIfEmpty />
         </div>
       </SummaryCard>
 

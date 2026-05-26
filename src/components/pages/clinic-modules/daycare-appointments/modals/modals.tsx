@@ -103,7 +103,7 @@ const Modals = ({ onEditSuccess }: IModalsProps) => {
     if (!API_BASE_URL) return;
     setProceduresLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50 } });
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50, type: "daycare,both" } });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
       setProceduresOptions(

@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Datatable from "@/core/common/dataTable";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
+import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import IpdBedSelectionStep from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/IpdBedSelectionStep";
+import {
+  fetchIpdBedBlockView,
+  fetchIpdWardOptions,
+  type IIpdWardOption,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/fetchIpdBedBlockView";
+import type { IIpdBed, IIpdBedBlockViewData } from "@/components/pages/clinic-modules/ipd-appointments/ipd-bed-selection/ipdBedTypes";
+
+type BedTab = "map" | "list";
 
 interface IWardOption {
   _id: string;
@@ -62,6 +72,18 @@ const normalizeBedStatusForApi = (raw?: string): string => {
 };
 
 const BedsListComponent = () => {
+  const isAdmin = useMemo(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { role?: string } | null;
+      return normalizeRole(parsed?.role) === "ADMIN";
+    } catch {
+      return false;
+    }
+  }, []);
+  const [activeTab, setActiveTab] = useState<BedTab>("list");
+
   const [rows, setRows] = useState<IBedRow[]>([]);
   const [wardOptions, setWardOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +91,13 @@ const BedsListComponent = () => {
   const [searchText, setSearchText] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  const [bedBlockData, setBedBlockData] = useState<IIpdBedBlockViewData | null>(null);
+  const [bedMapWardOptions, setBedMapWardOptions] = useState<IIpdWardOption[]>([]);
+  const [bedMapWardFilter, setBedMapWardFilter] = useState<string | null>(null);
+  const [bedMapLoading, setBedMapLoading] = useState(false);
+  const [bedMapWardsLoading, setBedMapWardsLoading] = useState(false);
+  const [bedMapError, setBedMapError] = useState("");
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createBedNumber, setCreateBedNumber] = useState("");
@@ -185,10 +214,51 @@ const BedsListComponent = () => {
     }
   };
 
+  const loadBedMap = useCallback(async (wardId?: string | null) => {
+    setBedMapLoading(true);
+    setBedMapError("");
+    try {
+      const data = await fetchIpdBedBlockView(wardId);
+      setBedBlockData(data);
+    } catch {
+      setBedMapError("Failed to load bed map.");
+    } finally {
+      setBedMapLoading(false);
+    }
+  }, []);
+
+  const loadBedMapWards = useCallback(async () => {
+    setBedMapWardsLoading(true);
+    try {
+      const opts = await fetchIpdWardOptions();
+      setBedMapWardOptions(opts);
+    } catch {
+      setBedMapWardOptions([]);
+    } finally {
+      setBedMapWardsLoading(false);
+    }
+  }, []);
+
+  const handleBedMapWardFilter = useCallback(
+    (wardId: string | null) => {
+      setBedMapWardFilter(wardId);
+      void loadBedMap(wardId);
+    },
+    [loadBedMap]
+  );
+
   useEffect(() => {
     fetchWardsForSelect();
     fetchBeds();
+    void loadBedMap();
+    void loadBedMapWards();
   }, []);
+
+  const handleBedMapRefresh = useCallback(() => {
+    void loadBedMap(bedMapWardFilter);
+  }, [loadBedMap, bedMapWardFilter]);
+
+  const handleBedMapNoOp = useCallback((_bed: IIpdBed) => {}, []);
 
   const panelOpen = editModalOpen || createModalOpen;
 
@@ -239,6 +309,7 @@ const BedsListComponent = () => {
       });
       setCreateModalOpen(false);
       await fetchBeds();
+      void loadBedMap(bedMapWardFilter);
     } catch (err: unknown) {
       const message =
         axios.isAxiosError(err) && err.response?.data?.message
@@ -267,6 +338,7 @@ const BedsListComponent = () => {
       closePanels();
       setEditingId(null);
       await fetchBeds();
+      void loadBedMap(bedMapWardFilter);
     } catch (err: unknown) {
       const message =
         axios.isAxiosError(err) && err.response?.data?.message
@@ -293,6 +365,7 @@ const BedsListComponent = () => {
         status: newStatus,
       });
       await fetchBeds(true);
+      void loadBedMap(bedMapWardFilter);
     } catch (err: unknown) {
       setRows((current) =>
         current.map((r) =>
@@ -316,6 +389,7 @@ const BedsListComponent = () => {
       setDeletingId(id);
       await axios.delete(`${API_BASE_URL}/hospital/beds/${id}`);
       await fetchBeds();
+      void loadBedMap(bedMapWardFilter);
     } catch (err: unknown) {
       const message =
         axios.isAxiosError(err) && err.response?.data?.message
@@ -368,31 +442,33 @@ const BedsListComponent = () => {
         ),
     },
     {
-      title: "Status",
+      title: "Maintenance",
       dataIndex: "Status",
       sorter: false,
-      render: (text: string, record: IBedRow) => (
-        <div
-          className="d-inline-block"
-          style={{ minWidth: "9.5rem" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <CommonSelect
-            options={BED_STATUS_OPTIONS}
-            value={
-              BED_STATUS_OPTIONS.find((o) => o.value === text) ??
-              BED_STATUS_OPTIONS[0]
-            }
-            onChange={(opt) => {
-              const next = opt?.value ?? "Available";
-              void handleStatusChange(record.id, next);
-            }}
-            placeholder="Status"
-            className="w-100"
-            disabled={statusUpdatingId === record.id}
-          />
-        </div>
-      ),
+      render: (text: string, record: IBedRow) => {
+        const isMaintenance = text === "Maintenance";
+        const isUpdating = statusUpdatingId === record.id;
+        return (
+          <div
+            className="d-inline-block"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="form-check form-switch mb-0">
+              <input
+                type="checkbox"
+                role="switch"
+                className="form-check-input"
+                checked={isMaintenance}
+                disabled={isUpdating}
+                onChange={() => {
+                  void handleStatusChange(record.id, isMaintenance ? "Available" : "Maintenance");
+                }}
+                aria-label={`Toggle maintenance for ${record.BedNumber}`}
+              />
+            </div>
+          </div>
+        );
+      },
     },
     {
       title: "Actions",
@@ -408,15 +484,17 @@ const BedsListComponent = () => {
           >
             <i className="ti ti-edit fs-16" />
           </button>
-          <button
-            type="button"
-            className="btn btn-link p-0 text-danger"
-            onClick={() => handleDelete(record.id)}
-            disabled={deletingId === record.id}
-            aria-label="Delete bed"
-          >
-            <i className="ti ti-trash fs-16" />
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="btn btn-link p-0 text-danger"
+              onClick={() => handleDelete(record.id)}
+              disabled={deletingId === record.id}
+              aria-label="Delete bed"
+            >
+              <i className="ti ti-trash fs-16" />
+            </button>
+          ) : null}
         </div>
       ),
     },
@@ -491,27 +569,74 @@ const BedsListComponent = () => {
           </button>
         </div>
 
-        {error && (
-          <div className="alert alert-danger" role="alert">
-            {error}
-          </div>
-        )}
+        <ul className="nav nav-tabs mb-3" role="tablist">
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "map"}
+              className={`nav-link d-flex align-items-center gap-1 ${activeTab === "map" ? "active" : ""}`}
+              onClick={() => setActiveTab("map")}
+            >
+              <i className="ti ti-layout-grid fs-16" />
+              Bed Map
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "list"}
+              className={`nav-link d-flex align-items-center gap-1 ${activeTab === "list" ? "active" : ""}`}
+              onClick={() => setActiveTab("list")}
+            >
+              <i className="ti ti-list fs-16" />
+              List
+            </button>
+          </li>
+        </ul>
 
-        <div className="d-flex align-items-center flex-wrap gap-2 mb-3">
-          <div className="table-search d-flex align-items-center mb-0">
-            <div className="search-input">
-              <SearchInput value={searchText} onChange={setSearchText} />
+        {activeTab === "map" ? (
+          <div className="card border shadow-none mb-0">
+            <div className="card-body p-0">
+              <IpdBedSelectionStep
+                data={bedBlockData}
+                loading={bedMapLoading}
+                error={bedMapError}
+                selectedBedId={null}
+                onSelectBed={handleBedMapNoOp}
+                wardOptions={bedMapWardOptions}
+                selectedWardId={bedMapWardFilter}
+                onWardFilterChange={handleBedMapWardFilter}
+                wardsLoading={bedMapWardsLoading}
+              />
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
+              </div>
+            )}
 
-        <div className="table-responsive">
-          {loading ? (
-            <p className="text-muted mb-0">Loading beds…</p>
-          ) : (
-            <Datatable columns={columns} dataSource={rows} Selection={false} searchText={searchText} />
-          )}
-        </div>
+            <div className="d-flex align-items-center flex-wrap gap-2 mb-3">
+              <div className="table-search d-flex align-items-center mb-0">
+                <div className="search-input">
+                  <SearchInput value={searchText} onChange={setSearchText} />
+                </div>
+              </div>
+            </div>
+
+            <div className="table-responsive">
+              {loading ? (
+                <p className="text-muted mb-0">Loading beds…</p>
+              ) : (
+                <Datatable columns={columns} dataSource={rows} Selection={false} searchText={searchText} />
+              )}
+            </div>
+          </>
+        )}
       </div>
       <div className="footer text-center bg-white p-2 border-top">
         <p className="text-dark mb-0">

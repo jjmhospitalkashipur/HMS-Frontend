@@ -66,6 +66,7 @@ export interface IIpdDoctor {
 export interface IIpdProcedure {
   procedureId: string;
   procedureName?: string;
+  category?: string;
   price?: number;
   units?: number;
   unitPrice?: number;
@@ -214,6 +215,7 @@ export const buildIPDReceiptData = (
   }
 
   return {
+    printTitle: "IPD Summary",
     visitId: ipd.ipdId,
     appointmentId: ipd.appointmentId,
     visitDate: ipd.appointmentDate,

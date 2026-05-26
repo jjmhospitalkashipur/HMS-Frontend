@@ -514,20 +514,9 @@ const DaycareAppointmentsComponent = () => {
       }),
       render: (text: string, record: IRow) => (
         <div style={{ minWidth: 0, maxWidth: "100%", lineHeight: 1.3 }}>
-          {record._doctorId ? (
-            <Link
-              href={`${all_routes.doctordetails}?id=${record._doctorId}`}
-              className="fw-semibold text-dark fs-14 d-inline"
-              style={{ wordBreak: "break-word" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {text || "—"}
-            </Link>
-          ) : (
-            <span className="fw-semibold text-dark fs-14" style={{ wordBreak: "break-word" }}>
-              {text || "—"}
-            </span>
-          )}
+          <span className="fw-semibold text-dark fs-14" style={{ wordBreak: "break-word" }}>
+            {text || "—"}
+          </span>
           {record.DoctorDesignation ? (
             <p className="mb-0 mt-1 fs-13 text-muted" style={{ wordBreak: "break-word" }}>
               {record.DoctorDesignation}
