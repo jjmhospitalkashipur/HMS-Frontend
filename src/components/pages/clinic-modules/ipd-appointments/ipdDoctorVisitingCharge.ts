@@ -28,5 +28,9 @@ export const appendDefaultDoctorVisitingCharge = <
   doctorId: string
 ): T[] => {
   if (!doctorId) return charges;
+  const hasConsultingDoctorCharge = charges.some(
+    (charge) => charge.type === "doctor" && charge.doctorId === doctorId
+  );
+  if (hasConsultingDoctorCharge) return charges;
   return [...charges, { type: "doctor", doctorId, units: 1 } as unknown as T];
 };

@@ -118,6 +118,8 @@ interface IIpdUpdatePayload {
   admissionDate: string;
   reason: string;
   billingCharges: IIpdBillingChargePayload[];
+  discount?: number;
+  discountPassword?: string;
   isMLC?: boolean;
   mlc?: IIpdMlcData;
   transaction?: {
@@ -183,7 +185,13 @@ const EditIpdAppointmentComponent = () => {
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [amountPaidFromApi, setAmountPaidFromApi] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [discountFromApi, setDiscountFromApi] = useState(0);
+  const [showDiscountPasswordDialog, setShowDiscountPasswordDialog] = useState(false);
+  const [discountPassword, setDiscountPassword] = useState("");
+  const [discountPasswordError, setDiscountPasswordError] = useState("");
   const [amountReceived, setAmountReceived] = useState(0);
+  const [billingSubtotal, setBillingSubtotal] = useState<number | null>(null);
+  const [billingTotalPrice, setBillingTotalPrice] = useState<number | null>(null);
 
   const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chargesLoadedRef = useRef(false);
@@ -210,9 +218,11 @@ const EditIpdAppointmentComponent = () => {
     const rate = resolved.ratePerDay ?? bedSummarySnapshot?.ratePerDay ?? 0;
     return Number.isFinite(rate) ? rate : 0;
   }, [bedBlockData, selectedBedId, selectedBed?.bedCode, wardOptions, bedSummarySnapshot]);
-  const subtotal = proceduresTotal + doctorChargesTotal + bedChargesAmount;
-  const finalAmount = subtotal - (discount || 0);
-  const balance = finalAmount - (amountReceived || 0);
+  const computedSubtotal = proceduresTotal + doctorChargesTotal + bedChargesAmount;
+  const displaySubtotal = billingSubtotal ?? computedSubtotal;
+  const displayFinalAmount =
+    billingTotalPrice ?? Math.max(0, displaySubtotal - (discount || 0));
+  const balance = displayFinalAmount - (amountReceived || 0);
   const summaryBed = useMemo(() => {
     const resolved = resolveIpdBedSummary(
       bedBlockData,
@@ -440,7 +450,19 @@ const EditIpdAppointmentComponent = () => {
               }
             : emptyIpdMlcData()
         );
-        setDiscount(Number(data.discount) || 0);
+        const discountNum = Number(data.discount) || 0;
+        setDiscount(discountNum);
+        setDiscountFromApi(discountNum);
+        setBillingSubtotal(
+          data.subtotal != null && Number.isFinite(Number(data.subtotal))
+            ? Number(data.subtotal)
+            : null
+        );
+        setBillingTotalPrice(
+          data.totalPrice != null && Number.isFinite(Number(data.totalPrice))
+            ? Number(data.totalPrice)
+            : null
+        );
 
         const bedId = data.bedId ?? data.bed?._id ?? null;
         setSelectedBedId(bedId);
@@ -500,6 +522,21 @@ const EditIpdAppointmentComponent = () => {
         const data = extractIpdFromGetResponse(res.data?.data) as IIpdApiRecord | null;
         if (!data) return;
         chargesLoadedRef.current = true;
+        setBillingSubtotal(
+          data.subtotal != null && Number.isFinite(Number(data.subtotal))
+            ? Number(data.subtotal)
+            : null
+        );
+        setBillingTotalPrice(
+          data.totalPrice != null && Number.isFinite(Number(data.totalPrice))
+            ? Number(data.totalPrice)
+            : null
+        );
+        if (data.discount != null) {
+          const discountNum = Number(data.discount) || 0;
+          setDiscount(discountNum);
+          setDiscountFromApi(discountNum);
+        }
         const billing = Array.isArray(data.billingCharges) ? data.billingCharges : [];
         setDoctorVisits(ipdDoctorVisitRowsFromBilling(billing));
         if (billing.length) {
@@ -612,6 +649,11 @@ const EditIpdAppointmentComponent = () => {
       reason: reason.trim(),
       billingCharges: buildBillingCharges(),
     };
+    const discountNum = Number(discount) || 0;
+    const hasDiscountChanged = Math.abs(discountNum - (Number(discountFromApi) || 0)) > 0.0001;
+    if (hasDiscountChanged) {
+      payload.discount = discountNum;
+    }
 
     const extra = Math.max(0, (Number(amountReceived) || 0) - (Number(amountPaidFromApi) || 0));
     if (extra > 0) {
@@ -652,7 +694,7 @@ const EditIpdAppointmentComponent = () => {
     if (!checked) setMlcData(emptyIpdMlcData());
   };
 
-  const doSubmit = async () => {
+  const doSubmit = async (discountPwd?: string) => {
     if (!ipdRecordId || !API_BASE_URL) return;
     const payload = buildUpdatePayload();
     if (!payload) {
@@ -663,6 +705,11 @@ const EditIpdAppointmentComponent = () => {
       setError("Please enter reason for admission.");
       setFormStep(2);
       return;
+    }
+    const discountNum = Number(discount) || 0;
+    const hasDiscountChanged = Math.abs(discountNum - (Number(discountFromApi) || 0)) > 0.0001;
+    if (hasDiscountChanged && discountNum > 0 && discountPwd !== undefined && discountPwd.trim()) {
+      payload.discountPassword = discountPwd.trim();
     }
 
     setSubmitLoading(true);
@@ -740,7 +787,30 @@ const EditIpdAppointmentComponent = () => {
       setError("Please select a bed.");
       return;
     }
+    const discountNum = Number(discount) || 0;
+    const hasDiscountMismatch = Math.abs(discountNum - (Number(discountFromApi) || 0)) > 0.0001;
+    if (discountNum > 0 && hasDiscountMismatch) {
+      setDiscountPasswordError("");
+      setShowDiscountPasswordDialog(true);
+      return;
+    }
     void doSubmit();
+  };
+
+  const handleDiscountPasswordConfirm = () => {
+    if (!discountPassword.trim()) {
+      setDiscountPasswordError("Please enter the discount password.");
+      return;
+    }
+    setDiscountPasswordError("");
+    setShowDiscountPasswordDialog(false);
+    void doSubmit(discountPassword.trim());
+  };
+
+  const handleDiscountPasswordCancel = () => {
+    setShowDiscountPasswordDialog(false);
+    setDiscountPassword("");
+    setDiscountPasswordError("");
   };
 
   const patientTitleLabel = patient?.title
@@ -767,7 +837,62 @@ const EditIpdAppointmentComponent = () => {
   const patientAgeDays = patient?.days != null ? String(patient.days) : "";
 
   return (
-    <div className="page-wrapper">
+    <>
+      {showDiscountPasswordDialog ? (
+        <div
+          className="modal fade show d-block"
+          id="edit-ipd-discount-password-modal"
+          tabIndex={-1}
+          aria-labelledby="edit-ipd-discount-password-label"
+          aria-modal="true"
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="edit-ipd-discount-password-label">
+                  Discount password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={handleDiscountPasswordCancel}
+                />
+              </div>
+              <div className="modal-body">
+                <label htmlFor="edit-ipd-discount-password-input" className="form-label">
+                  Enter password to apply discount
+                </label>
+                {discountPasswordError ? (
+                  <div className="alert alert-danger py-2 mb-2" role="alert">
+                    {discountPasswordError}
+                  </div>
+                ) : null}
+                <input
+                  id="edit-ipd-discount-password-input"
+                  type="password"
+                  className="form-control"
+                  value={discountPassword}
+                  onChange={(e) => setDiscountPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={(e) => e.key === "Enter" && handleDiscountPasswordConfirm()}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={handleDiscountPasswordCancel}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleDiscountPasswordConfirm}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="page-wrapper">
       <div className="content">
         <div className="mb-4">
           <h6 className="fw-bold mb-0 d-flex align-items-center">
@@ -1115,35 +1240,10 @@ const EditIpdAppointmentComponent = () => {
                   </div>
                 </div>
 
-                <div className="d-flex align-items-center justify-content-end mt-2 flex-wrap gap-2">
-                  <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
-                    Cancel
-                  </Link>
-                  {formStep === 2 && (
-                    <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(1); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
-                      <i className="ti ti-arrow-left me-1" />Back
-                    </button>
-                  )}
-                  {formStep === 3 && (
-                    <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(2); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
-                      <i className="ti ti-arrow-left me-1" />Back
-                    </button>
-                  )}
-                  <button type="submit" className="btn font-weight-bold fs-15 fw-medium rounded btn-primary" disabled={submitLoading || bedsLoading}>
-                    {submitLoading ? (
-                      <><i className="ti ti-loader-2 me-1" />Saving...</>
-                    ) : formStep === 1 ? (
-                      <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
-                    ) : formStep === 2 ? (
-                      <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
-                    ) : (
-                      <>Save IPD Admission<i className="ti ti-check ms-1" /></>
-                    )}
-                  </button>
-                </div>
               </div>
 
               <div className="col-12 col-lg-4">
+                <div className="position-sticky" style={{ top: "84px", zIndex: 5 }}>
                 <IpdAdmissionSummarySidebar
                   patient={{
                     title: patientTitleLabel !== "—" ? patientTitleLabel : undefined,
@@ -1190,7 +1290,7 @@ const EditIpdAppointmentComponent = () => {
                         Total
                       </label>
                       <div className="form-control bg-light fs-15 text-dark" style={{ pointerEvents: "none" }}>
-                        ₹{subtotal.toFixed(2)}
+                        ₹{displaySubtotal.toFixed(2)}
                       </div>
                     </div>
                     <div className="mb-2 d-flex align-items-center">
@@ -1200,6 +1300,7 @@ const EditIpdAppointmentComponent = () => {
                         className="form-control fs-15 text-dark"
                         placeholder="0"
                         value={discount || ""}
+                        onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                         onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                         min={0}
                       />
@@ -1207,7 +1308,7 @@ const EditIpdAppointmentComponent = () => {
                     <div className="mb-2 d-flex align-items-center">
                       <label className="form-label mb-0 fw-medium me-2 text-dark" style={{ minWidth: "120px" }}>Final Amount</label>
                       <div className="form-control bg-light fs-15 text-dark" style={{ pointerEvents: "none" }}>
-                        ₹{finalAmount.toFixed(2)}
+                        ₹{displayFinalAmount.toFixed(2)}
                       </div>
                     </div>
                     <div className="mb-2 d-flex align-items-center">
@@ -1217,6 +1318,7 @@ const EditIpdAppointmentComponent = () => {
                         className="form-control fs-15 text-dark"
                         placeholder="0"
                         value={amountReceived || ""}
+                        onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                         onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
                         min={0}
                       />
@@ -1233,12 +1335,40 @@ const EditIpdAppointmentComponent = () => {
                     </>
                   }
                 />
+                <div className="d-flex align-items-center justify-content-end mt-3 flex-wrap gap-2">
+                  <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
+                    Cancel
+                  </Link>
+                  {formStep === 2 && (
+                    <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(1); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
+                      <i className="ti ti-arrow-left me-1" />Back
+                    </button>
+                  )}
+                  {formStep === 3 && (
+                    <button type="button" className="btn btn-light fw-medium fs-14 px-4" onClick={() => { setFormStep(2); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={submitLoading}>
+                      <i className="ti ti-arrow-left me-1" />Back
+                    </button>
+                  )}
+                  <button type="submit" className="btn font-weight-bold fs-15 fw-medium rounded btn-primary" disabled={submitLoading || bedsLoading}>
+                    {submitLoading ? (
+                      <><i className="ti ti-loader-2 me-1" />Saving...</>
+                    ) : formStep === 1 ? (
+                      <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
+                    ) : formStep === 2 ? (
+                      <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
+                    ) : (
+                      <>Save IPD Admission<i className="ti ti-check ms-1" /></>
+                    )}
+                  </button>
+                </div>
+                </div>
               </div>
             </div>
           </form>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

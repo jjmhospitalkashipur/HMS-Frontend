@@ -19,6 +19,7 @@ import {
   mapIpdApiToAppointmentDetail,
   type IIpdApiRecord,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
+import IpdDischargeSummaryForm from "@/components/pages/clinic-modules/ipd-appointments/IpdDischargeSummaryForm";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -59,6 +60,8 @@ const IpdAppointmentDetailsComponent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
   const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
+  const [showDischargeSummary, setShowDischargeSummary] = useState(false);
+  const [dischargeSummaryRaw, setDischargeSummaryRaw] = useState<unknown>(null);
 
   const isAdmin = useMemo(() => {
     try {
@@ -111,6 +114,7 @@ const IpdAppointmentDetailsComponent = () => {
 
       next = await enrichIPDDoctorForReceipt(next);
       setIpd(next);
+      setDischargeSummaryRaw((raw as { dischargeSummary?: unknown })?.dischargeSummary ?? null);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -269,6 +273,14 @@ const IpdAppointmentDetailsComponent = () => {
               <i className="ti ti-edit me-1" />
               Edit
             </Link>
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => setShowDischargeSummary(true)}
+            >
+              <i className="ti ti-file-text me-1" />
+              Discharge Summary
+            </button>
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -588,6 +600,15 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </div>
       </div>
+
+      <IpdDischargeSummaryForm
+        ipdId={ipd._id}
+        ipdStatus={ipd.status}
+        initialSummary={dischargeSummaryRaw}
+        open={showDischargeSummary}
+        onClose={() => setShowDischargeSummary(false)}
+        onDischargeComplete={fetchIPDDetails}
+      />
 
       {showPrintReceipt && ipd ? (
         <PrintReceipt

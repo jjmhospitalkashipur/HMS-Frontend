@@ -434,40 +434,6 @@ const EditAppointmentComponent = () => {
       }
       const res = await axios.patch(`${API_BASE_URL}/hospital/visits/${visitId}`, payload);
       if (res.data?.code === 200 || (res.status >= 200 && res.status < 300)) {
-        if (patientId && appointmentType === "OPD") {
-          try {
-            const dobStr = dob
-              ? dayjs.isDayjs(dob)
-                ? dob.format("YYYY-MM-DD")
-                : dayjs(dob).format("YYYY-MM-DD")
-              : undefined;
-            const patientPatch: Record<string, unknown> = {
-              title: title?.value || "",
-              name: name.trim(),
-              phone: formatPatientPhoneForApi(phone),
-              email: email || undefined,
-              age: calculatePatientAgeYears(),
-              months: parseAgeComponent(ageMonths),
-              days: parseAgeComponent(ageDays),
-              gender: gender?.value !== "Select" ? gender?.value : "",
-              bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
-              address: address || undefined,
-              aadharNo: aadharNo || undefined,
-              ayushmanCardNo: ayushmanNo || undefined,
-              companyName: companyName.trim() || undefined,
-              division: division.trim() || undefined,
-            };
-            if (dobStr) patientPatch.dob = dobStr;
-            await axios.patch(`${API_BASE_URL}/hospital/patients/${patientId}`, patientPatch);
-          } catch (pErr: any) {
-            setError(
-              pErr?.response?.data?.message ??
-                "Appointment was updated but patient details could not be saved. Please try again from the patient record."
-            );
-            setLoading(false);
-            return;
-          }
-        }
         router.push(all_routes.appointments);
       } else {
         const responseMessage = res.data?.message || "Failed to update appointment";
@@ -1007,6 +973,7 @@ const EditAppointmentComponent = () => {
                           className="form-control"
                           placeholder="0"
                           value={discount || ""}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           onChange={(e) => {
                             if (isMrVisitSelected) return;
                             setDiscount(parseFloat(e.target.value) || 0);
@@ -1028,6 +995,7 @@ const EditAppointmentComponent = () => {
                           className="form-control"
                           placeholder="0"
                           value={amountReceived || ""}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           onChange={(e) => {
                             if (isMrVisitSelected) return;
                             setAmountReceived(parseFloat(e.target.value) || 0);

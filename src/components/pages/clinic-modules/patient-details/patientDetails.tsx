@@ -115,6 +115,24 @@ interface IDialysisSession {
   };
 }
 
+interface IDialysisPaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+interface ITransactionsPaginationMeta {
+  currentPage: number;
+  limit: number;
+  skip: number;
+  count: number;
+  totalCount: number;
+  hasMore: boolean;
+}
+
 const PatientDetailsComponent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -126,8 +144,24 @@ const PatientDetailsComponent = () => {
   const [dialysisSessions, setDialysisSessions] = useState<IDialysisSession[]>([]);
   const [dialysisLoading, setDialysisLoading] = useState<boolean>(false);
   const [dialysisStatusUpdatingId, setDialysisStatusUpdatingId] = useState<string | null>(null);
+  const [dialysisPagination, setDialysisPagination] = useState<IDialysisPaginationMeta>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
   const [patientTransactions, setPatientTransactions] = useState<IPatientTransaction[]>([]);
   const [patientTransactionsLoading, setPatientTransactionsLoading] = useState<boolean>(false);
+  const [transactionsPagination, setTransactionsPagination] = useState<ITransactionsPaginationMeta>({
+    currentPage: 1,
+    limit: 10,
+    skip: 0,
+    count: 0,
+    totalCount: 0,
+    hasMore: false,
+  });
 
   type TabKey = "appointments" | "transactions" | "dialysis" | "pathlab-cases";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
@@ -151,10 +185,10 @@ const PatientDetailsComponent = () => {
         fetchAppointments();
         break;
       case "transactions":
-        fetchPatientTransactions();
+        fetchPatientTransactions(1);
         break;
       case "dialysis":
-        fetchDialysisSessions();
+        fetchDialysisSessions(1);
         break;
       case "pathlab-cases":
         break;
@@ -269,35 +303,70 @@ const PatientDetailsComponent = () => {
     }
   };
 
-  const fetchDialysisSessions = async () => {
+  const fetchDialysisSessions = useCallback(async (page = 1) => {
     if (!patientId || !API_BASE_URL) return;
     try {
       setDialysisLoading(true);
       const response = await axios.get(
-        `${API_BASE_URL}/hospital/dialysis-session/patient/${patientId}`
+        `${API_BASE_URL}/hospital/dialysis-session/patient/${patientId}`,
+        {
+          params: {
+            page,
+            limit: dialysisPagination.limit,
+          },
+        }
       );
+      const rawData = response.data?.data;
+      const parsedPage = Number(rawData?.page) || page;
+      const parsedLimit = Number(rawData?.limit) || dialysisPagination.limit;
+      const parsedTotalPages = Number(rawData?.totalPages) || 1;
+      const parsedTotal = Number(rawData?.total) || 0;
       if (
         response.data?.code === 200 &&
-        Array.isArray(response.data?.data?.sessions)
+        Array.isArray(rawData?.sessions)
       ) {
-        setDialysisSessions(response.data.data.sessions as IDialysisSession[]);
+        setDialysisSessions(rawData.sessions as IDialysisSession[]);
+        setDialysisPagination({
+          total: parsedTotal,
+          page: parsedPage,
+          limit: parsedLimit,
+          totalPages: parsedTotalPages,
+          hasNextPage: Boolean(rawData?.hasNextPage),
+          hasPrevPage: Boolean(rawData?.hasPrevPage),
+        });
       } else {
         setDialysisSessions([]);
+        setDialysisPagination((prev) => ({
+          ...prev,
+          page,
+          total: 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: page > 1,
+        }));
       }
     } catch {
       setDialysisSessions([]);
+      setDialysisPagination((prev) => ({
+        ...prev,
+        page,
+        total: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: page > 1,
+      }));
     } finally {
       setDialysisLoading(false);
     }
-  };
+  }, [patientId, dialysisPagination.limit]);
 
-  const fetchPatientTransactions = async () => {
+  const fetchPatientTransactions = async (page = 1) => {
     if (!patientId || !API_BASE_URL) return;
     try {
       setPatientTransactionsLoading(true);
       const response = await axios.get(
         `${API_BASE_URL}/hospital/transactions`,
-        { params: { patientId } }
+        { params: { patientId, page, limit: transactionsPagination.limit } }
       );
       if (response.data?.code === 200) {
         const raw = response.data?.data ?? response.data;
@@ -306,12 +375,43 @@ const PatientDetailsComponent = () => {
           : Array.isArray(raw)
           ? raw
           : [];
+        const pagination = raw?.pagination ?? {};
+        const parsedLimit = Number(pagination?.limit) || transactionsPagination.limit;
+        const parsedCurrentPage = Number(pagination?.currentPage) || page;
+        const parsedCount = Number(pagination?.count) || list.length;
+        const parsedTotalCount = Number(pagination?.totalCount) || 0;
+        const parsedSkip = Number(pagination?.skip) || 0;
+        const parsedHasMore = Boolean(pagination?.hasMore);
         setPatientTransactions(list as IPatientTransaction[]);
+        setTransactionsPagination({
+          currentPage: parsedCurrentPage,
+          limit: parsedLimit,
+          skip: parsedSkip,
+          count: parsedCount,
+          totalCount: parsedTotalCount,
+          hasMore: parsedHasMore,
+        });
       } else {
         setPatientTransactions([]);
+        setTransactionsPagination((prev) => ({
+          ...prev,
+          currentPage: page,
+          skip: Math.max(0, (page - 1) * prev.limit),
+          count: 0,
+          totalCount: 0,
+          hasMore: false,
+        }));
       }
     } catch {
       setPatientTransactions([]);
+      setTransactionsPagination((prev) => ({
+        ...prev,
+        currentPage: page,
+        skip: Math.max(0, (page - 1) * prev.limit),
+        count: 0,
+        totalCount: 0,
+        hasMore: false,
+      }));
     } finally {
       setPatientTransactionsLoading(false);
     }
@@ -1847,6 +1947,37 @@ const PatientDetailsComponent = () => {
                   </table>
                 )}
               </div>
+              {!patientTransactionsLoading && patientTransactions.length > 0 ? (
+                <div className="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 mt-3">
+                  <p className="mb-0 text-muted fs-13">
+                    Showing page {transactionsPagination.currentPage} ({transactionsPagination.totalCount} total transactions)
+                  </p>
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() =>
+                        fetchPatientTransactions(transactionsPagination.currentPage - 1)
+                      }
+                      disabled={transactionsPagination.currentPage <= 1 || patientTransactionsLoading}
+                      aria-label="Go to previous transactions page"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() =>
+                        fetchPatientTransactions(transactionsPagination.currentPage + 1)
+                      }
+                      disabled={!transactionsPagination.hasMore || patientTransactionsLoading}
+                      aria-label="Go to next transactions page"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               {/*  End Table */}
             </div>
             <div className={`tab-pane${activeTab === "dialysis" ? " show active" : ""}`} id="dialysis">
@@ -1925,6 +2056,33 @@ const PatientDetailsComponent = () => {
                   </table>
                 )}
               </div>
+              {!dialysisLoading && dialysisSessions.length > 0 ? (
+                <div className="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 mt-3">
+                  <p className="mb-0 text-muted fs-13">
+                    Showing page {dialysisPagination.page} of {dialysisPagination.totalPages} ({dialysisPagination.total} total sessions)
+                  </p>
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => fetchDialysisSessions(dialysisPagination.page - 1)}
+                      disabled={!dialysisPagination.hasPrevPage || dialysisLoading}
+                      aria-label="Go to previous dialysis sessions page"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => fetchDialysisSessions(dialysisPagination.page + 1)}
+                      disabled={!dialysisPagination.hasNextPage || dialysisLoading}
+                      aria-label="Go to next dialysis sessions page"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className={`tab-pane${activeTab === "pathlab-cases" ? " show active" : ""}`} id="pathlab-cases">
               <div className="table-responsive">

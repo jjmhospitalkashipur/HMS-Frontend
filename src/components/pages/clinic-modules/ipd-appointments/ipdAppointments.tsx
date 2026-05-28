@@ -72,6 +72,7 @@ interface IIpdAppointment {
   appointmentDate?: string;
   admissionDate?: string;
   status?: string;
+  isDischarge?: boolean;
   createdAt?: string;
   paymentStatus?: string;
   amountPaid?: number;
@@ -129,6 +130,7 @@ interface IRow {
   Total: number;
   Status: string;
   Payment_Status: string;
+  IsDischarged: boolean;
 }
 
 const getAxiosMessage = (err: unknown, fallback: string) => {
@@ -343,6 +345,7 @@ const IpdAppointmentsComponent = () => {
               Total: item.totalPrice ?? 0,
               Status: item.status || "",
               Payment_Status: item.paymentStatus || "",
+              IsDischarged: Boolean(item.isDischarge),
             };
           });
           setRows(mapped);
@@ -480,6 +483,16 @@ const IpdAppointmentsComponent = () => {
       dataIndex: "IPD_ID",
       sorter: false,
       showSorterTooltip: false,
+      render: (text: string, record: IRow) => (
+        <div className="d-flex flex-column gap-1">
+          <span className="text-dark fw-semibold">{text || "—"}</span>
+          {record.IsDischarged ? (
+            <span className="badge badge-soft-success border border-success fs-10 px-2 py-1 w-fit-content">
+              Discharged
+            </span>
+          ) : null}
+        </div>
+      ),
     },
     {
       title: "Date",
@@ -623,34 +636,44 @@ const IpdAppointmentsComponent = () => {
       title: "",
       sorter: false,
       showSorterTooltip: false,
-      render: (_: unknown, record: IRow) => (
-        <div className="d-flex align-items-center gap-2">
-          <Link
-            className="text-primary"
-            href={`${all_routes.editIpdAppointment}/${record.id}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <i className="ti ti-edit fs-16" />
-          </Link>
-          {isAdmin ? (
-            <button
-              type="button"
-              className="btn btn-link text-danger p-0 border-0"
+      render: (_: unknown, record: IRow) => {
+        const isLocked = record.IsDischarged;
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <Link
+              className={isLocked ? "text-muted pe-none" : "text-primary"}
+              href={isLocked ? "#" : `${all_routes.editIpdAppointment}/${record.id}`}
               onClick={(e) => {
                 e.stopPropagation();
-                setIPDDeleteTarget({
-                  id: String(record.id ?? ""),
-                  label: String(record.IPD_ID ?? record.id ?? ""),
-                });
+                if (isLocked) e.preventDefault();
               }}
-              title="Delete ipd appointment"
-              aria-label="Delete ipd appointment"
+              aria-disabled={isLocked}
+              title={isLocked ? "Edit disabled for discharged IPD" : "Edit ipd appointment"}
             >
-              <i className="ti ti-trash fs-16" />
-            </button>
-          ) : null}
-        </div>
-      ),
+              <i className="ti ti-edit fs-16" />
+            </Link>
+            {isAdmin ? (
+              <button
+                type="button"
+                className={`btn btn-link p-0 border-0 ${isLocked ? "text-muted" : "text-danger"}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isLocked) return;
+                  setIPDDeleteTarget({
+                    id: String(record.id ?? ""),
+                    label: String(record.IPD_ID ?? record.id ?? ""),
+                  });
+                }}
+                title={isLocked ? "Delete disabled for discharged IPD" : "Delete ipd appointment"}
+                aria-label={isLocked ? "Delete disabled for discharged IPD" : "Delete ipd appointment"}
+                disabled={isLocked}
+              >
+                <i className="ti ti-trash fs-16" />
+              </button>
+            ) : null}
+          </div>
+        );
+      },
     },
   ];
 

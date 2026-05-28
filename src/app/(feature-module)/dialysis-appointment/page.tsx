@@ -1,6 +1,14 @@
 "use client";
 
-import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import React, {
+  ChangeEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
@@ -16,6 +24,49 @@ const sectionIds = [
   "complications-during-dialysis",
   "treatment-given",
 ] as const;
+
+type IDialysisSessionRecord = {
+  _id?: string;
+  sessionId?: string;
+  daycareAppointmentId?: string;
+  createdAt?: string;
+  patient?: { mrd?: string; name?: string; age?: number; gender?: string };
+  generalInformation?: Record<string, unknown>;
+  preDialysisAssessment?: Record<string, unknown>;
+  monitoringReadings?: Record<string, unknown>[];
+  postDialysisAssessment?: Record<string, unknown>;
+  complications?: Record<string, unknown>;
+  treatmentGiven?: Record<string, unknown>;
+};
+
+const normalizeDialysisSession = (payload: unknown): IDialysisSessionRecord | null => {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as { data?: unknown };
+  const data = root.data ?? payload;
+  if (!data || typeof data !== "object") return null;
+  const obj = data as Record<string, unknown>;
+  if (obj.session && typeof obj.session === "object") {
+    return obj.session as IDialysisSessionRecord;
+  }
+  if (typeof obj._id === "string") {
+    return obj as IDialysisSessionRecord;
+  }
+  return null;
+};
+
+const findDialysisSessionInList = (
+  sessions: IDialysisSessionRecord[],
+  targetSessionId: string
+): IDialysisSessionRecord | undefined => {
+  const target = targetSessionId.trim().toLowerCase();
+  if (!target) return undefined;
+  return sessions.find(
+    (s) =>
+      (s?._id?.toLowerCase() ?? "") === target ||
+      (s?.sessionId?.toLowerCase() ?? "") === target ||
+      (s?.daycareAppointmentId?.toLowerCase() ?? "") === target
+  );
+};
 
 const DialysisAppointmentContent = () => {
   const sectionRefs: Record<(typeof sectionIds)[number], React.RefObject<HTMLDivElement | null>> = {
@@ -36,6 +87,9 @@ const DialysisAppointmentContent = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isCentralLineNo, setIsCentralLineNo] = useState(false);
   const [mrdNo, setMrdNo] = useState("");
+  const [loadedSession, setLoadedSession] = useState<IDialysisSessionRecord | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
 
   const handlePrint = () => {
     if (formRef.current) {
@@ -58,67 +112,40 @@ const DialysisAppointmentContent = () => {
   const patientIdFromUrl = searchParams.get("patientId") ?? searchParams.get("id");
   const isEditMode = Boolean(sessionId && API_BASE_URL);
 
-  // Prefill: only in edit mode — load the selected session and populate form. New form stays empty.
-  useEffect(() => {
-    const pId = searchParams.get("patientId") ?? searchParams.get("id");
-    if (!sessionId || !pId || !API_BASE_URL) return;
-
-    const fetchData = async () => {
-      try {
-        const response = await axios.get(
-          `${API_BASE_URL}/hospital/dialysis-session/patient/${pId}`
-        );
-        const sessions = response.data?.data?.sessions ?? [];
-        const session = sessions.find((s: { _id: string }) => s._id === sessionId);
-        if (session) populateForm(session);
-      } catch (err) {
-        console.error("Failed to fetch patient session data", err);
-      }
-    };
-
-    fetchData();
-  }, [searchParams, sessionId]);
-
-  // Prefill MRD for new form from patient ID in URL
-  useEffect(() => {
-    if (isEditMode || !patientIdFromUrl || !API_BASE_URL) return;
-
-    const fetchPatient = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/hospital/patients/${patientIdFromUrl}`);
-        const patient = response?.data?.data?.patient ?? response?.data?.data ?? null;
-        setMrdNo(patient?.mrd ?? "");
-      } catch {
-        setMrdNo("");
-      }
-    };
-
-    fetchPatient();
-  }, [isEditMode, patientIdFromUrl]);
-
-  const populateForm = (session: any) => {
-    if (!formRef.current) return;
+  const applySessionToForm = useCallback((session: IDialysisSessionRecord) => {
     const form = formRef.current;
+    if (!form) return;
 
-    const setVal = (name: string, val: any) => {
-      const el = form.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | null;
-      if (el) {
-        if (el.type === "checkbox" || el.type === "radio") {
-          (el as HTMLInputElement).checked = !!val;
-        } else {
-          el.value = val !== undefined && val !== null ? val.toString() : "";
-        }
+    const getControl = (name: string) =>
+      form.querySelector(`[name="${CSS.escape(name)}"]`) as
+        | HTMLInputElement
+        | HTMLTextAreaElement
+        | null;
+
+    const setVal = (name: string, val: unknown) => {
+      const el = getControl(name);
+      if (!el) return;
+      if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
+        el.checked = Boolean(val);
+        return;
+      }
+      el.value = val !== undefined && val !== null ? String(val) : "";
+    };
+
+    const setCheck = (name: string, val: boolean) => {
+      const el = getControl(name);
+      if (el instanceof HTMLInputElement && el.type === "checkbox") {
+        el.checked = Boolean(val);
       }
     };
 
-    const pat = session.patient || {};
+    const pat = session.patient ?? {};
     setVal("patient.name", pat.name);
     setVal("patient.age", pat.age);
     setVal("patient.gender", pat.gender);
     setVal("meta.createdAt", session.createdAt);
-    setMrdNo(pat?.mrd ?? "");
 
-    const gen = session.generalInformation || {};
+    const gen = session.generalInformation ?? {};
     setVal("general.machineNumber", gen.machineNumber);
     setVal("general.mrdNo", pat?.mrd ?? gen.uhid);
     setVal("general.technicianName", gen.technicianName);
@@ -137,55 +164,45 @@ const DialysisAppointmentContent = () => {
     setVal("general.remainingWeightLoss", gen.remainingWeightLoss);
     setVal("general.targetDryWeight", gen.targetDryWeight);
 
-    // Checkboxes
-    const setCheck = (name: string, val: boolean) => {
-      const el = form.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
-      if (el) el.checked = !!val;
-    };
+    setCheck("general.dialyzerUsageSingleUse", Boolean(gen.dialyzerUsageSingleUse));
+    setCheck("general.dialyzerUsageReuse", Boolean(gen.dialyzerUsageReuse));
+    setVal("general.timesReused", gen.timesReused);
+    setCheck("general.vascularAccessPresent", Boolean(gen.vascularAccessPresent));
+    setCheck("general.centralLineYes", Boolean(gen.centralLineYes));
+    setCheck("general.centralLineNo", Boolean(gen.centralLineNo));
 
-    setCheck("general.dialyzerUsageSingleUse", gen.dialyzerUsageSingleUse);
-    setCheck("general.dialyzerUsageReuse", gen.dialyzerUsageReuse);
-    setCheck("general.timesReused", gen.timesReused);
-    setCheck("general.vascularAccessPresent", gen.vascularAccessPresent);
-
-    if (gen.centralLineNo) {
-      setIsCentralLineNo(true);
-      setCheck("general.centralLineNo", true);
-    } else {
-      setIsCentralLineNo(false);
-      setCheck("general.centralLineNo", false);
-    }
-    setCheck("general.centralLineYes", gen.centralLineYes);
-
-    // Select central line site radio/check logic if matched
     if (gen.centralLineIJV) {
-      const el = form.querySelector(`[name="general.centralLineSite"][value="ijv"]`) as HTMLInputElement | null;
+      const el = form.querySelector(
+        `[name="general.centralLineSite"][value="ijv"]`
+      ) as HTMLInputElement | null;
       if (el) el.checked = true;
     } else if (gen.centralLineFemoral) {
-      const el = form.querySelector(`[name="general.centralLineSite"][value="femoral"]`) as HTMLInputElement | null;
+      const el = form.querySelector(
+        `[name="general.centralLineSite"][value="femoral"]`
+      ) as HTMLInputElement | null;
       if (el) el.checked = true;
     }
 
-    setCheck("general.avfSelected", gen.avfSelected);
-    setCheck("general.avgSelected", gen.avgSelected);
-    setCheck("general.ijvSelected", gen.ijvSelected);
-    setCheck("general.femoralSelected", gen.femoralSelected);
-    setCheck("general.tunneledCatheter", gen.tunneledCatheter);
-    setCheck("general.avfNeedleSize16G", gen.avfNeedleSize16G);
-    setCheck("general.avfNeedleSize17G", gen.avfNeedleSize17G);
-    setCheck("general.avfNeedleSizeOthers", gen.avfNeedleSizeOthers);
+    setCheck("general.avfSelected", Boolean(gen.avfSelected));
+    setCheck("general.avgSelected", Boolean(gen.avgSelected));
+    setCheck("general.ijvSelected", Boolean(gen.ijvSelected));
+    setCheck("general.femoralSelected", Boolean(gen.femoralSelected));
+    setCheck("general.tunneledCatheter", Boolean(gen.tunneledCatheter));
+    setCheck("general.avfNeedleSize16G", Boolean(gen.avfNeedleSize16G));
+    setCheck("general.avfNeedleSize17G", Boolean(gen.avfNeedleSize17G));
+    setCheck("general.avfNeedleSizeOthers", Boolean(gen.avfNeedleSizeOthers));
     setVal("general.avfNeedleSizeOthersValue", gen.avfNeedleSizeOthersValue);
-    setCheck("general.bruitThrillPresent", gen.bruitThrillPresent);
-    setCheck("general.bruitThrillAbsent", gen.bruitThrillAbsent);
-    setCheck("general.bruitThrillNotApplicable", gen.bruitThrillNotApplicable);
+    setCheck("general.bruitThrillPresent", Boolean(gen.bruitThrillPresent));
+    setCheck("general.bruitThrillAbsent", Boolean(gen.bruitThrillAbsent));
+    setCheck("general.bruitThrillNotApplicable", Boolean(gen.bruitThrillNotApplicable));
 
-    const pre = session.preDialysisAssessment || {};
+    const pre = session.preDialysisAssessment ?? {};
     setVal("pre.bpStartHd", pre.bpStartHd);
     setVal("pre.spo2", pre.spo2);
     setVal("pre.bodyTemperature", pre.bodyTemperature);
     setVal("pre.pulse", pre.pulse);
 
-    (session.monitoringReadings || []).forEach((r: any, i: number) => {
+    (session.monitoringReadings ?? []).forEach((r, i) => {
       if (i >= 8) return;
       setVal(`monitoring.${i}.timeOnHd`, r.timeOnHd);
       setVal(`monitoring.${i}.pr`, r.pr);
@@ -200,7 +217,7 @@ const DialysisAppointmentContent = () => {
       setVal(`monitoring.${i}.rbs`, r.rbs);
     });
 
-    const post = session.postDialysisAssessment || {};
+    const post = session.postDialysisAssessment ?? {};
     setVal("post.pulse", post.pulse);
     setVal("post.bp", post.bp);
     setVal("post.bodyTemperature", post.bodyTemperature);
@@ -208,47 +225,141 @@ const DialysisAppointmentContent = () => {
     setVal("post.ufRemoved", post.ufRemoved ?? post.postHdWeightField2);
     setVal("post.ktVAchieved", post.ktVAchieved);
 
-    // Radios for prolonged bleeding
-    const pb = post.prolongedBleedingField1; // Assuming Field1 is the value
+    const pb = post.prolongedBleedingField1;
     if (pb) {
-      const el = form.querySelector(`[name="post.prolongedBleeding"][value="${pb}"]`) as HTMLInputElement | null;
+      const el = form.querySelector(
+        `[name="post.prolongedBleeding"][value="${CSS.escape(String(pb))}"]`
+      ) as HTMLInputElement | null;
       if (el) el.checked = true;
     }
 
-    setCheck("post.bruitThrillPresent", post.bruitThrillAvfAvgField1);
-    setCheck("post.bruitThrillAbsent", post.bruitThrillAvfAvgField2);
-    setCheck("post.bruitThrillNotApplicable", post.bruitThrillAvfAvgField3);
+    const bruitValue = String(post.bruitThrillAvfAvgField1 ?? "");
+    setCheck("post.bruitThrillPresent", bruitValue === "Present");
+    setCheck("post.bruitThrillAbsent", bruitValue === "Absent");
+    setCheck("post.bruitThrillNotApplicable", bruitValue === "Not Applicable");
 
-    const comp = session.complications || {};
-    setCheck("comp.hypotension", comp.hypotension);
-    setCheck("comp.fever", comp.fever);
-    setCheck("comp.headache", comp.headache);
-    setCheck("comp.rigor", comp.rigor);
-    setCheck("comp.cramps", comp.cramps);
-    setCheck("comp.rash", comp.rash);
-    setCheck("comp.vomiting", comp.vomiting);
-    setCheck("comp.chestPain", comp.chestPain);
-    setCheck("comp.dyspnea", comp.dyspnea);
-    setCheck("comp.pruritus", comp.pruritus);
-    setCheck("comp.dialyzerReaction", comp.dialyzerReaction);
-    setCheck("comp.seizures", comp.seizures);
-    setCheck("comp.noComplication", comp.noComplication);
+    const comp = session.complications ?? {};
+    setCheck("comp.hypotension", Boolean(comp.hypotension));
+    setCheck("comp.fever", Boolean(comp.fever));
+    setCheck("comp.headache", Boolean(comp.headache));
+    setCheck("comp.rigor", Boolean(comp.rigor));
+    setCheck("comp.cramps", Boolean(comp.cramps));
+    setCheck("comp.rash", Boolean(comp.rash));
+    setCheck("comp.vomiting", Boolean(comp.vomiting));
+    setCheck("comp.chestPain", Boolean(comp.chestPain));
+    setCheck("comp.dyspnea", Boolean(comp.dyspnea));
+    setCheck("comp.pruritus", Boolean(comp.pruritus));
+    setCheck("comp.dialyzerReaction", Boolean(comp.dialyzerReaction));
+    setCheck("comp.seizures", Boolean(comp.seizures));
+    setCheck("comp.noComplication", Boolean(comp.noComplication));
     setVal("comp.other", comp.other);
 
-    const treat = session.treatmentGiven || {};
+    const treat = session.treatmentGiven ?? {};
     setVal("treat.epoDosage", treat.epoDosage);
     setVal("treat.epoGivenBy", treat.epoGivenBy);
     setVal("treat.ivIronDose", treat.ivIronDose);
 
     if (treat.bloodTransfusionField1) {
-      const el = form.querySelector(`[name="treat.bloodTransfusion"][value="${treat.bloodTransfusionField1}"]`) as HTMLInputElement | null;
+      const el = form.querySelector(
+        `[name="treat.bloodTransfusion"][value="${CSS.escape(String(treat.bloodTransfusionField1))}"]`
+      ) as HTMLInputElement | null;
       if (el) el.checked = true;
     }
     setVal("treat.numberOfUnits", treat.numberOfUnits);
     setVal("treat.bloodBankName", treat.bloodBankName);
     setVal("treat.typeOfBlood", treat.typeOfBlood);
     setVal("treat.otherTreatmentGivenDrug", treat.otherTreatmentGivenDrug);
-  };
+  }, []);
+
+  // Prefill: only in edit mode — load the selected session and populate form. New form stays empty.
+  useEffect(() => {
+    const pId = searchParams.get("patientId") ?? searchParams.get("id");
+    if (!sessionId || !pId || !API_BASE_URL) {
+      setLoadedSession(null);
+      setSessionLoadError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchData = async () => {
+      setIsSessionLoading(true);
+      setSessionLoadError(null);
+      setLoadedSession(null);
+
+      try {
+        let session: IDialysisSessionRecord | null = null;
+
+        try {
+          const byIdRes = await axios.get(
+            `${API_BASE_URL}/hospital/dialysis-session/${sessionId}`
+          );
+          session = normalizeDialysisSession(byIdRes.data);
+        } catch {
+          // Fall back to patient session list below.
+        }
+
+        if (!session) {
+          const listRes = await axios.get(
+            `${API_BASE_URL}/hospital/dialysis-session/patient/${pId}`,
+            { params: { page: 1, limit: 100 } }
+          );
+          const sessions = (listRes.data?.data?.sessions ?? []) as IDialysisSessionRecord[];
+          session = findDialysisSessionInList(sessions, sessionId) ?? null;
+        }
+
+        if (cancelled) return;
+
+        if (!session) {
+          setSessionLoadError("Dialysis session not found for this link.");
+          return;
+        }
+
+        const gen = session.generalInformation ?? {};
+        const pat = session.patient ?? {};
+        setMrdNo(String(pat?.mrd ?? gen?.uhid ?? ""));
+        setIsCentralLineNo(Boolean(gen.centralLineNo));
+        setLoadedSession(session);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to fetch dialysis session data", err);
+          setSessionLoadError("Failed to load dialysis session. Please try again.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSessionLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, sessionId]);
+
+  useLayoutEffect(() => {
+    if (!loadedSession) return;
+    applySessionToForm(loadedSession);
+  }, [loadedSession, applySessionToForm]);
+
+  // Prefill MRD for new form from patient ID in URL
+  useEffect(() => {
+    if (isEditMode || !patientIdFromUrl || !API_BASE_URL) return;
+
+    const fetchPatient = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/hospital/patients/${patientIdFromUrl}`);
+        const patient = response?.data?.data?.patient ?? response?.data?.data ?? null;
+        setMrdNo(patient?.mrd ?? "");
+      } catch {
+        setMrdNo("");
+      }
+    };
+
+    fetchPatient();
+  }, [isEditMode, patientIdFromUrl]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -484,6 +595,12 @@ const DialysisAppointmentContent = () => {
           <h4 className="fw-bold mb-0">
             {isEditMode ? "Edit Dialysis Session" : "Dialysis Form"}
           </h4>
+          {isEditMode && isSessionLoading ? (
+            <span className="text-muted fs-14">Loading session...</span>
+          ) : null}
+          {isEditMode && sessionLoadError ? (
+            <span className="text-danger fs-14">{sessionLoadError}</span>
+          ) : null}
           {!isEditMode && (
             <Link href={all_routes.appointments} className="btn btn-outline-primary">
               Back to Appointments

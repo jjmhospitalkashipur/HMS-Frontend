@@ -978,6 +978,7 @@ const EditDaycareAppointmentComponent = () => {
                           className="form-control text-end"
                           style={{ maxWidth: "100px", fontSize: "16px" }}
                           value={discount || ""}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           onChange={(e) => {
                             setDiscount(parseFloat(e.target.value) || 0);
                           }}
@@ -991,6 +992,7 @@ const EditDaycareAppointmentComponent = () => {
                           className="form-control text-end"
                           style={{ maxWidth: "100px", fontSize: "16px" }}
                           value={amountReceived || ""}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
                           min={0}
                         />

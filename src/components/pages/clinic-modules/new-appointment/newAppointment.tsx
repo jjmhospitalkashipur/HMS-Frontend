@@ -64,6 +64,9 @@ import {
   removeIpdProcedureRow,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 
+/** IPD tab in appointments form — set to `false` to hide */
+const IPD_APPOINTMENT_TAB_ENABLED = true;
+
 interface IVisitTypeCharge {
   visitType?: string;
   appointmentType?: string;
@@ -149,6 +152,8 @@ interface IIpdCreatePayload {
   admissionDate: string;
   reason: string;
   billingCharges: IIpdBillingCharge[];
+  discount?: number;
+  discountPassword?: string;
   isMLC?: boolean;
   mlc?: IIpdMlcData;
   transaction?: {
@@ -200,11 +205,20 @@ const NewAppointmentComponent = () => {
   const [attendantName, setAttendantName] = useState<string>("");
   const [attendantRelation, setAttendantRelation] = useState<string>("");
 
-  // Tab: OPD | Daycare | IPD (separate forms)
+  // Tab: OPD | Daycare | IPD (separate forms; IPD hidden when IPD_APPOINTMENT_TAB_ENABLED is false)
   const tabParam = searchParams?.get("tab")?.toLowerCase();
   const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare" | "IPD">(
-    tabParam === "daycare" ? "Daycare" : tabParam === "ipd" ? "IPD" : "OPD"
+    tabParam === "daycare"
+      ? "Daycare"
+      : tabParam === "ipd" && IPD_APPOINTMENT_TAB_ENABLED
+        ? "IPD"
+        : "OPD"
   );
+  useEffect(() => {
+    if (!IPD_APPOINTMENT_TAB_ENABLED && appointmentTab === "IPD") {
+      setAppointmentTab("OPD");
+    }
+  }, [appointmentTab]);
 
   // Daycare form state (separate from OPD)
   const [daycarePhone, setDaycarePhone] = useState<string>("");
@@ -1830,7 +1844,15 @@ const NewAppointmentComponent = () => {
     return dayjs().format("YYYY-MM-DD");
   };
 
-  const buildIpdCreatePayload = (uploadedUrls?: { imageS3Url?: string; aadharS3Url?: string; ayushmanCardS3Url?: string; otherDocUrl?: string }): IIpdCreatePayload | null => {
+  const buildIpdCreatePayload = (
+    uploadedUrls?: {
+      imageS3Url?: string;
+      aadharS3Url?: string;
+      ayushmanCardS3Url?: string;
+      otherDocUrl?: string;
+    },
+    discountPwd?: string
+  ): IIpdCreatePayload | null => {
     const doctorId = ipdSelectedDoctor?.value;
     const bedId = ipdSelectedBedId;
     if (!doctorId || !bedId) return null;
@@ -1853,7 +1875,12 @@ const NewAppointmentComponent = () => {
       admissionDate: formatIpdVisitDate(),
       reason: ipdNotes.trim(),
       billingCharges,
+      discount: Number(ipdDiscount) || 0,
     };
+    const trimmedIpdDiscountPwd = discountPwd?.trim() ?? "";
+    if ((Number(ipdDiscount) || 0) > 0 && trimmedIpdDiscountPwd) {
+      payload.discountPassword = trimmedIpdDiscountPwd;
+    }
 
     if (ipdSelectedPatient?._id) {
       payload.patientId = ipdSelectedPatient._id;
@@ -1930,7 +1957,7 @@ const NewAppointmentComponent = () => {
     if (!checked) setIpdMlcData(emptyIpdMlcData());
   };
 
-  const doIpdSubmit = async () => {
+  const doIpdSubmit = async (discountPwd?: string) => {
     setIpdError("");
     if (!API_BASE_URL) {
       setIpdError("API configuration error. Please contact support.");
@@ -1979,7 +2006,7 @@ const NewAppointmentComponent = () => {
         aadharS3Url: uploadedAadharUrl || undefined,
         ayushmanCardS3Url: uploadedAyushmanUrl || undefined,
         otherDocUrl: uploadedOtherDocUrl || undefined,
-      });
+      }, discountPwd);
       if (!payload) {
         setIpdError("Please complete required IPD fields.");
         return;
@@ -2017,6 +2044,11 @@ const NewAppointmentComponent = () => {
       setIpdError("Please select an available bed.");
       return;
     }
+    if ((Number(ipdDiscount) || 0) > 0) {
+      setIpdDiscountPasswordError("");
+      setIpdShowDiscountPasswordDialog(true);
+      return;
+    }
     void doIpdSubmit();
   };
 
@@ -2026,7 +2058,8 @@ const NewAppointmentComponent = () => {
       return;
     }
     setIpdDiscountPasswordError("");
-    void doIpdSubmit();
+    setIpdShowDiscountPasswordDialog(false);
+    void doIpdSubmit(ipdDiscountPassword.trim());
   };
 
   const handleIpdDiscountPasswordCancel = () => {
@@ -2304,12 +2337,6 @@ const NewAppointmentComponent = () => {
                   <button type="button" className="btn-close" onClick={() => setDaycareError("")} aria-label="Close" />
                 </div>
               )}
-              {ipdError && appointmentTab === "IPD" && (
-                <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-                  <strong>Error:</strong> {ipdError}
-                  <button type="button" className="btn-close" onClick={() => setIpdError("")} aria-label="Close" />
-                </div>
-              )}
               <ul className="nav nav-tabs border-0 mb-0 flex-shrink-0">
                 <li className="nav-item">
                   <button
@@ -2333,17 +2360,19 @@ const NewAppointmentComponent = () => {
                     Daycare
                   </button>
                 </li>
-                <li className="nav-item">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={appointmentTab === "IPD"}
-                    className={`nav-link${appointmentTab === "IPD" ? " active" : ""}`}
-                    onClick={() => setAppointmentTab("IPD")}
-                  >
-                    IPD
-                  </button>
-                </li>
+                {IPD_APPOINTMENT_TAB_ENABLED ? (
+                  <li className="nav-item">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={appointmentTab === "IPD"}
+                      className={`nav-link${appointmentTab === "IPD" ? " active" : ""}`}
+                      onClick={() => setAppointmentTab("IPD")}
+                    >
+                      IPD
+                    </button>
+                  </li>
+                ) : null}
               </ul>
               <div className="tab-content">
                 <div className={`tab-pane ${appointmentTab === "OPD" ? "show active" : ""}`} id="opd">
@@ -2869,6 +2898,7 @@ const NewAppointmentComponent = () => {
                           className="form-control fs-15"
                           placeholder="0"
                           value={discount || ""}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           onChange={(e) => {
                             if (isMrVisitSelected) return;
                             setDiscount(parseFloat(e.target.value) || 0);
@@ -2890,6 +2920,7 @@ const NewAppointmentComponent = () => {
                           className="form-control fs-15"
                           placeholder="0"
                           value={amountReceived || ""}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           onChange={(e) => {
                             if (isMrVisitSelected) return;
                             setAmountReceived(parseFloat(e.target.value) || 0);
@@ -3310,6 +3341,7 @@ const NewAppointmentComponent = () => {
                                 className="form-control fs-15"
                                 placeholder="0"
                                 value={daycareDiscount || ""}
+                                onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                                 onChange={(e) => {
                                   setDaycareDiscount(parseFloat(e.target.value) || 0);
                                 }}
@@ -3329,6 +3361,7 @@ const NewAppointmentComponent = () => {
                                 className="form-control fs-15"
                                 placeholder="0"
                                 value={daycareAmountReceived || ""}
+                                onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                                 onChange={(e) => setDaycareAmountReceived(parseFloat(e.target.value) || 0)}
                                 min="0"
                               />
@@ -3357,6 +3390,7 @@ const NewAppointmentComponent = () => {
                     </div>
                   </form>
                 </div>
+                {IPD_APPOINTMENT_TAB_ENABLED ? (
                 <div className={`tab-pane ${appointmentTab === "IPD" ? "show active" : ""}`} id="ipd">
                   <form onSubmit={handleIpdSubmit}>
                     <div className="row g-3 align-items-start">
@@ -3729,61 +3763,11 @@ const NewAppointmentComponent = () => {
                           </div>
                         </div>
 
-                        {/* ── Footer Actions ── */}
-                        <div className="d-flex align-items-center justify-content-end mt-2 flex-wrap gap-2">
-                          <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
-                            Cancel
-                          </Link>
-                          {ipdFormStep === 2 ? (
-                            <button
-                              type="button"
-                              className="btn btn-light fw-medium fs-14 px-4"
-                              onClick={() => {
-                                setIpdFormStep(1);
-                                setIpdError("");
-                                window.scrollTo({ top: 0, behavior: "smooth" });
-                              }}
-                              disabled={ipdLoading || ipdBedsLoading}
-                            >
-                              <i className="ti ti-arrow-left me-1" />
-                              Back
-                            </button>
-                          ) : null}
-                          {ipdFormStep === 3 ? (
-                            <button
-                              type="button"
-                              className="btn btn-light fw-medium fs-14 px-4"
-                              onClick={() => {
-                                setIpdFormStep(2);
-                                setIpdError("");
-                                window.scrollTo({ top: 0, behavior: "smooth" });
-                              }}
-                              disabled={ipdLoading || ipdBedsLoading}
-                            >
-                              <i className="ti ti-arrow-left me-1" />
-                              Back
-                            </button>
-                          ) : null}
-                          <button
-                            type="submit"
-                            className="btn font-weight-bold fs-15 fw-medium rounded btn-primary"
-                            disabled={ipdLoading || ipdBedsLoading}
-                          >
-                            {ipdLoading ? (
-                              <><i className="ti ti-loader-2 me-1" />Creating...</>
-                            ) : ipdFormStep === 1 ? (
-                              <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
-                            ) : ipdFormStep === 2 ? (
-                              <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
-                            ) : (
-                              <>Create IPD Appointment<i className="ti ti-check ms-1" /></>
-                            )}
-                          </button>
-                        </div>
                       </div>
 
                       {/* RIGHT COLUMN — Summary + Payment (static) */}
                       <div className="col-12 col-lg-4">
+                        <div className="position-sticky" style={{ top: "84px", zIndex: 5 }}>
                         <IpdAdmissionSummarySidebar
                           patient={{
                             title:
@@ -3872,6 +3856,7 @@ const NewAppointmentComponent = () => {
                                 className="form-control fs-15 text-dark"
                                 placeholder="0"
                                 value={ipdDiscount || ""}
+                                onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                                 onChange={(e) => setIpdDiscount(parseFloat(e.target.value) || 0)}
                                 min="0"
                               />
@@ -3889,6 +3874,7 @@ const NewAppointmentComponent = () => {
                                 className="form-control fs-15 text-dark"
                                 placeholder="0"
                                 value={ipdAmountReceived || ""}
+                                onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                                 onChange={(e) => setIpdAmountReceived(parseFloat(e.target.value) || 0)}
                                 min="0"
                               />
@@ -3903,10 +3889,62 @@ const NewAppointmentComponent = () => {
                             </>
                           }
                         />
+                        <div className="d-flex align-items-center justify-content-end mt-3 flex-wrap gap-2">
+                          <Link href={all_routes.ipdAppointments} className="btn btn-light fw-medium fs-14 px-4">
+                            Cancel
+                          </Link>
+                          {ipdFormStep === 2 ? (
+                            <button
+                              type="button"
+                              className="btn btn-light fw-medium fs-14 px-4"
+                              onClick={() => {
+                                setIpdFormStep(1);
+                                setIpdError("");
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              disabled={ipdLoading || ipdBedsLoading}
+                            >
+                              <i className="ti ti-arrow-left me-1" />
+                              Back
+                            </button>
+                          ) : null}
+                          {ipdFormStep === 3 ? (
+                            <button
+                              type="button"
+                              className="btn btn-light fw-medium fs-14 px-4"
+                              onClick={() => {
+                                setIpdFormStep(2);
+                                setIpdError("");
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              disabled={ipdLoading || ipdBedsLoading}
+                            >
+                              <i className="ti ti-arrow-left me-1" />
+                              Back
+                            </button>
+                          ) : null}
+                          <button
+                            type="submit"
+                            className="btn font-weight-bold fs-15 fw-medium rounded btn-primary"
+                            disabled={ipdLoading || ipdBedsLoading}
+                          >
+                            {ipdLoading ? (
+                              <><i className="ti ti-loader-2 me-1" />Creating...</>
+                            ) : ipdFormStep === 1 ? (
+                              <>Next: IPD Details<i className="ti ti-arrow-right ms-1" /></>
+                            ) : ipdFormStep === 2 ? (
+                              <>Next: Select Bed<i className="ti ti-arrow-right ms-1" /></>
+                            ) : (
+                              <>Create IPD Appointment<i className="ti ti-check ms-1" /></>
+                            )}
+                          </button>
+                        </div>
+                        </div>
                       </div>
                     </div>
                   </form>
                 </div>
+                ) : null}
               </div>
             </div>
           </div>

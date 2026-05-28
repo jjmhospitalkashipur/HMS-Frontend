@@ -49,11 +49,49 @@ interface IDialysisSessionRow {
   daycareAppointment?: IDialysisDaycareAppointmentSummary;
 }
 
+interface IDialysisPaginationMeta {
+  total?: number;
+  totalCount?: number;
+  count?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+}
+
+interface IDialysisSessionsResponseData {
+  sessions?: IDialysisSessionRow[];
+  pagination?: IDialysisPaginationMeta;
+  total?: number;
+  count?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+}
+
+const resolveDialysisTotalCount = (
+  data: IDialysisSessionsResponseData | undefined,
+  sessionsLength: number
+): number => {
+  const pagination = data?.pagination;
+  if (typeof pagination?.total === "number") return pagination.total;
+  if (typeof pagination?.totalCount === "number") return pagination.totalCount;
+  if (typeof pagination?.count === "number") return pagination.count;
+  if (typeof data?.total === "number") return data.total;
+  if (typeof data?.count === "number") return data.count;
+  return sessionsLength;
+};
+
 const DialysisComponent = () => {
   const [activeTab, setActiveTab] = useState<"all" | "today">("today");
   const [dialysisSessions, setDialysisSessions] = useState<IDialysisSessionRow[]>([]);
   const [dialysisLoading, setDialysisLoading] = useState(false);
   const [dialysisPage, setDialysisPage] = useState(1);
+  const [dialysisLimit, setDialysisLimit] = useState(10);
+  const [dialysisTotal, setDialysisTotal] = useState(0);
   const [dialysisSearchInput, setDialysisSearchInput] = useState("");
   const [dialysisSearch, setDialysisSearch] = useState("");
   const [dialysisStatusFilter, setDialysisStatusFilter] = useState<string>("");
@@ -61,7 +99,6 @@ const DialysisComponent = () => {
   const [receiptData, setReceiptData] = useState<IReceiptData | null>(null);
   const [showPrintReceipt, setShowPrintReceipt] = useState(false);
   const [printingSessionId, setPrintingSessionId] = useState<string | null>(null);
-  const dialysisLimit = 100;
   const router = useRouter();
 
   useEffect(() => {
@@ -71,7 +108,7 @@ const DialysisComponent = () => {
 
   useEffect(() => {
     setDialysisPage(1);
-  }, [dialysisSearch, dialysisStatusFilter]);
+  }, [dialysisSearch, dialysisStatusFilter, activeTab]);
 
   useEffect(() => {
     const fetchDialysis = async () => {
@@ -89,19 +126,29 @@ const DialysisComponent = () => {
         if (dialysisStatusFilter) params.status = dialysisStatusFilter;
 
         const res = await axios.get(`${API_BASE_URL}/hospital/dialysis-sessions`, { params });
-        if (res.data?.code === 200 && Array.isArray(res.data?.data?.sessions)) {
-          setDialysisSessions(res.data.data.sessions as IDialysisSessionRow[]);
+        if (res.data?.code === 200 && res.data?.data) {
+          const data = res.data.data as IDialysisSessionsResponseData;
+          const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+          setDialysisSessions(sessions);
+          setDialysisTotal(resolveDialysisTotalCount(data, sessions.length));
           return;
         }
         setDialysisSessions([]);
+        setDialysisTotal(0);
       } catch {
         setDialysisSessions([]);
+        setDialysisTotal(0);
       } finally {
         setDialysisLoading(false);
       }
     };
     fetchDialysis();
-  }, [activeTab, dialysisPage, dialysisSearch, dialysisStatusFilter]);
+  }, [activeTab, dialysisPage, dialysisLimit, dialysisSearch, dialysisStatusFilter]);
+
+  const handlePaginationChange = (newPage: number, newPageSize: number) => {
+    setDialysisPage(newPage);
+    setDialysisLimit(newPageSize);
+  };
 
   const handleTabChange = (tab: "all" | "today") => {
     setActiveTab(tab);
@@ -216,8 +263,6 @@ const DialysisComponent = () => {
         <div className="table-responsive">
           {dialysisLoading ? (
             <p className="text-muted mb-0">Loading dialysis sessions...</p>
-          ) : dialysisSessions.length === 0 ? (
-            <p className="text-muted mb-0">No dialysis sessions found.</p>
           ) : (
             <Datatable
               columns={[
@@ -402,7 +447,11 @@ const DialysisComponent = () => {
                 };
               })}
               Selection={false}
-              searchText={dialysisSearch}
+              searchText=""
+              total={dialysisTotal}
+              currentPage={dialysisPage}
+              pageSize={dialysisLimit}
+              onPaginationChange={handlePaginationChange}
             />
           )}
         </div>
