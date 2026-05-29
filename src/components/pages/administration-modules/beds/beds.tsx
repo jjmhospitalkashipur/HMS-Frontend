@@ -87,6 +87,7 @@ const BedsListComponent = () => {
   const [wardOptions, setWardOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [filterWardId, setFilterWardId] = useState<string>("");
   const [appliedWardId, setAppliedWardId] = useState<string>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
@@ -256,7 +257,11 @@ const BedsListComponent = () => {
   );
 
   const handleWardFilterChange = (option: Option | null) => {
-    setAppliedWardId(option?.value ?? "");
+    setFilterWardId(option?.value ?? "");
+  };
+
+  const handleApplyWardFilter = () => {
+    setAppliedWardId(filterWardId);
   };
 
   useEffect(() => {
@@ -612,12 +617,12 @@ const BedsListComponent = () => {
             </li>
           </ul>
           {activeTab === "list" ? (
-            <div className="d-flex align-items-center flex-nowrap ms-auto">
+            <div className="d-flex align-items-center flex-nowrap gap-2 ms-auto">
               <div className="flex-shrink-0" style={{ width: "150px" }}>
                 <CommonSelect
                   options={wardFilterOptions}
                   value={
-                    wardFilterOptions.find((o) => o.value === appliedWardId) ??
+                    wardFilterOptions.find((o) => o.value === filterWardId) ??
                     wardFilterOptions[0] ??
                     null
                   }
@@ -626,6 +631,13 @@ const BedsListComponent = () => {
                   className="w-100"
                 />
               </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm fw-medium flex-shrink-0"
+                onClick={handleApplyWardFilter}
+              >
+                Filter
+              </button>
             </div>
           ) : null}
         </div>

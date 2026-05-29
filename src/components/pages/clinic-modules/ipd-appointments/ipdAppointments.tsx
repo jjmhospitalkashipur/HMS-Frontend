@@ -16,6 +16,8 @@ import CommonSelect, { type Option } from "@/core/common/common-select/commonSel
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
 import { getIpdProcedureNamesForListing } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
+import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
+import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
 interface IDoctor {
   _id: string;
@@ -393,35 +395,27 @@ const IpdAppointmentsComponent = () => {
     [doctors]
   );
 
-  const handleDoctorFilterChange = (option: Option | null) => {
-    const nextDoctorId = option?.value ?? "";
-    setPage(1);
-    setFilterDoctorId(nextDoctorId);
-    setAppliedDoctorId(nextDoctorId);
-  };
+  const syncFiltersFromApplied = useCallback(() => {
+    setFilterDoctorId(appliedDoctorId);
+    setFilterStartDate(appliedStartDate ? dayjs(appliedStartDate) : null);
+    setFilterEndDate(appliedEndDate ? dayjs(appliedEndDate) : null);
+  }, [appliedDoctorId, appliedStartDate, appliedEndDate]);
 
-  const applyIpdDateRangeFilters = (
-    startDate: dayjs.Dayjs | null,
-    endDate: dayjs.Dayjs | null
-  ) => {
-    if (startDate && endDate) {
-      setPage(1);
-      setActiveTab("all");
-      setAppliedStartDate(startDate.format("YYYY-MM-DD"));
-      setAppliedEndDate(endDate.format("YYYY-MM-DD"));
-      return;
-    }
-    if (!startDate && !endDate) {
-      setPage(1);
-      setAppliedStartDate(null);
-      setAppliedEndDate(null);
-    }
-  };
+  useFilterDropdownSync("ipd-filter-dropdown", syncFiltersFromApplied);
 
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
     setAppliedDoctorId(filterDoctorId);
-    applyIpdDateRangeFilters(filterStartDate, filterEndDate);
+    if (filterStartDate && filterEndDate) {
+      setActiveTab("all");
+      setAppliedStartDate(filterStartDate.format("YYYY-MM-DD"));
+      setAppliedEndDate(filterEndDate.format("YYYY-MM-DD"));
+    } else {
+      setAppliedStartDate(null);
+      setAppliedEndDate(null);
+    }
+    closeFilterDropdown("ipd-filter-dropdown");
   };
 
   const handleClearFilter = () => {
@@ -432,6 +426,7 @@ const IpdAppointmentsComponent = () => {
     setAppliedDoctorId("");
     setAppliedStartDate(null);
     setAppliedEndDate(null);
+    closeFilterDropdown("ipd-filter-dropdown");
   };
 
   const columns = [
@@ -732,7 +727,7 @@ const IpdAppointmentsComponent = () => {
                     href="#"
                     className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
                     data-bs-toggle="dropdown"
-                    data-bs-auto-close="outside"
+                    data-bs-auto-close="false"
                   >
                     <i className="ti ti-filter text-gray-5 me-1" />
                     Filters
@@ -758,7 +753,7 @@ const IpdAppointmentsComponent = () => {
                           <CommonSelect
                             options={doctorOptions}
                             value={doctorOptions.find((o) => o.value === filterDoctorId) ?? null}
-                            onChange={handleDoctorFilterChange}
+                            onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
                             placeholder="All"
                             className="w-100"
                           />
@@ -772,10 +767,7 @@ const IpdAppointmentsComponent = () => {
                                 format="DD-MM-YYYY"
                                 placeholder="Start"
                                 value={filterStartDate}
-                                onChange={(d) => {
-                                  setFilterStartDate(d);
-                                  applyIpdDateRangeFilters(d ?? null, filterEndDate);
-                                }}
+                                onChange={(d) => setFilterStartDate(d)}
                                 getPopupContainer={(node) => node?.parentElement ?? document.body}
                               />
                             </div>
@@ -785,10 +777,7 @@ const IpdAppointmentsComponent = () => {
                                 format="DD-MM-YYYY"
                                 placeholder="End"
                                 value={filterEndDate}
-                                onChange={(d) => {
-                                  setFilterEndDate(d);
-                                  applyIpdDateRangeFilters(filterStartDate, d ?? null);
-                                }}
+                                onChange={(d) => setFilterEndDate(d)}
                                 getPopupContainer={(node) => node?.parentElement ?? document.body}
                               />
                             </div>
@@ -796,17 +785,7 @@ const IpdAppointmentsComponent = () => {
                         </div>
                       </div>
                       <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-light btn-md fw-medium"
-                          onClick={() => {
-                            const toggle = document
-                              .getElementById("ipd-filter-dropdown")
-                              ?.closest(".dropdown")
-                              ?.querySelector<HTMLElement>('[data-bs-toggle="dropdown"]');
-                            toggle?.click();
-                          }}
-                        >
+                        <button type="button" className="btn btn-light btn-md fw-medium" data-filter-close>
                           Close
                         </button>
                         <button type="submit" className="btn btn-primary btn-md fw-medium">

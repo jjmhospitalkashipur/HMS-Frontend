@@ -235,7 +235,7 @@ const DoctorAppointmentsComponents = () => {
                   href="#"
                   className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters

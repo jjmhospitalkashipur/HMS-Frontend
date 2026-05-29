@@ -1,5 +1,6 @@
 "use client";
 
+import FilterDropdownInit from "@/core/common/filter/FilterDropdownInit";
 import Sidebar from "@/core/common/sidebar/sidebar";
 import { canAccessPath, getDefaultRouteForRole, normalizeRole } from "@/core/auth/roleAccess";
 import { all_routes } from "@/routes/all_routes";
@@ -37,6 +38,7 @@ export default function PagesLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="main-wrapper">
+      <FilterDropdownInit />
       <Sidebar />
       {children}
     </div>

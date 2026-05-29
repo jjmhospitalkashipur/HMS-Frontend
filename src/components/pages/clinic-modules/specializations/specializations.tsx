@@ -159,7 +159,7 @@ const SpecializationsComponent = () => {
                   href="#"
                   className="btn btn-white fs-14 py-1 bg-white border d-inline-flex text-dark align-items-center"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters

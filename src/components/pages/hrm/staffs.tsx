@@ -215,7 +215,7 @@ const StaffsListComponent = () => {
                   href="#"
                   className="btn btn-white bg-white fs-14 py-1 border d-inline-flex text-dark align-items-center"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters
@@ -320,7 +320,7 @@ const StaffsListComponent = () => {
                             href="#"
                             className="dropdown-toggle btn btn-lg d-flex align-items-center justify-content-start fs-13 fw-normal rounded p-2 border"
                             data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
+                            data-bs-auto-close="false"
                             aria-expanded="true"
                           >
                             Select

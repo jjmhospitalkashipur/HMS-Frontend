@@ -10,6 +10,8 @@ import { DatePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { Department, Visit_Type } from "@/core/common/selectOption";
+import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
+import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -278,6 +280,22 @@ const TransactionsListComponent = () => {
     setPage(1);
   };
 
+  const syncFiltersFromApplied = useCallback(() => {
+    setFilterDoctorId(appliedDoctorId);
+    setFilterDepartment(appliedDepartment);
+    setFilterVisitType(appliedVisitType);
+    setFilterPaymentMode(appliedPaymentMode);
+    setFilterDate(appliedDate ? dayjs(appliedDate) : null);
+  }, [
+    appliedDoctorId,
+    appliedDepartment,
+    appliedVisitType,
+    appliedPaymentMode,
+    appliedDate,
+  ]);
+
+  useFilterDropdownSync("filter-dropdown", syncFiltersFromApplied);
+
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -286,6 +304,7 @@ const TransactionsListComponent = () => {
     setAppliedVisitType(filterVisitType);
     setAppliedPaymentMode(filterPaymentMode);
     setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
+    closeFilterDropdown("filter-dropdown");
   };
 
   const handleClearFilters = () => {
@@ -300,6 +319,7 @@ const TransactionsListComponent = () => {
     setAppliedVisitType("");
     setAppliedPaymentMode("");
     setAppliedDate(null);
+    closeFilterDropdown("filter-dropdown");
   };
 
   const handlePaginationChange = (newPage: number, newPageSize: number) => {
@@ -420,7 +440,7 @@ const TransactionsListComponent = () => {
                   type="button"
                   className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters
@@ -501,7 +521,7 @@ const TransactionsListComponent = () => {
                       </div>
                     </div>
                     <div className="filter-footer d-flex align-items-center justify-content-end border-top px-3 py-2 gap-2">
-                      <button type="button" className="btn btn-light btn-md fw-medium" data-bs-dismiss="dropdown">
+                      <button type="button" className="btn btn-light btn-md fw-medium" data-filter-close>
                         Close
                       </button>
                       <button type="submit" className="btn btn-primary btn-md fw-medium">

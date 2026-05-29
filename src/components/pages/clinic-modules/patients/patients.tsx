@@ -2,7 +2,7 @@
 
 import { all_routes } from "../../../../routes/all_routes";
 import Datatable from "@/core/common/dataTable";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Link from "next/link";
 import axios from "axios";
@@ -12,6 +12,8 @@ import Modals from "./modals/modals";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
+import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
+import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
 interface IPatient {
   _id: string;
@@ -47,12 +49,21 @@ const PatientsComponent = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
+  const syncFiltersFromApplied = useCallback(() => {
+    setDateFrom(appliedDateFrom ? dayjs(appliedDateFrom) : null);
+    setDateTo(appliedDateTo ? dayjs(appliedDateTo) : null);
+    setFilterMrOnly(appliedMrOnly);
+  }, [appliedDateFrom, appliedDateTo, appliedMrOnly]);
+
+  useFilterDropdownSync("filter-dropdown", syncFiltersFromApplied);
+
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     setAppliedDateFrom(dateFrom ? dateFrom.format("YYYY-MM-DD") : null);
     setAppliedDateTo(dateTo ? dateTo.format("YYYY-MM-DD") : null);
     setAppliedMrOnly(filterMrOnly);
+    closeFilterDropdown("filter-dropdown");
   };
 
   const handleClearFilter = () => {
@@ -63,6 +74,7 @@ const PatientsComponent = () => {
     setAppliedDateTo(null);
     setFilterMrOnly(false);
     setAppliedMrOnly(false);
+    closeFilterDropdown("filter-dropdown");
   };
 
   useEffect(() => {
@@ -307,7 +319,7 @@ const PatientsComponent = () => {
                   href="#"
                   className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters
@@ -369,14 +381,7 @@ const PatientsComponent = () => {
                       </div>
                     </div>
                     <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-light btn-md fw-medium"
-                        onClick={() => {
-                          const toggle = document.getElementById("filter-dropdown")?.closest(".dropdown")?.querySelector<HTMLElement>("[data-bs-toggle=\"dropdown\"]");
-                          toggle?.click();
-                        }}
-                      >
+                      <button type="button" className="btn btn-light btn-md fw-medium" data-filter-close>
                         Close
                       </button>
                       <button type="submit" className="btn btn-primary btn-md fw-medium">

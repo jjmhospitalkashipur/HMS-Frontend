@@ -14,6 +14,8 @@ import { DatePicker } from "antd";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
+import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
+import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
 interface IDoctor {
   _id: string;
@@ -408,6 +410,22 @@ const DaycareAppointmentsComponent = () => {
     [procedureCategories]
   );
 
+  const syncFiltersFromApplied = useCallback(() => {
+    setFilterDoctorId(appliedDoctorId);
+    setFilterProcedureCategory(appliedProcedureCategory);
+    setFilterDate(appliedDate ? dayjs(appliedDate) : null);
+    setFilterStartDate(appliedStartDate ? dayjs(appliedStartDate) : null);
+    setFilterEndDate(appliedEndDate ? dayjs(appliedEndDate) : null);
+  }, [
+    appliedDoctorId,
+    appliedProcedureCategory,
+    appliedDate,
+    appliedStartDate,
+    appliedEndDate,
+  ]);
+
+  useFilterDropdownSync("daycare-filter-dropdown", syncFiltersFromApplied);
+
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -423,13 +441,7 @@ const DaycareAppointmentsComponent = () => {
       setAppliedEndDate(null);
       setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
     }
-  };
-
-  const handleProcedureCategoryChange = (option: Option | null) => {
-    const nextCategory = option?.value ?? "";
-    setPage(1);
-    setFilterProcedureCategory(nextCategory);
-    setAppliedProcedureCategory(nextCategory);
+    closeFilterDropdown("daycare-filter-dropdown");
   };
 
   const handleClearFilter = () => {
@@ -444,6 +456,7 @@ const DaycareAppointmentsComponent = () => {
     setAppliedDate(null);
     setAppliedStartDate(null);
     setAppliedEndDate(null);
+    closeFilterDropdown("daycare-filter-dropdown");
   };
 
   const columns = [
@@ -722,7 +735,7 @@ const DaycareAppointmentsComponent = () => {
                     href="#"
                     className="bg-white border rounded btn btn-md text-dark fs-14 py-1 align-items-center d-flex fw-normal"
                     data-bs-toggle="dropdown"
-                    data-bs-auto-close="outside"
+                    data-bs-auto-close="false"
                   >
                     <i className="ti ti-filter text-gray-5 me-1" />
                     Filters
@@ -762,7 +775,7 @@ const DaycareAppointmentsComponent = () => {
                                 (o) => o.value === filterProcedureCategory
                               ) ?? null
                             }
-                            onChange={handleProcedureCategoryChange}
+                            onChange={(opt) => setFilterProcedureCategory(opt?.value ?? "")}
                             placeholder="All"
                             className="w-100"
                             isLoading={procedureCategoriesLoading}
@@ -818,17 +831,7 @@ const DaycareAppointmentsComponent = () => {
                         </div>
                       </div>
                       <div className="filter-footer d-flex align-items-center justify-content-end border-top p-2 gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-light btn-md fw-medium"
-                          onClick={() => {
-                            const toggle = document
-                              .getElementById("daycare-filter-dropdown")
-                              ?.closest(".dropdown")
-                              ?.querySelector<HTMLElement>('[data-bs-toggle="dropdown"]');
-                            toggle?.click();
-                          }}
-                        >
+                        <button type="button" className="btn btn-light btn-md fw-medium" data-filter-close>
                           Close
                         </button>
                         <button type="submit" className="btn btn-primary btn-md fw-medium">

@@ -12,6 +12,7 @@ import CommonSelect from "@/core/common/common-select/commonSelect";
 import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 
 interface IProcedureRow {
   _id: string;
@@ -289,7 +290,7 @@ const ProceduresComponent = () => {
                   href="#"
                   className="btn btn-white bg-white fs-14 py-1 border d-inline-flex text-dark align-items-center"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter text-gray-5 me-1" />
                   Filters
@@ -309,7 +310,15 @@ const ProceduresComponent = () => {
                       </Link>
                     </div>
                   </div>
-                  <form action="#">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const menuId =
+                        e.currentTarget.closest<HTMLElement>(".filter-dropdown")?.id ??
+                        "filter-dropdown";
+                      closeFilterDropdown(menuId);
+                    }}
+                  >
                     <div className="filter-body pb-0">
                       <div className="mb-3">
                         <div className="d-flex align-items-center justify-content-between">
@@ -344,7 +353,7 @@ const ProceduresComponent = () => {
                             href="#"
                             className="dropdown-toggle form-control"
                             data-bs-toggle="dropdown"
-                            data-bs-auto-close="outside"
+                            data-bs-auto-close="false"
                             aria-expanded="true"
                           >
                             Select
@@ -383,13 +392,9 @@ const ProceduresComponent = () => {
                       </div>
                     </div>
                     <div className="filter-footer d-flex align-items-center justify-content-end border-top">
-                      <a
-                        href="#"
-                        className="btn btn-light btn-md me-2"
-                        id="close-filter"
-                      >
+                      <button type="button" className="btn btn-light btn-md me-2" data-filter-close>
                         Close
-                      </a>
+                      </button>
                       <button type="submit" className="btn btn-primary btn-md">
                         Filter
                       </button>

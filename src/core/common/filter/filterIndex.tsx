@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { DatePicker, Select } from "antd";
 import {
@@ -8,15 +10,24 @@ import {
   Status,
 } from "../selectOption";
 import CommonSelect from "../common-select/commonSelect";
+import { closeFilterDropdown } from "./filterDropdownUtils";
 
 const FilterIndexComponent = () => {
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
-    return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
+    return modalElement ? modalElement : document.body;
   };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const menuId =
+      e.currentTarget.closest<HTMLElement>(".filter-dropdown")?.id ?? "filter-dropdown";
+    closeFilterDropdown(menuId);
+  };
+
   return (
     <>
-      <form action="#">
+      <form onSubmit={handleSubmit}>
         <div className="filter-body pb-0">
           <div className="mb-3">
             <div className="d-flex align-items-center justify-content-between">
@@ -105,13 +116,13 @@ const FilterIndexComponent = () => {
           </div>
         </div>
         <div className="filter-footer d-flex align-items-center justify-content-end border-top">
-          <Link
-            href="#"
+          <button
+            type="button"
             className="btn btn-light btn-md me-2 fw-medium"
-            id="close-filter"
+            data-filter-close
           >
             Close
-          </Link>
+          </button>
           <button type="submit" className="btn btn-primary btn-md fw-medium">
             Filter
           </button>

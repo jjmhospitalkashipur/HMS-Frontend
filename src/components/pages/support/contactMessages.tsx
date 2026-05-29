@@ -121,7 +121,7 @@ const ContactMessagesComponent = () => {
                   href="#"
                   className="dropdown-toggle btn bg-white btn-md d-inline-flex align-items-center fw-normal rounded border text-dark px-2 py-1 fs-14"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
+                  data-bs-auto-close="false"
                 >
                   <i className="ti ti-filter me-2 fs-14" />
                   Filter
