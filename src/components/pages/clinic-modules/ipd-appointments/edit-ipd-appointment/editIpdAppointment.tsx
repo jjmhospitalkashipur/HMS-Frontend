@@ -111,12 +111,20 @@ type IIpdBillingChargePayload =
   | { type: "procedure"; procedureId: string; units: number }
   | { type: "doctor"; doctorId: string; units: number };
 
+interface IIpdHospitalVisit {
+  _id: string;
+  visitMongoId?: string;
+  visitId?: string;
+  visitDate?: string;
+}
+
 interface IIpdUpdatePayload {
   patientId: string;
   doctorId: string;
   bedId: string;
   admissionDate: string;
   reason: string;
+  visitId?: string;
   billingCharges: IIpdBillingChargePayload[];
   discount?: number;
   discountPassword?: string;
@@ -171,6 +179,10 @@ const EditIpdAppointmentComponent = () => {
   const [admissionDate, setAdmissionDate] = useState<string>("");
   const [mlc, setMlc] = useState(false);
   const [mlcData, setMlcData] = useState<IIpdMlcData>(emptyIpdMlcData);
+  const [viaOpd, setViaOpd] = useState(false);
+  const [selectedOpdVisit, setSelectedOpdVisit] = useState<Option | null>(null);
+  const [opdVisitOptions, setOpdVisitOptions] = useState<Option[]>([]);
+  const [opdVisitsLoading, setOpdVisitsLoading] = useState(false);
 
   const [bedBlockData, setBedBlockData] = useState<IIpdBedBlockViewData | null>(null);
   const [bedsLoading, setBedsLoading] = useState(false);
@@ -392,6 +404,79 @@ const EditIpdAppointmentComponent = () => {
     [fetchDoctors, fetchProcedures]
   );
 
+  const formatOpdVisitLabel = useCallback((visit: IIpdHospitalVisit): string => {
+    const visitCode = visit.visitId?.trim() || "—";
+    const datePart = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
+    return datePart ? `${visitCode} — ${datePart}` : visitCode;
+  }, []);
+
+  const buildOpdVisitOptions = useCallback(
+    (visits: IIpdHospitalVisit[]): Option[] =>
+      visits
+        .map((visit) => {
+          const visitMongoId = visit.visitMongoId ?? visit._id;
+          if (!visitMongoId) return null;
+          return {
+            value: visitMongoId,
+            label: formatOpdVisitLabel(visit),
+          };
+        })
+        .filter((option): option is Option => option != null),
+    [formatOpdVisitLabel]
+  );
+
+  const fetchPatientOpdVisitOptions = useCallback(
+    async (patientIdParam: string): Promise<Option[]> => {
+      if (!patientIdParam || !API_BASE_URL) return [];
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/hospital/visits/patient/${patientIdParam}`
+        );
+        const list = response.data?.data?.visits ?? response.data?.data ?? [];
+        const visits: IIpdHospitalVisit[] = Array.isArray(list) ? list : [];
+        return buildOpdVisitOptions(visits);
+      } catch {
+        return [];
+      }
+    },
+    [buildOpdVisitOptions]
+  );
+
+  const fetchOpdVisitsForPatient = useCallback(async () => {
+    if (!patientId || !API_BASE_URL) {
+      setOpdVisitOptions([]);
+      return;
+    }
+    try {
+      setOpdVisitsLoading(true);
+      const options = await fetchPatientOpdVisitOptions(patientId);
+      setOpdVisitOptions(options);
+    } catch {
+      setOpdVisitOptions([]);
+    } finally {
+      setOpdVisitsLoading(false);
+    }
+  }, [patientId, fetchPatientOpdVisitOptions]);
+
+  useEffect(() => {
+    if (!viaOpd || !patientId) {
+      if (!viaOpd) {
+        setSelectedOpdVisit(null);
+        setOpdVisitOptions([]);
+      }
+      return;
+    }
+    void fetchOpdVisitsForPatient();
+  }, [viaOpd, patientId, fetchOpdVisitsForPatient]);
+
+  const handleViaOpdToggle = (checked: boolean) => {
+    setViaOpd(checked);
+    if (!checked) {
+      setSelectedOpdVisit(null);
+      setOpdVisitOptions([]);
+    }
+  };
+
   const fetchIPD = useCallback(
     async (ipdIdParam: string) => {
       if (!API_BASE_URL) return;
@@ -494,6 +579,21 @@ const EditIpdAppointmentComponent = () => {
             ? data.transactions[data.transactions.length - 1]?.paymentMode
             : undefined;
         setPaymentMode(lastMode ?? "Cash");
+
+        const linkedVisitId = data.visitId?.trim();
+        if (linkedVisitId && data.patientId) {
+          setViaOpd(true);
+          const opdOptions = await fetchPatientOpdVisitOptions(data.patientId);
+          setOpdVisitOptions(opdOptions);
+          const matched = opdOptions.find((o) => o.value === linkedVisitId);
+          setSelectedOpdVisit(
+            matched ?? { value: linkedVisitId, label: "OPD Visit" }
+          );
+        } else {
+          setViaOpd(false);
+          setSelectedOpdVisit(null);
+          setOpdVisitOptions([]);
+        }
       } catch (err: unknown) {
         const message =
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -503,7 +603,7 @@ const EditIpdAppointmentComponent = () => {
         setLoading(false);
       }
     },
-    []
+    [fetchPatientOpdVisitOptions]
   );
 
   useEffect(() => {
@@ -674,6 +774,10 @@ const EditIpdAppointmentComponent = () => {
       };
     }
 
+    if (viaOpd && selectedOpdVisit?.value) {
+      payload.visitId = selectedOpdVisit.value;
+    }
+
     return payload;
   };
 
@@ -773,6 +877,10 @@ const EditIpdAppointmentComponent = () => {
       }
       if (!reason.trim()) {
         setError("Please enter reason for admission.");
+        return;
+      }
+      if (viaOpd && !selectedOpdVisit?.value) {
+        setError("Please select an OPD visit.");
         return;
       }
       setFormStep(3);
@@ -1139,8 +1247,11 @@ const EditIpdAppointmentComponent = () => {
                 {formStep === 2 && (
                   <>
                       <h6 className="fw-bold text-primary mb-3">IPD Details</h6>
-                      <div className="row g-3">
-                        <div className="col-md-8">
+                      <div className="d-flex flex-column flex-lg-row align-items-lg-end gap-3 mb-3">
+                        <div
+                          className="w-100 flex-shrink-0"
+                          style={{ flex: "0 0 280px", maxWidth: "280px", minWidth: 0 }}
+                        >
                           <label className="form-label mb-1 fw-medium fs-14">Consulting Doctor <span className="text-danger">*</span></label>
                           <CommonSelect
                             options={doctorOptions}
@@ -1151,9 +1262,61 @@ const EditIpdAppointmentComponent = () => {
                             placeholder="Search doctor..."
                           />
                         </div>
-                        <div className="col-md-4">
+                        <div className="flex-shrink-0">
+                          <label className="form-label mb-1 fw-medium fs-14">Admission</label>
+                          <div
+                            className="d-flex align-items-center gap-2 flex-nowrap"
+                            style={{ minHeight: "38px" }}
+                          >
+                            <span
+                              className={`fw-medium fs-14 text-nowrap ${!viaOpd ? "text-primary" : "text-muted"}`}
+                            >
+                              Direct
+                            </span>
+                            <div className="form-check form-switch mb-0 flex-shrink-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                id="edit-ipd-via-opd-toggle"
+                                checked={viaOpd}
+                                disabled={!patientId}
+                                onChange={(e) => handleViaOpdToggle(e.target.checked)}
+                                aria-label="Admission via OPD"
+                              />
+                            </div>
+                            <span
+                              className={`fw-medium fs-14 text-nowrap ${viaOpd ? "text-primary" : "text-muted"}`}
+                            >
+                              Via OPD
+                            </span>
+                          </div>
+                        </div>
+                        {viaOpd ? (
+                          <div
+                            className="w-100 flex-shrink-0"
+                            style={{ flex: "0 0 220px", maxWidth: "260px", minWidth: 0 }}
+                          >
+                            <label className="form-label mb-1 fw-medium fs-14">
+                              OPD Visit <span className="text-danger">*</span>
+                            </label>
+                            <CommonSelect
+                              options={opdVisitOptions}
+                              value={selectedOpdVisit}
+                              onChange={setSelectedOpdVisit}
+                              onMenuOpen={() => void fetchOpdVisitsForPatient()}
+                              isLoading={opdVisitsLoading}
+                              placeholder={patientId ? "Search OPD visit..." : "Patient required"}
+                              disabled={!patientId}
+                            />
+                          </div>
+                        ) : null}
+                        <div className="flex-shrink-0">
                           <label className="form-label mb-1 fw-medium fs-14">MLC</label>
-                          <div className="d-flex align-items-center gap-2 pt-1">
+                          <div
+                            className="d-flex align-items-center gap-2 flex-nowrap"
+                            style={{ minHeight: "38px" }}
+                          >
                             <div className="form-check form-switch mb-0">
                               <input
                                 className="form-check-input"
@@ -1175,6 +1338,8 @@ const EditIpdAppointmentComponent = () => {
                             ) : null}
                           </div>
                         </div>
+                      </div>
+                      <div className="row g-3">
                         {mlc ? (
                           <IpdMlcFields idPrefix="edit-ipd-mlc" value={mlcData} onChange={setMlcData} />
                         ) : null}

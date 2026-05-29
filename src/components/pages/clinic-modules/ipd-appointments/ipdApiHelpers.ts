@@ -47,6 +47,7 @@ export interface IIpdApiRecord {
   appointmentId?: string;
   patientId: string;
   doctorId: string;
+  visitId?: string;
   bedId?: string;
   reason?: string;
   notes?: string;
