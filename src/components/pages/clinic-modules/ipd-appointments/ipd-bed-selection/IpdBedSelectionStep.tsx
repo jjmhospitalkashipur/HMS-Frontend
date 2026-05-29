@@ -32,25 +32,115 @@ interface IIpdBedSelectionStepProps {
   wardsLoading?: boolean;
 }
 
-const getBedSubtitle = (bed: IIpdBed): string => {
-  if (bed.status === "available") return "Available";
-  if (bed.status === "maintenance") return bed.conditionLabel ?? "Maintenance";
-  if (bed.status === "reserved") return bed.conditionLabel ?? "Reserved";
-  if (bed.patientName && bed.conditionLabel) {
-    return `${bed.patientName} · ${bed.conditionLabel}`;
-  }
-  return bed.patientName ?? bed.conditionLabel ?? "Occupied";
+const getBedHoverLines = (bed: IIpdBed): string[] => {
+  const style = BED_STATUS_STYLES[bed.status];
+  const lines: string[] = [`Status: ${style.label}`];
+  if (bed.patientName) lines.push(`Patient: ${bed.patientName}`);
+  if (bed.patientMrdNo) lines.push(`MRD No.: ${bed.patientMrdNo}`);
+  if (bed.dayLabel) lines.push(bed.dayLabel);
+  return lines;
 };
 
-const formatWardCharge = (charge?: number): string | null => {
-  if (charge == null || !Number.isFinite(charge)) return null;
-  return `₹${charge.toLocaleString("en-IN")}/day`;
+const buildBedAriaLabel = (bed: IIpdBed): string => {
+  const details = getBedHoverLines(bed).join(", ");
+  return `Bed ${bed.bedCode}, ${details}`;
 };
 
-const formatWardHeading = (name: string, charge?: number): string => {
-  const chargeLabel = formatWardCharge(charge);
-  return chargeLabel ? `${name} · ${chargeLabel}` : name;
+interface IIpdBedCardProps {
+  bed: IIpdBed;
+  isSelectable: boolean;
+  isSelected: boolean;
+  onSelectBed: (bed: IIpdBed) => void;
+}
+
+const IpdBedCard = ({ bed, isSelectable, isSelected, onSelectBed }: IIpdBedCardProps) => {
+  const style = BED_STATUS_STYLES[bed.status];
+  const hoverLines = getBedHoverLines(bed);
+
+  return (
+    <div className="ipd-bed-card-wrap position-relative d-inline-block">
+      <button
+        type="button"
+        disabled={!isSelectable}
+        onClick={() => isSelectable && onSelectBed(bed)}
+        className="border-0 rounded-2 text-white d-flex align-items-center justify-content-center"
+        style={{
+          backgroundColor: style.bg,
+          minWidth: "72px",
+          minHeight: "72px",
+          width: "auto",
+          padding: "8px 12px",
+          cursor: isSelectable ? "pointer" : "not-allowed",
+          opacity: isSelectable ? 1 : 0.92,
+          boxShadow: isSelected ? "0 0 0 3px var(--primary), 0 0 0 5px #fff" : undefined,
+          transform: isSelected ? "scale(1.03)" : undefined,
+          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        }}
+        aria-label={buildBedAriaLabel(bed)}
+        aria-pressed={isSelected}
+        aria-describedby={`ipd-bed-tooltip-${bed._id}`}
+      >
+        <span className="fw-bold fs-14 lh-sm text-center text-nowrap">{bed.bedCode}</span>
+      </button>
+      <div
+        id={`ipd-bed-tooltip-${bed._id}`}
+        role="tooltip"
+        className="ipd-bed-card-tooltip position-absolute start-50 translate-middle-x text-start rounded-2 shadow"
+      >
+        {hoverLines.map((line) => (
+          <span key={line} className="d-block fs-12 lh-sm">
+            {line}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 };
+
+const formatWardCardTitle = (name: string, charge?: number): string => {
+  if (charge == null || !Number.isFinite(charge)) return name;
+  return `${name}/${charge.toLocaleString("en-IN")}`;
+};
+
+interface IIpdWardBedCardProps {
+  wardId: string;
+  wardName: string;
+  chargePerDay?: number;
+  beds: IIpdBed[];
+  selectedBedId: string | null;
+  onSelectBed: (bed: IIpdBed) => void;
+}
+
+const IpdWardBedCard = ({
+  wardId,
+  wardName,
+  chargePerDay,
+  beds,
+  selectedBedId,
+  onSelectBed,
+}: IIpdWardBedCardProps) => (
+  <div className="ipd-ward-bed-card h-100 border rounded-3 p-3 p-sm-4 bg-white shadow-sm">
+    <h6 className="fw-bold text-dark mb-3 mb-sm-4 fs-14 text-capitalize lh-sm">
+      {formatWardCardTitle(wardName, chargePerDay)}
+    </h6>
+    <div className="d-flex flex-wrap gap-2 gap-sm-3 align-items-start" role="list" aria-label={`${wardName} beds`}>
+      {beds.map((bed) => {
+        const isSelectable = bed.status === "available";
+        const isSelected = selectedBedId === bed._id;
+        return (
+          <div key={`${wardId}-${bed._id}`} role="listitem">
+            <IpdBedCard
+              bed={bed}
+              isSelectable={isSelectable}
+              isSelected={isSelected}
+              onSelectBed={onSelectBed}
+            />
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
 
 const shellClass = "px-3 px-md-4 pt-1 pb-4 w-100";
 
@@ -266,55 +356,21 @@ const IpdBedSelectionStep = ({
       ) : (
         <>
           {error ? <div className="alert alert-warning py-2 mb-3">{error}</div> : null}
-          <div className="d-flex flex-column gap-4">
+          <div className="row row-cols-1 row-cols-sm-2 g-3 g-md-4">
             {filteredWards.map((ward) => {
-          const chargePerDay = ward.chargePerDay ?? wardChargeById[ward._id];
-
-          return (
-            <div key={ward._id}>
-              <h6 className="fw-bold text-primary mb-3 pb-2 border-bottom">
-                {formatWardHeading(ward.name, chargePerDay)}
-              </h6>
-              <div className="d-flex flex-wrap gap-2 gap-md-3">
-                {ward.beds.map((bed) => {
-                  const isSelectable = bed.status === "available";
-                  const isSelected = selectedBedId === bed._id;
-                  const style = BED_STATUS_STYLES[bed.status];
-                  return (
-                    <button
-                      key={bed._id}
-                      type="button"
-                      disabled={!isSelectable}
-                      onClick={() => isSelectable && onSelectBed(bed)}
-                      className="border-0 rounded-2 text-white text-start d-flex flex-column justify-content-center"
-                      style={{
-                        backgroundColor: style.bg,
-                        minWidth: "100px",
-                        width: "100px",
-                        minHeight: "88px",
-                        padding: "10px 12px",
-                        cursor: isSelectable ? "pointer" : "not-allowed",
-                        opacity: isSelectable ? 1 : 0.92,
-                        boxShadow: isSelected
-                          ? "0 0 0 3px var(--primary), 0 0 0 5px #fff"
-                          : undefined,
-                        transform: isSelected ? "scale(1.03)" : undefined,
-                        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                      }}
-                      aria-label={`Bed ${bed.bedCode}, ${style.label}`}
-                      aria-pressed={isSelected}
-                    >
-                      <span className="fw-bold fs-14 lh-sm">{bed.bedCode}</span>
-                      <span className="fs-12 mt-1 opacity-95 lh-sm">{getBedSubtitle(bed)}</span>
-                      {bed.dayLabel ? (
-                        <span className="fs-11 mt-1 opacity-90">{bed.dayLabel}</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
+              const chargePerDay = ward.chargePerDay ?? wardChargeById[ward._id];
+              return (
+                <div key={ward._id} className="col d-flex">
+                  <IpdWardBedCard
+                    wardId={ward._id}
+                    wardName={ward.name}
+                    chargePerDay={chargePerDay}
+                    beds={ward.beds}
+                    selectedBedId={selectedBedId}
+                    onSelectBed={onSelectBed}
+                  />
+                </div>
+              );
             })}
           </div>
 

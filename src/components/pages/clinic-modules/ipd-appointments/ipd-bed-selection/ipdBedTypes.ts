@@ -6,7 +6,7 @@ export interface IIpdBed {
   status: IpdBedStatus;
   patientName?: string;
   dayLabel?: string;
-  conditionLabel?: string;
+  patientMrdNo?: string;
 }
 
 export interface IIpdWard {
@@ -49,17 +49,17 @@ export const MOCK_IPD_BED_BLOCK_VIEW: IIpdBedBlockViewData = {
       name: "Ward A — General",
       beds: [
         { _id: "a-101", bedCode: "A-101", status: "available" },
-        { _id: "a-102", bedCode: "A-102", status: "occupied", patientName: "Ramesh K.", dayLabel: "Day 3" },
-        { _id: "a-103", bedCode: "A-103", status: "occupied", patientName: "Sunita M.", dayLabel: "Day 1" },
-        { _id: "a-104", bedCode: "A-104", status: "maintenance", conditionLabel: "Maintenance" },
-        { _id: "a-105", bedCode: "A-105", status: "reserved", conditionLabel: "Reserved" },
+        { _id: "a-102", bedCode: "A-102", status: "occupied", patientName: "Ramesh K.", patientMrdNo: "MRD-1001", dayLabel: "Day 3" },
+        { _id: "a-103", bedCode: "A-103", status: "occupied", patientName: "Sunita M.", patientMrdNo: "MRD-1002", dayLabel: "Day 1" },
+        { _id: "a-104", bedCode: "A-104", status: "maintenance" },
+        { _id: "a-105", bedCode: "A-105", status: "reserved" },
       ],
     },
     {
       _id: "ward-b",
       name: "Ward B — Private",
       beds: [
-        { _id: "b-201", bedCode: "B-201", status: "occupied", patientName: "Amit S.", dayLabel: "Day 5" },
+        { _id: "b-201", bedCode: "B-201", status: "occupied", patientName: "Amit S.", patientMrdNo: "MRD-2001", dayLabel: "Day 5" },
         { _id: "b-202", bedCode: "B-202", status: "available" },
         { _id: "b-203", bedCode: "B-203", status: "available" },
       ],
@@ -68,8 +68,8 @@ export const MOCK_IPD_BED_BLOCK_VIEW: IIpdBedBlockViewData = {
       _id: "ward-icu",
       name: "ICU",
       beds: [
-        { _id: "icu-01", bedCode: "ICU-01", status: "occupied", patientName: "Critical", conditionLabel: "Critical", dayLabel: "Day 2" },
-        { _id: "icu-02", bedCode: "ICU-02", status: "occupied", patientName: "Post-op", conditionLabel: "Post-op", dayLabel: "Day 1" },
+        { _id: "icu-01", bedCode: "ICU-01", status: "occupied", patientName: "Critical", patientMrdNo: "MRD-3001", dayLabel: "Day 2" },
+        { _id: "icu-02", bedCode: "ICU-02", status: "occupied", patientName: "Post-op", patientMrdNo: "MRD-3002", dayLabel: "Day 1" },
         { _id: "icu-03", bedCode: "ICU-03", status: "available" },
       ],
     },

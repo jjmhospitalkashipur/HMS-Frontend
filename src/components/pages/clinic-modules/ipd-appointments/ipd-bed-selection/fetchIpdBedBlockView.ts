@@ -50,13 +50,13 @@ const mapBed = (raw: Record<string, unknown>): IIpdBed => {
         : raw.days != null
           ? `Day ${raw.days}`
           : undefined),
-    conditionLabel:
+    patientMrdNo:
       patient?.mrd != null
         ? String(patient.mrd)
-        : raw.conditionLabel != null
-          ? String(raw.conditionLabel)
-          : raw.condition != null
-            ? String(raw.condition)
+        : raw.patientMrdNo != null
+          ? String(raw.patientMrdNo)
+          : raw.mrd != null
+            ? String(raw.mrd)
             : undefined,
   };
 };
