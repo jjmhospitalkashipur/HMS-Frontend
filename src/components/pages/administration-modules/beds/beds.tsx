@@ -643,6 +643,7 @@ const BedsListComponent = () => {
                 selectedWardId={bedMapWardFilter}
                 onWardFilterChange={handleBedMapWardFilter}
                 wardsLoading={bedMapWardsLoading}
+                wardGridCols={3}
               />
             </div>
           </div>

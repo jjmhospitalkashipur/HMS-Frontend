@@ -30,7 +30,14 @@ interface IIpdBedSelectionStepProps {
   selectedWardId?: string | null;
   onWardFilterChange?: (wardId: string | null) => void;
   wardsLoading?: boolean;
+  /** Ward card columns in the grid (beds map uses 3). */
+  wardGridCols?: 2 | 3;
 }
+
+const getWardGridRowClass = (cols: 2 | 3): string =>
+  cols === 3
+    ? "row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 g-md-4"
+    : "row row-cols-1 row-cols-sm-2 g-3 g-md-4";
 
 const getBedHoverLines = (bed: IIpdBed): string[] => {
   const style = BED_STATUS_STYLES[bed.status];
@@ -58,18 +65,16 @@ const IpdBedCard = ({ bed, isSelectable, isSelected, onSelectBed }: IIpdBedCardP
   const hoverLines = getBedHoverLines(bed);
 
   return (
-    <div className="ipd-bed-card-wrap position-relative d-inline-block">
+    <div className="ipd-bed-card-wrap position-relative w-100">
       <button
         type="button"
         disabled={!isSelectable}
         onClick={() => isSelectable && onSelectBed(bed)}
-        className="border-0 rounded-2 text-white d-flex align-items-center justify-content-center"
+        className="ipd-bed-card-btn border-0 rounded-2 text-white d-flex align-items-center justify-content-center w-100"
         style={{
           backgroundColor: style.bg,
-          minWidth: "72px",
           minHeight: "72px",
-          width: "auto",
-          padding: "8px 12px",
+          padding: "8px 10px",
           cursor: isSelectable ? "pointer" : "not-allowed",
           opacity: isSelectable ? 1 : 0.92,
           boxShadow: isSelected ? "0 0 0 3px var(--primary), 0 0 0 5px #fff" : undefined,
@@ -80,7 +85,7 @@ const IpdBedCard = ({ bed, isSelectable, isSelected, onSelectBed }: IIpdBedCardP
         aria-pressed={isSelected}
         aria-describedby={`ipd-bed-tooltip-${bed._id}`}
       >
-        <span className="fw-bold fs-14 lh-sm text-center text-nowrap">{bed.bedCode}</span>
+        <span className="fw-bold fs-14 lh-sm text-center text-break">{bed.bedCode}</span>
       </button>
       <div
         id={`ipd-bed-tooltip-${bed._id}`}
@@ -123,12 +128,12 @@ const IpdWardBedCard = ({
     <h6 className="fw-bold text-dark mb-3 mb-sm-4 fs-14 text-capitalize lh-sm">
       {formatWardCardTitle(wardName, chargePerDay)}
     </h6>
-    <div className="d-flex flex-wrap gap-2 gap-sm-3 align-items-start" role="list" aria-label={`${wardName} beds`}>
+    <div className="ipd-ward-beds-grid" role="list" aria-label={`${wardName} beds`}>
       {beds.map((bed) => {
         const isSelectable = bed.status === "available";
         const isSelected = selectedBedId === bed._id;
         return (
-          <div key={`${wardId}-${bed._id}`} role="listitem">
+          <div key={`${wardId}-${bed._id}`} className="ipd-ward-beds-grid__item" role="listitem">
             <IpdBedCard
               bed={bed}
               isSelectable={isSelectable}
@@ -292,6 +297,7 @@ const IpdBedSelectionStep = ({
   selectedWardId = null,
   onWardFilterChange,
   wardsLoading = false,
+  wardGridCols = 2,
 }: IIpdBedSelectionStepProps) => {
   const [statusFilter, setStatusFilter] = useState<IpdBedStatus | null>(null);
 
@@ -356,7 +362,7 @@ const IpdBedSelectionStep = ({
       ) : (
         <>
           {error ? <div className="alert alert-warning py-2 mb-3">{error}</div> : null}
-          <div className="row row-cols-1 row-cols-sm-2 g-3 g-md-4">
+          <div className={getWardGridRowClass(wardGridCols)}>
             {filteredWards.map((ward) => {
               const chargePerDay = ward.chargePerDay ?? wardChargeById[ward._id];
               return (
