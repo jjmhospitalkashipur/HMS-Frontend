@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Datatable from "@/core/common/dataTable";
-import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
@@ -88,7 +87,7 @@ const BedsListComponent = () => {
   const [wardOptions, setWardOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [searchText, setSearchText] = useState("");
+  const [appliedWardId, setAppliedWardId] = useState<string>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
@@ -114,6 +113,11 @@ const BedsListComponent = () => {
 
   const wardSelectOptions = useMemo(
     () => wardOptions,
+    [wardOptions]
+  );
+
+  const wardFilterOptions = useMemo(
+    () => [{ value: "", label: "All Wards" }, ...wardOptions],
     [wardOptions]
   );
 
@@ -162,8 +166,12 @@ const BedsListComponent = () => {
     try {
       if (!silent) setLoading(true);
       setError("");
+      const params: Record<string, string | number> = { limit: 200, page: 1 };
+      if (appliedWardId) {
+        params.wardId = appliedWardId;
+      }
       const [bedsRes, wardsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/hospital/beds`, { params: { limit: 200, page: 1 } }),
+        axios.get(`${API_BASE_URL}/hospital/beds`, { params }),
         axios.get(`${API_BASE_URL}/hospital/wards`, { params: { limit: 200, page: 1 } }),
       ]);
 
@@ -247,12 +255,19 @@ const BedsListComponent = () => {
     [loadBedMap]
   );
 
+  const handleWardFilterChange = (option: Option | null) => {
+    setAppliedWardId(option?.value ?? "");
+  };
+
   useEffect(() => {
     fetchWardsForSelect();
-    fetchBeds();
     void loadBedMap();
     void loadBedMapWards();
   }, []);
+
+  useEffect(() => {
+    void fetchBeds();
+  }, [appliedWardId]);
 
   const handleBedMapRefresh = useCallback(() => {
     void loadBedMap(bedMapWardFilter);
@@ -569,32 +584,51 @@ const BedsListComponent = () => {
           </button>
         </div>
 
-        <ul className="nav nav-tabs mb-3" role="tablist">
-          <li className="nav-item" role="presentation">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "map"}
-              className={`nav-link d-flex align-items-center gap-1 ${activeTab === "map" ? "active" : ""}`}
-              onClick={() => setActiveTab("map")}
-            >
-              <i className="ti ti-layout-grid fs-16" />
-              Bed Map
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "list"}
-              className={`nav-link d-flex align-items-center gap-1 ${activeTab === "list" ? "active" : ""}`}
-              onClick={() => setActiveTab("list")}
-            >
-              <i className="ti ti-list fs-16" />
-              List
-            </button>
-          </li>
-        </ul>
+        <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3 mb-3">
+          <ul className="nav nav-tabs border-0 mb-0 flex-shrink-0" role="tablist">
+            <li className="nav-item" role="presentation">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "map"}
+                className={`nav-link d-flex align-items-center gap-1 ${activeTab === "map" ? "active" : ""}`}
+                onClick={() => setActiveTab("map")}
+              >
+                <i className="ti ti-layout-grid fs-16" />
+                Bed Map
+              </button>
+            </li>
+            <li className="nav-item" role="presentation">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "list"}
+                className={`nav-link d-flex align-items-center gap-1 ${activeTab === "list" ? "active" : ""}`}
+                onClick={() => setActiveTab("list")}
+              >
+                <i className="ti ti-list fs-16" />
+                List
+              </button>
+            </li>
+          </ul>
+          {activeTab === "list" ? (
+            <div className="d-flex align-items-center flex-nowrap ms-auto">
+              <div className="flex-shrink-0" style={{ width: "150px" }}>
+                <CommonSelect
+                  options={wardFilterOptions}
+                  value={
+                    wardFilterOptions.find((o) => o.value === appliedWardId) ??
+                    wardFilterOptions[0] ??
+                    null
+                  }
+                  onChange={handleWardFilterChange}
+                  placeholder="All Wards"
+                  className="w-100"
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {activeTab === "map" ? (
           <div className="card border shadow-none mb-0">
@@ -620,19 +654,11 @@ const BedsListComponent = () => {
               </div>
             )}
 
-            <div className="d-flex align-items-center flex-wrap gap-2 mb-3">
-              <div className="table-search d-flex align-items-center mb-0">
-                <div className="search-input">
-                  <SearchInput value={searchText} onChange={setSearchText} />
-                </div>
-              </div>
-            </div>
-
             <div className="table-responsive">
               {loading ? (
                 <p className="text-muted mb-0">Loading beds…</p>
               ) : (
-                <Datatable columns={columns} dataSource={rows} Selection={false} searchText={searchText} />
+                <Datatable columns={columns} dataSource={rows} Selection={false} searchText="" />
               )}
             </div>
           </>

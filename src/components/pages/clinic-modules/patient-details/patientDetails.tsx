@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { formatInstantInIST } from "@/core/utils/dayjsIST";
 
 interface IPathlabCase {
   _id: string;
@@ -133,6 +134,50 @@ interface ITransactionsPaginationMeta {
   hasMore: boolean;
 }
 
+interface IPatientIpdDoctor {
+  _id?: string;
+  name?: string;
+  designation?: string;
+}
+
+interface IPatientIpdRecord {
+  _id: string;
+  ipdId?: string;
+  ipdNumber?: string;
+  admissionDate?: string;
+  appointmentDate?: string;
+  status?: string;
+  paymentStatus?: string;
+  totalPrice?: number;
+  isDischarge?: boolean;
+  createdAt?: string;
+  doctor?: IPatientIpdDoctor;
+}
+
+interface IPatientIpdRow {
+  id: string;
+  IPD_ID: string;
+  Date: string;
+  Time: string;
+  Doctor: string;
+  DoctorDesignation: string;
+  Status: string;
+  Payment_Status: string;
+  Total: number;
+  IsDischarged: boolean;
+}
+
+const extractPatientIpdsFromResponse = (
+  data: IPatientIpdRecord[] | { ipds?: IPatientIpdRecord[]; appointments?: IPatientIpdRecord[]; records?: IPatientIpdRecord[] } | undefined
+): IPatientIpdRecord[] => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.ipds)) return data.ipds;
+  if (Array.isArray(data.appointments)) return data.appointments;
+  if (Array.isArray(data.records)) return data.records;
+  return [];
+};
+
 const PatientDetailsComponent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -162,8 +207,10 @@ const PatientDetailsComponent = () => {
     totalCount: 0,
     hasMore: false,
   });
+  const [patientIpds, setPatientIpds] = useState<IPatientIpdRow[]>([]);
+  const [patientIpdsLoading, setPatientIpdsLoading] = useState<boolean>(false);
 
-  type TabKey = "appointments" | "transactions" | "dialysis" | "pathlab-cases";
+  type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
 
@@ -183,6 +230,9 @@ const PatientDetailsComponent = () => {
     switch (tab) {
       case "appointments":
         fetchAppointments();
+        break;
+      case "ipd":
+        fetchPatientIpds();
         break;
       case "transactions":
         fetchPatientTransactions(1);
@@ -360,6 +410,53 @@ const PatientDetailsComponent = () => {
     }
   }, [patientId, dialysisPagination.limit]);
 
+  const fetchPatientIpds = async () => {
+    if (!patientId || !API_BASE_URL) return;
+    try {
+      setPatientIpdsLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/hospital/ipd`, {
+        params: { patientId },
+      });
+      const ok =
+        response.data?.code === 200 ||
+        (response.status >= 200 && response.status < 300);
+      if (ok && response.data?.data != null) {
+        const list = extractPatientIpdsFromResponse(response.data.data);
+        setPatientIpds(
+          list.map((item) => {
+            const dateStr = (item.admissionDate ?? item.appointmentDate)
+              ? dayjs(item.admissionDate ?? item.appointmentDate).format("DD MMM YYYY")
+              : "";
+            const timeStr = formatInstantInIST(item.createdAt, "hh:mm A");
+            return {
+              id: item._id,
+              IPD_ID: item.ipdId ?? item.ipdNumber ?? "—",
+              Date: dateStr,
+              Time: timeStr,
+              Doctor: item.doctor?.name ?? "—",
+              DoctorDesignation: item.doctor?.designation ?? "",
+              Status: item.status ?? "—",
+              Payment_Status: item.paymentStatus ?? "—",
+              Total: item.totalPrice ?? 0,
+              IsDischarged: Boolean(item.isDischarge),
+            };
+          })
+        );
+      } else {
+        setPatientIpds([]);
+      }
+    } catch {
+      setPatientIpds([]);
+    } finally {
+      setPatientIpdsLoading(false);
+    }
+  };
+
+  const handlePatientIpdRowClick = (record: IPatientIpdRow) => {
+    if (!record?.id) return;
+    router.push(`${all_routes.ipdAppointmentDetails}/${record.id}`);
+  };
+
   const fetchPatientTransactions = async (page = 1) => {
     if (!patientId || !API_BASE_URL) return;
     try {
@@ -441,16 +538,22 @@ const PatientDetailsComponent = () => {
     return aadhar.replace(/(\d{4})(\d{4})(\d{4})/, "$1 $2 $3");
   };
 
-  const getDocumentName = (url: string): string => {
-    const fileName = url.split("/").pop() || "";
-    return fileName.replace(/\.[^/.]+$/, "") || "Document";
+  const handleOpenDocument = (url?: string) => {
+    if (!url?.trim()) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const getDocumentType = (url: string): string => {
-    const extension = url.split(".").pop()?.toUpperCase() || "";
-    return extension === "PDF" ? "PDF" : extension === "JPG" || extension === "PNG" ? "Image" : extension;
-  };
-
+  const patientDocuments = patient
+    ? [
+        ...(patient.aadharS3Url
+          ? [{ name: "Aadhaar Card", url: patient.aadharS3Url }]
+          : []),
+        ...(patient.otherDocsS3Urls ?? []).map((url) => ({
+          name: "Other Docs",
+          url,
+        })),
+      ]
+    : [];
 
   const appointmentColumns = [
     {
@@ -840,59 +943,58 @@ const PatientDetailsComponent = () => {
                       <thead>
                         <tr>
                           <th className="text-dark">Document Name</th>
-                          <th className="text-dark">Type</th>
                           <th className="text-dark">Upload Date</th>
                           <th className="text-dark">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {patient?.aadharS3Url && (
-                          <tr>
-                            <td>
-                              <div className="d-flex align-items-center">
-                                <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
-                                  <i className="ti ti-file-text fs-16" />
-                                </span>
-                                <span className="fw-semibold text-dark">Aadhaar Card</span>
-                              </div>
-                            </td>
-                            <td className="text-dark">{getDocumentType(patient.aadharS3Url)}</td>
-                            <td className="text-dark">{patient.createdAt ? dayjs(patient.createdAt).format("DD MMM YYYY") : "N/A"}</td>
-                            <td>
-                              <Link href={patient.aadharS3Url} target="_blank" className="text-primary me-2">
-                                <i className="ti ti-download fs-16" />
-                              </Link>
-                            </td>
-                          </tr>
-                        )}
-                        {patient?.otherDocsS3Urls && patient.otherDocsS3Urls.length > 0 ? (
-                          patient.otherDocsS3Urls.map((url, index) => (
-                            <tr key={index}>
+                        {patientDocuments.length > 0 ? (
+                          patientDocuments.map((doc) => (
+                            <tr key={`${doc.name}-${doc.url}`}>
                               <td>
                                 <div className="d-flex align-items-center">
                                   <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-2">
                                     <i className="ti ti-file-text fs-16" />
                                   </span>
-                                  <span className="fw-semibold text-dark">{getDocumentName(url)}</span>
+                                  <span className="fw-semibold text-dark">{doc.name}</span>
                                 </div>
                               </td>
-                              <td className="text-dark">{getDocumentType(url)}</td>
-                              <td className="text-dark">{patient.createdAt ? dayjs(patient.createdAt).format("DD MMM YYYY") : "N/A"}</td>
+                              <td className="text-dark">
+                                {patient?.createdAt
+                                  ? dayjs(patient.createdAt).format("DD MMM YYYY")
+                                  : "N/A"}
+                              </td>
                               <td>
-                                <Link href={url} target="_blank" className="text-primary me-2">
-                                  <i className="ti ti-download fs-16" />
-                                </Link>
+                                <div className="d-flex align-items-center gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={() => handleOpenDocument(doc.url)}
+                                    aria-label={`View ${doc.name}`}
+                                  >
+                                    <i className="ti ti-external-link me-1" />
+                                    View
+                                  </button>
+                                  <Link
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-sm btn-outline-secondary"
+                                    aria-label={`Download ${doc.name}`}
+                                  >
+                                    <i className="ti ti-download me-1" />
+                                    Download
+                                  </Link>
+                                </div>
                               </td>
                             </tr>
                           ))
                         ) : (
-                          !patient?.aadharS3Url && (
-                            <tr>
-                              <td colSpan={4} className="text-center text-dark py-4">
-                                No documents available
-                              </td>
-                            </tr>
-                          )
+                          <tr>
+                            <td colSpan={3} className="text-center text-dark py-4">
+                              No documents available
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
@@ -907,6 +1009,7 @@ const PatientDetailsComponent = () => {
             {(
               [
                 { key: "appointments", label: "Appointments" },
+                { key: "ipd", label: "IPD" },
                 { key: "transactions", label: "Transactions" },
                 { key: "dialysis", label: "Dialysis" },
                 { key: "pathlab-cases", label: "Pathlab Cases" },
@@ -1412,6 +1515,91 @@ const PatientDetailsComponent = () => {
                 )}
               </div>
               {/*  End Table */}
+            </div>
+            <div className={`tab-pane${activeTab === "ipd" ? " show active" : ""}`} id="ipd">
+              <div className="table-responsive">
+                {patientIpdsLoading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : patientIpds.length === 0 ? (
+                  <p className="text-muted mb-0">No IPD records found.</p>
+                ) : (
+                  <table className="table table-nowrap table-hover">
+                    <thead className="thead-light">
+                      <tr>
+                        <th className="no-sort">IPD ID</th>
+                        <th>Date</th>
+                        <th>Doctor</th>
+                        <th>Status</th>
+                        <th>Payment</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patientIpds.map((ipd) => (
+                        <tr
+                          key={ipd.id}
+                          role="button"
+                          tabIndex={0}
+                          className="cursor-pointer"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => handlePatientIpdRowClick(ipd)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handlePatientIpdRowClick(ipd);
+                            }
+                          }}
+                          aria-label={`Open IPD record ${ipd.IPD_ID}`}
+                        >
+                          <td>
+                            <div className="d-flex flex-column gap-1">
+                              <span className="text-dark fw-medium">{ipd.IPD_ID}</span>
+                              {ipd.IsDischarged ? (
+                                <span className="badge badge-soft-success border border-success fs-10 px-2 py-1 w-fit-content">
+                                  Discharged
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="text-dark">
+                            <div>{ipd.Date || "—"}</div>
+                            {ipd.Time ? <div className="fs-13 text-muted">{ipd.Time}</div> : null}
+                          </td>
+                          <td className="text-dark">
+                            <div className="fw-medium">{ipd.Doctor}</div>
+                            {ipd.DoctorDesignation ? (
+                              <div className="fs-13 text-muted">{ipd.DoctorDesignation}</div>
+                            ) : null}
+                          </td>
+                          <td>
+                            <span className="badge badge-soft-primary text-primary fs-13 py-1 rounded fw-medium">
+                              {ipd.Status}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`badge fs-13 py-1 rounded fw-medium ${
+                                ipd.Payment_Status === "Paid"
+                                  ? "badge-soft-success text-success"
+                                  : "badge-soft-warning text-warning"
+                              }`}
+                            >
+                              {ipd.Payment_Status}
+                            </span>
+                          </td>
+                          <td className="text-dark fw-medium">
+                            ₹{ipd.Total.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
             <div className={`tab-pane${activeTab === "transactions" ? " show active" : ""}`} id="transactions">
               {/*  Start Filter */}

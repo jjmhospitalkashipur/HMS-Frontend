@@ -204,6 +204,31 @@ const AppointmentDetailsComponent = () => {
     setPaymentMode("Cash");
   };
 
+  const handleConvertToIpd = () => {
+    if (!visit?.patientId || !visit?._id) return;
+
+    const params = new URLSearchParams({
+      tab: "ipd",
+      patientId: visit.patientId,
+      visitMongoId: visit._id,
+    });
+
+    if (visit.doctorId?.trim()) {
+      params.set("doctorId", visit.doctorId.trim());
+    }
+    if (visit.reason?.trim()) {
+      params.set("reason", visit.reason.trim());
+    }
+
+    const visitCode = visit.visitId?.trim() ?? "";
+    const datePart = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
+    const opdVisitLabel =
+      visitCode && datePart ? `${visitCode} — ${datePart}` : visitCode || "OPD Visit";
+    params.set("opdVisitLabel", opdVisitLabel);
+
+    router.push(`${all_routes.newAppointment}?${params.toString()}`);
+  };
+
   const handleTransactionPaymentModeChange = async (
     transactionMongoId: string,
     newPaymentMode: string
@@ -333,14 +358,25 @@ const AppointmentDetailsComponent = () => {
               Appointments
             </Link>
           </h6>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm d-inline-flex align-items-center"
-            onClick={() => setShowPrintReceipt(true)}
-          >
-            <i className="ti ti-receipt me-1" />
-            Print Receipt
-          </button>
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={handleConvertToIpd}
+              disabled={!visit?.patientId || !visit?._id}
+            >
+              <i className="ti ti-bed me-1" />
+              Convert to IPD
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => setShowPrintReceipt(true)}
+            >
+              <i className="ti ti-receipt me-1" />
+              Print Receipt
+            </button>
+          </div>
         </div>
 
         {/* Main Content - Two Column Layout */}

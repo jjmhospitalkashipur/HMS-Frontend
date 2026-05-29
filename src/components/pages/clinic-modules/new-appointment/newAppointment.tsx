@@ -125,8 +125,20 @@ type IIpdBillingCharge =
   | { type: "procedure"; procedureId: string; units: number }
   | { type: "doctor"; doctorId: string; units: number };
 
+interface IIpdHospitalVisit {
+  _id: string;
+  visitMongoId?: string;
+  visitId?: string;
+  visitDate?: string;
+  visitTime?: string;
+  status?: string;
+  doctor?: { name?: string };
+  doctorId?: string;
+}
+
 interface IIpdCreatePayload {
   patientId?: string;
+  visitId?: string;
   patientData?: {
     title: string;
     name: string;
@@ -193,6 +205,7 @@ const NewAppointmentComponent = () => {
   const [doctorOptions, setDoctorOptions] = useState<Option[]>([]);
   const [doctorSearchLoading, setDoctorSearchLoading] = useState<boolean>(false);
   const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ipdOpdConvertPrefillRef = useRef(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type.find(v => v.value === "New") || Visit_Type[0] || null);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
@@ -317,6 +330,10 @@ const NewAppointmentComponent = () => {
   const [ipdShowPatientDropdown, setIpdShowPatientDropdown] = useState<boolean>(false);
   const [ipdSearchingPatients, setIpdSearchingPatients] = useState<boolean>(false);
   const [ipdSelectedDoctor, setIpdSelectedDoctor] = useState<Option | null>(null);
+  const [ipdViaOpd, setIpdViaOpd] = useState(false);
+  const [ipdSelectedOpdVisit, setIpdSelectedOpdVisit] = useState<Option | null>(null);
+  const [ipdOpdVisitOptions, setIpdOpdVisitOptions] = useState<Option[]>([]);
+  const [ipdOpdVisitsLoading, setIpdOpdVisitsLoading] = useState(false);
   const [ipdMlc, setIpdMlc] = useState(false);
   const [ipdMlcData, setIpdMlcData] = useState<IIpdMlcData>(emptyIpdMlcData);
   const [ipdNotes, setIpdNotes] = useState("");
@@ -1498,6 +1515,80 @@ const NewAppointmentComponent = () => {
     setIpdSelectedDoctor(option);
   }, []);
 
+  const formatIpdOpdVisitLabel = useCallback((visit: IIpdHospitalVisit): string => {
+    const visitCode = visit.visitId?.trim() || "—";
+    const datePart = visit.visitDate ? dayjs(visit.visitDate).format("DD MMM YYYY") : "";
+    return datePart ? `${visitCode} — ${datePart}` : visitCode;
+  }, []);
+
+  const buildIpdOpdVisitOptions = useCallback(
+    (visits: IIpdHospitalVisit[]): Option[] =>
+      visits
+        .map((visit) => {
+          const visitMongoId = visit.visitMongoId ?? visit._id;
+          if (!visitMongoId) return null;
+          return {
+            value: visitMongoId,
+            label: formatIpdOpdVisitLabel(visit),
+          };
+        })
+        .filter((option): option is Option => option != null),
+    [formatIpdOpdVisitLabel]
+  );
+
+  const fetchPatientOpdVisitOptions = useCallback(
+    async (patientId: string): Promise<Option[]> => {
+      if (!patientId || !API_BASE_URL) return [];
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/hospital/visits/patient/${patientId}`
+        );
+        const list = response.data?.data?.visits ?? response.data?.data ?? [];
+        const visits: IIpdHospitalVisit[] = Array.isArray(list) ? list : [];
+        return buildIpdOpdVisitOptions(visits);
+      } catch {
+        return [];
+      }
+    },
+    [buildIpdOpdVisitOptions]
+  );
+
+  const fetchIpdOpdVisits = useCallback(async () => {
+    const patientId = ipdSelectedPatient?._id;
+    if (!patientId || !API_BASE_URL) {
+      setIpdOpdVisitOptions([]);
+      return;
+    }
+    try {
+      setIpdOpdVisitsLoading(true);
+      const options = await fetchPatientOpdVisitOptions(patientId);
+      setIpdOpdVisitOptions(options);
+    } catch {
+      setIpdOpdVisitOptions([]);
+    } finally {
+      setIpdOpdVisitsLoading(false);
+    }
+  }, [ipdSelectedPatient?._id, fetchPatientOpdVisitOptions]);
+
+  useEffect(() => {
+    if (!ipdViaOpd || !ipdSelectedPatient?._id) {
+      if (!ipdViaOpd) {
+        setIpdSelectedOpdVisit(null);
+        setIpdOpdVisitOptions([]);
+      }
+      return;
+    }
+    void fetchIpdOpdVisits();
+  }, [ipdViaOpd, ipdSelectedPatient?._id, fetchIpdOpdVisits]);
+
+  const handleIpdViaOpdToggle = (checked: boolean) => {
+    setIpdViaOpd(checked);
+    if (!checked) {
+      setIpdSelectedOpdVisit(null);
+      setIpdOpdVisitOptions([]);
+    }
+  };
+
   const handleIpdAddVisitingDoctor = useCallback(
     (option: Option | null) => {
       if (!option?.value) return;
@@ -1675,6 +1766,16 @@ const NewAppointmentComponent = () => {
         return false;
       }
     }
+    if (ipdViaOpd) {
+      if (!ipdSelectedPatient?._id) {
+        setIpdError("Via OPD requires an existing patient. Please select a patient from step 1.");
+        return false;
+      }
+      if (!ipdSelectedOpdVisit?.value) {
+        setIpdError("Please select an OPD visit.");
+        return false;
+      }
+    }
     return true;
   };
 
@@ -1730,6 +1831,9 @@ const NewAppointmentComponent = () => {
       setIpdPatientSearchResults([]);
       setIpdShowPatientDropdown(false);
       setIpdSelectedPatient(null);
+      setIpdViaOpd(false);
+      setIpdSelectedOpdVisit(null);
+      setIpdOpdVisitOptions([]);
       return;
     }
     const searchTimeout = setTimeout(() => {
@@ -1738,12 +1842,41 @@ const NewAppointmentComponent = () => {
         setIpdPatientSearchResults([]);
         setIpdShowPatientDropdown(false);
         setIpdSelectedPatient(null);
+        setIpdViaOpd(false);
+        setIpdSelectedOpdVisit(null);
+        setIpdOpdVisitOptions([]);
       }
     }, 500);
     return () => clearTimeout(searchTimeout);
   }, [ipdPhone, searchIpdPatients]);
 
-  const handleIpdPatientSelect = async (patient: IPatient) => {
+  const handleIpdDobChange = (date: unknown) => {
+    setIpdDob(date);
+    if (date) {
+      const birthDate = dayjs.isDayjs(date) ? date.toDate() : new Date(date as string);
+      const today = new Date();
+      let years = today.getFullYear() - birthDate.getFullYear();
+      let months = today.getMonth() - birthDate.getMonth();
+      let days = today.getDate() - birthDate.getDate();
+      if (days < 0) {
+        months--;
+        days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      setIpdAgeYears(years.toString());
+      setIpdAgeMonths(months.toString());
+      setIpdAgeDays(days.toString());
+    } else {
+      setIpdAgeYears("");
+      setIpdAgeMonths("");
+      setIpdAgeDays("");
+    }
+  };
+
+  const applyIpdPatientFields = useCallback((patient: IPatient) => {
     setIpdSelectedPatient(patient);
     setIpdShowPatientDropdown(false);
     setIpdName(patient.name || "");
@@ -1789,33 +1922,101 @@ const NewAppointmentComponent = () => {
     }
     setIpdDrugSensitivity(patient.drugSensitivity || "");
     setIpdOccupation(patient.occupation || "");
+  }, []);
+
+  const handleIpdPatientSelect = async (patient: IPatient) => {
+    applyIpdPatientFields(patient);
+    setIpdSelectedOpdVisit(null);
   };
 
-  const handleIpdDobChange = (date: unknown) => {
-    setIpdDob(date);
-    if (date) {
-      const birthDate = dayjs.isDayjs(date) ? date.toDate() : new Date(date as string);
-      const today = new Date();
-      let years = today.getFullYear() - birthDate.getFullYear();
-      let months = today.getMonth() - birthDate.getMonth();
-      let days = today.getDate() - birthDate.getDate();
-      if (days < 0) {
-        months--;
-        days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+  useEffect(() => {
+    const patientIdParam = searchParams?.get("patientId");
+    const visitMongoIdParam = searchParams?.get("visitMongoId");
+    const doctorIdParam = searchParams?.get("doctorId");
+    const reasonParam = searchParams?.get("reason");
+    const opdVisitLabelParam = searchParams?.get("opdVisitLabel");
+    const shouldPrefillFromOpd =
+      IPD_APPOINTMENT_TAB_ENABLED &&
+      tabParam === "ipd" &&
+      Boolean(patientIdParam?.trim()) &&
+      Boolean(visitMongoIdParam?.trim());
+
+    if (!shouldPrefillFromOpd || ipdOpdConvertPrefillRef.current || !API_BASE_URL) return;
+    ipdOpdConvertPrefillRef.current = true;
+
+    const prefillIpdFromOpdVisit = async () => {
+      let patient: IPatient | undefined;
+      try {
+        const patientResponse = await axios.get(
+          `${API_BASE_URL}/hospital/patients/${patientIdParam}`
+        );
+        patient = patientResponse.data?.data?.patient as IPatient | undefined;
+      } catch {
+        return;
       }
-      if (months < 0) {
-        years--;
-        months += 12;
+      if (!patient?._id) return;
+
+      applyIpdPatientFields(patient);
+      setAppointmentTab("IPD");
+      setIpdViaOpd(true);
+
+      const fallbackOpdVisit: Option = {
+        value: visitMongoIdParam!,
+        label: opdVisitLabelParam?.trim() || "OPD Visit",
+      };
+      setIpdSelectedOpdVisit(fallbackOpdVisit);
+
+      const opdOptions = await fetchPatientOpdVisitOptions(patient._id);
+      if (opdOptions.length > 0) {
+        setIpdOpdVisitOptions(opdOptions);
+        const matchedVisit = opdOptions.find((option) => option.value === visitMongoIdParam);
+        if (matchedVisit) setIpdSelectedOpdVisit(matchedVisit);
       }
-      setIpdAgeYears(years.toString());
-      setIpdAgeMonths(months.toString());
-      setIpdAgeDays(days.toString());
-    } else {
-      setIpdAgeYears("");
-      setIpdAgeMonths("");
-      setIpdAgeDays("");
-    }
-  };
+
+      if (doctorIdParam?.trim()) {
+        let doctorList = doctors;
+        if (!doctorList.length) {
+          try {
+            const doctorsResponse = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
+              params: { limit: 500 },
+            });
+            const fetched = doctorsResponse.data?.data?.doctors ?? doctorsResponse.data?.data ?? [];
+            doctorList = Array.isArray(fetched) ? fetched : [];
+            if (doctorList.length) {
+              setDoctors(doctorList);
+              setDoctorOptions(
+                doctorList.map((doctor: IDoctor) => ({
+                  value: doctor._id,
+                  label: doctor.name,
+                }))
+              );
+            }
+          } catch {
+            // Doctor list is optional for prefill
+          }
+        }
+        const consultingDoctor = doctorList.find((doctor) => doctor._id === doctorIdParam);
+        if (consultingDoctor) {
+          setIpdSelectedDoctor({
+            value: consultingDoctor._id,
+            label: consultingDoctor.name,
+          });
+        }
+      }
+
+      if (reasonParam?.trim()) {
+        setIpdNotes(reasonParam.trim());
+      }
+    };
+
+    void prefillIpdFromOpdVisit();
+  }, [
+    searchParams,
+    tabParam,
+    applyIpdPatientFields,
+    fetchPatientOpdVisitOptions,
+    doctors,
+  ]);
 
   const handleIpdTitleChange = useCallback((option: Option | null) => {
     setIpdTitle(option);
@@ -1935,6 +2136,10 @@ const NewAppointmentComponent = () => {
         patientBroughtBy: ipdMlcData.patientBroughtBy.trim(),
         placeOfAccident: ipdMlcData.placeOfAccident.trim(),
       };
+    }
+
+    if (ipdViaOpd && ipdSelectedOpdVisit?.value) {
+      payload.visitId = ipdSelectedOpdVisit.value;
     }
 
     return payload;
@@ -3657,8 +3862,11 @@ const NewAppointmentComponent = () => {
                         {ipdFormStep === 2 && (
                           <>
                               <h6 className="fw-bold text-primary mb-3">IPD Details</h6>
-                              <div className="row g-3">
-                                <div className="col-md-8">
+                              <div className="d-flex flex-column flex-lg-row align-items-lg-end gap-3">
+                                <div
+                                  className="w-100 flex-shrink-0"
+                                  style={{ flex: "0 0 280px", maxWidth: "280px", minWidth: 0 }}
+                                >
                                   <label className="form-label mb-1 fw-medium fs-14">Consulting Doctor <span className="text-danger">*</span></label>
                                   <CommonSelect
                                     options={doctorOptions}
@@ -3669,9 +3877,65 @@ const NewAppointmentComponent = () => {
                                     placeholder="Search doctor..."
                                   />
                                 </div>
-                                <div className="col-md-4">
+                                <div className="flex-shrink-0">
+                                  <label className="form-label mb-1 fw-medium fs-14">Admission</label>
+                                  <div
+                                    className="d-flex align-items-center gap-2 flex-nowrap"
+                                    style={{ minHeight: "38px" }}
+                                  >
+                                    <span
+                                      className={`fw-medium fs-14 text-nowrap ${!ipdViaOpd ? "text-primary" : "text-muted"}`}
+                                    >
+                                      Direct
+                                    </span>
+                                    <div className="form-check form-switch mb-0 flex-shrink-0">
+                                      <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        role="switch"
+                                        id="ipd-new-via-opd-toggle"
+                                        checked={ipdViaOpd}
+                                        disabled={!ipdSelectedPatient?._id}
+                                        onChange={(e) => handleIpdViaOpdToggle(e.target.checked)}
+                                        aria-label="Admission via OPD"
+                                      />
+                                    </div>
+                                    <span
+                                      className={`fw-medium fs-14 text-nowrap ${ipdViaOpd ? "text-primary" : "text-muted"}`}
+                                    >
+                                      Via OPD
+                                    </span>
+                                  </div>
+                                </div>
+                                {ipdViaOpd ? (
+                                  <div
+                                    className="w-100 flex-shrink-0"
+                                    style={{ flex: "0 0 220px", maxWidth: "260px", minWidth: 0 }}
+                                  >
+                                    <label className="form-label mb-1 fw-medium fs-14">
+                                      OPD Visit <span className="text-danger">*</span>
+                                    </label>
+                                    <CommonSelect
+                                      options={ipdOpdVisitOptions}
+                                      value={ipdSelectedOpdVisit}
+                                      onChange={setIpdSelectedOpdVisit}
+                                      onMenuOpen={() => void fetchIpdOpdVisits()}
+                                      isLoading={ipdOpdVisitsLoading}
+                                      placeholder={
+                                        ipdSelectedPatient?._id
+                                          ? "Search OPD visit..."
+                                          : "Select patient in step 1"
+                                      }
+                                      disabled={!ipdSelectedPatient?._id}
+                                    />
+                                  </div>
+                                ) : null}
+                                <div className="flex-shrink-0">
                                   <label className="form-label mb-1 fw-medium fs-14">MLC</label>
-                                  <div className="d-flex align-items-center gap-2 pt-1">
+                                  <div
+                                    className="d-flex align-items-center gap-2 flex-nowrap"
+                                    style={{ minHeight: "38px" }}
+                                  >
                                     <div className="form-check form-switch mb-0">
                                       <input
                                         className="form-check-input"
@@ -3693,6 +3957,8 @@ const NewAppointmentComponent = () => {
                                     ) : null}
                                   </div>
                                 </div>
+                              </div>
+                              <div className="row g-3">
                                 {ipdMlc ? (
                                   <IpdMlcFields
                                     idPrefix="ipd-new-mlc"

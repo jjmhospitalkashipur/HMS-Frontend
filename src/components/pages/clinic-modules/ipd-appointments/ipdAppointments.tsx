@@ -80,13 +80,6 @@ interface IIpdAppointment {
   patient?: IIpdPatient;
 }
 
-interface IProcedureCategoryItem {
-  category?: string;
-  name?: string;
-  value?: string;
-  label?: string;
-}
-
 interface IIpdPagination {
   total?: number;
   totalCount?: number;
@@ -168,16 +161,10 @@ const IpdAppointmentsComponent = () => {
 
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
-  const [filterProcedureCategory, setFilterProcedureCategory] = useState<string>("");
-  const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<dayjs.Dayjs | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<dayjs.Dayjs | null>(null);
-  const [procedureCategories, setProcedureCategories] = useState<string[]>([]);
-  const [procedureCategoriesLoading, setProcedureCategoriesLoading] = useState(false);
 
   const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
-  const [appliedProcedureCategory, setAppliedProcedureCategory] = useState<string>("");
-  const [appliedDate, setAppliedDate] = useState<string | null>(null);
   const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
   const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
 
@@ -191,19 +178,13 @@ const IpdAppointmentsComponent = () => {
       if (appliedDoctorId) {
         params.doctorId = appliedDoctorId;
       }
-      if (appliedProcedureCategory) {
-        params.procedureCategory = appliedProcedureCategory;
-      }
       if (activeTab === "today") {
-        params.date = todayISODateInIST();
-      } else {
-        const hasRange = Boolean(appliedStartDate && appliedEndDate);
-        if (hasRange) {
-          params.startDate = appliedStartDate ?? "";
-          params.endDate = appliedEndDate ?? "";
-        } else if (appliedDate) {
-          params.date = appliedDate;
-        }
+        const today = todayISODateInIST();
+        params.from = today;
+        params.to = today;
+      } else if (appliedStartDate && appliedEndDate) {
+        params.from = appliedStartDate;
+        params.to = appliedEndDate;
       }
       const trimmedSearch = searchText.trim();
       if (trimmedSearch) {
@@ -217,8 +198,6 @@ const IpdAppointmentsComponent = () => {
       limit,
       searchText,
       appliedDoctorId,
-      appliedProcedureCategory,
-      appliedDate,
       appliedStartDate,
       appliedEndDate,
     ]
@@ -278,90 +257,90 @@ const IpdAppointmentsComponent = () => {
     }
   };
 
-  const fetchIpdAppointments = useCallback(async () => {
-      if (!API_BASE_URL) return;
-      try {
-        setLoading(true);
-        setError("");
-        const params = getIpdQueryParams(true);
-        const res = await axios.get(`${API_BASE_URL}/hospital/ipd`, { params });
-        const ok = res.data?.code === 200 || (res.status >= 200 && res.status < 300);
-        if (ok && res.data?.data != null) {
-          const raw = res.data.data as IIpdAppointment[] | IIpdAppointmentsResponseData;
-          const list = extractIpdListFromResponse(raw);
+  const fetchIpdAppointments = async () => {
+    if (!API_BASE_URL) return;
+    try {
+      setLoading(true);
+      setError("");
+      const params = getIpdQueryParams(true);
+      const res = await axios.get(`${API_BASE_URL}/hospital/ipd`, { params });
+      const ok = res.data?.code === 200 || (res.status >= 200 && res.status < 300);
+      if (ok && res.data?.data != null) {
+        const raw = res.data.data as IIpdAppointment[] | IIpdAppointmentsResponseData;
+        const list = extractIpdListFromResponse(raw);
 
-          const pagination = Array.isArray(raw) ? undefined : raw?.pagination;
-          if (pagination && typeof pagination === "object") {
-            const total =
-              typeof pagination.total === "number"
-                ? pagination.total
-                : typeof pagination.totalCount === "number"
-                  ? pagination.totalCount
-                  : list.length;
-            setTotalCount(total);
-          } else {
-            const fallbackTotal = Array.isArray(raw) ? undefined : raw?.total ?? raw?.count;
-            setTotalCount(typeof fallbackTotal === "number" ? fallbackTotal : list.length);
-          }
-
-          if (!list.length) {
-            setRows([]);
-            setError("");
-            return;
-          }
-          const mapped: IRow[] = list.map((item) => {
-            const dateStr = (item.admissionDate ?? item.appointmentDate)
-              ? dayjs(item.admissionDate ?? item.appointmentDate).format("DD MMM YYYY")
-              : "";
-            const timeStr = formatInstantInIST(item.createdAt, "hh:mm A");
-            const doctorName = item.doctor?.name ?? "";
-            const doctorDesignation = item.doctor?.designation ?? "";
-            const dept = item.ipdChargesType || item.bedChargesType || "";
-            const deptName = item.doctor?.department || "";
-            const patientName = item.patient?.name ?? "";
-            const age = formatAgeForListing(
-              item.patient?.age,
-              item.patient?.months,
-              item.patient?.days
-            );
-            const gender = item.patient?.gender;
-            const proceduresList = getIpdProcedureNamesForListing(item);
-
-            return {
-              id: item._id,
-              _doctorId: item.doctor?._id || item.doctorId,
-              _patientId: item.patient?._id || item.patientId,
-              IPD_ID: item.ipdId ?? item.ipdNumber ?? "",
-              Date: dateStr,
-              Time: timeStr,
-              Patient: patientName,
-              Age: age,
-              Gender: gender,
-              Doctor: doctorName,
-              DoctorDesignation: doctorDesignation,
-              Department: dept,
-              DepartmentName: deptName,
-              Procedures: proceduresList,
-              Total: item.totalPrice ?? 0,
-              Status: item.status || "",
-              Payment_Status: item.paymentStatus || "",
-              IsDischarged: Boolean(item.isDischarge),
-            };
-          });
-          setRows(mapped);
+        const pagination = Array.isArray(raw) ? undefined : raw?.pagination;
+        if (pagination && typeof pagination === "object") {
+          const total =
+            typeof pagination.total === "number"
+              ? pagination.total
+              : typeof pagination.totalCount === "number"
+                ? pagination.totalCount
+                : list.length;
+          setTotalCount(total);
         } else {
-          setRows([]);
-          setTotalCount(0);
-          setError(res.data?.message || "Failed to load ipd appointments.");
+          const fallbackTotal = Array.isArray(raw) ? undefined : raw?.total ?? raw?.count;
+          setTotalCount(typeof fallbackTotal === "number" ? fallbackTotal : list.length);
         }
-      } catch (err: unknown) {
+
+        if (!list.length) {
+          setRows([]);
+          setError("");
+          return;
+        }
+        const mapped: IRow[] = list.map((item) => {
+          const dateStr = (item.admissionDate ?? item.appointmentDate)
+            ? dayjs(item.admissionDate ?? item.appointmentDate).format("DD MMM YYYY")
+            : "";
+          const timeStr = formatInstantInIST(item.createdAt, "hh:mm A");
+          const doctorName = item.doctor?.name ?? "";
+          const doctorDesignation = item.doctor?.designation ?? "";
+          const dept = item.ipdChargesType || item.bedChargesType || "";
+          const deptName = item.doctor?.department || "";
+          const patientName = item.patient?.name ?? "";
+          const age = formatAgeForListing(
+            item.patient?.age,
+            item.patient?.months,
+            item.patient?.days
+          );
+          const gender = item.patient?.gender;
+          const proceduresList = getIpdProcedureNamesForListing(item);
+
+          return {
+            id: item._id,
+            _doctorId: item.doctor?._id || item.doctorId,
+            _patientId: item.patient?._id || item.patientId,
+            IPD_ID: item.ipdId ?? item.ipdNumber ?? "",
+            Date: dateStr,
+            Time: timeStr,
+            Patient: patientName,
+            Age: age,
+            Gender: gender,
+            Doctor: doctorName,
+            DoctorDesignation: doctorDesignation,
+            Department: dept,
+            DepartmentName: deptName,
+            Procedures: proceduresList,
+            Total: item.totalPrice ?? 0,
+            Status: item.status || "",
+            Payment_Status: item.paymentStatus || "",
+            IsDischarged: Boolean(item.isDischarge),
+          };
+        });
+        setRows(mapped);
+      } else {
         setRows([]);
         setTotalCount(0);
-        setError(getAxiosMessage(err, "Failed to load ipd appointments."));
-      } finally {
-        setLoading(false);
+        setError(res.data?.message || "Failed to load ipd appointments.");
       }
-  }, [getIpdQueryParams]);
+    } catch (err: unknown) {
+      setRows([]);
+      setTotalCount(0);
+      setError(getAxiosMessage(err, "Failed to load ipd appointments."));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleConfirmDeleteIpd = async () => {
     const targetId = ipdDeleteTarget?.id;
@@ -386,8 +365,16 @@ const IpdAppointmentsComponent = () => {
   };
 
   useEffect(() => {
-    fetchIpdAppointments();
-  }, [fetchIpdAppointments]);
+    void fetchIpdAppointments();
+  }, [
+    activeTab,
+    page,
+    limit,
+    searchText,
+    appliedDoctorId,
+    appliedStartDate,
+    appliedEndDate,
+  ]);
 
   useEffect(() => {
     if (!API_BASE_URL) return;
@@ -401,78 +388,48 @@ const IpdAppointmentsComponent = () => {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!API_BASE_URL) return;
-    setProcedureCategoriesLoading(true);
-    axios
-      .get(`${API_BASE_URL}/hospital/procedures/categories`)
-      .then((res) => {
-        const rawCategories = res.data?.data?.categories ?? res.data?.data ?? [];
-        const list = Array.isArray(rawCategories) ? rawCategories : [];
-        const categoryNames = list
-          .map((item: string | IProcedureCategoryItem) => {
-            if (typeof item === "string") return item;
-            return item?.category ?? item?.name ?? item?.value ?? item?.label ?? "";
-          })
-          .map((category: string) => category.trim())
-          .filter(Boolean);
-        setProcedureCategories([...new Set(categoryNames)]);
-      })
-      .catch(() => {
-        setProcedureCategories([]);
-      })
-      .finally(() => {
-        setProcedureCategoriesLoading(false);
-      });
-  }, []);
-
   const doctorOptions: Option[] = useMemo(
     () => [{ value: "", label: "All" }, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
     [doctors]
   );
 
-  const procedureCategoryOptions: Option[] = useMemo(
-    () => [
-      { value: "", label: "All" },
-      ...procedureCategories.map((category) => ({ value: category, label: category })),
-    ],
-    [procedureCategories]
-  );
-
-  const handleApplyFilter = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDoctorFilterChange = (option: Option | null) => {
+    const nextDoctorId = option?.value ?? "";
     setPage(1);
-    setAppliedDoctorId(filterDoctorId);
-    setAppliedProcedureCategory(filterProcedureCategory);
-    const hasRange = filterStartDate && filterEndDate;
-    if (hasRange) {
-      setAppliedStartDate(filterStartDate.format("YYYY-MM-DD"));
-      setAppliedEndDate(filterEndDate.format("YYYY-MM-DD"));
-      setAppliedDate(null);
-    } else {
+    setFilterDoctorId(nextDoctorId);
+    setAppliedDoctorId(nextDoctorId);
+  };
+
+  const applyIpdDateRangeFilters = (
+    startDate: dayjs.Dayjs | null,
+    endDate: dayjs.Dayjs | null
+  ) => {
+    if (startDate && endDate) {
+      setPage(1);
+      setActiveTab("all");
+      setAppliedStartDate(startDate.format("YYYY-MM-DD"));
+      setAppliedEndDate(endDate.format("YYYY-MM-DD"));
+      return;
+    }
+    if (!startDate && !endDate) {
+      setPage(1);
       setAppliedStartDate(null);
       setAppliedEndDate(null);
-      setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
     }
   };
 
-  const handleProcedureCategoryChange = (option: Option | null) => {
-    const nextCategory = option?.value ?? "";
-    setPage(1);
-    setFilterProcedureCategory(nextCategory);
-    setAppliedProcedureCategory(nextCategory);
+  const handleApplyFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppliedDoctorId(filterDoctorId);
+    applyIpdDateRangeFilters(filterStartDate, filterEndDate);
   };
 
   const handleClearFilter = () => {
     setPage(1);
     setFilterDoctorId("");
-    setFilterProcedureCategory("");
-    setFilterDate(null);
     setFilterStartDate(null);
     setFilterEndDate(null);
     setAppliedDoctorId("");
-    setAppliedProcedureCategory("");
-    setAppliedDate(null);
     setAppliedStartDate(null);
     setAppliedEndDate(null);
   };
@@ -801,41 +758,9 @@ const IpdAppointmentsComponent = () => {
                           <CommonSelect
                             options={doctorOptions}
                             value={doctorOptions.find((o) => o.value === filterDoctorId) ?? null}
-                            onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
+                            onChange={handleDoctorFilterChange}
                             placeholder="All"
                             className="w-100"
-                          />
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label mb-1">Category</label>
-                          <CommonSelect
-                            options={procedureCategoryOptions}
-                            value={
-                              procedureCategoryOptions.find(
-                                (o) => o.value === filterProcedureCategory
-                              ) ?? null
-                            }
-                            onChange={handleProcedureCategoryChange}
-                            placeholder="All"
-                            className="w-100"
-                            isLoading={procedureCategoriesLoading}
-                          />
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label mb-1">Date (appointment)</label>
-                          <DatePicker
-                            className="w-100"
-                            format="DD-MM-YYYY"
-                            placeholder="Single day"
-                            value={filterDate}
-                            onChange={(d) => {
-                              setFilterDate(d);
-                              if (d) {
-                                setFilterStartDate(null);
-                                setFilterEndDate(null);
-                              }
-                            }}
-                            getPopupContainer={(node) => node?.parentElement ?? document.body}
                           />
                         </div>
                         <div className="mb-3">
@@ -849,7 +774,7 @@ const IpdAppointmentsComponent = () => {
                                 value={filterStartDate}
                                 onChange={(d) => {
                                   setFilterStartDate(d);
-                                  if (d) setFilterDate(null);
+                                  applyIpdDateRangeFilters(d ?? null, filterEndDate);
                                 }}
                                 getPopupContainer={(node) => node?.parentElement ?? document.body}
                               />
@@ -862,7 +787,7 @@ const IpdAppointmentsComponent = () => {
                                 value={filterEndDate}
                                 onChange={(d) => {
                                   setFilterEndDate(d);
-                                  if (d) setFilterDate(null);
+                                  applyIpdDateRangeFilters(filterStartDate, d ?? null);
                                 }}
                                 getPopupContainer={(node) => node?.parentElement ?? document.body}
                               />
