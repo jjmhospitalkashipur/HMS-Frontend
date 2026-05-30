@@ -503,6 +503,74 @@
   box-sizing: border-box;
   min-height: 1px;
 }
+.indian-phone-field {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border: 1px solid #e7e8eb;
+  border-radius: 0.3rem;
+  background: #fff;
+  overflow: hidden;
+
+  &__prefix {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.65rem;
+    border-right: 1px solid #e7e8eb;
+    font-weight: 500;
+    color: #0a1b39;
+    white-space: nowrap;
+    flex-shrink: 0;
+    user-select: none;
+    background: #fff;
+  }
+
+  &__chevron {
+    font-size: 0.75rem;
+    color: #6c757d;
+  }
+
+  &__phone,
+  .PhoneInput {
+    flex: 1;
+    min-width: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .PhoneInputCountry {
+    display: none !important;
+  }
+
+  .PhoneInputInput {
+    border: 0;
+    width: 100%;
+    padding: 0.5rem 0.77rem;
+    background: transparent;
+  }
+
+  .PhoneInputInput:focus-visible {
+    outline: 0;
+  }
+
+  &__plain-input {
+    flex: 1;
+    min-width: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent;
+    padding: 0.5rem 0.77rem;
+  }
+
+  &__plain-input:focus {
+    box-shadow: none !important;
+  }
+}
+
 .PhoneInput {
   padding: 0.5rem 0.77rem;
   border: 1px solid #e7e8eb;
@@ -523,6 +591,22 @@
 
 //Dark-mode
 [data-bs-theme="dark"] {
+  .indian-phone-field {
+    border-color: var(--pr-border-color);
+    background: var(--pr-secondary-bg);
+
+    &__prefix {
+      border-right-color: var(--pr-border-color);
+      background: var(--pr-secondary-bg);
+      color: var(--pr-body-color);
+    }
+
+    .PhoneInputInput {
+      background-color: var(--pr-secondary-bg);
+      color: var(--pr-body-color);
+    }
+  }
+
   .react-select__control {
     background-color: var(--pr-secondary-bg);
     border-color: var(--pr-gray-500) transparent transparent transparent;

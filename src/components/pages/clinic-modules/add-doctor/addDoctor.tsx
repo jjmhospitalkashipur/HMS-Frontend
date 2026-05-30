@@ -13,8 +13,7 @@ import {
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { useState } from "react";
 import { all_routes } from "../../../../routes/all_routes";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
@@ -249,7 +248,7 @@ const AddDoctorComponent = () => {
                             <label className="form-label">
                               Phone No <span className="text-danger">*</span>
                             </label>
-                            <PhoneInput
+                            <IndianPhoneInput
                               defaultCountry="IN"
                               value={phone}
                               onChange={setPhone}

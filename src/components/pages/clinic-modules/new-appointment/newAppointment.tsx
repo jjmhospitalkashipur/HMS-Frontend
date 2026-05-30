@@ -54,6 +54,7 @@ import IpdMlcFields, {
   type IIpdMlcData,
 } from "@/components/pages/clinic-modules/ipd-appointments/IpdMlcFields";
 import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
+import IndianPhoneSearchInput from "@/core/common/indianPhoneInput/IndianPhoneSearchInput";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
 import {
@@ -2606,14 +2607,11 @@ const NewAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium">
                             Phone Number<span className="text-danger ms-1">*</span>
                           </label>
-                          <input
-                            type="text"
-                            className="form-control"
+                          <IndianPhoneSearchInput
                             value={phone}
                             onChange={(e) => {
-                              console.log("Search input onChange called with value:", e.target.value);
                               setPhone(e.target.value || "");
-                              setSelectedPatient(null); // Clear selected patient when search changes
+                              setSelectedPatient(null);
                             }}
                             placeholder="Enter phone number or name"
                             required
@@ -3185,11 +3183,12 @@ const NewAppointmentComponent = () => {
                           <div className="col-md-3">
                             <div className="mb-3 position-relative daycare-patient-search-container">
                               <label className="form-label mb-1 fw-medium">Phone Number<span className="text-danger ms-1">*</span></label>
-                              <input
-                                type="text"
-                                className="form-control"
+                              <IndianPhoneSearchInput
                                 value={daycarePhone}
-                                onChange={(e) => { setDaycarePhone(e.target.value || ""); setDaycareSelectedPatient(null); }}
+                                onChange={(e) => {
+                                  setDaycarePhone(e.target.value || "");
+                                  setDaycareSelectedPatient(null);
+                                }}
                                 placeholder="Enter phone number or name"
                                 required
                               />
@@ -3639,9 +3638,7 @@ const NewAppointmentComponent = () => {
                                         <div className="col-12 col-sm-6 col-md-4">
                                           <div className="position-relative ipd-patient-search-container">
                                             <label className="form-label mb-1 fw-medium fs-14">Phone Number <span className="text-danger">*</span></label>
-                                            <input
-                                              type="text"
-                                              className="form-control"
+                                            <IndianPhoneSearchInput
                                               value={ipdPhone}
                                               onChange={(e) => {
                                                 setIpdPhone(e.target.value || "");

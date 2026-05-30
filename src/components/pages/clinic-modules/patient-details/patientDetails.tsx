@@ -11,6 +11,8 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import { formatInstantInIST } from "@/core/utils/dayjsIST";
+import { Marital_Status } from "@/core/common/selectOption";
+import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 
 interface IPathlabCase {
   _id: string;
@@ -51,6 +53,12 @@ interface IPatient {
   aadharNo: string;
   aadharS3Url?: string;
   otherDocsS3Urls?: string[];
+  maritalStatus?: string;
+  occupation?: string;
+  drugSensitivity?: string;
+  ayushmanCardNo?: string;
+  ayushmanCardS3Url?: string;
+  imageS3Url?: string;
   emergencyContacts?: Array<{
     name: string;
     number: string;
@@ -545,8 +553,14 @@ const PatientDetailsComponent = () => {
 
   const patientDocuments = patient
     ? [
+        ...(patient.imageS3Url
+          ? [{ name: "Profile Photo", url: patient.imageS3Url }]
+          : []),
         ...(patient.aadharS3Url
           ? [{ name: "Aadhaar Card", url: patient.aadharS3Url }]
+          : []),
+        ...(patient.ayushmanCardS3Url
+          ? [{ name: "Ayushman Card", url: patient.ayushmanCardS3Url }]
           : []),
         ...(patient.otherDocsS3Urls ?? []).map((url) => ({
           name: "Other Docs",
@@ -554,6 +568,12 @@ const PatientDetailsComponent = () => {
         })),
       ]
     : [];
+
+  const patientMaritalStatusValue = getPatientMaritalStatus(patient);
+  const patientMaritalLabel = patientMaritalStatusValue
+    ? Marital_Status.find((m) => m.value === patientMaritalStatusValue)?.label ??
+      patientMaritalStatusValue
+    : "";
 
   const appointmentColumns = [
     {
@@ -731,6 +751,17 @@ const PatientDetailsComponent = () => {
             <div className="row align-items-end">
               <div className="col-xl-9 col-lg-8">
                 <div className="d-sm-flex align-items-center p-3">
+                  {patient?.imageS3Url ? (
+                    <div className="flex-shrink-0 me-3 mb-3 mb-sm-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={patient.imageS3Url}
+                        alt={`${patient.title ?? ""} ${patient.name ?? "Patient"}`.trim()}
+                        className="object-fit-cover border rounded-0"
+                        style={{ width: "72px", height: "72px" }}
+                      />
+                    </div>
+                  ) : null}
                   <div>
                     <p className="text-dark mb-1">{loading ? "Loading..." : patient?.mrd || "N/A"}</p>
                     <h5 className="mb-1 d-flex align-items-center flex-wrap gap-2">
@@ -911,6 +942,58 @@ const PatientDetailsComponent = () => {
                         </div>
                       </div>
                     )}
+                    {patientMaritalLabel ? (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: "32px", height: "32px" }}>
+                            <i className="ti ti-heart fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">Marital Status</h6>
+                            <p className="mb-0 text-dark">{patientMaritalLabel}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {patient?.occupation?.trim() ? (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: "32px", height: "32px" }}>
+                            <i className="ti ti-briefcase fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">Occupation</h6>
+                            <p className="mb-0 text-dark">{patient.occupation.trim()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {patient?.drugSensitivity?.trim() ? (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: "32px", height: "32px" }}>
+                            <i className="ti ti-pill fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">Drug Sensitivity</h6>
+                            <p className="mb-0 text-dark">{patient.drugSensitivity.trim()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {patient?.ayushmanCardNo?.trim() ? (
+                      <div className="col-sm-6">
+                        <div className="d-flex align-items-center mb-3">
+                          <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: "32px", height: "32px" }}>
+                            <i className="ti ti-id-badge fs-14" />
+                          </span>
+                          <div className="flex-grow-1">
+                            <h6 className="fs-13 fw-bold mb-1 text-dark">Ayushman Card No.</h6>
+                            <p className="mb-0 text-dark">{patient.ayushmanCardNo.trim()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                     {patient?.emergencyContacts && patient.emergencyContacts.length > 0 && (
                       <div className="col-sm-12 border-top pt-3 mt-2">
                         <h6 className="fs-14 fw-bold  text-dark">Emergency Contact</h6>

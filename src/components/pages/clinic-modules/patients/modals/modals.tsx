@@ -4,13 +4,13 @@ import { DatePicker } from "antd";
 import {
   Blood_Group,
   Gender,
+  Marital_Status,
   Title,
 } from "@/core/common/selectOption";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { useState, useEffect, useCallback } from "react";
 import { all_routes } from "../../../../../routes/all_routes";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
@@ -20,6 +20,9 @@ import {
 } from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
+import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
+import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
+import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
 
 const Modals = () => {
   const router = useRouter();
@@ -59,6 +62,14 @@ const Modals = () => {
   const [aadharFile, setAadharFile] = useState<File | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
   const [ayushmanCardNo, setAyushmanCardNo] = useState<string>("");
+  const [maritalStatus, setMaritalStatus] = useState<Option | null>(Marital_Status[0] || null);
+  const [occupation, setOccupation] = useState<string>("");
+  const [drugSensitivity, setDrugSensitivity] = useState<string>("");
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [imageS3Url, setImageS3Url] = useState<string>("");
+  const [ayushmanFile, setAyushmanFile] = useState<File | null>(null);
+  const [ayushmanCardS3Url, setAyushmanCardS3Url] = useState<string>("");
+  const [existingAadharS3Url, setExistingAadharS3Url] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   // Reset form function
@@ -80,6 +91,14 @@ const Modals = () => {
     setAadharFile(null);
     setDocFile(null);
     setAyushmanCardNo("");
+    setMaritalStatus(Marital_Status[0] || null);
+    setOccupation("");
+    setDrugSensitivity("");
+    setProfilePhotoFile(null);
+    setImageS3Url("");
+    setAyushmanFile(null);
+    setAyushmanCardS3Url("");
+    setExistingAadharS3Url("");
   };
 
   const fetchPatientData = useCallback(async (id: string) => {
@@ -106,6 +125,21 @@ const Modals = () => {
         setDivision(patient.division ?? "");
         setAadharNumber(patient.aadharNo || "");
         setAyushmanCardNo(patient.ayushmanCardNo || "");
+        setOccupation(patient.occupation ?? "");
+        setDrugSensitivity(patient.drugSensitivity ?? "");
+        setImageS3Url(patient.imageS3Url ?? "");
+        setAyushmanCardS3Url(patient.ayushmanCardS3Url ?? "");
+        setExistingAadharS3Url(patient.aadharS3Url ?? "");
+        const maritalStatusValue = getPatientMaritalStatus(patient);
+        setMaritalStatus(
+          maritalStatusValue
+            ? Marital_Status.find((m) => m.value === maritalStatusValue) ?? Marital_Status[0] ?? null
+            : Marital_Status[0] ?? null
+        );
+        setProfilePhotoFile(null);
+        setAyushmanFile(null);
+        setAadharFile(null);
+        setDocFile(null);
 
         // Set age from patient.age or calculate from dob
         if (patient.age != null) {
@@ -155,14 +189,18 @@ const Modals = () => {
     };
   }, [fetchPatientData]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'aadhar' | 'doc') => {
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "aadhar" | "doc" | "ayushman"
+  ) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (type === 'aadhar') {
-        setAadharFile(file);
-      } else {
-        setDocFile(file);
-      }
+    if (!file) return;
+    if (type === "aadhar") {
+      setAadharFile(file);
+    } else if (type === "ayushman") {
+      setAyushmanFile(file);
+    } else {
+      setDocFile(file);
     }
   };
 
@@ -262,6 +300,20 @@ const Modals = () => {
 
       setLoading(true);
 
+      let uploadedAadharUrl = existingAadharS3Url;
+      let uploadedAyushmanUrl = ayushmanCardS3Url;
+      let uploadedImageUrl = imageS3Url;
+
+      if (aadharFile) {
+        uploadedAadharUrl = await uploadFileToS3(aadharFile, "ipd_aadhar_docs");
+      }
+      if (ayushmanFile) {
+        uploadedAyushmanUrl = await uploadFileToS3(ayushmanFile, "ipd_ayushman_docs");
+      }
+      if (profilePhotoFile) {
+        uploadedImageUrl = await uploadFileToS3(profilePhotoFile, "ipd_patient_photos");
+      }
+
       const patientData = {
         title: title?.value || "",
         name: name,
@@ -277,7 +329,15 @@ const Modals = () => {
         companyName: companyName.trim() || undefined,
         division: division.trim() || undefined,
         aadharNo: aadharNumber || undefined,
+        aadharS3Url: uploadedAadharUrl || undefined,
         ayushmanCardNo: ayushmanCardNo || undefined,
+        ayushmanCardS3Url: uploadedAyushmanUrl || undefined,
+        imageS3Url: uploadedImageUrl || undefined,
+        ...(maritalStatus?.value && maritalStatus.value !== "Select"
+          ? { maritalStatus: maritalStatus.value }
+          : {}),
+        ...(occupation.trim() ? { occupation: occupation.trim() } : {}),
+        ...(drugSensitivity.trim() ? { drugSensitivity: drugSensitivity.trim() } : {}),
       };
 
       const response = await axios.patch(`${API_BASE_URL}/hospital/patients/${patientId}`, patientData);
@@ -309,7 +369,7 @@ const Modals = () => {
         className="offcanvas offcanvas-offset offcanvas-end offcanvas-large"
         tabIndex={-1}
         id="edit_patient"
-        style={{ width: '900px' }}
+        style={{ width: "min(1100px, calc(100vw - 1rem))", maxWidth: "100vw" }}
       >
         <div className="offcanvas-header d-block pb-0 px-0">
           <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
@@ -329,72 +389,86 @@ const Modals = () => {
             <div className="p-3 pb-0">
               <h6 className="fw-bold text-primary mb-3">Patient Information</h6>
               <div className="row">
-                <div className="col-md-3">
-                  <div className="mb-3">
-                    <label className="form-label mb-1 fw-medium">
-                      Phone Number
-                      <span className="text-danger ms-1">*</span>
-                    </label>
-                    <PhoneInput
-                      defaultCountry="IN"
-                      value={phone}
-                      onChange={(value) => setPhone(value || "")}
-                      required
+                <div className="col-12">
+                  <div className="d-flex flex-column flex-sm-row align-items-start gap-3">
+                    <IpdPatientCompactUpload
+                      label="Patient photo"
+                      placeholder="Add photo"
+                      hint="Jpg / Png"
+                      accept="image/jpeg,image/png,image/jpg"
+                      file={profilePhotoFile}
+                      previewUrl={imageS3Url || undefined}
+                      onFileChange={setProfilePhotoFile}
                     />
-                  </div>
-                </div>
-                <div className="col-md-2">
-                  <div className="mb-3">
-                    <label className="form-label mb-1 fw-medium">
-                      Title<span className="text-danger ms-1">*</span>
-                    </label>
-                    <CommonSelect
-                      options={Title}
-                      className="select"
-                      value={title}
-                      onChange={(option) => {
-                        setTitle(option);
-                        if (!option?.value) return;
-                        if (option.value === "Mr." || option.value === "Master") {
-                          const male = Gender.find((g) => g.value === "Male");
-                          if (male) setGender(male);
-                        } else if (option.value === "Mrs." || option.value === "Ms.") {
-                          const female = Gender.find((g) => g.value === "Female");
-                          if (female) setGender(female);
-                        } else if (option.value === "Dr." || option.value === "Prof." || option.value === "Baby") {
-                          const select = Gender.find((g) => g.value === "Select");
-                          if (select) setGender(select);
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="mb-3">
-                    <label className="form-label mb-1 fw-medium">
-                      Name<span className="text-danger ms-1">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Enter patient name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="col-md-3">
-                  <div className="mb-3">
-                    <label className="form-label mb-1 fw-medium">
-                      Gender<span className="text-danger ms-1">*</span>
-                    </label>
-                    <CommonSelect
-                      options={Gender}
-                      className="select"
-                      value={gender}
-                      onChange={setGender}
-                    />
+                    <div className="row flex-grow-1 w-100 m-0">
+                      <div className="col-md-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Phone Number
+                            <span className="text-danger ms-1">*</span>
+                          </label>
+                          <IndianPhoneInput
+                            value={phone}
+                            onChange={(value) => setPhone(value || "")}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-2">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Title<span className="text-danger ms-1">*</span>
+                          </label>
+                          <CommonSelect
+                            options={Title}
+                            className="select"
+                            value={title}
+                            onChange={(option) => {
+                              setTitle(option);
+                              if (!option?.value) return;
+                              if (option.value === "Mr." || option.value === "Master") {
+                                const male = Gender.find((g) => g.value === "Male");
+                                if (male) setGender(male);
+                              } else if (option.value === "Mrs." || option.value === "Ms.") {
+                                const female = Gender.find((g) => g.value === "Female");
+                                if (female) setGender(female);
+                              } else if (option.value === "Dr." || option.value === "Prof." || option.value === "Baby") {
+                                const select = Gender.find((g) => g.value === "Select");
+                                if (select) setGender(select);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Name<span className="text-danger ms-1">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter patient name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Gender<span className="text-danger ms-1">*</span>
+                          </label>
+                          <CommonSelect
+                            options={Gender}
+                            className="select"
+                            value={gender}
+                            onChange={setGender}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="col-md-3">
@@ -524,13 +598,48 @@ const Modals = () => {
                     />
                   </div>
                 </div>
+                <div className="col-md-3">
+                  <div className="mb-3">
+                    <label className="form-label mb-1 fw-medium">Marital Status</label>
+                    <CommonSelect
+                      options={Marital_Status}
+                      className="select"
+                      value={maritalStatus}
+                      onChange={setMaritalStatus}
+                    />
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="mb-3">
+                    <label className="form-label mb-1 fw-medium">Occupation</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter occupation"
+                      value={occupation}
+                      onChange={(e) => setOccupation(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label mb-1 fw-medium">Drug Sensitivity</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Penicillin, Aspirin"
+                      value={drugSensitivity}
+                      onChange={(e) => setDrugSensitivity(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
               <h6 className="fw-bold text-primary mb-3 border-top pt-3">
                 Documents
               </h6>
               <div className="mb-3">
-                <div className="row">
-                  <div className="col-md-6 mb-3">
+                <div className="row g-3">
+                  <div className="col-md-6 col-lg-4 mb-3">
                     <label className="form-label mb-2 fw-medium">Aadhar Card</label>
                     <div
                       className="border border-dashed rounded p-3 text-center position-relative"
@@ -566,6 +675,11 @@ const Modals = () => {
                             Remove
                           </button>
                         </div>
+                      ) : existingAadharS3Url ? (
+                        <div>
+                          <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                          <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                        </div>
                       ) : (
                         <div>
                           <i className="ti ti-upload fs-24 text-muted mb-2"></i>
@@ -575,7 +689,57 @@ const Modals = () => {
                       )}
                     </div>
                   </div>
-                  <div className="col-md-6 mb-3">
+                  <div className="col-md-6 col-lg-3 mb-3">
+                    <label className="form-label mb-2 fw-medium">Ayushman Card</label>
+                    <div
+                      className="border border-dashed rounded p-3 text-center position-relative"
+                      style={{
+                        minHeight: "100px",
+                        cursor: "pointer",
+                        backgroundColor: "#f8f9fa",
+                      }}
+                      onClick={() => {
+                        const input = document.getElementById("edit-ayushman-upload") as HTMLInputElement;
+                        input?.click();
+                      }}
+                    >
+                      <input
+                        id="edit-ayushman-upload"
+                        type="file"
+                        className="d-none"
+                        accept="image/*,.pdf"
+                        onChange={(e) => handleFileSelect(e, "ayushman")}
+                      />
+                      {ayushmanFile ? (
+                        <div>
+                          <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                          <p className="mb-0 text-dark fw-medium">{ayushmanFile.name}</p>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-link text-danger mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAyushmanFile(null);
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : ayushmanCardS3Url ? (
+                        <div>
+                          <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                          <p className="mb-0 text-dark fw-medium">Existing document on file</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                          <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                          <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-md-6 col-lg-3 mb-3">
                     <label className="form-label mb-2 fw-medium">Other Document</label>
                     <div
                       className="border border-dashed rounded p-3 text-center position-relative"

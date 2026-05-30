@@ -14,8 +14,7 @@ import {
   Blood_Group,
   Appointment_Type,
 } from "@/core/common/selectOption";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 
@@ -581,7 +580,7 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Phone Number</label>
-                      <PhoneInput
+                      <IndianPhoneInput
                         defaultCountry="IN"
                         value={phone}
                         onChange={(value) => setPhone(value || "")}
@@ -663,7 +662,7 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
                   <div className="col-md-6">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Emergency Contact Phone</label>
-                      <PhoneInput defaultCountry="IN" value={emergencyPhone} onChange={(value) => setEmergencyPhone(value || "")} className="form-control" />
+                      <IndianPhoneInput defaultCountry="IN" value={emergencyPhone} onChange={(value) => setEmergencyPhone(value || "")} className="form-control" />
                     </div>
                   </div>
                 </div>

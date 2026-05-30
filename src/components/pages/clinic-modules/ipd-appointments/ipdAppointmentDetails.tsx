@@ -20,6 +20,9 @@ import {
   type IIpdApiRecord,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
 import IpdDischargeSummaryForm from "@/components/pages/clinic-modules/ipd-appointments/IpdDischargeSummaryForm";
+import PrintDischargeSummary, {
+  buildPrintDischargeSummaryData,
+} from "@/components/pages/clinic-modules/ipd-appointments/printDischargeSummary";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -61,6 +64,7 @@ const IpdAppointmentDetailsComponent = () => {
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
   const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
   const [showDischargeSummary, setShowDischargeSummary] = useState(false);
+  const [showPrintDischargeSummary, setShowPrintDischargeSummary] = useState(false);
   const [dischargeSummaryRaw, setDischargeSummaryRaw] = useState<unknown>(null);
 
   const isAdmin = useMemo(() => {
@@ -177,6 +181,16 @@ const IpdAppointmentDetailsComponent = () => {
   const isMlc = Boolean(ipd.mlc ?? ipd.isMlc);
   const reasonLabel = (ipd.reason ?? ipd.notes ?? "").trim() || "—";
 
+  const handlePrintDischargeSummary = () => {
+    if (!dischargeSummaryRaw || typeof dischargeSummaryRaw !== "object") {
+      alert("No discharge summary found. Please create and save a discharge summary first.");
+      return;
+    }
+    const printData = buildPrintDischargeSummaryData(ipd, dischargeSummaryRaw);
+    if (!printData) return;
+    setShowPrintDischargeSummary(true);
+  };
+
   const handleAddTransaction = async () => {
     if (!ipd || !API_BASE_URL || submitting) return;
 
@@ -280,6 +294,14 @@ const IpdAppointmentDetailsComponent = () => {
             >
               <i className="ti ti-file-text me-1" />
               Discharge Summary
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={handlePrintDischargeSummary}
+            >
+              <i className="ti ti-printer me-1" />
+              Print Discharge Summary
             </button>
             <button
               type="button"
@@ -616,6 +638,17 @@ const IpdAppointmentDetailsComponent = () => {
           onClose={() => setShowPrintReceipt(false)}
         />
       ) : null}
+
+      {showPrintDischargeSummary && ipd ? (() => {
+        const summaryPrintData = buildPrintDischargeSummaryData(ipd, dischargeSummaryRaw);
+        if (!summaryPrintData) return null;
+        return (
+          <PrintDischargeSummary
+            summaryData={summaryPrintData}
+            onClose={() => setShowPrintDischargeSummary(false)}
+          />
+        );
+      })() : null}
 
       {printTransactionId && ipd ? (() => {
         const txn = transactions.find((t) => t._id === printTransactionId);

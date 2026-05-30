@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 type PasswordField = "password" | "confirmPassword" | "newpassword";
 
 const Modals = () => {
@@ -160,7 +159,7 @@ const [phone, setPhone] = useState<string | undefined>()
                     Current Phone Number
                     <span className="text-danger ms-1">*</span>
                   </label>
-                  <PhoneInput
+                  <IndianPhoneInput
                             defaultCountry="US"
                             value={phone}
                             onChange={setPhone}
@@ -170,7 +169,7 @@ const [phone, setPhone] = useState<string | undefined>()
                   <label className="form-label">
                     New Phone Number<span className="text-danger ms-1">*</span>
                   </label>
-                   <PhoneInput
+                   <IndianPhoneInput
                             defaultCountry="US"
                             value={phone}
                             onChange={setPhone}

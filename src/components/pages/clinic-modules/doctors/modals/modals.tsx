@@ -31,8 +31,7 @@ import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import Select from "react-select";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import {
   formatPatientPhoneForApi,
   validateIndianMobilePhone,
@@ -1491,8 +1490,7 @@ const Modals = () => {
                     <label className="form-label">
                       Phone No <span className="text-danger">*</span>
                     </label>
-                    <PhoneInput
-                      defaultCountry="IN"
+                    <IndianPhoneInput
                       value={phone}
                       onChange={setPhone}
                       required

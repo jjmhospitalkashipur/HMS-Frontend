@@ -14,8 +14,7 @@ import CommonSelect from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
 import { useState } from "react";
 import { all_routes } from "../../../../routes/all_routes";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 
 const EditPatient = () => {
@@ -108,7 +107,7 @@ const EditPatient = () => {
                             Phone Number
                             <span className="text-danger ms-1">*</span>
                           </label>
-                          <PhoneInput
+                          <IndianPhoneInput
                             defaultCountry="US"
                             value={phone}
                             onChange={setPhone}

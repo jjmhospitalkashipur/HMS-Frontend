@@ -13,8 +13,7 @@ import {
 } from "@/core/common/selectOption";
 import CommonSelect from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 
 const Modals = () => {
@@ -89,7 +88,7 @@ const Modals = () => {
                       <label className="form-label mb-1 fw-medium custom-phoneinput">
                         Phone Number<span className="text-danger ms-1">*</span>
                       </label>
-                      <PhoneInput
+                      <IndianPhoneInput
                             defaultCountry="US"
                             value={phone}
                             onChange={setPhone}

@@ -19,6 +19,7 @@ import {
   Visit_Type,
   Blood_Group,
 } from "@/core/common/selectOption";
+import IndianPhoneSearchInput from "@/core/common/indianPhoneInput/IndianPhoneSearchInput";
 
 interface IVisitTypeCharge {
   visitType?: string;
@@ -649,12 +650,12 @@ const EditAppointmentComponent = () => {
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Phone Number</label>
-                      <input
-                        type="text"
-                        className="form-control bg-light"
+                      <IndianPhoneSearchInput
                         value={phone}
                         readOnly
                         disabled
+                        className="bg-light"
+                        inputClassName="bg-light"
                       />
                     </div>
                   </div>

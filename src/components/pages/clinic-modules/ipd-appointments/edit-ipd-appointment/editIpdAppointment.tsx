@@ -41,6 +41,7 @@ import IpdMlcFields, {
   type IIpdMlcData,
 } from "@/components/pages/clinic-modules/ipd-appointments/IpdMlcFields";
 import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
+import IndianPhoneSearchInput from "@/core/common/indianPhoneInput/IndianPhoneSearchInput";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
 import {
@@ -1056,7 +1057,13 @@ const EditIpdAppointmentComponent = () => {
                               <div className="row g-3 m-0">
                                 <div className="col-12 col-sm-6 col-md-4">
                                   <label className="form-label mb-1 fw-medium fs-14">Phone Number</label>
-                                  <input type="text" className="form-control bg-light" value={patient?.phone ?? ""} readOnly disabled />
+                                  <IndianPhoneSearchInput
+                                    value={patient?.phone ?? ""}
+                                    readOnly
+                                    disabled
+                                    className="bg-light"
+                                    inputClassName="bg-light"
+                                  />
                                 </div>
                                 <div className="col-6 col-md-2">
                                   <label className="form-label mb-1 fw-medium fs-14">Title</label>

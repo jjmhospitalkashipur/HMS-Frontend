@@ -10,8 +10,7 @@ import PredefinedDatePicker from "@/core/common/datePicker";
 import CommonSelect from "@/core/common/common-select/commonSelect";
 import { all_routes } from "@/routes/all_routes";
 import ImageWithBasePath from "@/core/imageWithBasePath";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 
 const TicketsModalComponent = () => {
@@ -65,7 +64,7 @@ const [phone, setPhone] = useState<string | undefined>()
                       <label className="form-label">
                         Phone Number<span className="text-danger ms-1">*</span>
                       </label>
-                      <PhoneInput
+                      <IndianPhoneInput
                             defaultCountry="US"
                             value={phone}
                             onChange={setPhone}
@@ -237,7 +236,7 @@ const [phone, setPhone] = useState<string | undefined>()
                       <label className="form-label">
                         Phone Number<span className="text-danger ms-1">*</span>
                       </label>
-                       <PhoneInput
+                       <IndianPhoneInput
                             defaultCountry="US"
                             value={phone}
                             onChange={setPhone}

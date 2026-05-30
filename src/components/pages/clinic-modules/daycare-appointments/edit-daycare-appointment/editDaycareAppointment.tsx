@@ -21,6 +21,7 @@ interface IDoctor {
 }
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import IndianPhoneSearchInput from "@/core/common/indianPhoneInput/IndianPhoneSearchInput";
 
 const BED_CHARGES_OPTIONS: Option[] = [
   { value: "none", label: "None" },
@@ -565,12 +566,12 @@ const EditDaycareAppointmentComponent = () => {
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Phone Number</label>
-                      <input
-                        type="text"
-                        className="form-control bg-light"
+                      <IndianPhoneSearchInput
                         value={patient?.phone ?? ""}
                         readOnly
                         disabled
+                        className="bg-light"
+                        inputClassName="bg-light"
                       />
                     </div>
                   </div>

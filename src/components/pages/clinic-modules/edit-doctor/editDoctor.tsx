@@ -19,8 +19,7 @@ import { useState } from "react";
 import DuplicateForms from "@/core/common/duplicate-forms/duplicateForms";
 import EducationForms from "@/core/common/duplicate-forms/educationForm";
 import RewardsForms from "@/core/common/duplicate-forms/rewardsForm";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 
 const EditDoctorComponent = () => {
@@ -126,7 +125,7 @@ const EditDoctorComponent = () => {
                                   Phone Number
                                   <span className="text-danger">*</span>
                                 </label>
-                                <PhoneInput
+                                <IndianPhoneInput
                                   defaultCountry="IN"
                                   value={phone}
                                   onChange={setPhone}

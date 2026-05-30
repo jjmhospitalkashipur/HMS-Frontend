@@ -31,6 +31,23 @@ export interface IDischargeSummaryFormState
   adviceOnDischarge: string;
 }
 
+export const parseDischargeDateValue = (value: unknown): string | undefined => {
+  if (value == null) return undefined;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    return trimmed.slice(0, 10);
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  return undefined;
+};
+
 export const emptyDischargeSummaryForm = (): IDischargeSummaryFormState => ({
   dischargeDate: new Date().toISOString().slice(0, 10),
   clinicalSummary: "",
@@ -81,9 +98,9 @@ export const normalizeDischargeSummaryFromApi = (
 
   return {
     dischargeDate:
-      typeof nested.dischargeDate === "string" && nested.dischargeDate
-        ? nested.dischargeDate.slice(0, 10)
-        : new Date().toISOString().slice(0, 10),
+      parseDischargeDateValue(nested.dischargeDate) ??
+      parseDischargeDateValue(nested.dateOfDischarge) ??
+      new Date().toISOString().slice(0, 10),
     clinicalSummary: String(nested.clinicalSummary ?? ""),
     provisionalDiagnosis: String(nested.provisionalDiagnosis ?? ""),
     finalDiagnosis: finalDiagnosis.length ? finalDiagnosis : [{ icdCode: "", diagnosisName: "" }],

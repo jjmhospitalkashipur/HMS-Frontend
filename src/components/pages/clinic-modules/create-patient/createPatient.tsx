@@ -8,6 +8,7 @@ import {
   City,
   Country,
   Gender,
+  Marital_Status,
   Primary_Doctor,
   State,
   Status,
@@ -15,8 +16,7 @@ import {
 } from "@/core/common/selectOption";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
@@ -26,6 +26,8 @@ import {
 } from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
+import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
+import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
 
 const CreatePatientComponent = () => {
   const router = useRouter();
@@ -48,16 +50,25 @@ const CreatePatientComponent = () => {
   const [aadharS3Url, setAadharS3Url] = useState<string>("");
   const [otherDocsS3Urls, setOtherDocsS3Urls] = useState<string[]>([]);
   const [ayushmanCardNo, setAyushmanCardNo] = useState<string>("");
+  const [maritalStatus, setMaritalStatus] = useState<Option | null>(Marital_Status[0] || null);
+  const [occupation, setOccupation] = useState<string>("");
+  const [drugSensitivity, setDrugSensitivity] = useState<string>("");
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [ayushmanFile, setAyushmanFile] = useState<File | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'aadhar' | 'doc') => {
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "aadhar" | "doc" | "ayushman"
+  ) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (type === 'aadhar') {
-        setAadharFile(file);
-      } else {
-        setDocFile(file);
-      }
+    if (!file) return;
+    if (type === "aadhar") {
+      setAadharFile(file);
+    } else if (type === "ayushman") {
+      setAyushmanFile(file);
+    } else {
+      setDocFile(file);
     }
   };
   
@@ -153,10 +164,24 @@ const CreatePatientComponent = () => {
 
       setLoading(true);
 
-      // TODO: Upload files to S3 first to get URLs
-      // For now, using placeholder URLs if files are selected
-      // You'll need to implement file upload to S3 before calling this API
-      
+      let uploadedAadharUrl = aadharS3Url;
+      let uploadedAyushmanUrl = "";
+      let uploadedImageUrl = "";
+      const uploadedOtherDocs = [...otherDocsS3Urls];
+
+      if (aadharFile) {
+        uploadedAadharUrl = await uploadFileToS3(aadharFile, "ipd_aadhar_docs");
+      }
+      if (ayushmanFile) {
+        uploadedAyushmanUrl = await uploadFileToS3(ayushmanFile, "ipd_ayushman_docs");
+      }
+      if (profilePhotoFile) {
+        uploadedImageUrl = await uploadFileToS3(profilePhotoFile, "ipd_patient_photos");
+      }
+      if (docFile) {
+        uploadedOtherDocs.push(await uploadFileToS3(docFile, "ipd_other_docs"));
+      }
+
       const patientData = {
         title: title?.value || "",
         name: name,
@@ -170,9 +195,16 @@ const CreatePatientComponent = () => {
         companyName: companyName.trim() || undefined,
         division: division.trim() || undefined,
         aadharNo: aadharNumber || undefined,
-        aadharS3Url: aadharS3Url || undefined,
-        otherDocsS3Urls: otherDocsS3Urls.length > 0 ? otherDocsS3Urls : undefined,
+        aadharS3Url: uploadedAadharUrl || undefined,
+        otherDocsS3Urls: uploadedOtherDocs.length > 0 ? uploadedOtherDocs : undefined,
         ayushmanCardNo: ayushmanCardNo || undefined,
+        ayushmanCardS3Url: uploadedAyushmanUrl || undefined,
+        imageS3Url: uploadedImageUrl || undefined,
+        ...(maritalStatus?.value && maritalStatus.value !== "Select"
+          ? { maritalStatus: maritalStatus.value }
+          : {}),
+        ...(occupation.trim() ? { occupation: occupation.trim() } : {}),
+        ...(drugSensitivity.trim() ? { drugSensitivity: drugSensitivity.trim() } : {}),
       };
 
       const response = await axios.post(`${API_BASE_URL}/hospital/patients`, patientData);
@@ -240,80 +272,70 @@ const CreatePatientComponent = () => {
                   <div className="form">
                     <h6 className="fw-bold text-primary mb-3">Patient Information</h6>
                     <div className="row">
-                      {/* <div className="col-lg-12">
-                        <div className="mb-3 d-flex align-items-center">
-                          <label className="form-label mb-0">
-                            Profile Image
-                          </label>
-                          <div className="drag-upload-btn avatar avatar-xxl rounded-circle bg-light text-muted position-relative overflow-hidden z-1 mb-2 ms-4 p-0">
-                            <i className="ti ti-user-plus fs-16" />
-                            <input
-                              type="file"
-                              className="form-control image-sign"
-                              multiple
-                            />
-                            <div className="position-absolute bottom-0 end-0 star-0 w-100 h-25 bg-dark d-flex align-items-center justify-content-center z-n1">
-                              <Link
-                                href="#"
-                                className="text-white d-flex align-items-center justify-content-center"
-                              >
-                                <i className="ti ti-photo fs-14" />
-                              </Link>
+                      <div className="col-12">
+                        <div className="d-flex flex-column flex-sm-row align-items-start gap-3">
+                          <IpdPatientCompactUpload
+                            label="Patient photo"
+                            placeholder="Add photo"
+                            hint="Jpg / Png"
+                            accept="image/jpeg,image/png,image/jpg"
+                            file={profilePhotoFile}
+                            onFileChange={setProfilePhotoFile}
+                          />
+                          <div className="row flex-grow-1 w-100 m-0">
+                            <div className="col-md-3">
+                              <div className="mb-3">
+                                <label className="form-label mb-1 fw-medium">
+                                  Phone Number
+                                  <span className="text-danger ms-1">*</span>
+                                </label>
+                                <IndianPhoneInput
+                                  value={phone}
+                                  onChange={(value) => setPhone(value || "")}
+                                />
+                              </div>
+                            </div>
+                            <div className="col-md-2">
+                              <div className="mb-3">
+                                <label className="form-label mb-1 fw-medium">
+                                  Title<span className="text-danger ms-1">*</span>
+                                </label>
+                                <CommonSelect
+                                  options={Title}
+                                  className="select"
+                                  value={title || undefined}
+                                  onChange={handleTitleChange}
+                                />
+                              </div>
+                            </div>
+                            <div className="col-md-4">
+                              <div className="mb-3">
+                                <label className="form-label mb-1 fw-medium">
+                                  Name<span className="text-danger ms-1">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  placeholder="Enter patient name"
+                                  value={name}
+                                  onChange={(e) => setName(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <div className="mb-3">
+                                <label className="form-label mb-1 fw-medium">
+                                  Gender<span className="text-danger ms-1">*</span>
+                                </label>
+                                <CommonSelect
+                                  options={Gender}
+                                  className="select"
+                                  value={gender || undefined}
+                                  onChange={(option) => setGender(option)}
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div> */}
-                       <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Phone Number
-                            <span className="text-danger ms-1">*</span>
-                          </label>
-                          <PhoneInput
-                            defaultCountry="IN"
-                            value={phone}
-                            onChange={(value) => setPhone(value || "")}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-2">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Title<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Title}
-                            className="select"
-                            value={title || undefined}
-                            onChange={handleTitleChange}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-4">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Name<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input 
-                            type="text" 
-                            className="form-control" 
-                            placeholder="Enter patient name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="col-md-3">
-                        <div className="mb-3">
-                          <label className="form-label mb-1 fw-medium">
-                            Gender<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            options={Gender}
-                            className="select"
-                            value={gender || undefined}
-                            onChange={(option) => setGender(option)}
-                          />
                         </div>
                       </div>
                       <div className="col-md-3">
@@ -440,6 +462,41 @@ const CreatePatientComponent = () => {
                           />
                         </div>
                       </div>
+                      <div className="col-md-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Marital Status</label>
+                          <CommonSelect
+                            options={Marital_Status}
+                            className="select"
+                            value={maritalStatus || undefined}
+                            onChange={setMaritalStatus}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-3">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Occupation</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter occupation"
+                            value={occupation}
+                            onChange={(e) => setOccupation(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">Drug Sensitivity</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. Penicillin, Aspirin"
+                            value={drugSensitivity}
+                            onChange={(e) => setDrugSensitivity(e.target.value)}
+                          />
+                        </div>
+                      </div>
                       {/* <div className="col-md-6">
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
@@ -470,8 +527,8 @@ const CreatePatientComponent = () => {
                       Documents
                     </h6>
                     <div className="mb-3">
-                      <div className="row">
-                        <div className="col-md-6 mb-3">
+                      <div className="row g-3">
+                        <div className="col-md-6 col-lg-4 mb-3">
                           <label className="form-label mb-2 fw-medium">Aadhar Card</label>
                             <div
                               className="border border-dashed rounded p-3 text-center position-relative"
@@ -515,7 +572,51 @@ const CreatePatientComponent = () => {
                             )}
                           </div>
                         </div>
-                        <div className="col-md-6 mb-3">
+                        <div className="col-md-6 col-lg-3 mb-3">
+                          <label className="form-label mb-2 fw-medium">Ayushman Card</label>
+                          <div
+                            className="border border-dashed rounded p-3 text-center position-relative"
+                            style={{
+                              minHeight: "100px",
+                              cursor: "pointer",
+                              backgroundColor: "#f8f9fa",
+                            }}
+                            onClick={() => {
+                              const input = document.getElementById("create-ayushman-upload") as HTMLInputElement;
+                              input?.click();
+                            }}
+                          >
+                            <input
+                              id="create-ayushman-upload"
+                              type="file"
+                              className="d-none"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileSelect(e, "ayushman")}
+                            />
+                            {ayushmanFile ? (
+                              <div>
+                                <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                <p className="mb-0 text-dark fw-medium">{ayushmanFile.name}</p>
+                                <button
+                                  className="btn btn-sm btn-link text-danger mt-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAyushmanFile(null);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                <p className="mb-1 text-dark fw-medium">Click to upload</p>
+                                <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-md-6 col-lg-3 mb-3">
                           <label className="form-label mb-2 fw-medium">Other Document</label>
                             <div
                               className="border border-dashed rounded p-3 text-center position-relative"
