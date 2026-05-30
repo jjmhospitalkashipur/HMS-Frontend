@@ -95,15 +95,12 @@ export const buildPrintDischargeSummaryData = (
   };
 };
 
-const displayText = (value?: string | null) => {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : "—";
-};
+const hasText = (value?: string | null): boolean => Boolean(value?.trim());
 
 const formatPrintDate = (value?: string | null) => {
-  if (!value?.trim()) return "—";
+  if (!value?.trim()) return "";
   const parsed = dayjs(value);
-  return parsed.isValid() ? parsed.format("DD MMM YYYY") : "—";
+  return parsed.isValid() ? parsed.format("DD MMM YYYY") : "";
 };
 
 const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryProps) => {
@@ -275,13 +272,12 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           return licenseNo ? `${withTitle} [${licenseNo}]` : withTitle;
         })()
       : "—";
-  const visitDate = formatPrintDate(summaryData.admissionDate);
-  const dischargeDateLabel = formatPrintDate(summaryData.dischargeDate);
+  const visitDate = formatPrintDate(summaryData.admissionDate) || "—";
 
   const finalDiagnosis = summaryData.finalDiagnosis ?? [];
   const medicines = summaryData.medicinesOnDischarge ?? [];
-  const adviceText =
-    summaryData.adviceOnDischarge?.map((a) => a.trim()).filter(Boolean).join("\n") || "—";
+  const adviceLines =
+    summaryData.adviceOnDischarge?.map((a) => a.trim()).filter(Boolean) ?? [];
 
   const logoUrl =
     typeof window !== "undefined"
@@ -344,30 +340,36 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
             </table>
           </div>
 
-          <div className="discharge-date-row">
-            Date of Discharge: {dischargeDateLabel}
-          </div>
-
-          {summaryData.conditionOnDischarge?.trim() ? (
-            <div className="section">
-              <div className="section-title">Condition on Discharge</div>
-              <div className="section-body">{displayText(summaryData.conditionOnDischarge)}</div>
+          {hasText(summaryData.dischargeDate) ? (
+            <div className="discharge-date-row">
+              Date of Discharge: {formatPrintDate(summaryData.dischargeDate)}
             </div>
           ) : null}
 
-          <div className="section">
-            <div className="section-title">Clinical Summary</div>
-            <div className="section-body">{displayText(summaryData.clinicalSummary)}</div>
-          </div>
+          {hasText(summaryData.conditionOnDischarge) ? (
+            <div className="section">
+              <div className="section-title">Condition on Discharge</div>
+              <div className="section-body">{summaryData.conditionOnDischarge!.trim()}</div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Provisional Diagnosis</div>
-            <div className="section-body">{displayText(summaryData.provisionalDiagnosis)}</div>
-          </div>
+          {hasText(summaryData.clinicalSummary) ? (
+            <div className="section">
+              <div className="section-title">Clinical Summary</div>
+              <div className="section-body">{summaryData.clinicalSummary!.trim()}</div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Final Diagnosis</div>
-            {finalDiagnosis.length > 0 ? (
+          {hasText(summaryData.provisionalDiagnosis) ? (
+            <div className="section">
+              <div className="section-title">Provisional Diagnosis</div>
+              <div className="section-body">{summaryData.provisionalDiagnosis!.trim()}</div>
+            </div>
+          ) : null}
+
+          {finalDiagnosis.length > 0 ? (
+            <div className="section">
+              <div className="section-title">Final Diagnosis</div>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -378,30 +380,32 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 <tbody>
                   {finalDiagnosis.map((row, index) => (
                     <tr key={`diag-${index}`}>
-                      <td>{displayText(row.icdCode)}</td>
-                      <td>{displayText(row.diagnosisName)}</td>
+                      <td>{row.icdCode.trim()}</td>
+                      <td>{row.diagnosisName.trim()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            ) : (
-              <div className="section-body">—</div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Course in Hospital</div>
-            <div className="section-body">{displayText(summaryData.courseInHospital)}</div>
-          </div>
+          {hasText(summaryData.courseInHospital) ? (
+            <div className="section">
+              <div className="section-title">Course in Hospital</div>
+              <div className="section-body">{summaryData.courseInHospital!.trim()}</div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Treatment Given</div>
-            <div className="section-body">{displayText(summaryData.treatmentGiven)}</div>
-          </div>
+          {hasText(summaryData.treatmentGiven) ? (
+            <div className="section">
+              <div className="section-title">Treatment Given</div>
+              <div className="section-body">{summaryData.treatmentGiven!.trim()}</div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Medicines on Discharge</div>
-            {medicines.length > 0 ? (
+          {medicines.length > 0 ? (
+            <div className="section">
+              <div className="section-title">Medicines on Discharge</div>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -414,28 +418,30 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 <tbody>
                   {medicines.map((med, index) => (
                     <tr key={`med-${index}`}>
-                      <td>{displayText(med.medicineName)}</td>
-                      <td>{displayText(med.dosage)}</td>
-                      <td>{displayText(med.duration)}</td>
-                      <td>{displayText(med.instructions)}</td>
+                      <td>{med.medicineName.trim()}</td>
+                      <td>{med.dosage?.trim() ?? ""}</td>
+                      <td>{med.duration?.trim() ?? ""}</td>
+                      <td>{med.instructions?.trim() ?? ""}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            ) : (
-              <div className="section-body">—</div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Advice on Discharge</div>
-            <div className="section-body">{adviceText}</div>
-          </div>
+          {adviceLines.length > 0 ? (
+            <div className="section">
+              <div className="section-title">Advice on Discharge</div>
+              <div className="section-body">{adviceLines.join("\n")}</div>
+            </div>
+          ) : null}
 
-          <div className="section">
-            <div className="section-title">Follow Up</div>
-            <div className="section-body">{displayText(summaryData.followUp)}</div>
-          </div>
+          {hasText(summaryData.followUp) ? (
+            <div className="section">
+              <div className="section-title">Follow Up</div>
+              <div className="section-body">{summaryData.followUp!.trim()}</div>
+            </div>
+          ) : null}
         </div>
 
         <div className="footer">
