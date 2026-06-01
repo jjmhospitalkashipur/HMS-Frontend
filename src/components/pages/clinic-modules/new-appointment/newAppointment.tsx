@@ -2180,13 +2180,6 @@ const NewAppointmentComponent = () => {
       setIpdError("Please select a consulting doctor.");
       return;
     }
-    const reason = ipdNotes.trim();
-    if (!reason) {
-      setIpdError("Please enter reason for admission in Notes.");
-      setIpdFormStep(2);
-      return;
-    }
-
     setIpdLoading(true);
     try {
       let uploadedImageUrl = "";
@@ -3883,7 +3876,7 @@ const NewAppointmentComponent = () => {
                                     <span
                                       className={`fw-medium fs-14 text-nowrap ${!ipdViaOpd ? "text-primary" : "text-muted"}`}
                                     >
-                                      Direct
+                                      Emergency
                                     </span>
                                     <div className="form-check form-switch mb-0 flex-shrink-0">
                                       <input
@@ -3983,7 +3976,7 @@ const NewAppointmentComponent = () => {
                                 />
                                 <div className="col-12">
                                   <label htmlFor="ipd-new-notes" className="form-label mb-1 fw-medium fs-14">
-                                    Reason for Admission <span className="text-danger">*</span>
+                                    Reason for Admission
                                   </label>
                                   <textarea
                                     id="ipd-new-notes"
@@ -3992,7 +3985,6 @@ const NewAppointmentComponent = () => {
                                     value={ipdNotes}
                                     onChange={(e) => setIpdNotes(e.target.value)}
                                     placeholder="e.g. Diabetes complications"
-                                    required
                                   />
                                 </div>
                               </div>

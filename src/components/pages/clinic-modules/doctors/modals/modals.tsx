@@ -36,6 +36,8 @@ import {
   formatPatientPhoneForApi,
   validateIndianMobilePhone,
 } from "@/core/utils/formatPatientPhoneForApi";
+import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
+import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
 
 interface ISlot {
   session: string;
@@ -515,10 +517,15 @@ const Modals = () => {
   const [department, setDepartment] = useState<Option | null>(Department[0] || null);
   const [designation, setDesignation] = useState<Option | null>(Designation[0] || null);
   const [medicalLicenseNo, setMedicalLicenseNo] = useState<string>("");
+  const [opdNumber, setOpdNumber] = useState<string>("");
   const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState<string>("");
   const [address, setAddress] = useState<string>("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  // const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
+  // const [existingImageUrl, setExistingImageUrl] = useState<string>("");
+  const [existingPosterUrl, setExistingPosterUrl] = useState<string>("");
+  // const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [posterRemoved, setPosterRemoved] = useState(false);
   const [sessions, setSessions] = useState<Option[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [visitTypes, setVisitTypes] = useState([
@@ -543,10 +550,15 @@ const Modals = () => {
     setDepartment(Department[0] || null);
     setDesignation(Designation[0] || null);
     setMedicalLicenseNo("");
+    setOpdNumber("");
     setMaxAppointmentsPerSlot("");
     setAddress("");
-    setPhotoFile(null);
+    // setPhotoFile(null);
     setPosterFile(null);
+    // setExistingImageUrl("");
+    setExistingPosterUrl("");
+    // setPhotoRemoved(false);
+    setPosterRemoved(false);
     setSessions([]);
     setVisitTypes([
       { type: "OPD", charge: "" },
@@ -581,8 +593,15 @@ const Modals = () => {
         setDepartment(Department.find(d => d.value === doctor.department) || Department[0] || null);
         setDesignation(Designation.find(d => d.value === doctor.designation) || Designation[0] || null);
         setMedicalLicenseNo(doctor.medicalLicenseNo || "");
+        setOpdNumber(doctor.opdNumber || "");
         setMaxAppointmentsPerSlot(doctor.maxAppointmentsPerSlot?.toString() || "");
         setAddress(doctor.address || "");
+        // setExistingImageUrl(doctor.imageUrl ?? "");
+        setExistingPosterUrl(doctor.posterUrl ?? "");
+        // setPhotoRemoved(false);
+        setPosterRemoved(false);
+        // setPhotoFile(null);
+        setPosterFile(null);
 
         // Map sessions (backend may send "noon" or "Afternoon"; we use "Afternoon", capitalize others)
         if (doctor.sessions && Array.isArray(doctor.sessions)) {
@@ -682,17 +701,6 @@ const Modals = () => {
       editModal.removeEventListener("hidden.bs.offcanvas", handleModalHidden);
     };
   }, [fetchDoctorData]);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (type === 'photo') {
-        setPhotoFile(file);
-      } else {
-        setPosterFile(file);
-      }
-    }
-  };
 
   const handleVisitTypeChange = (index: number, charge: string) => {
     const updated = [...visitTypes];
@@ -823,6 +831,19 @@ const Modals = () => {
 
       setLoading(true);
 
+      // let uploadedImageUrl = existingImageUrl;
+      let uploadedPosterUrl = existingPosterUrl;
+      // if (photoFile) {
+      //   uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
+      // } else if (photoRemoved) {
+      //   uploadedImageUrl = "";
+      // }
+      if (posterFile) {
+        uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
+      } else if (posterRemoved) {
+        uploadedPosterUrl = "";
+      }
+
       // Map visit types to API shape: visitType, appointmentType, charge
       // OPD, Day Care, IPD → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
       const visitTypesData = visitTypes
@@ -842,9 +863,9 @@ const Modals = () => {
 
       const doctorData = {
         name: name,
-        imageUrl: photoFile 
-          ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
-          : undefined,
+        // imageUrl: photoRemoved
+        //   ? ""
+        //   : uploadedImageUrl?.trim() || undefined,
         email: email || undefined,
         phone: formatPatientPhoneForApi(phone),
         dob: formatDob(),
@@ -852,12 +873,13 @@ const Modals = () => {
         department: department?.value !== "Select" ? department?.value : "",
         designation: designation?.value !== "Select" ? designation?.value : "",
         medicalLicenseNo: medicalLicenseNo,
+        opdNumber: opdNumber.trim(),
         gender: gender?.value !== "Select" ? gender?.value : "",
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
-        posterUrl: posterFile 
-          ? "https://s3.amazonaws.com/hospital-docs/doctors/posters/dr_priya_sharma_poster.jpg" 
-          : undefined,
+        posterUrl: posterRemoved
+          ? ""
+          : uploadedPosterUrl?.trim() || undefined,
         visitTypes: visitTypesData,
         sessions: sessionsData.length > 0 ? sessionsData : undefined,
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || undefined,
@@ -1452,7 +1474,7 @@ const Modals = () => {
         className="offcanvas offcanvas-offset offcanvas-end offcanvas-large"
         tabIndex={-1}
         id="edit_doctor"
-        style={{ width: '850px' }}
+        style={{ width: "min(1100px, 96vw)", maxWidth: "100%" }}
       >
         <div className="offcanvas-header d-block pb-0 px-0">
           <div className="border-bottom d-flex align-items-center justify-content-between pb-3 px-3">
@@ -1535,7 +1557,7 @@ const Modals = () => {
                     </div>
                   </div>
                 </div>
-                <div className="col-lg-3">
+                <div className="col-lg-2">
                   <div className="mb-3">
                     <label className="form-label">
                       Gender
@@ -1549,7 +1571,7 @@ const Modals = () => {
                     />
                   </div>
                 </div>
-                <div className="col-lg-3">
+                <div className="col-lg-2">
                   <div className="mb-3">
                     <label className="form-label">
                       Blood Group
@@ -1562,7 +1584,7 @@ const Modals = () => {
                     />
                   </div>
                 </div>
-                <div className="col-lg-3">
+                <div className="col-lg-2">
                   <div className="mb-3">
                     <label className="form-label">
                       Years of Exp <span className="text-danger">*</span>
@@ -1590,7 +1612,8 @@ const Modals = () => {
                     />
                   </div>
                 </div>
-                <div className="col-lg-3">
+                <div className="w-100" />
+                <div className="col-lg-2">
                   <div className="mb-3">
                     <label className="form-label">
                       Designation
@@ -1619,10 +1642,21 @@ const Modals = () => {
                     />
                   </div>
                 </div>
-                <div className="col-lg-3">
+                <div className="col-lg-2">
                   <div className="mb-3">
-                    <label className="form-label">
-                      Max Appts per Slot
+                    <label className="form-label">OPD No.</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={opdNumber}
+                      onChange={(e) => setOpdNumber(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-2">
+                  <div className="mb-3">
+                    <label className="form-label text-nowrap">
+                      Max Appts/Slot
                     </label>
                     <input 
                       type="number" 
@@ -1701,99 +1735,25 @@ const Modals = () => {
                     />
                   </div>
                   <div className="row">
+                    {/* Photo upload hidden — poster only for queue display */}
                     <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label mb-2 fw-medium">Photo</label>
-                        <div
-                          className="border border-dashed rounded p-3 text-center position-relative"
-                          style={{
-                            minHeight: "100px",
-                            cursor: "pointer",
-                            backgroundColor: "#f8f9fa",
-                          }}
-                          onClick={() => {
-                            const input = document.getElementById('edit-photo-upload') as HTMLInputElement;
-                            input?.click();
-                          }}
-                        >
-                          <input
-                            id="edit-photo-upload"
-                            type="file"
-                            className="d-none"
-                            accept="image/*"
-                            onChange={(e) => handleFileSelect(e, 'photo')}
-                          />
-                          {photoFile ? (
-                            <div>
-                              <i className="ti ti-file-check fs-24 text-success mb-2"></i>
-                              <p className="mb-0 text-dark fw-medium">{photoFile.name}</p>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-link text-danger mt-2"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPhotoFile(null);
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ) : (
-                            <div>
-                              <i className="ti ti-upload fs-24 text-muted mb-2"></i>
-                              <p className="mb-1 text-dark fw-medium">Click to upload</p>
-                              <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="mb-3">
-                        <label className="form-label mb-2 fw-medium">Poster</label>
-                        <div
-                          className="border border-dashed rounded p-3 text-center position-relative"
-                          style={{
-                            minHeight: "100px",
-                            cursor: "pointer",
-                            backgroundColor: "#f8f9fa",
-                          }}
-                          onClick={() => {
-                            const input = document.getElementById('edit-poster-upload') as HTMLInputElement;
-                            input?.click();
-                          }}
-                        >
-                          <input
-                            id="edit-poster-upload"
-                            type="file"
-                            className="d-none"
-                            accept="image/*"
-                            onChange={(e) => handleFileSelect(e, 'poster')}
-                          />
-                          {posterFile ? (
-                            <div>
-                              <i className="ti ti-file-check fs-24 text-success mb-2"></i>
-                              <p className="mb-0 text-dark fw-medium">{posterFile.name}</p>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-link text-danger mt-2"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPosterFile(null);
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ) : (
-                            <div>
-                              <i className="ti ti-upload fs-24 text-muted mb-2"></i>
-                              <p className="mb-1 text-dark fw-medium">Click to upload</p>
-                              <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <IpdPatientCompactUpload
+                        label="Poster"
+                        placeholder="Add poster"
+                        hint="Jpg / Png"
+                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                        file={posterFile}
+                        previewUrl={!posterRemoved ? existingPosterUrl || undefined : undefined}
+                        onFileChange={(file) => {
+                          setPosterFile(file);
+                          if (file) setPosterRemoved(false);
+                        }}
+                        onClear={() => {
+                          setPosterFile(null);
+                          setExistingPosterUrl("");
+                          setPosterRemoved(true);
+                        }}
+                      />
                     </div>
                   </div>
                 </div>

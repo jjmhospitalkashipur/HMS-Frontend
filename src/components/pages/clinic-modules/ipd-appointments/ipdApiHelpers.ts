@@ -54,6 +54,7 @@ export interface IIpdApiRecord {
   admissionDate?: string;
   appointmentDate?: string;
   status?: string;
+  isDischarge?: boolean;
   paymentStatus?: string;
   billingCharges?: IIpdBillingCharge[];
   procedures?: IIpdProcedure[];
@@ -85,6 +86,15 @@ export interface IIpdApiRecord {
 }
 
 const asIpdApiRecord = (value: object): IIpdApiRecord => value as unknown as IIpdApiRecord;
+
+export const isIpdDischarged = (record: {
+  isDischarge?: boolean;
+  status?: string;
+}): boolean =>
+  Boolean(record.isDischarge) ||
+  record.status === "Completed" ||
+  record.status === "Discharged" ||
+  record.status?.toLowerCase() === "discharged";
 
 export const extractIpdFromGetResponse = (data: unknown): IIpdApiRecord | null => {
   if (!data || typeof data !== "object") return null;
@@ -237,6 +247,7 @@ export const mapIpdApiToAppointmentDetail = (
     appointmentDate: admissionOrAppointment,
     admissionDate: raw.admissionDate,
     status: raw.status,
+    isDischarge: Boolean(raw.isDischarge),
     paymentStatus: raw.paymentStatus,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,

@@ -806,11 +806,6 @@ const EditIpdAppointmentComponent = () => {
       setError("Please complete required fields.");
       return;
     }
-    if (!payload.reason) {
-      setError("Please enter reason for admission.");
-      setFormStep(2);
-      return;
-    }
     const discountNum = Number(discount) || 0;
     const hasDiscountChanged = Math.abs(discountNum - (Number(discountFromApi) || 0)) > 0.0001;
     if (hasDiscountChanged && discountNum > 0 && discountPwd !== undefined && discountPwd.trim()) {
@@ -874,10 +869,6 @@ const EditIpdAppointmentComponent = () => {
     if (formStep === 2) {
       if (!selectedDoctor?.value) {
         setError("Please select a consulting doctor.");
-        return;
-      }
-      if (!reason.trim()) {
-        setError("Please enter reason for admission.");
         return;
       }
       if (viaOpd && !selectedOpdVisit?.value) {
@@ -1278,7 +1269,7 @@ const EditIpdAppointmentComponent = () => {
                             <span
                               className={`fw-medium fs-14 text-nowrap ${!viaOpd ? "text-primary" : "text-muted"}`}
                             >
-                              Direct
+                              Emergency
                             </span>
                             <div className="form-check form-switch mb-0 flex-shrink-0">
                               <input
@@ -1370,7 +1361,7 @@ const EditIpdAppointmentComponent = () => {
                         />
                         <div className="col-12">
                           <label htmlFor="edit-ipd-reason" className="form-label mb-1 fw-medium fs-14">
-                            Reason for Admission <span className="text-danger">*</span>
+                            Reason for Admission
                           </label>
                           <textarea
                             id="edit-ipd-reason"
@@ -1379,7 +1370,6 @@ const EditIpdAppointmentComponent = () => {
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             placeholder="e.g. Diabetes complications"
-                            required
                           />
                         </div>
                       </div>

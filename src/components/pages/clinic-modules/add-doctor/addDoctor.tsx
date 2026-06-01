@@ -24,6 +24,7 @@ import {
   formatPatientPhoneForApi,
   validateIndianMobilePhone,
 } from "@/core/utils/formatPatientPhoneForApi";
+import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
 
 const AddDoctorComponent = () => {
   const router = useRouter();
@@ -44,9 +45,10 @@ const AddDoctorComponent = () => {
   const [department, setDepartment] = useState<Option | null>(Department[0] || null);
   const [designation, setDesignation] = useState<Option | null>(Designation[0] || null);
   const [medicalLicenseNo, setMedicalLicenseNo] = useState<string>("");
+  const [opdNumber, setOpdNumber] = useState<string>("");
   const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState<string>("");
   const [address, setAddress] = useState<string>("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  // const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [sessions, setSessions] = useState<Option[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -62,15 +64,14 @@ const AddDoctorComponent = () => {
     { type: "IPD", charge: "" },
   ]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'poster') => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: "photo" | "poster") => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (type === 'photo') {
-        setPhotoFile(file);
-      } else {
-        setPosterFile(file);
-      }
+    if (file && type === "poster") {
+      setPosterFile(file);
     }
+    // if (file && type === "photo") {
+    //   setPhotoFile(file);
+    // }
   };
 
   const handleVisitTypeChange = (index: number, charge: string) => {
@@ -132,6 +133,15 @@ const AddDoctorComponent = () => {
 
       setLoading(true);
 
+      // let uploadedImageUrl = "";
+      let uploadedPosterUrl = "";
+      // if (photoFile) {
+      //   uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
+      // }
+      if (posterFile) {
+        uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
+      }
+
       // Map visit types to API shape: visitType, appointmentType, charge
       // OPD, Day Care, IPD → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
       const visitTypesData = visitTypes
@@ -153,9 +163,6 @@ const AddDoctorComponent = () => {
       const genderValue = gender?.value && gender.value !== "Select" ? gender.value : "";
       const doctorData: Record<string, unknown> = {
         name: name,
-        imageUrl: photoFile 
-          ? "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg" 
-          : "https://s3.amazonaws.com/hospital-docs/doctors/profile/dr_priya_sharma_profile.jpg",
         email: email.trim(),
         password: password.trim(),
         phone: formatPatientPhoneForApi(phone),
@@ -163,15 +170,15 @@ const AddDoctorComponent = () => {
         department: department?.value !== "Select" ? department?.value : "",
         designation: designation?.value !== "Select" ? designation?.value : "",
         medicalLicenseNo: medicalLicenseNo,
+        opdNumber: opdNumber.trim(),
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
-        posterUrl: posterFile 
-          ? "https://s3.amazonaws.com/hospital-docs/doctors/posters/dr_priya_sharma_poster.jpg" 
-          : "https://s3.amazonaws.com/hospital-docs/doctors/posters/dr_priya_sharma_poster.jpg",
         visitTypes: visitTypesData,
         sessions: sessionsData.length > 0 ? sessionsData : ["Morning", "Afternoon", "Evening"],
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || 4,
       };
+      // if (uploadedImageUrl) doctorData.imageUrl = uploadedImageUrl;
+      if (uploadedPosterUrl) doctorData.posterUrl = uploadedPosterUrl;
       if (formattedDob) doctorData.dob = formattedDob;
       if (genderValue) doctorData.gender = genderValue;
 
@@ -362,11 +369,10 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="w-100" />
+                        <div className="col-lg-2">
                           <div className="mb-3">
-                            <label className="form-label">
-                              Designation
-                            </label>
+                            <label className="form-label">Designation</label>
                             <CommonSelect
                               options={Designation}
                               className="select"
@@ -377,25 +383,32 @@ const AddDoctorComponent = () => {
                         </div>
                         <div className="col-lg-3">
                           <div className="mb-3">
-                            <label className="form-label">
-                              Medical License No
-                            </label>
-                            <input 
-                              type="text" 
-                              className="form-control" 
+                            <label className="form-label">Medical License No</label>
+                            <input
+                              type="text"
+                              className="form-control"
                               value={medicalLicenseNo}
                               onChange={(e) => setMedicalLicenseNo(e.target.value)}
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
-                            <label className="form-label">
-                              Max Appts per Slot
-                            </label>
-                            <input 
-                              type="number" 
-                              className="form-control" 
+                            <label className="form-label">OPD No.</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={opdNumber}
+                              onChange={(e) => setOpdNumber(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-2">
+                          <div className="mb-3">
+                            <label className="form-label text-nowrap">Max Appts/Slot</label>
+                            <input
+                              type="number"
+                              className="form-control"
                               value={maxAppointmentsPerSlot}
                               onChange={(e) => setMaxAppointmentsPerSlot(e.target.value)}
                             />
@@ -470,53 +483,14 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                           <div className="row">
+                            {/* Photo upload hidden — poster only for queue display
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label mb-2 fw-medium">Photo</label>
-                                <div
-                                  className="border border-dashed rounded p-3 text-center position-relative"
-                                  style={{
-                                    minHeight: "100px",
-                                    cursor: "pointer",
-                                    backgroundColor: "#f8f9fa",
-                                  }}
-                                  onClick={() => {
-                                    const input = document.getElementById('photo-upload') as HTMLInputElement;
-                                    input?.click();
-                                  }}
-                                >
-                                  <input
-                                    id="photo-upload"
-                                    type="file"
-                                    className="d-none"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileSelect(e, 'photo')}
-                                  />
-                                  {photoFile ? (
-                                    <div>
-                                      <i className="ti ti-file-check fs-24 text-success mb-2"></i>
-                                      <p className="mb-0 text-dark fw-medium">{photoFile.name}</p>
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-link text-danger mt-2"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setPhotoFile(null);
-                                        }}
-                                      >
-                                        Remove
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      <i className="ti ti-upload fs-24 text-muted mb-2"></i>
-                                      <p className="mb-1 text-dark fw-medium">Click to upload</p>
-                                      <p className="mb-0 text-muted fs-13">JPG, PNG or PDF (max. 5MB)</p>
-                                    </div>
-                                  )}
-                                </div>
+                                ...
                               </div>
                             </div>
+                            */}
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label mb-2 fw-medium">Poster</label>

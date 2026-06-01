@@ -130,6 +130,7 @@ export interface IIpdAppointmentDetail {
   admissionDate?: string;
   reason?: string;
   status?: string;
+  isDischarge?: boolean;
   createdAt?: string;
   updatedAt?: string;
   amountPaid?: number;

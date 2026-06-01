@@ -16,6 +16,7 @@ import {
 } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
 import {
   extractIpdFromGetResponse,
+  isIpdDischarged,
   mapIpdApiToAppointmentDetail,
   type IIpdApiRecord,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
@@ -180,6 +181,7 @@ const IpdAppointmentDetailsComponent = () => {
       : null;
   const isMlc = Boolean(ipd.mlc ?? ipd.isMlc);
   const reasonLabel = (ipd.reason ?? ipd.notes ?? "").trim() || "—";
+  const isDischarged = isIpdDischarged(ipd);
 
   const handlePrintDischargeSummary = () => {
     if (!dischargeSummaryRaw || typeof dischargeSummaryRaw !== "object") {
@@ -280,13 +282,26 @@ const IpdAppointmentDetailsComponent = () => {
           </h6>
 
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <Link
-              href={`${all_routes.editIpdAppointment}/${ipd._id}`}
-              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
-            >
-              <i className="ti ti-edit me-1" />
-              Edit
-            </Link>
+            {isDischarged ? (
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+                disabled
+                title="Edit disabled for discharged IPD"
+                aria-label="Edit disabled for discharged IPD"
+              >
+                <i className="ti ti-edit me-1" />
+                Edit
+              </button>
+            ) : (
+              <Link
+                href={`${all_routes.editIpdAppointment}/${ipd._id}`}
+                className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              >
+                <i className="ti ti-edit me-1" />
+                Edit
+              </Link>
+            )}
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"

@@ -10,6 +10,8 @@ interface IIpdPatientCompactUploadProps {
   file: File | null;
   previewUrl?: string;
   onFileChange: (file: File | null) => void;
+  /** Clears an existing server-side preview (called on Remove along with onFileChange(null)). */
+  onClear?: () => void;
   disabled?: boolean;
 }
 
@@ -21,6 +23,7 @@ const IpdPatientCompactUpload = ({
   file,
   previewUrl,
   onFileChange,
+  onClear,
   disabled = false,
 }: IIpdPatientCompactUploadProps) => {
   const inputId = useId();
@@ -63,8 +66,10 @@ const IpdPatientCompactUpload = ({
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     applyFile(null);
     if (inputRef.current) inputRef.current.value = "";
+    onClear?.();
   };
 
   const hasImage = Boolean(imagePreviewSrc);

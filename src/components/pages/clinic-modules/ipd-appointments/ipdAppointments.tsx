@@ -11,7 +11,7 @@ import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
-import { DatePicker } from "antd";
+import { DatePicker, Tooltip } from "antd";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
@@ -47,6 +47,16 @@ interface IIpdPatient {
   gender?: string;
 }
 
+interface IIpdBedCharge {
+  wardId?: string;
+  wardName?: string;
+  chargePerDay?: number;
+  fromDate?: string;
+  toDate?: string;
+  days?: number;
+  totalCharge?: number;
+}
+
 interface IIpdAppointment {
   _id: string;
   ipdId?: string;
@@ -57,6 +67,8 @@ interface IIpdAppointment {
   ipdChargesTotal?: number;
   bedChargesType?: string;
   bedChargesTotal?: number;
+  bedCharge?: IIpdBedCharge;
+  admissionDays?: number;
   procedures?: IIpdProcedure[];
   billingCharges?: Array<{
     type?: string;
@@ -121,6 +133,7 @@ interface IRow {
   DoctorDesignation?: string;
   Department: string;
   DepartmentName?: string;
+  Days?: number;
   Procedures: string[];
   Total: number;
   Status: string;
@@ -322,6 +335,7 @@ const IpdAppointmentsComponent = () => {
             DoctorDesignation: doctorDesignation,
             Department: dept,
             DepartmentName: deptName,
+            Days: item.admissionDays,
             Procedures: proceduresList,
             Total: item.totalPrice ?? 0,
             Status: item.status || "",
@@ -543,20 +557,59 @@ const IpdAppointmentsComponent = () => {
       },
     },
     {
-      title: "Procedures",
+      title: "Days Of Admission",
+      dataIndex: "Days",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (value: number | undefined) => (
+        <span className="text-dark fw-medium">
+          {value != null ? value : "—"}
+        </span>
+      ),
+    },
+    {
+      title: "Provisional Diagnosis",
       dataIndex: "Procedures",
       sorter: false,
       showSorterTooltip: false,
       render: (_: unknown, record: IRow) => {
         const procedures = record.Procedures ?? [];
-        if (!procedures.length) return "-";
+        if (!procedures.length) return "—";
+        const [first, ...rest] = procedures;
+        const moreCount = rest.length;
         return (
-          <div className="d-flex flex-column gap-1 text-dark">
-            {procedures.map((name, idx) => (
-              <span key={`${name}-${idx}`} className="fs-13">
-                {name}
-              </span>
-            ))}
+          <div className="d-flex flex-column align-items-start gap-1 text-dark">
+            <span className="fs-13">{first}</span>
+            {moreCount > 0 ? (
+              <Tooltip
+                placement="bottomLeft"
+                color="#ffffff"
+                styles={{
+                  body: {
+                    color: "#212529",
+                    boxShadow: "0 4px 14px rgba(0, 0, 0, 0.1)",
+                    border: "1px solid #e9ecef",
+                    padding: "8px 12px",
+                  },
+                }}
+                title={
+                  <ul className="mb-0 ps-3 text-start text-dark">
+                    {rest.map((name, idx) => (
+                      <li key={`${name}-${idx}`}>{name}</li>
+                    ))}
+                  </ul>
+                }
+              >
+                <span
+                  className="badge badge-soft-secondary border border-secondary fs-12 fw-medium px-2 py-1"
+                  style={{ cursor: "default" }}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  +{moreCount} more
+                </span>
+              </Tooltip>
+            ) : null}
           </div>
         );
       },

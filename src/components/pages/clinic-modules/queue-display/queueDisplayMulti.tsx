@@ -27,11 +27,19 @@ interface IQueuePatient {
 interface IQueueDisplay {
   doctorId: string;
   doctorName: string;
+  opdNumber?: string;
   sessionSlot: string;
   date: string;
   totalPatients: number;
   queue: IQueuePatient[];
 }
+
+const formatOpdLabel = (opdNumber?: string): string => {
+  const trimmed = opdNumber?.trim();
+  if (!trimmed) return "—";
+  if (/^opd\s/i.test(trimmed)) return trimmed;
+  return `OPD ${trimmed}`;
+};
 
 interface IPharmaQueueToken {
   _id: string;
@@ -84,6 +92,7 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   return {
     doctorId: (data.doctorId as string) ?? "",
     doctorName: (data.doctorName as string) ?? "—",
+    opdNumber: (data.opdNumber as string) ?? "",
     sessionSlot: (data.sessionSlot as string) ?? "Morning",
     date: (data.date as string) ?? "",
     totalPatients: Number(data.totalPatients) || queue.length,
@@ -525,10 +534,7 @@ const QueueDisplayMultiComponent = () => {
     const nextStatus = nextVisit?.status ?? null;
     const nextVisitType = nextVisit?.visitType ?? null;
 
-    // Derive OPD label based on doctor name
-    const normalizedName = doctorName.toLowerCase();
-    const isOpd1 = normalizedName.includes("abhishek goel");
-    const opdLabel = isOpd1 ? "OPD 1" : "OPD 2";
+    const opdLabel = formatOpdLabel(display?.opdNumber);
 
     return {
       id: doc._id,

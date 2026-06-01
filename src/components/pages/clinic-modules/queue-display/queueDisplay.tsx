@@ -31,6 +31,8 @@ interface IQueueDisplay {
   department?: string | null;
   designation?: string | null;
   yearsOfExperience?: number | null;
+  opdNumber?: string | null;
+  posterUrl?: string | null;
   shift?: string | null;
   sessionSlot: string;
   date: string;
@@ -40,6 +42,8 @@ interface IQueueDisplay {
   currentTime?: string;
   queue: IQueuePatient[];
 }
+
+const DEFAULT_DOCTOR_POSTER = "/assets/img/Photo3.jpg";
 
 const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
   (visit?.visitType ?? "").toLowerCase() === "emergency";
@@ -101,6 +105,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     designation: (data.designation as string) ?? null,
     yearsOfExperience:
       data.yearsOfExperience != null ? Number(data.yearsOfExperience) : null,
+    opdNumber: (data.opdNumber as string) ?? null,
+    posterUrl: typeof data.posterUrl === "string" ? data.posterUrl : null,
     shift: (data.shift as string) ?? null,
     sessionSlot: (data.sessionSlot as string) ?? "Morning",
     date: (data.date as string) ?? "",
@@ -403,11 +409,8 @@ const QueueDisplayComponent = () => {
   }
 
   const rawName = display?.doctorName?.trim() ?? "";
-  const normalizedDoctorId = doctorId?.toUpperCase?.() ?? "";
-  const doctorPhotoSrc =
-    normalizedDoctorId === "DOC035"
-      ? "/assets/img/PDFGallery_20260506_122558_page-0001.jpg"
-      : "/assets/img/Photo3.jpg";
+  const doctorPosterSrc = display?.posterUrl?.trim() || DEFAULT_DOCTOR_POSTER;
+  const isRemotePoster = /^https?:\/\//i.test(doctorPosterSrc);
   const doctorName = rawName
     ? rawName.startsWith("Dr.")
       ? rawName
@@ -534,14 +537,24 @@ const QueueDisplayComponent = () => {
               height: "clamp(184px, 22.5vw, 330px)",
             }}
           >
-            <Image
-              src={doctorPhotoSrc}
-              alt="Doctor"
-              fill
-              sizes="(max-width: 768px) 200px, 25vw"
-              style={{ objectFit: "cover", objectPosition: "top" }}
-              priority={false}
-            />
+            {isRemotePoster ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={doctorPosterSrc}
+                alt={doctorName}
+                className="position-absolute top-0 start-0 w-100 h-100"
+                style={{ objectFit: "cover", objectPosition: "top" }}
+              />
+            ) : (
+              <Image
+                src={doctorPosterSrc}
+                alt={doctorName}
+                fill
+                sizes="(max-width: 768px) 200px, 25vw"
+                style={{ objectFit: "cover", objectPosition: "top" }}
+                priority={false}
+              />
+            )}
           </div>
           <h2
             className="fw-bold mb-2 mx-auto"
