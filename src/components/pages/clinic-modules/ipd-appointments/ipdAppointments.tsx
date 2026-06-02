@@ -36,6 +36,7 @@ interface IIpdProcedure {
   procedureId: string;
   procedureName?: string;
   price?: number;
+  isCompleted?: boolean;
 }
 
 interface IIpdPatient {
@@ -76,6 +77,7 @@ interface IIpdAppointment {
     procedureName?: string;
     price?: number;
     units?: number;
+    isCompleted?: boolean;
   }>;
   procedureChargesTotal?: number;
   doctorVisitCharges?: boolean;
@@ -135,6 +137,7 @@ interface IRow {
   DepartmentName?: string;
   Days?: number;
   Procedures: string[];
+  FinalDiagnosis: string[];
   Total: number;
   Status: string;
   Payment_Status: string;
@@ -320,6 +323,7 @@ const IpdAppointmentsComponent = () => {
           );
           const gender = item.patient?.gender;
           const proceduresList = getIpdProcedureNamesForListing(item);
+          const finalDiagnosisList = getIpdProcedureNamesForListing(item, { onlyCompleted: true });
 
           return {
             id: item._id,
@@ -337,6 +341,7 @@ const IpdAppointmentsComponent = () => {
             DepartmentName: deptName,
             Days: item.admissionDays,
             Procedures: proceduresList,
+            FinalDiagnosis: finalDiagnosisList,
             Total: item.totalPrice ?? 0,
             Status: item.status || "",
             Payment_Status: item.paymentStatus || "",
@@ -602,6 +607,53 @@ const IpdAppointmentsComponent = () => {
               >
                 <span
                   className="badge badge-soft-secondary border border-secondary fs-12 fw-medium px-2 py-1"
+                  style={{ cursor: "default" }}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  +{moreCount} more
+                </span>
+              </Tooltip>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      title: "Final Diagnosis",
+      dataIndex: "FinalDiagnosis",
+      sorter: false,
+      showSorterTooltip: false,
+      render: (_: unknown, record: IRow) => {
+        const procedures = record.FinalDiagnosis ?? [];
+        if (!procedures.length) return "—";
+        const [first, ...rest] = procedures;
+        const moreCount = rest.length;
+        return (
+          <div className="d-flex flex-column align-items-start gap-1 text-dark">
+            <span className="fs-13">{first}</span>
+            {moreCount > 0 ? (
+              <Tooltip
+                placement="bottomLeft"
+                color="#ffffff"
+                styles={{
+                  body: {
+                    color: "#212529",
+                    boxShadow: "0 4px 14px rgba(0, 0, 0, 0.1)",
+                    border: "1px solid #e9ecef",
+                    padding: "8px 12px",
+                  },
+                }}
+                title={
+                  <ul className="mb-0 ps-3 text-start text-dark">
+                    {rest.map((name, idx) => (
+                      <li key={`${name}-${idx}`}>{name}</li>
+                    ))}
+                  </ul>
+                }
+              >
+                <span
+                  className="badge badge-soft-primary border border-primary fs-12 fw-medium px-2 py-1"
                   style={{ cursor: "default" }}
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}

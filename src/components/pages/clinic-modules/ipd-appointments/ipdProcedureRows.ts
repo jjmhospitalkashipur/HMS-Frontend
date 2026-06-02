@@ -11,8 +11,15 @@ export const addIpdProcedureRow = (
   if (existing) {
     return prev.map((p) => (p.id === row.id ? { ...p, units: p.units + 1 } : p));
   }
-  return [...prev, { ...row, units: 1 }];
+  return [...prev, { ...row, units: 1, isCompleted: false }];
 };
+
+export const toggleIpdProcedureCompleted = (
+  prev: IIpdProcedureRow[],
+  id: string,
+  isCompleted: boolean
+): IIpdProcedureRow[] =>
+  prev.map((p) => (p.id === id ? { ...p, isCompleted } : p));
 
 export const incrementIpdProcedureUnits = (
   prev: IIpdProcedureRow[],
@@ -41,6 +48,7 @@ interface IBillingProcedureCharge {
   procedureCategory?: string;
   price?: number;
   units?: number;
+  isCompleted?: boolean;
 }
 
 export const ipdProcedureRowsFromBilling = (
@@ -58,11 +66,18 @@ export const ipdProcedureRowsFromBilling = (
         price: c.price ?? priceMap[procId] ?? 0,
         units: Math.max(1, Number(c.units) || 1),
         category: c.procedureCategory ?? c.category ?? categoryMap[procId] ?? undefined,
+        isCompleted: Boolean(c.isCompleted),
       };
     });
 
 export const ipdProcedureRowsFromLegacy = (
-  procedures: Array<{ procedureId?: string; procedureName?: string; price?: number; category?: string }>,
+  procedures: Array<{
+    procedureId?: string;
+    procedureName?: string;
+    price?: number;
+    category?: string;
+    isCompleted?: boolean;
+  }>,
   priceMap: Record<string, number>,
   categoryMap: Record<string, string> = {}
 ): IIpdProcedureRow[] =>
@@ -74,22 +89,33 @@ export const ipdProcedureRowsFromLegacy = (
       price: p.price ?? priceMap[p.procedureId as string] ?? 0,
       units: 1,
       category: p.category ?? categoryMap[p.procedureId as string] ?? undefined,
+      isCompleted: Boolean(p.isCompleted),
     }));
 
 /** List/detail views: API may return `procedures` or only `billingCharges` with procedureName. */
-export const getIpdProcedureNamesForListing = (item: {
-  procedures?: Array<{ procedureName?: string }>;
-  billingCharges?: IBillingProcedureCharge[];
-}): string[] => {
+export const getIpdProcedureNamesForListing = (
+  item: {
+    procedures?: Array<{ procedureName?: string; isCompleted?: boolean }>;
+    billingCharges?: IBillingProcedureCharge[];
+  },
+  options?: {
+    onlyCompleted?: boolean;
+  }
+): string[] => {
+  const onlyCompleted = Boolean(options?.onlyCompleted);
+
   const fromProcedures =
     item.procedures
-      ?.map((p) => p.procedureName?.trim())
+      ?.filter((p) => (onlyCompleted ? Boolean(p.isCompleted) : true))
+      .map((p) => p.procedureName?.trim())
       .filter((name): name is string => Boolean(name)) ?? [];
+
   if (fromProcedures.length) return fromProcedures;
 
   return (
     item.billingCharges
       ?.filter((c) => c.type === "procedure")
+      .filter((c) => (onlyCompleted ? Boolean(c.isCompleted) : true))
       .map((c) => c.procedureName?.trim())
       .filter((name): name is string => Boolean(name)) ?? []
   );

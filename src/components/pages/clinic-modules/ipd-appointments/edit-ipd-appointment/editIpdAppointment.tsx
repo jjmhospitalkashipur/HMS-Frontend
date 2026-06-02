@@ -52,6 +52,7 @@ import {
   ipdProcedureRowsFromBilling,
   ipdProcedureRowsFromLegacy,
   removeIpdProcedureRow,
+  toggleIpdProcedureCompleted,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 import {
   extractIpdFromGetResponse,
@@ -109,7 +110,7 @@ interface IIpdBillingCharge {
 }
 
 type IIpdBillingChargePayload =
-  | { type: "procedure"; procedureId: string; units: number }
+  | { type: "procedure"; procedureId: string; units: number; isCompleted: boolean }
   | { type: "doctor"; doctorId: string; units: number };
 
 interface IIpdHospitalVisit {
@@ -710,6 +711,10 @@ const EditIpdAppointmentComponent = () => {
     setAddedProcedures((prev) => removeIpdProcedureRow(prev, id));
   }, []);
 
+  const handleToggleProcedureCompleted = useCallback((id: string, isCompleted: boolean) => {
+    setAddedProcedures((prev) => toggleIpdProcedureCompleted(prev, id, isCompleted));
+  }, []);
+
   const handleSelectBed = (bed: IIpdBed) => {
     setSelectedBedId(bed._id);
     setSelectedBed(bed);
@@ -729,6 +734,7 @@ const EditIpdAppointmentComponent = () => {
         type: "procedure",
         procedureId: p.id,
         units: p.units,
+        isCompleted: Boolean(p.isCompleted),
       }));
 
     return [
@@ -1354,6 +1360,7 @@ const EditIpdAppointmentComponent = () => {
                           onIncrementProcedureUnits={handleIncrementProcedureUnits}
                           onDecrementProcedureUnits={handleDecrementProcedureUnits}
                           onRemoveProcedure={handleRemoveProcedure}
+                          onToggleProcedureCompleted={handleToggleProcedureCompleted}
                           onIncrementDoctorDays={handleIncrementDoctorVisitDays}
                           onDecrementDoctorDays={handleDecrementDoctorVisitDays}
                           onRemoveDoctor={handleRemoveVisitingDoctor}

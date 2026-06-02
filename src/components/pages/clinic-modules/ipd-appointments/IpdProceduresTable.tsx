@@ -6,6 +6,7 @@ export interface IIpdProcedureRow {
   price: number;
   units: number;
   category?: string;
+  isCompleted?: boolean;
 }
 
 interface IpdProceduresTableProps {
@@ -13,6 +14,7 @@ interface IpdProceduresTableProps {
   onIncrementUnits: (id: string) => void;
   onDecrementUnits: (id: string) => void;
   onRemove: (id: string) => void;
+  onToggleCompleted: (id: string, isCompleted: boolean) => void;
 }
 
 const IpdProceduresTable = ({
@@ -20,6 +22,7 @@ const IpdProceduresTable = ({
   onIncrementUnits,
   onDecrementUnits,
   onRemove,
+  onToggleCompleted,
 }: IpdProceduresTableProps) => {
   return (
     <div className="border rounded overflow-hidden">
@@ -29,6 +32,7 @@ const IpdProceduresTable = ({
       >
         <span className="col-1 text-nowrap">S.No</span>
         <span className="col text-nowrap ps-3">Procedure</span>
+        <span className="col-2 text-center text-nowrap">Completed</span>
         <span className="col-3 text-center text-nowrap">Units</span>
         <span className="col text-end pe-4 text-nowrap">Price</span>
       </div>
@@ -46,6 +50,19 @@ const IpdProceduresTable = ({
             >
               <span className="col-1">{idx + 1}</span>
               <span className="col ps-3">{proc.name}</span>
+              <span className="col-2 d-flex align-items-center justify-content-center">
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id={`ipd-proc-done-${proc.id}`}
+                    checked={Boolean(proc.isCompleted)}
+                    onChange={(e) => onToggleCompleted(proc.id, e.target.checked)}
+                    aria-label={`Mark ${proc.name} as completed`}
+                  />
+                </div>
+              </span>
               <span className="col-3 d-flex align-items-center justify-content-center gap-1">
                 <button
                   type="button"

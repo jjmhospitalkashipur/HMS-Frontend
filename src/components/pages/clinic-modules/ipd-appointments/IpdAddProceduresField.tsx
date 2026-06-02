@@ -14,6 +14,7 @@ interface IIpdAddProceduresFieldProps {
   onIncrementUnits: (id: string) => void;
   onDecrementUnits: (id: string) => void;
   onRemove: (id: string) => void;
+  onToggleCompleted: (id: string, isCompleted: boolean) => void;
 }
 
 const IpdAddProceduresField = ({
@@ -25,6 +26,7 @@ const IpdAddProceduresField = ({
   onIncrementUnits,
   onDecrementUnits,
   onRemove,
+  onToggleCompleted,
 }: IIpdAddProceduresFieldProps) => {
   return (
     <>
@@ -44,6 +46,7 @@ const IpdAddProceduresField = ({
           onIncrementUnits={onIncrementUnits}
           onDecrementUnits={onDecrementUnits}
           onRemove={onRemove}
+          onToggleCompleted={onToggleCompleted}
         />
       </div>
     </>

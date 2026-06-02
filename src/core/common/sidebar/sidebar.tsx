@@ -236,8 +236,10 @@ const Sidebar = () => {
               <ul>
                 {SidebarData?.map((mainLabel, index) => {
                   const isAdministrationSection = mainLabel?.tittle === "Administration";
-                  const isAdmin = normalizeRole(sidebarUserRoleRaw) === "ADMIN";
-                  if (isAdministrationSection && !isAdmin) {
+                  const role = normalizeRole(sidebarUserRoleRaw);
+                  const canViewAdministrationSection =
+                    role === "ADMIN" || role === "ACCOUNTANT";
+                  if (isAdministrationSection && !canViewAdministrationSection) {
                     return null;
                   }
                   const filteredSubmenuItems = filterSidebarSubmenuItems(

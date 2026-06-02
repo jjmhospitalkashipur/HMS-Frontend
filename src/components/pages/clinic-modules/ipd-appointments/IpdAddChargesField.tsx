@@ -14,6 +14,7 @@ interface IChargeRow {
   rate: number;
   units: number;
   category?: string;
+  isCompleted?: boolean;
 }
 
 interface IIpdAddChargesFieldProps {
@@ -29,6 +30,7 @@ interface IIpdAddChargesFieldProps {
   onIncrementProcedureUnits: (id: string) => void;
   onDecrementProcedureUnits: (id: string) => void;
   onRemoveProcedure: (id: string) => void;
+  onToggleProcedureCompleted: (id: string, isCompleted: boolean) => void;
   onIncrementDoctorDays: (doctorId: string) => void;
   onDecrementDoctorDays: (doctorId: string) => void;
   onRemoveDoctor: (doctorId: string) => void;
@@ -51,6 +53,7 @@ const IpdAddChargesField = ({
   onIncrementProcedureUnits,
   onDecrementProcedureUnits,
   onRemoveProcedure,
+  onToggleProcedureCompleted,
   onIncrementDoctorDays,
   onDecrementDoctorDays,
   onRemoveDoctor,
@@ -126,6 +129,7 @@ const IpdAddChargesField = ({
       rate: p.price,
       units: p.units,
       category: p.category || procedureCategoryById[p.id],
+      isCompleted: Boolean(p.isCompleted),
     }));
     const docRows: IChargeRow[] = doctorVisits.map((d) => ({
       id: d.doctorId,
@@ -201,6 +205,7 @@ const IpdAddChargesField = ({
           >
             <span className="col-1 text-nowrap">S.No</span>
             <span className="col text-nowrap ps-3">Name</span>
+            <span className="col-2 text-center text-nowrap">Completed</span>
             <span className="col-3 text-center text-nowrap">Units</span>
             <span className="col text-end pe-4 text-nowrap">Price</span>
           </div>
@@ -220,6 +225,23 @@ const IpdAddChargesField = ({
                   <span className="col ps-3 d-flex align-items-center flex-wrap gap-1">
                     {row.name}
                     {categoryBadge(row)}
+                  </span>
+                  <span className="col-2 d-flex align-items-center justify-content-center">
+                    {row.type === "procedure" ? (
+                      <div className="form-check form-switch mb-0">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`ipd-charge-done-${row.id}`}
+                          checked={Boolean(row.isCompleted)}
+                          onChange={(e) =>
+                            onToggleProcedureCompleted(row.id, e.target.checked)
+                          }
+                          aria-label={`Mark ${row.name} as completed`}
+                        />
+                      </div>
+                    ) : null}
                   </span>
                   <span className="col-3 d-flex align-items-center justify-content-center gap-1">
                     <button

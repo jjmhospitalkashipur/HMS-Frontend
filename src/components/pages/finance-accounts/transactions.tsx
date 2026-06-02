@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import Datatable from "@/core/common/dataTable";
 import axios from "axios";
@@ -14,6 +15,14 @@ import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
+
+const SOURCE_TYPE_OPTIONS = [
+  { value: "visit", label: "OPD" },
+  { value: "daycareAppointment", label: "Daycare" },
+  { value: "IPD", label: "IPD" },
+] as const;
+
+type SourceType = (typeof SOURCE_TYPE_OPTIONS)[number]["value"];
 
 interface ITransaction {
   _id: string;
@@ -69,12 +78,14 @@ const TransactionsListComponent = () => {
   const [filterDoctorId, setFilterDoctorId] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
   const [filterVisitType, setFilterVisitType] = useState("");
+  const [filterSourceType, setFilterSourceType] = useState<string>("");
   const [filterPaymentMode, setFilterPaymentMode] = useState("");
   const [filterDate, setFilterDate] = useState<Dayjs | null>(null);
 
   const [appliedDoctorId, setAppliedDoctorId] = useState("");
   const [appliedDepartment, setAppliedDepartment] = useState("");
   const [appliedVisitType, setAppliedVisitType] = useState("");
+  const [appliedSourceType, setAppliedSourceType] = useState<string>("");
   const [appliedPaymentMode, setAppliedPaymentMode] = useState("");
   const [appliedDate, setAppliedDate] = useState<string | null>(null);
 
@@ -107,6 +118,23 @@ const TransactionsListComponent = () => {
     []
   );
 
+  const sourceTypeOptions: Option[] = useMemo(
+    () => [ALL_OPTION, ...SOURCE_TYPE_OPTIONS.map((v) => ({ value: v.value, label: v.label }))],
+    []
+  );
+
+  const searchParams = useSearchParams();
+  const sourceTypeParam = searchParams?.get("sourceType");
+
+  useEffect(() => {
+    const allowed = new Set<SourceType>(SOURCE_TYPE_OPTIONS.map((v) => v.value));
+    const next =
+      sourceTypeParam && allowed.has(sourceTypeParam as SourceType) ? sourceTypeParam : "";
+    setFilterSourceType(next);
+    setAppliedSourceType(next);
+    setPage(1);
+  }, [sourceTypeParam]);
+
   const getTransactionsQueryParams = useCallback(
     (includePagination: boolean): Record<string, string | number> => {
       const params: Record<string, string | number> = {};
@@ -119,6 +147,7 @@ const TransactionsListComponent = () => {
       if (appliedDoctorId) params.doctorId = appliedDoctorId;
       if (appliedDepartment) params.department = appliedDepartment;
       if (appliedVisitType) params.visitType = appliedVisitType;
+      if (appliedSourceType) params.sourceType = appliedSourceType;
       if (appliedPaymentMode) params.paymentMode = appliedPaymentMode;
       if (appliedDate) params.date = appliedDate;
       return params;
@@ -130,6 +159,7 @@ const TransactionsListComponent = () => {
       appliedDoctorId,
       appliedDepartment,
       appliedVisitType,
+      appliedSourceType,
       appliedPaymentMode,
       appliedDate,
     ]
@@ -284,12 +314,14 @@ const TransactionsListComponent = () => {
     setFilterDoctorId(appliedDoctorId);
     setFilterDepartment(appliedDepartment);
     setFilterVisitType(appliedVisitType);
+    setFilterSourceType(appliedSourceType);
     setFilterPaymentMode(appliedPaymentMode);
     setFilterDate(appliedDate ? dayjs(appliedDate) : null);
   }, [
     appliedDoctorId,
     appliedDepartment,
     appliedVisitType,
+    appliedSourceType,
     appliedPaymentMode,
     appliedDate,
   ]);
@@ -302,6 +334,7 @@ const TransactionsListComponent = () => {
     setAppliedDoctorId(filterDoctorId);
     setAppliedDepartment(filterDepartment);
     setAppliedVisitType(filterVisitType);
+    setAppliedSourceType(filterSourceType);
     setAppliedPaymentMode(filterPaymentMode);
     setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
     closeFilterDropdown("filter-dropdown");
@@ -312,11 +345,13 @@ const TransactionsListComponent = () => {
     setFilterDoctorId("");
     setFilterDepartment("");
     setFilterVisitType("");
+    setFilterSourceType("");
     setFilterPaymentMode("");
     setFilterDate(null);
     setAppliedDoctorId("");
     setAppliedDepartment("");
     setAppliedVisitType("");
+    setAppliedSourceType("");
     setAppliedPaymentMode("");
     setAppliedDate(null);
     closeFilterDropdown("filter-dropdown");
@@ -497,6 +532,16 @@ const TransactionsListComponent = () => {
                           options={visitTypeOptions}
                           value={optionByValue(visitTypeOptions, filterVisitType)}
                           onChange={(opt) => setFilterVisitType(opt?.value ?? "")}
+                          className="select"
+                          placeholder="All"
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Appointment type</label>
+                        <CommonSelect
+                          options={sourceTypeOptions}
+                          value={optionByValue(sourceTypeOptions, filterSourceType)}
+                          onChange={(opt) => setFilterSourceType(opt?.value ?? "")}
                           className="select"
                           placeholder="All"
                         />

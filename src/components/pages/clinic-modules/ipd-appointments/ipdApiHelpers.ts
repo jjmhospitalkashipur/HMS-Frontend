@@ -18,6 +18,7 @@ export interface IIpdBillingCharge {
   doctorName?: string;
   price?: number;
   units?: number;
+  isCompleted?: boolean;
   totalCharge?: number;
   charge?: number;
 }
@@ -178,6 +179,7 @@ const procedureRowsFromBilling = (charges: IIpdBillingCharge[]): IIpdProcedureRo
       price: Number(c.price) || 0,
       units: Math.max(1, Number(c.units) || 1),
       category: c.procedureCategory ?? c.category,
+      isCompleted: Boolean(c.isCompleted),
     }));
 
 export const mapIpdApiToAppointmentDetail = (
