@@ -63,6 +63,15 @@ export interface IIpdApiRecord {
   doctorVisitCharges?: boolean;
   doctorChargesAmount?: number;
   bedChargesTotal?: number;
+  bedCharge?: {
+    wardId?: string;
+    wardName?: string;
+    chargePerDay?: number;
+    fromDate?: string;
+    toDate?: string;
+    days?: number;
+    totalCharge?: number;
+  };
   subtotal?: number;
   discount?: number;
   totalPrice?: number;
@@ -219,6 +228,12 @@ export const mapIpdApiToAppointmentDetail = (
   const doctorChargesAmount =
     raw.doctorChargesAmount ??
     (doctorChargesFromBilling > 0 ? doctorChargesFromBilling : undefined);
+  const bedChargesTotalFromSummary = Number(raw.bedCharge?.totalCharge);
+  const bedChargesTotal =
+    raw.bedChargesTotal ??
+    (Number.isFinite(bedChargesTotalFromSummary) && bedChargesTotalFromSummary > 0
+      ? bedChargesTotalFromSummary
+      : undefined);
 
   const doctorVisits = doctorVisitsFromBilling(
     billing,
@@ -242,7 +257,7 @@ export const mapIpdApiToAppointmentDetail = (
     procedureChargesTotal,
     doctorVisitCharges: raw.doctorVisitCharges ?? (doctorChargesFromBilling > 0),
     doctorChargesAmount,
-    bedChargesTotal: raw.bedChargesTotal,
+    bedChargesTotal,
     subtotal: raw.subtotal,
     discount: raw.discount,
     totalPrice: raw.totalPrice,
@@ -261,6 +276,7 @@ export const mapIpdApiToAppointmentDetail = (
     doctor: raw.doctor,
     patient: raw.patient,
     bed: normalizeIpdBedSummary(raw.bed),
+    bedCharge: raw.bedCharge,
     transactions: raw.transactions,
   };
 };

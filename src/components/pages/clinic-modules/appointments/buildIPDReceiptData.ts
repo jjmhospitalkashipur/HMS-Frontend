@@ -141,6 +141,15 @@ export interface IIpdAppointmentDetail {
   doctor?: IIpdDoctor;
   patient?: IIpdPatient;
   bed?: IIpdBedSummary;
+  bedCharge?: {
+    wardId?: string;
+    wardName?: string;
+    chargePerDay?: number;
+    fromDate?: string;
+    toDate?: string;
+    days?: number;
+    totalCharge?: number;
+  };
   transactions?: IIpdTransaction[];
 }
 
@@ -209,6 +218,27 @@ export const buildIPDReceiptData = (
       transactionId: "",
       transactionType: "Doctor Visit Charges",
       amount: docTotal,
+      paymentMode: "",
+      transactionDate: ipd.appointmentDate || ipd.createdAt || "",
+      createdAt: ipd.createdAt ?? "",
+    });
+  }
+
+  const bedChargeTotal =
+    ipd.bedChargesTotal ??
+    (Number.isFinite(Number(ipd.bedCharge?.totalCharge)) ? Number(ipd.bedCharge?.totalCharge) : 0);
+  if (bedChargeTotal > 0) {
+    const bedChargeDays = Number(ipd.bedCharge?.days ?? 0);
+    const bedChargeDayLabel =
+      bedChargeDays > 0 ? ` (${bedChargeDays} ${bedChargeDays === 1 ? "day" : "days"})` : "";
+    const wardName = ipd.bedCharge?.wardName?.trim();
+    charges.push({
+      _id: `${ipd._id}-bed`,
+      transactionId: "",
+      transactionType: wardName
+        ? `Bed Charges - ${wardName}${bedChargeDayLabel}`
+        : `Bed Charges${bedChargeDayLabel}`,
+      amount: bedChargeTotal,
       paymentMode: "",
       transactionDate: ipd.appointmentDate || ipd.createdAt || "",
       createdAt: ipd.createdAt ?? "",

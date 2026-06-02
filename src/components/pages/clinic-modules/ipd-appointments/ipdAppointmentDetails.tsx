@@ -166,7 +166,13 @@ const IpdAppointmentDetailsComponent = () => {
   const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalPaid = ipd.amountPaid != null ? ipd.amountPaid : totalPaidFromTx;
   const dueAmount = Math.max(0, baseTotal - totalPaid);
-  const bedChargesPrice = ipd.bedChargesTotal ?? 0;
+  const bedChargesPrice =
+    ipd.bedChargesTotal ??
+    (Number.isFinite(Number(ipd.bedCharge?.totalCharge)) ? Number(ipd.bedCharge?.totalCharge) : 0);
+  const bedChargeDays = Math.max(1, Number(ipd.bedCharge?.days) || 1);
+  const bedChargeName = ipd.bedCharge?.wardName?.trim()
+    ? `Bed Charges - ${ipd.bedCharge.wardName.trim()}`
+    : "Bed Charges";
   const admissionDateLabel = ipd.admissionDate ?? ipd.appointmentDate;
   const patientAgeUi = formatPatientAgeForDisplay(
     patient?.age,
@@ -456,7 +462,9 @@ const IpdAppointmentDetailsComponent = () => {
                   </div>
                 ) : null}
 
-                {((ipd.procedures && ipd.procedures.length > 0) || (ipd.doctorVisits && ipd.doctorVisits.length > 0)) ? (
+                {((ipd.procedures && ipd.procedures.length > 0) ||
+                  (ipd.doctorVisits && ipd.doctorVisits.length > 0) ||
+                  bedChargesPrice > 0) ? (
                   <div className="mt-2">
                     <h6 className="fw-bold text-primary mb-2">Charges</h6>
                     <div className="table-responsive">
@@ -503,6 +511,18 @@ const IpdAppointmentDetailsComponent = () => {
                               </td>
                             </tr>
                           ))}
+                          {bedChargesPrice > 0 ? (
+                            <tr key="bed-charges">
+                              <td className={DETAIL_VALUE_CLASS}>
+                                {(ipd.procedures?.length ?? 0) + (ipd.doctorVisits?.length ?? 0) + 1}
+                              </td>
+                              <td className={DETAIL_VALUE_CLASS}>{bedChargeName}</td>
+                              <td className={`text-center ${DETAIL_VALUE_CLASS}`}>{bedChargeDays}</td>
+                              <td className={`text-end ${DETAIL_VALUE_CLASS}`}>
+                                ₹{bedChargesPrice.toFixed(2)}
+                              </td>
+                            </tr>
+                          ) : null}
                         </tbody>
                       </table>
                     </div>
