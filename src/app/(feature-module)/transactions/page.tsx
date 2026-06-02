@@ -1,11 +1,14 @@
 "use client";
 
-import TransactionsListComponent from "@/components/pages/finance-accounts/transactions";    
+import { Suspense } from "react";
+import TransactionsListComponent from "@/components/pages/finance-accounts/transactions";
 
-export default function TransactionsListPage () {
+export default function TransactionsListPage() {
   return (
     <div>
-      <TransactionsListComponent />
+      <Suspense fallback={<div className="p-4 text-muted">Loading…</div>}>
+        <TransactionsListComponent />
+      </Suspense>
     </div>
   );
 }
