@@ -5,9 +5,11 @@ import dayjs from "dayjs";
 import type {
   IFinalDiagnosisRow,
   IMedicineOnDischargeRow,
+  TDischargeType,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 import type { IIpdAppointmentDetail } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
 import {
+  getDischargeTypeLabel,
   normalizeDischargeSummaryFromApi,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 
@@ -32,6 +34,14 @@ export interface IPrintDischargeSummaryData {
   medicinesOnDischarge?: IMedicineOnDischargeRow[];
   adviceOnDischarge?: string[];
   followUp?: string;
+  dischargeType?: TDischargeType;
+  lamaReason?: string;
+  dorRequestedBy?: string;
+  dorReason?: string;
+  deathDateTime?: string;
+  deathCause?: string;
+  referHospitalName?: string;
+  referReason?: string;
 }
 
 interface IPrintDischargeSummaryProps {
@@ -85,13 +95,21 @@ export const buildPrintDischargeSummaryData = (
     dischargeDate: summary.dischargeDate,
     clinicalSummary: summary.clinicalSummary,
     provisionalDiagnosis: summary.provisionalDiagnosis,
-    finalDiagnosis: summary.finalDiagnosis.filter((d) => d.icdCode.trim() || d.diagnosisName.trim()),
+    finalDiagnosis: summary.finalDiagnosis.filter((d) => d.diagnosisName.trim()),
     courseInHospital: summary.courseInHospital,
     treatmentGiven: summary.treatmentGiven,
     conditionOnDischarge: summary.conditionOnDischarge,
     medicinesOnDischarge: summary.medicinesOnDischarge.filter((m) => m.medicineName.trim()),
     adviceOnDischarge: adviceLines,
     followUp: summary.followUp,
+    dischargeType: summary.dischargeType,
+    lamaReason: summary.lamaReason,
+    dorRequestedBy: summary.dorRequestedBy,
+    dorReason: summary.dorReason,
+    deathDateTime: summary.deathDateTime,
+    deathCause: summary.deathCause,
+    referHospitalName: summary.referHospitalName,
+    referReason: summary.referReason,
   };
 };
 
@@ -101,6 +119,12 @@ const formatPrintDate = (value?: string | null) => {
   if (!value?.trim()) return "";
   const parsed = dayjs(value);
   return parsed.isValid() ? parsed.format("DD MMM YYYY") : "";
+};
+
+const formatPrintDateTime = (value?: string | null) => {
+  if (!value?.trim()) return "";
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("DD MMM YYYY, hh:mm A") : "";
 };
 
 const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryProps) => {
@@ -113,14 +137,20 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
       [
         summaryData.visitId ?? "",
         summaryData.dischargeDate ?? "",
+        summaryData.dischargeType ?? "",
         summaryData.clinicalSummary ?? "",
         summaryData.followUp ?? "",
+        summaryData.dorReason ?? "",
+        summaryData.lamaReason ?? "",
       ].join("|"),
     [
       summaryData.visitId,
       summaryData.dischargeDate,
+      summaryData.dischargeType,
       summaryData.clinicalSummary,
       summaryData.followUp,
+      summaryData.dorReason,
+      summaryData.lamaReason,
     ]
   );
 
@@ -178,7 +208,11 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
               }
               .content-box { border: none; padding: 8px 12px 0 12px; margin-bottom: 12px; }
               .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; }
-              .discharge-date-row {
+              .admission-discharge-dates-row {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 8px 24px;
                 font-size: 14px;
                 font-weight: 600;
                 margin-bottom: 12px;
@@ -194,6 +228,11 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 font-weight: bold;
                 border-bottom: 1px solid #000;
                 padding-bottom: 3px;
+                margin-bottom: 5px;
+              }
+              .discharge-type-heading {
+                font-size: 14px;
+                font-weight: bold;
                 margin-bottom: 5px;
               }
               .section-body {
@@ -272,7 +311,51 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           return licenseNo ? `${withTitle} [${licenseNo}]` : withTitle;
         })()
       : "—";
-  const visitDate = formatPrintDate(summaryData.admissionDate) || "—";
+  const admissionDate = formatPrintDate(summaryData.admissionDate) || "—";
+  const dischargeDate = formatPrintDate(summaryData.dischargeDate) || "—";
+  const dischargeTypeLabel = getDischargeTypeLabel(summaryData.dischargeType);
+
+  const dischargeTypeFields: { label: string; value: string }[] = [];
+  if (summaryData.dischargeType === "LAMA" && hasText(summaryData.lamaReason)) {
+    dischargeTypeFields.push({ label: "LAMA Reason", value: summaryData.lamaReason!.trim() });
+  }
+  if (summaryData.dischargeType === "DOR") {
+    if (hasText(summaryData.dorRequestedBy)) {
+      dischargeTypeFields.push({
+        label: "Requested By",
+        value: summaryData.dorRequestedBy!.trim(),
+      });
+    }
+    if (hasText(summaryData.dorReason)) {
+      dischargeTypeFields.push({ label: "DOR Reason", value: summaryData.dorReason!.trim() });
+    }
+  }
+  if (summaryData.dischargeType === "Death") {
+    if (hasText(summaryData.deathDateTime)) {
+      dischargeTypeFields.push({
+        label: "Death Date & Time",
+        value: formatPrintDateTime(summaryData.deathDateTime) || summaryData.deathDateTime!.trim(),
+      });
+    }
+    if (hasText(summaryData.deathCause)) {
+      dischargeTypeFields.push({ label: "Cause of Death", value: summaryData.deathCause!.trim() });
+    }
+  }
+  if (summaryData.dischargeType === "Refer") {
+    if (hasText(summaryData.referHospitalName)) {
+      dischargeTypeFields.push({
+        label: "Refer Hospital Name",
+        value: summaryData.referHospitalName!.trim(),
+      });
+    }
+    if (hasText(summaryData.referReason)) {
+      dischargeTypeFields.push({ label: "Refer Reason", value: summaryData.referReason!.trim() });
+    }
+  }
+
+  const showDischargeTypeSection =
+    summaryData.dischargeType !== "Normal" &&
+    (Boolean(dischargeTypeLabel) || dischargeTypeFields.length > 0);
 
   const finalDiagnosis = summaryData.finalDiagnosis ?? [];
   const medicines = summaryData.medicinesOnDischarge ?? [];
@@ -315,20 +398,20 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 <tr>
                   <td className="info-label-cell">MRD No.:</td>
                   <td className="info-value-cell">{summaryData.mrd ?? "—"}</td>
-                  <td className="info-label-cell">Date:</td>
-                  <td className="info-value-cell info-value-cell-narrow">{visitDate}</td>
-                </tr>
-                <tr>
-                  <td className="info-label-cell">Patient Name:</td>
-                  <td className="info-value-cell">{patientName}</td>
                   <td className="info-label-cell">Case/Rec. No.:</td>
                   <td className="info-value-cell info-value-cell-narrow">{summaryData.visitId ?? "—"}</td>
                 </tr>
                 <tr>
-                  <td className="info-label-cell">Address:</td>
-                  <td className="info-value-cell">{patientAddress}</td>
+                  <td className="info-label-cell">Patient Name:</td>
+                  <td className="info-value-cell">{patientName}</td>
                   <td className="info-label-cell">Age / Gender:</td>
                   <td className="info-value-cell info-value-cell-narrow">{patientAgeGender}</td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Address:</td>
+                  <td className="info-value-cell" colSpan={3}>
+                    {patientAddress}
+                  </td>
                 </tr>
                 <tr>
                   <td className="info-label-cell">Doctor Name:</td>
@@ -340,9 +423,30 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
             </table>
           </div>
 
-          {hasText(summaryData.dischargeDate) ? (
-            <div className="discharge-date-row">
-              Date of Discharge: {formatPrintDate(summaryData.dischargeDate)}
+          <div className="admission-discharge-dates-row">
+            <span>Date of Admission: {admissionDate}</span>
+            <span>Date of Discharge: {dischargeDate}</span>
+          </div>
+
+          {showDischargeTypeSection ? (
+            <div className="section">
+              <div className="discharge-type-heading">Discharge Reason</div>
+              <table className="data-table">
+                <tbody>
+                  {dischargeTypeLabel ? (
+                    <tr>
+                      <th style={{ width: "32%" }}>Discharge Type</th>
+                      <td>{dischargeTypeLabel}</td>
+                    </tr>
+                  ) : null}
+                  {dischargeTypeFields.map((field) => (
+                    <tr key={field.label}>
+                      <th style={{ width: "32%" }}>{field.label}</th>
+                      <td>{field.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
 
@@ -373,14 +477,14 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "25%" }}>ICD Code</th>
+                    {/* <th style={{ width: "25%" }}>ICD Code</th> */}
                     <th>Diagnosis</th>
                   </tr>
                 </thead>
                 <tbody>
                   {finalDiagnosis.map((row, index) => (
                     <tr key={`diag-${index}`}>
-                      <td>{row.icdCode.trim()}</td>
+                      {/* <td>{row.icdCode.trim()}</td> */}
                       <td>{row.diagnosisName.trim()}</td>
                     </tr>
                   ))}

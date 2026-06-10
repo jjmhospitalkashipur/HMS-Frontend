@@ -21,9 +21,15 @@ import {
   type IIpdApiRecord,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
 import IpdDischargeSummaryForm from "@/components/pages/clinic-modules/ipd-appointments/IpdDischargeSummaryForm";
+import {
+  buildDischargeSummaryPayload,
+  normalizeDischargeSummaryFromApi,
+  validateDischargeSummaryForm,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 import PrintDischargeSummary, {
   buildPrintDischargeSummaryData,
 } from "@/components/pages/clinic-modules/ipd-appointments/printDischargeSummary";
+import ImageWithBasePath from "@/core/imageWithBasePath";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -66,6 +72,8 @@ const IpdAppointmentDetailsComponent = () => {
   const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
   const [showDischargeSummary, setShowDischargeSummary] = useState(false);
   const [showPrintDischargeSummary, setShowPrintDischargeSummary] = useState(false);
+  const [showFinalDischargeConfirm, setShowFinalDischargeConfirm] = useState(false);
+  const [savingFinalDischarge, setSavingFinalDischarge] = useState(false);
   const [dischargeSummaryRaw, setDischargeSummaryRaw] = useState<unknown>(null);
 
   const isAdmin = useMemo(() => {
@@ -199,6 +207,49 @@ const IpdAppointmentDetailsComponent = () => {
     setShowPrintDischargeSummary(true);
   };
 
+  const handleSaveFinalDischarge = () => {
+    if (!API_BASE_URL || !ipd?._id) return;
+    if (!dischargeSummaryRaw || typeof dischargeSummaryRaw !== "object") {
+      alert("No discharge summary found. Please create and save a discharge summary first.");
+      return;
+    }
+    const form = normalizeDischargeSummaryFromApi(dischargeSummaryRaw);
+    const validationError = form ? validateDischargeSummaryForm(form) : "No discharge summary found.";
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+    setShowFinalDischargeConfirm(true);
+  };
+
+  const handleConfirmSaveFinalDischarge = async () => {
+    if (!API_BASE_URL || !ipd?._id) return;
+    const form = normalizeDischargeSummaryFromApi(dischargeSummaryRaw);
+    if (!form) {
+      alert("No discharge summary found. Please create and save a discharge summary first.");
+      return;
+    }
+    try {
+      setSavingFinalDischarge(true);
+      setShowFinalDischargeConfirm(false);
+      const payload = buildDischargeSummaryPayload(form);
+      await axios.put(`${API_BASE_URL}/hospital/ipd/${ipd._id}/discharge-summary`, payload);
+      const res = await axios.post(`${API_BASE_URL}/hospital/ipd/${ipd._id}/discharge`, payload);
+      if (res.data?.code === 200 || (res.status >= 200 && res.status < 300)) {
+        await fetchIPDDetails();
+      } else {
+        alert(res.data?.message ?? "Failed to complete discharge.");
+      }
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to complete discharge.";
+      alert(message);
+    } finally {
+      setSavingFinalDischarge(false);
+    }
+  };
+
   const handleAddTransaction = async () => {
     if (!ipd || !API_BASE_URL || submitting) return;
 
@@ -324,6 +375,30 @@ const IpdAppointmentDetailsComponent = () => {
               <i className="ti ti-printer me-1" />
               Print Discharge Summary
             </button>
+            {!isDischarged ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm d-inline-flex align-items-center"
+                onClick={handleSaveFinalDischarge}
+                disabled={savingFinalDischarge}
+              >
+                {savingFinalDischarge ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm me-1"
+                      role="status"
+                      aria-hidden="true"
+                    />
+                    Discharging…
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-check me-1" />
+                    Save Final Discharge
+                  </>
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -727,6 +802,65 @@ const IpdAppointmentDetailsComponent = () => {
           />
         );
       })() : null}
+
+      {showFinalDischargeConfirm ? (
+        <div
+          className="modal fade show d-block"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="final_discharge_confirm_title"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1060 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowFinalDischargeConfirm(false);
+          }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content">
+              <div className="modal-body text-center position-relative z-1">
+                <ImageWithBasePath
+                  src="assets/img/bg/delete-modal-bg-01.png"
+                  alt=""
+                  className="img-fluid position-absolute top-0 start-0 z-n1"
+                />
+                <ImageWithBasePath
+                  src="assets/img/bg/delete-modal-bg-02.png"
+                  alt=""
+                  className="img-fluid position-absolute bottom-0 end-0 z-n1"
+                />
+                <div className="mb-3">
+                  <span className="avatar avatar-lg bg-warning text-white">
+                    <i className="ti ti-alert-triangle fs-24" aria-hidden />
+                  </span>
+                </div>
+                <h5 id="final_discharge_confirm_title" className="fw-bold mb-1">
+                  Save final discharge?
+                </h5>
+                <p className="mb-3 text-muted small">
+                  This will complete the IPD admission and cannot be undone from this form.
+                </p>
+                <div className="d-flex justify-content-center flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    onClick={() => setShowFinalDischargeConfirm(false)}
+                    disabled={savingFinalDischarge}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleConfirmSaveFinalDischarge}
+                    disabled={savingFinalDischarge}
+                  >
+                    {savingFinalDischarge ? "Saving…" : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showAddTransaction && ipd ? (
         <>

@@ -1,14 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import ImageWithBasePath from "@/core/imageWithBasePath";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import {
   buildDischargeSummaryPayload,
+  DISCHARGE_TYPE_OPTIONS,
   emptyDischargeSummaryForm,
   normalizeDischargeSummaryFromApi,
+  showDischargeTypeDetailCard,
+  validateDischargeSummaryForm,
   type IDischargeSummaryFormState,
+  type TDischargeType,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 
 interface IProps {
@@ -33,6 +37,23 @@ const OFFCANVAS_STYLE = {
 const COMPACT_TEXTAREA_STYLE = {
   minHeight: "38px",
   resize: "vertical" as const,
+};
+
+const PAIRED_FIELD_HEIGHT = "40px";
+const DISCHARGE_CARD_FIELD_FONT_SIZE = "0.9375rem";
+
+const PAIRED_INPUT_STYLE = {
+  height: PAIRED_FIELD_HEIGHT,
+  minHeight: PAIRED_FIELD_HEIGHT,
+  fontSize: DISCHARGE_CARD_FIELD_FONT_SIZE,
+};
+
+const PAIRED_TEXTAREA_STYLE = {
+  height: PAIRED_FIELD_HEIGHT,
+  minHeight: PAIRED_FIELD_HEIGHT,
+  fontSize: DISCHARGE_CARD_FIELD_FONT_SIZE,
+  resize: "vertical" as const,
+  overflow: "auto",
 };
 
 const getAxiosMessage = (err: unknown, fallback: string) => {
@@ -60,8 +81,6 @@ const IpdDischargeSummaryForm = ({
   const [form, setForm] = useState<IDischargeSummaryFormState>(emptyDischargeSummaryForm);
   const [loading, setLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [savingFinal, setSavingFinal] = useState(false);
-  const [showFinalConfirmDialog, setShowFinalConfirmDialog] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "danger"; text: string } | null>(
     null
   );
@@ -70,6 +89,18 @@ const IpdDischargeSummaryForm = ({
     ipdStatus === "Completed" ||
     ipdStatus === "Discharged" ||
     ipdStatus?.toLowerCase() === "discharged";
+
+  const dischargeTypeSelectOptions = useMemo<Option[]>(
+    () =>
+      DISCHARGE_TYPE_OPTIONS.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+      })),
+    []
+  );
+
+  const selectedDischargeType =
+    dischargeTypeSelectOptions.find((o) => o.value === form.dischargeType) ?? null;
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -93,8 +124,9 @@ const IpdDischargeSummaryForm = ({
 
   const handleSaveDraft = async () => {
     if (!API_BASE_URL || !ipdId) return;
-    if (!form.dischargeDate) {
-      setFeedback({ type: "danger", text: "Discharge date is required." });
+    const validationError = validateDischargeSummaryForm(form);
+    if (validationError) {
+      setFeedback({ type: "danger", text: validationError });
       return;
     }
     try {
@@ -121,47 +153,6 @@ const IpdDischargeSummaryForm = ({
       });
     } finally {
       setSavingDraft(false);
-    }
-  };
-
-  const handleSaveFinal = async () => {
-    if (!API_BASE_URL || !ipdId) return;
-    if (!form.dischargeDate) {
-      setFeedback({ type: "danger", text: "Discharge date is required." });
-      return;
-    }
-    setShowFinalConfirmDialog(true);
-  };
-
-  const handleConfirmSaveFinal = async () => {
-    if (!API_BASE_URL || !ipdId) return;
-    try {
-      setSavingFinal(true);
-      setShowFinalConfirmDialog(false);
-      setFeedback(null);
-      const payload = buildDischargeSummaryPayload(form);
-      await axios.put(`${API_BASE_URL}/hospital/ipd/${ipdId}/discharge-summary`, payload);
-      const res = await axios.post(`${API_BASE_URL}/hospital/ipd/${ipdId}/discharge`, payload);
-      if (res.data?.code === 200 || (res.status >= 200 && res.status < 300)) {
-        setFeedback({
-          type: "success",
-          text: res.data?.message ?? "Patient discharged successfully.",
-        });
-        onDischargeComplete?.();
-        onClose();
-      } else {
-        setFeedback({
-          type: "danger",
-          text: res.data?.message ?? "Failed to complete discharge.",
-        });
-      }
-    } catch (err) {
-      setFeedback({
-        type: "danger",
-        text: getAxiosMessage(err, "Failed to complete discharge."),
-      });
-    } finally {
-      setSavingFinal(false);
     }
   };
 
@@ -213,64 +204,6 @@ const IpdDischargeSummaryForm = ({
 
   return (
     <>
-      {showFinalConfirmDialog ? (
-        <div
-          className="modal fade show d-block"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="final_discharge_confirm_title"
-          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1060 }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowFinalConfirmDialog(false);
-          }}
-        >
-          <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div className="modal-content">
-              <div className="modal-body text-center position-relative z-1">
-                <ImageWithBasePath
-                  src="assets/img/bg/delete-modal-bg-01.png"
-                  alt=""
-                  className="img-fluid position-absolute top-0 start-0 z-n1"
-                />
-                <ImageWithBasePath
-                  src="assets/img/bg/delete-modal-bg-02.png"
-                  alt=""
-                  className="img-fluid position-absolute bottom-0 end-0 z-n1"
-                />
-                <div className="mb-3">
-                  <span className="avatar avatar-lg bg-warning text-white">
-                    <i className="ti ti-alert-triangle fs-24" aria-hidden />
-                  </span>
-                </div>
-                <h5 id="final_discharge_confirm_title" className="fw-bold mb-1">
-                  Save final discharge?
-                </h5>
-                <p className="mb-3 text-muted small">
-                  This will complete the IPD admission and cannot be undone from this form.
-                </p>
-                <div className="d-flex justify-content-center flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-light"
-                    onClick={() => setShowFinalConfirmDialog(false)}
-                    disabled={savingFinal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleConfirmSaveFinal}
-                    disabled={savingFinal}
-                  >
-                    {savingFinal ? "Saving…" : "Confirm"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
       <div
         className="position-fixed top-0 start-0 w-100 h-100"
         style={{ zIndex: 1040, backgroundColor: "rgba(0, 0, 0, 0.5)" }}
@@ -315,9 +248,27 @@ const IpdDischargeSummaryForm = ({
                 </div>
               ) : null}
 
-              <fieldset disabled={isDischarged || savingDraft || savingFinal}>
+              <fieldset disabled={isDischarged || savingDraft}>
                 <div className="row g-2 mb-2">
-                  <div className="col-sm-6 col-12">
+                  <div className="col-12 col-md-4">
+                    <label className={LABEL_CLASS}>
+                      Discharge Type<span className="text-danger">*</span>
+                    </label>
+                    <CommonSelect
+                      instanceId="ipd-discharge-type"
+                      options={dischargeTypeSelectOptions}
+                      value={selectedDischargeType}
+                      onChange={(opt) => {
+                        if (opt?.value) {
+                          updateField("dischargeType", opt.value as TDischargeType);
+                        }
+                      }}
+                      placeholder="Select discharge type"
+                      className="w-100"
+                      disabled={isDischarged || savingDraft}
+                    />
+                  </div>
+                  <div className="col-12 col-md-4">
                     <label className={LABEL_CLASS} htmlFor="ipd-discharge-date">
                       Discharge Date<span className="text-danger">*</span>
                     </label>
@@ -329,7 +280,7 @@ const IpdDischargeSummaryForm = ({
                       onChange={(e) => updateField("dischargeDate", e.target.value)}
                     />
                   </div>
-                  <div className="col-sm-6 col-12">
+                  <div className="col-12 col-md-4">
                     <label className={LABEL_CLASS} htmlFor="ipd-condition-on-discharge">
                       Condition on Discharge
                     </label>
@@ -343,6 +294,136 @@ const IpdDischargeSummaryForm = ({
                     />
                   </div>
                 </div>
+
+                {showDischargeTypeDetailCard(form.dischargeType) ? (
+                <div className="mb-3">
+                  <label className={`${LABEL_CLASS} mb-1`}>
+                    {DISCHARGE_TYPE_OPTIONS.find((o) => o.value === form.dischargeType)?.label ??
+                      "Discharge Type Details"}
+                  </label>
+                  <div className="border rounded p-2 mb-2 bg-light">
+                    {form.dischargeType === "LAMA" ? (
+                      <div className="row g-2">
+                        <div className="col-12">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-lama-reason">
+                            LAMA Reason<span className="text-danger">*</span>
+                          </label>
+                          <textarea
+                            id="ipd-lama-reason"
+                            className="form-control form-control-sm"
+                            rows={2}
+                            style={{
+                              ...COMPACT_TEXTAREA_STYLE,
+                              fontSize: DISCHARGE_CARD_FIELD_FONT_SIZE,
+                            }}
+                            placeholder="e.g. Patient insisted on leaving against medical advice. AMA form signed."
+                            value={form.lamaReason}
+                            onChange={(e) => updateField("lamaReason", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {form.dischargeType === "DOR" ? (
+                      <div className="row g-2">
+                        <div className="col-12 col-md-6">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-dor-requested-by">
+                            Requested By<span className="text-danger">*</span>
+                          </label>
+                          <input
+                            id="ipd-dor-requested-by"
+                            type="text"
+                            className="form-control form-control-sm"
+                            style={PAIRED_INPUT_STYLE}
+                            placeholder="e.g. Ramesh Kumar (Patient son)"
+                            value={form.dorRequestedBy}
+                            onChange={(e) => updateField("dorRequestedBy", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-12 col-md-6">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-dor-reason">
+                            DOR Reason<span className="text-danger">*</span>
+                          </label>
+                          <textarea
+                            id="ipd-dor-reason"
+                            className="form-control form-control-sm"
+                            rows={1}
+                            style={PAIRED_TEXTAREA_STYLE}
+                            placeholder="e.g. Family requested discharge to continue treatment at home."
+                            value={form.dorReason}
+                            onChange={(e) => updateField("dorReason", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {form.dischargeType === "Death" ? (
+                      <div className="row g-2">
+                        <div className="col-12 col-md-6">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-death-datetime">
+                            Death Date & Time<span className="text-danger">*</span>
+                          </label>
+                          <input
+                            id="ipd-death-datetime"
+                            type="datetime-local"
+                            className="form-control form-control-sm"
+                            style={PAIRED_INPUT_STYLE}
+                            value={form.deathDateTime}
+                            onChange={(e) => updateField("deathDateTime", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-12 col-md-6">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-death-cause">
+                            Cause of Death<span className="text-danger">*</span>
+                          </label>
+                          <textarea
+                            id="ipd-death-cause"
+                            className="form-control form-control-sm"
+                            rows={1}
+                            style={PAIRED_TEXTAREA_STYLE}
+                            placeholder="e.g. Cardiac arrest — unresponsive to resuscitation."
+                            value={form.deathCause}
+                            onChange={(e) => updateField("deathCause", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {form.dischargeType === "Refer" ? (
+                      <div className="row g-2">
+                        <div className="col-12 col-md-6">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-refer-hospital">
+                            Refer Hospital Name<span className="text-danger">*</span>
+                          </label>
+                          <input
+                            id="ipd-refer-hospital"
+                            type="text"
+                            className="form-control form-control-sm"
+                            style={PAIRED_INPUT_STYLE}
+                            placeholder="e.g. AIIMS New Delhi"
+                            value={form.referHospitalName}
+                            onChange={(e) => updateField("referHospitalName", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-12 col-md-6">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-refer-reason">
+                            Refer Reason<span className="text-danger">*</span>
+                          </label>
+                          <textarea
+                            id="ipd-refer-reason"
+                            className="form-control form-control-sm"
+                            rows={1}
+                            style={PAIRED_TEXTAREA_STYLE}
+                            placeholder="e.g. Patient requires advanced cardiac surgery not available here."
+                            value={form.referReason}
+                            onChange={(e) => updateField("referReason", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                ) : null}
 
                 <div className="mb-3">
                   <label className={LABEL_CLASS} htmlFor="ipd-clinical-summary">
@@ -385,7 +466,7 @@ const IpdDischargeSummaryForm = ({
                   </div>
                   {form.finalDiagnosis.map((row, index) => (
                     <div className="row g-2 mb-2 align-items-end" key={`diag-${index}`}>
-                      <div className="col-4 col-sm-3">
+                      {/* <div className="col-4 col-sm-3">
                         <input
                           type="text"
                           className="form-control form-control-sm"
@@ -398,7 +479,7 @@ const IpdDischargeSummaryForm = ({
                           }}
                           aria-label={`ICD code ${index + 1}`}
                         />
-                      </div>
+                      </div> */}
                       <div className="col">
                         <input
                           type="text"
@@ -576,7 +657,7 @@ const IpdDischargeSummaryForm = ({
               type="button"
               className="btn btn-light"
               onClick={onClose}
-              disabled={savingDraft || savingFinal}
+              disabled={savingDraft}
             >
               Cancel
             </button>
@@ -584,7 +665,7 @@ const IpdDischargeSummaryForm = ({
               type="button"
               className="btn btn-outline-primary"
               onClick={handleSaveDraft}
-              disabled={savingDraft || savingFinal}
+              disabled={savingDraft}
             >
               {savingDraft ? (
                 <>
@@ -593,21 +674,6 @@ const IpdDischargeSummaryForm = ({
                 </>
               ) : (
                 "Save as Draft"
-              )}
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSaveFinal}
-              disabled={savingDraft || savingFinal}
-            >
-              {savingFinal ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
-                  Discharging…
-                </>
-              ) : (
-                "Save Final Discharge"
               )}
             </button>
           </div>

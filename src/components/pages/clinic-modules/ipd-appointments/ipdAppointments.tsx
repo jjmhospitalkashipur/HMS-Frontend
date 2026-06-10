@@ -15,6 +15,11 @@ import { DatePicker, Tooltip } from "antd";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
+import {
+  getDischargeTypeLabel,
+  parseDischargeType,
+  type TDischargeType,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 import { getIpdProcedureNamesForListing } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
@@ -89,6 +94,7 @@ interface IIpdAppointment {
   admissionDate?: string;
   status?: string;
   isDischarge?: boolean;
+  dischargeSummary?: { dischargeType?: string };
   createdAt?: string;
   paymentStatus?: string;
   amountPaid?: number;
@@ -142,6 +148,8 @@ interface IRow {
   Status: string;
   Payment_Status: string;
   IsDischarged: boolean;
+  DischargeType?: TDischargeType;
+  DischargeTypeLabel?: string;
 }
 
 const getAxiosMessage = (err: unknown, fallback: string) => {
@@ -324,6 +332,7 @@ const IpdAppointmentsComponent = () => {
           const gender = item.patient?.gender;
           const proceduresList = getIpdProcedureNamesForListing(item);
           const finalDiagnosisList = getIpdProcedureNamesForListing(item, { onlyCompleted: true });
+          const dischargeType = parseDischargeType(item.dischargeSummary?.dischargeType);
 
           return {
             id: item._id,
@@ -346,6 +355,8 @@ const IpdAppointmentsComponent = () => {
             Status: item.status || "",
             Payment_Status: item.paymentStatus || "",
             IsDischarged: Boolean(item.isDischarge),
+            DischargeType: dischargeType,
+            DischargeTypeLabel: dischargeType ? getDischargeTypeLabel(dischargeType) : undefined,
           };
         });
         setRows(mapped);
@@ -458,9 +469,19 @@ const IpdAppointmentsComponent = () => {
         <div className="d-flex flex-column gap-1">
           <span className="text-dark fw-semibold">{text || "—"}</span>
           {record.IsDischarged ? (
-            <span className="badge badge-soft-success border border-success fs-10 px-2 py-1 w-fit-content">
-              Discharged
-            </span>
+            <div className="d-flex flex-wrap align-items-center gap-1">
+              <span className="badge badge-soft-success border border-success fs-10 px-2 py-1 w-fit-content">
+                Discharged
+              </span>
+              {record.DischargeTypeLabel ? (
+                <span
+                  className="badge badge-soft-info border border-info fs-10 px-2 py-1 w-fit-content"
+                  title={record.DischargeTypeLabel}
+                >
+                  {record.DischargeTypeLabel}
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ),
