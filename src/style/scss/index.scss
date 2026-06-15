@@ -965,3 +965,32 @@
     visibility: visible;
   }
 }
+
+.ipd-appointment-bed-card {
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 7.5rem);
+    min-height: 0;
+    overflow: hidden;
+
+    @media (max-width: 991.98px) {
+      max-height: calc(100vh - 6rem);
+    }
+  }
+}
+
+.ipd-bed-map-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ipd-bed-map-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}

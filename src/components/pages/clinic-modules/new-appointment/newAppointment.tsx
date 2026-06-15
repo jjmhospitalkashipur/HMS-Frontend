@@ -170,6 +170,8 @@ interface IIpdCreatePayload {
   discountPassword?: string;
   isMLC?: boolean;
   mlc?: IIpdMlcData;
+  allowBedCharges?: boolean;
+  allowNursingCharges?: boolean;
   transaction?: {
     transactionType: "Payment";
     amount: number;
@@ -344,6 +346,9 @@ const NewAppointmentComponent = () => {
   const [ipdProceduresLoading, setIpdProceduresLoading] = useState(false);
   const [ipdProcedurePriceById, setIpdProcedurePriceById] = useState<Record<string, number>>({});
   const [ipdProcedureCategoryById, setIpdProcedureCategoryById] = useState<Record<string, string>>({});
+  const [ipdProcedurePackageById, setIpdProcedurePackageById] = useState<Record<string, boolean>>({});
+  const [ipdAllowBedCharges, setIpdAllowBedCharges] = useState(false);
+  const [ipdAllowNursingCharges, setIpdAllowNursingCharges] = useState(false);
   const [ipdPaymentMode, setIpdPaymentMode] = useState<string>("Cash");
   const [ipdDiscount, setIpdDiscount] = useState<number>(0);
   const [ipdAmountReceived, setIpdAmountReceived] = useState<number>(0);
@@ -376,6 +381,13 @@ const NewAppointmentComponent = () => {
     ipdConsultingDoctorCharge,
     ipdSelectedDoctor?.value
   );
+  const ipdHasSelectedPackageProcedure = useMemo(
+    () =>
+      ipdAddedProcedures.some(
+        (procedure) => procedure.id && Boolean(ipdProcedurePackageById[procedure.id])
+      ),
+    [ipdAddedProcedures, ipdProcedurePackageById]
+  );
   const ipdBedChargesAmount = useMemo(() => {
     const resolved = resolveIpdBedSummary(
       ipdBedBlockData,
@@ -384,9 +396,41 @@ const NewAppointmentComponent = () => {
       ipdWardOptions
     );
     const rate = resolved.ratePerDay ?? ipdBedSummarySnapshot?.ratePerDay ?? 0;
-    return Number.isFinite(rate) ? rate : 0;
-  }, [ipdBedBlockData, ipdSelectedBedId, ipdSelectedBed?.bedCode, ipdWardOptions, ipdBedSummarySnapshot]);
-  const ipdSubtotal = ipdProceduresCharges + ipdDoctorChargesTotal + ipdBedChargesAmount;
+    const amount = Number.isFinite(rate) ? rate : 0;
+    if (ipdHasSelectedPackageProcedure && !ipdAllowBedCharges) return 0;
+    return amount;
+  }, [
+    ipdBedBlockData,
+    ipdSelectedBedId,
+    ipdSelectedBed?.bedCode,
+    ipdWardOptions,
+    ipdBedSummarySnapshot,
+    ipdHasSelectedPackageProcedure,
+    ipdAllowBedCharges,
+  ]);
+  const ipdNursingChargesAmount = useMemo(() => {
+    const resolved = resolveIpdBedSummary(
+      ipdBedBlockData,
+      ipdSelectedBedId,
+      ipdSelectedBed?.bedCode,
+      ipdWardOptions
+    );
+    const snapshotRate = ipdBedSummarySnapshot?.nursingChargePerDay;
+    const rate = resolved.nursingChargePerDay ?? snapshotRate ?? 0;
+    const amount = Number.isFinite(rate) ? rate : 0;
+    if (ipdHasSelectedPackageProcedure && !ipdAllowNursingCharges) return 0;
+    return amount;
+  }, [
+    ipdBedBlockData,
+    ipdSelectedBedId,
+    ipdSelectedBed?.bedCode,
+    ipdWardOptions,
+    ipdBedSummarySnapshot,
+    ipdHasSelectedPackageProcedure,
+    ipdAllowNursingCharges,
+  ]);
+  const ipdSubtotal =
+    ipdProceduresCharges + ipdDoctorChargesTotal + ipdBedChargesAmount + ipdNursingChargesAmount;
   const ipdBalance = ipdSubtotal - (ipdDiscount || 0) - (ipdAmountReceived || 0);
   const ipdSummaryBed = useMemo(() => {
     const resolved = resolveIpdBedSummary(
@@ -1640,12 +1684,22 @@ const NewAppointmentComponent = () => {
       );
       const priceMap: Record<string, number> = {};
       const catMap: Record<string, string> = {};
-      arr.forEach((p: { _id: string; price?: number; basePrice?: number; category?: string }) => {
+      const packageMap: Record<string, boolean> = {};
+      arr.forEach(
+        (p: {
+          _id: string;
+          price?: number;
+          basePrice?: number;
+          category?: string;
+          isPackage?: boolean;
+        }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
         if (p.category) catMap[p._id] = p.category;
+        packageMap[p._id] = Boolean(p.isPackage);
       });
       setIpdProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
       setIpdProcedureCategoryById((prev) => ({ ...prev, ...catMap }));
+      setIpdProcedurePackageById((prev) => ({ ...prev, ...packageMap }));
     } catch {
       setIpdProceduresOptions([]);
     } finally {
@@ -1664,6 +1718,13 @@ const NewAppointmentComponent = () => {
   useEffect(() => {
     if (appointmentTab === "IPD") void fetchIpdProcedures();
   }, [appointmentTab]);
+
+  useEffect(() => {
+    if (!ipdHasSelectedPackageProcedure) {
+      setIpdAllowBedCharges(false);
+      setIpdAllowNursingCharges(false);
+    }
+  }, [ipdHasSelectedPackageProcedure]);
 
   useEffect(() => {
     if (appointmentTab !== "IPD") {
@@ -2147,6 +2208,11 @@ const NewAppointmentComponent = () => {
 
     if (ipdViaOpd && ipdSelectedOpdVisit?.value) {
       payload.visitId = ipdSelectedOpdVisit.value;
+    }
+
+    if (ipdHasSelectedPackageProcedure) {
+      payload.allowBedCharges = ipdAllowBedCharges;
+      payload.allowNursingCharges = ipdAllowNursingCharges;
     }
 
     return payload;
@@ -3599,7 +3665,7 @@ const NewAppointmentComponent = () => {
                     <div className="row g-3 align-items-start">
                       {/* LEFT COLUMN — stepper + form steps */}
                       <div className="col-12 col-lg-8 d-flex flex-column">
-                        <div className="card mb-3">
+                        <div className={`card mb-3${ipdFormStep === 3 ? " ipd-appointment-bed-card" : ""}`}>
                           <div className="card-body">
                             <IpdFormStepIndicator currentStep={ipdFormStep} />
                             {ipdError ? (
@@ -3953,6 +4019,60 @@ const NewAppointmentComponent = () => {
                                     ) : null}
                                   </div>
                                 </div>
+                                {ipdHasSelectedPackageProcedure ? (
+                                  <div className="flex-shrink-0">
+                                    <label className="form-label mb-1 fw-medium fs-14">Bed Charges</label>
+                                    <div
+                                      className="d-flex align-items-center gap-2 flex-nowrap"
+                                      style={{ minHeight: "38px" }}
+                                    >
+                                      <div className="form-check form-switch mb-0">
+                                        <input
+                                          className="form-check-input"
+                                          type="checkbox"
+                                          role="switch"
+                                          id="ipd-new-allow-bed-charges-toggle"
+                                          checked={ipdAllowBedCharges}
+                                          onChange={(e) => setIpdAllowBedCharges(e.target.checked)}
+                                          aria-label="Allow bed charges for package procedure"
+                                        />
+                                        <label
+                                          className="form-check-label fw-medium fs-14"
+                                          htmlFor="ipd-new-allow-bed-charges-toggle"
+                                        >
+                                          {ipdAllowBedCharges ? "Yes" : "No"}
+                                        </label>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null}
+                                {ipdHasSelectedPackageProcedure ? (
+                                  <div className="flex-shrink-0">
+                                    <label className="form-label mb-1 fw-medium fs-14">Nursing Charges</label>
+                                    <div
+                                      className="d-flex align-items-center gap-2 flex-nowrap"
+                                      style={{ minHeight: "38px" }}
+                                    >
+                                      <div className="form-check form-switch mb-0">
+                                        <input
+                                          className="form-check-input"
+                                          type="checkbox"
+                                          role="switch"
+                                          id="ipd-new-allow-nursing-charges-toggle"
+                                          checked={ipdAllowNursingCharges}
+                                          onChange={(e) => setIpdAllowNursingCharges(e.target.checked)}
+                                          aria-label="Allow nursing charges for package procedure"
+                                        />
+                                        <label
+                                          className="form-check-label fw-medium fs-14"
+                                          htmlFor="ipd-new-allow-nursing-charges-toggle"
+                                        >
+                                          {ipdAllowNursingCharges ? "Yes" : "No"}
+                                        </label>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null}
                               </div>
                               <div className="row g-3">
                                 {ipdMlc ? (
@@ -4000,8 +4120,8 @@ const NewAppointmentComponent = () => {
 
                         {/* STEP 3 — Bed Details */}
                         {ipdFormStep === 3 && (
-                          <>
-                              <h6 className="fw-bold text-primary mb-0 d-flex align-items-center flex-wrap gap-2">
+                          <div className="ipd-bed-map-panel">
+                              <h6 className="fw-bold text-primary mb-3 d-flex align-items-center flex-wrap gap-2 flex-shrink-0">
                                 Bed Details
                                 {ipdSelectedBed ? (
                                   <span className="badge badge-soft-success border border-success fw-medium fs-12">
@@ -4009,18 +4129,20 @@ const NewAppointmentComponent = () => {
                                   </span>
                                 ) : null}
                               </h6>
-                              <IpdBedSelectionStep
-                                data={ipdBedBlockData}
-                                loading={ipdBedsLoading}
-                                error={ipdBedsError}
-                                selectedBedId={ipdSelectedBedId}
-                                onSelectBed={handleIpdSelectBed}
-                                wardOptions={ipdWardOptions}
-                                selectedWardId={ipdSelectedWardFilterId}
-                                onWardFilterChange={handleIpdWardFilterChange}
-                                wardsLoading={ipdWardsLoading}
-                              />
-                          </>
+                              <div className="ipd-bed-map-panel__body">
+                                <IpdBedSelectionStep
+                                  data={ipdBedBlockData}
+                                  loading={ipdBedsLoading}
+                                  error={ipdBedsError}
+                                  selectedBedId={ipdSelectedBedId}
+                                  onSelectBed={handleIpdSelectBed}
+                                  wardOptions={ipdWardOptions}
+                                  selectedWardId={ipdSelectedWardFilterId}
+                                  onWardFilterChange={handleIpdWardFilterChange}
+                                  wardsLoading={ipdWardsLoading}
+                                />
+                              </div>
+                          </div>
                         )}
                           </div>
                         </div>

@@ -1019,7 +1019,7 @@ const EditIpdAppointmentComponent = () => {
           <form onSubmit={handleSubmit}>
             <div className="row g-3 align-items-start">
               <div className="col-12 col-lg-8 d-flex flex-column">
-                <div className="card mb-3">
+                <div className={`card mb-3${formStep === 3 ? " ipd-appointment-bed-card" : ""}`}>
                   <div className="card-body">
                     <IpdFormStepIndicator currentStep={formStep} />
                     {error ? (
@@ -1384,8 +1384,8 @@ const EditIpdAppointmentComponent = () => {
                 )}
 
                 {formStep === 3 && (
-                  <>
-                      <h6 className="fw-bold text-primary mb-0 d-flex align-items-center flex-wrap gap-2">
+                  <div className="ipd-bed-map-panel">
+                      <h6 className="fw-bold text-primary mb-3 d-flex align-items-center flex-wrap gap-2 flex-shrink-0">
                         Bed Details
                         {selectedBed ? (
                           <span className="badge badge-soft-success border border-success fw-medium fs-12">
@@ -1393,18 +1393,20 @@ const EditIpdAppointmentComponent = () => {
                           </span>
                         ) : null}
                       </h6>
-                      <IpdBedSelectionStep
-                        data={bedBlockData}
-                        loading={bedsLoading}
-                        error={bedsError}
-                        selectedBedId={selectedBedId}
-                        onSelectBed={handleSelectBed}
-                        wardOptions={wardOptions}
-                        selectedWardId={selectedWardFilterId}
-                        onWardFilterChange={handleWardFilterChange}
-                        wardsLoading={wardsLoading}
-                      />
-                  </>
+                      <div className="ipd-bed-map-panel__body">
+                        <IpdBedSelectionStep
+                          data={bedBlockData}
+                          loading={bedsLoading}
+                          error={bedsError}
+                          selectedBedId={selectedBedId}
+                          onSelectBed={handleSelectBed}
+                          wardOptions={wardOptions}
+                          selectedWardId={selectedWardFilterId}
+                          onWardFilterChange={handleWardFilterChange}
+                          wardsLoading={wardsLoading}
+                        />
+                      </div>
+                  </div>
                 )}
                   </div>
                 </div>

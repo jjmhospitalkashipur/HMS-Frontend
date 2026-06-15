@@ -1,6 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import type { IReceiptData, IReceiptTransaction } from "./printReceipt";
+import type { IReceiptData, IReceiptTransaction, IPathlabReceiptData, IPathlabTestItem } from "./printReceipt";
 
 export async function enrichIPDDoctorForReceipt(
   ipd: IIpdAppointmentDetail
@@ -98,6 +98,51 @@ export interface IIpdBedSummary {
   ward?: { _id?: string; name?: string; chargePerDay?: number };
 }
 
+export interface IPathlabCasePatient {
+  patientId?: string;
+  title?: string;
+  firstName?: string;
+  lastName?: string;
+  age?: number;
+  months?: number;
+  days?: number;
+  gender?: string;
+  address?: { line1?: string; [key: string]: unknown };
+}
+
+export interface IPathlabCaseDoctor {
+  _id?: string;
+  doctorId?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface IPathlabCaseTestEntry {
+  _id?: string;
+  price?: number;
+  test?: {
+    _id?: string;
+    testId?: string;
+    testCode?: string;
+    name?: string;
+  };
+}
+
+export interface IPathlabCaseData {
+  _id?: string;
+  caseId?: string;
+  patientId?: string;
+  discountValue?: number;
+  finalAmount?: number;
+  totalAmount?: number;
+  patient?: IPathlabCasePatient;
+  doctor?: IPathlabCaseDoctor;
+  casetests?: IPathlabCaseTestEntry[];
+  transactions?: Array<{ amount?: number }>;
+  labcenter?: { name?: string };
+  createdAt?: string;
+}
+
 export interface IIpdBillingChargeSummary {
   type?: string;
   procedureId?: string;
@@ -106,6 +151,9 @@ export interface IIpdBillingChargeSummary {
   units?: number;
   totalCharge?: number;
   charge?: number;
+  caseId?: string;
+  caseReadableId?: string;
+  caseData?: IPathlabCaseData;
 }
 
 export interface IIpdAppointmentDetail {
@@ -152,6 +200,36 @@ export interface IIpdAppointmentDetail {
   };
   transactions?: IIpdTransaction[];
 }
+
+export const resolveIpdGrossTotal = (ipd: IIpdAppointmentDetail): number => {
+  const subtotal = ipd.subtotal;
+  const totalPrice = ipd.totalPrice;
+  if (subtotal != null && Number.isFinite(Number(subtotal)) && Number(subtotal) > 0) {
+    return Number(subtotal);
+  }
+  if (totalPrice != null && Number.isFinite(Number(totalPrice)) && Number(totalPrice) > 0) {
+    return Number(totalPrice);
+  }
+
+  const procedureTotal =
+    ipd.procedureChargesTotal ??
+    (ipd.procedures ?? []).reduce((sum, proc) => sum + (Number(proc.price) || 0), 0);
+  const doctorTotal =
+    ipd.doctorChargesAmount ??
+    (ipd.doctorVisits ?? []).reduce((sum, visit) => sum + (Number(visit.price) || 0), 0);
+  const bedTotal =
+    ipd.bedChargesTotal ??
+    (Number.isFinite(Number(ipd.bedCharge?.totalCharge))
+      ? Number(ipd.bedCharge?.totalCharge)
+      : 0);
+
+  const computed = procedureTotal + doctorTotal + bedTotal;
+  if (computed > 0) return computed;
+
+  if (subtotal != null && Number.isFinite(Number(subtotal))) return Number(subtotal);
+  if (totalPrice != null && Number.isFinite(Number(totalPrice))) return Number(totalPrice);
+  return 0;
+};
 
 export const buildIPDReceiptData = (
   ipd: IIpdAppointmentDetail,
@@ -266,9 +344,71 @@ export const buildIPDReceiptData = (
     medicalLicenseNo: ipd.doctor?.medicalLicenseNo,
     receiptId: ipd.receiptId,
     transactions: charges,
-    totalAmount: ipd.subtotal ?? ipd.totalPrice ?? 0,
+    totalAmount: resolveIpdGrossTotal(ipd),
     discount: ipd.discount ?? 0,
     dueAmount,
     paidAmount: ipd.amountPaid ?? 0,
   };
+};
+
+export const buildPathlabReceiptsFromIPD = (
+  ipd: IIpdAppointmentDetail
+): IPathlabReceiptData[] => {
+  const billing = ipd.billingCharges ?? [];
+  const testCharges = billing.filter((c) => c.type === "test" && c.caseData);
+
+  return testCharges.map((charge, idx) => {
+    const caseData = charge.caseData!;
+    const patient = caseData.patient;
+    const doctor = caseData.doctor;
+
+    const tests: IPathlabTestItem[] = (caseData.casetests ?? []).map((ct, i) => ({
+      srNo: i + 1,
+      testName: ct.test?.name ?? "",
+      price: ct.price ?? 0,
+    }));
+
+    const paidAmount = (caseData.transactions ?? []).reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0
+    );
+
+    const formatPathlabAge = (p?: IPathlabCasePatient): string | undefined => {
+      if (!p) return undefined;
+      const y = p.age != null ? Number(p.age) : undefined;
+      if (y != null && Number.isFinite(y)) {
+        if (y === 0) {
+          const m = p.months != null ? Number(p.months) : 0;
+          if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+          if (p.days != null) return `${Number(p.days)} ${Number(p.days) === 1 ? "Day" : "Days"}`;
+          return undefined;
+        }
+        return `${y} ${y === 1 ? "Year" : "Years"}`;
+      }
+      return undefined;
+    };
+
+    const referringDoctorName = doctor
+      ? [doctor.firstName, doctor.lastName].filter(Boolean).join(" ").trim() || undefined
+      : undefined;
+
+    return {
+      caseId: caseData.caseId ?? charge.caseReadableId ?? `CASE-${idx}`,
+      patientName: patient
+        ? [patient.firstName, patient.lastName].filter(Boolean).join(" ").trim() || undefined
+        : undefined,
+      patientTitle: patient?.title,
+      mrd: patient?.patientId,
+      age: formatPathlabAge(patient),
+      gender: patient?.gender,
+      address: patient?.address?.line1?.trim() || undefined,
+      referringDoctorName,
+      date: caseData.createdAt,
+      tests,
+      totalAmount: caseData.totalAmount ?? 0,
+      discountValue: caseData.discountValue ?? 0,
+      finalAmount: caseData.finalAmount ?? 0,
+      paidAmount,
+    };
+  });
 };

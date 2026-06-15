@@ -3,6 +3,29 @@
 import { useEffect, useMemo, useRef } from "react";
 import dayjs from "dayjs";
 
+export interface IPathlabTestItem {
+  srNo: number;
+  testName: string;
+  price: number;
+}
+
+export interface IPathlabReceiptData {
+  caseId: string;
+  patientName?: string;
+  patientTitle?: string;
+  mrd?: string;
+  age?: string;
+  gender?: string;
+  address?: string;
+  referringDoctorName?: string;
+  date?: string;
+  tests: IPathlabTestItem[];
+  totalAmount: number;
+  discountValue: number;
+  finalAmount: number;
+  paidAmount: number;
+}
+
 export interface IReceiptTransaction {
   _id: string;
   transactionId: string;
@@ -46,10 +69,11 @@ export interface IReceiptData {
 
 interface IPrintReceiptProps {
   receiptData: IReceiptData;
+  pathlabReceiptData?: IPathlabReceiptData[];
   onClose?: () => void;
 }
 
-const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
+const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceiptProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   /** Inline parent handlers change every render; must not be a useEffect dependency or print runs again after cancel. */
   const onCloseRef = useRef(onClose);
@@ -158,6 +182,17 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
                 text-align: center;
               }
               .payment-no-data { text-align: center; padding: 24px; color: #000; font-size: 14px; border: 1px solid #000; }
+              .pathlab-page { page-break-before: always; padding-top: 10px; }
+              .test-section { margin-bottom: 0; }
+              .test-header { display: flex; padding: 8px 0; border-bottom: 2px solid #000; font-weight: bold; font-size: 15px; }
+              .test-header .col-sr { width: 10%; }
+              .test-header .col-name { width: 65%; }
+              .test-header .col-rate { width: 25%; text-align: right; }
+              .test-row { display: flex; padding: 8px 0; border-bottom: 1px solid #000; font-size: 15px; }
+              .test-row .col-sr { width: 10%; }
+              .test-row .col-name { width: 65%; font-weight: 600; }
+              .test-row .col-rate { width: 25%; text-align: right; font-weight: 600; }
+              .summary-row-light { display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; border-bottom: 1px solid #000; }
               @media print {
                 @page { margin: 8mm 10mm 10mm 10mm; size: A4; }
                 body { padding: 0; background: white !important; }
@@ -358,6 +393,122 @@ const PrintReceipt = ({ receiptData, onClose }: IPrintReceiptProps) => {
             <div className="signature-line">Signature</div>
           </div>
         </div>
+
+        {/* Pathlab Receipt Pages — must be inside printRef so innerHTML captures them */}
+        {pathlabReceiptData && pathlabReceiptData.length > 0
+        ? pathlabReceiptData.map((pl) => {
+            const plPatientName = [pl.patientTitle, pl.patientName].filter(Boolean).join(" ").trim() || "—";
+            const plAgeGender = pl.gender
+              ? `${pl.age ?? "—"} / ${pl.gender}`
+              : (pl.age ?? "—");
+            const plDate = pl.date ? dayjs(pl.date).format("DD MMM YYYY") : "—";
+            return (
+              <div key={pl.caseId} className="pathlab-page">
+                {/* Header */}
+                <div className="header">
+                  <div className="header-left">
+                    <img src={logoUrl} alt="JJM Hospital" className="logo-img" />
+                    <div className="header-info">
+                      <h2>JJM Hospital</h2>
+                      <div className="certification">ISO 9001:2000 Certified</div>
+                    </div>
+                  </div>
+                  <div className="header-center">
+                    <div className="receipt-title">Pathlab Receipt</div>
+                  </div>
+                  <div className="header-right">
+                    <div className="address">
+                      Jaspur Rd, opposite Anaj Mandi, Sarverkhera,<br />
+                      Kashipur, Uttarakhand 244713
+                    </div>
+                    <div className="contact">Phone: +91 9634844075</div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="content-box">
+                  {/* Patient Details */}
+                  <div className="patient-details-box">
+                    <table className="patient-info-table">
+                      <tbody>
+                        <tr>
+                          <td className="info-label-cell">MRD No.:</td>
+                          <td className="info-value-cell">{pl.mrd ?? "—"}</td>
+                          <td className="info-label-cell">Date:</td>
+                          <td className="info-value-cell info-value-cell-narrow">{plDate}</td>
+                        </tr>
+                        <tr>
+                          <td className="info-label-cell">Patient Name:</td>
+                          <td className="info-value-cell">{plPatientName}</td>
+                          <td className="info-label-cell">Case/Rec. No.:</td>
+                          <td className="info-value-cell info-value-cell-narrow">{pl.caseId}</td>
+                        </tr>
+                        <tr>
+                          <td className="info-label-cell">Address:</td>
+                          <td className="info-value-cell">{pl.address?.trim() || "—"}</td>
+                          <td className="info-label-cell">Age / Gender:</td>
+                          <td className="info-value-cell info-value-cell-narrow">{plAgeGender}</td>
+                        </tr>
+                        <tr>
+                          <td className="info-label-cell">Ref. Doctor:</td>
+                          <td className="info-value-cell" colSpan={3}>{pl.referringDoctorName?.trim() || "—"}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Tests */}
+                  <div className="test-section">
+                    <div className="test-header">
+                      <div className="col-sr">SR No.</div>
+                      <div className="col-name">Test Name</div>
+                      <div className="col-rate">Rate</div>
+                    </div>
+                    {pl.tests.length === 0 ? (
+                      <div className="payment-no-data">No Tests Found</div>
+                    ) : (
+                      pl.tests.map((test) => (
+                        <div key={test.srNo} className="test-row">
+                          <div className="col-sr">{test.srNo}</div>
+                          <div className="col-name">{test.testName}</div>
+                          <div className="col-rate">₹{test.price.toFixed(2)}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Summary */}
+                  <div className="summary-section">
+                    <div className="summary-row">
+                      <span>Total</span>
+                      <span>₹{pl.totalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="summary-row-light">
+                      <span>Discount</span>
+                      <span>₹{pl.discountValue.toFixed(2)}</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>Final Amount</span>
+                      <span>₹{pl.finalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="summary-row total-paid">
+                      <span>Total Paid Amount</span>
+                      <span>₹{pl.paidAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="footer">
+                  <div>This is a computer generated receipt.</div>
+                  <div className="signature-block">
+                    <div className="signature-line">Signature</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        : null}
       </div>
     </div>
   );

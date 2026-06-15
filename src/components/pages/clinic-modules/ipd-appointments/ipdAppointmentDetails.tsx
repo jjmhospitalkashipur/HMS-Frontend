@@ -11,7 +11,9 @@ import dayjs from "dayjs";
 import PrintReceipt, { type IReceiptData } from "@/components/pages/clinic-modules/appointments/printReceipt";
 import {
   buildIPDReceiptData,
+  buildPathlabReceiptsFromIPD,
   enrichIPDDoctorForReceipt,
+  resolveIpdGrossTotal,
   type IIpdAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
 import {
@@ -170,10 +172,12 @@ const IpdAppointmentDetailsComponent = () => {
   const doctor = ipd.doctor;
   const patient = ipd.patient;
   const transactions = ipd.transactions || [];
-  const baseTotal = ipd.totalPrice ?? ipd.subtotal ?? 0;
+  const grossTotal = resolveIpdGrossTotal(ipd);
+  const discountAmount = ipd.discount ?? 0;
+  const netTotal = Math.max(0, grossTotal - discountAmount);
   const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalPaid = ipd.amountPaid != null ? ipd.amountPaid : totalPaidFromTx;
-  const dueAmount = Math.max(0, baseTotal - totalPaid);
+  const dueAmount = Math.max(0, netTotal - totalPaid);
   const bedChargesPrice =
     ipd.bedChargesTotal ??
     (Number.isFinite(Number(ipd.bedCharge?.totalCharge)) ? Number(ipd.bedCharge?.totalCharge) : 0);
@@ -196,6 +200,24 @@ const IpdAppointmentDetailsComponent = () => {
   const isMlc = Boolean(ipd.mlc ?? ipd.isMlc);
   const reasonLabel = (ipd.reason ?? ipd.notes ?? "").trim() || "—";
   const isDischarged = isIpdDischarged(ipd);
+
+  const handleCreateCase = () => {
+    if (!patient) return;
+
+    const params = new URLSearchParams({
+      phone: patient?.phone ?? "",
+      title: patient?.title ?? "",
+      name: patient?.name ?? "",
+      center: "JJM",
+      ipdId: ipd.ipdId?.trim() || ipd._id || "",
+    });
+
+    window.open(
+      `https://lab.jjmhospitalkashipur.com/new-appointment?${params.toString()}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
 
   const handlePrintDischargeSummary = () => {
     if (!dischargeSummaryRaw || typeof dischargeSummaryRaw !== "object") {
@@ -339,6 +361,16 @@ const IpdAppointmentDetailsComponent = () => {
           </h6>
 
           <div className="d-flex flex-wrap align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={handleCreateCase}
+              disabled={!patient}
+              aria-label="Create Pathlab Case"
+            >
+              <i className="ti ti-plus me-1" />
+              Create Case
+            </button>
             {isDischarged ? (
               <button
                 type="button"
@@ -607,12 +639,12 @@ const IpdAppointmentDetailsComponent = () => {
                 <div className="d-flex align-items-start justify-content-between flex-wrap gap-2 mt-3 pt-2 border-top">
                   <div>
                     <label className={`${DETAIL_LABEL_CLASS} d-block mb-0`}>Total</label>
-                    <div className={DETAIL_VALUE_CLASS}>₹{baseTotal.toFixed(2)}</div>
+                    <div className={DETAIL_VALUE_CLASS}>₹{grossTotal.toFixed(2)}</div>
                   </div>
-                  {ipd.discount != null && ipd.discount > 0 ? (
+                  {discountAmount > 0 ? (
                     <div>
                       <label className={`${DETAIL_LABEL_CLASS} d-block mb-0`}>Discount</label>
-                      <div className={DETAIL_VALUE_CLASS}>₹{ipd.discount.toFixed(2)}</div>
+                      <div className={DETAIL_VALUE_CLASS}>₹{discountAmount.toFixed(2)}</div>
                     </div>
                   ) : null}
                   <div>
@@ -745,6 +777,7 @@ const IpdAppointmentDetailsComponent = () => {
       {showPrintReceipt && ipd ? (
         <PrintReceipt
           receiptData={buildIPDReceiptData(ipd, dueAmount)}
+          pathlabReceiptData={buildPathlabReceiptsFromIPD(ipd)}
           onClose={() => setShowPrintReceipt(false)}
         />
       ) : null}

@@ -60,6 +60,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
   const [procedureType, setProcedureType] = useState<Option | null>(TYPE_OPTIONS[0]);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [isPackage, setIsPackage] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editFetchLoading, setEditFetchLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -72,6 +73,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
     setProcedureType(TYPE_OPTIONS[0]);
     setPrice("");
     setDescription("");
+    setIsPackage(false);
     setProcedureId(null);
     setEditError("");
   }, []);
@@ -102,6 +104,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
       );
       setPrice(data.price != null || data.basePrice != null ? String(data.price ?? data.basePrice) : "");
       setDescription(data.description ?? "");
+      setIsPackage(Boolean(data.isPackage));
     } catch {
       setEditError("Failed to load procedure.");
     } finally {
@@ -148,6 +151,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
         status: status?.value ?? "Active",
         type: procedureType?.value ?? "both",
         price: priceNum,
+        isPackage,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -275,8 +279,8 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                 <p className="text-muted mb-0">Loading procedure…</p>
               ) : (
                 <>
-                  <div className="row">
-                    <div className="col-lg-4">
+                  <div className="row g-2">
+                    <div className="col-12 col-md-6 col-lg-2">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">
                           Procedure Name<span className="text-danger ms-1">*</span>
@@ -289,7 +293,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         />
                       </div>
                     </div>
-                    <div className="col-lg-3">
+                    <div className="col-6 col-md-4 col-lg-2">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Department</label>
                         <CommonSelect
@@ -300,7 +304,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         />
                       </div>
                     </div>
-                    <div className="col-lg-3">
+                    <div className="col-6 col-md-4 col-lg-2">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Category</label>
                         <CommonSelect
@@ -311,7 +315,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         />
                       </div>
                     </div>
-                    <div className="col-lg-2">
+                    <div className="col-6 col-md-4 col-lg-2">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Status</label>
                         <CommonSelect
@@ -322,7 +326,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         />
                       </div>
                     </div>
-                    <div className="col-lg-2">
+                    <div className="col-6 col-md-4 col-lg-2">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Type</label>
                         <CommonSelect
@@ -333,7 +337,33 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         />
                       </div>
                     </div>
-                    <div className="col-lg-3">
+                    <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 88, maxWidth: 100 }}>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium" htmlFor="edit-procedure-is-package">
+                          Package
+                        </label>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ minHeight: 38 }}
+                        >
+                          <div className="form-check form-switch mb-0">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              role="switch"
+                              id="edit-procedure-is-package"
+                              checked={isPackage}
+                              onChange={(e) => setIsPackage(e.target.checked)}
+                              aria-label="Mark as package"
+                            />
+                            <span className="form-check-label ms-1">
+                              {isPackage ? "Yes" : "No"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 100, maxWidth: 130 }}>
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">
                           Price<span className="text-danger ms-1">*</span>
@@ -351,7 +381,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         </div>
                       </div>
                     </div>
-                    <div className="col-lg-9">
+                    <div className="col-12">
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">Description</label>
                         <textarea

@@ -14,6 +14,7 @@ export interface IIpdWard {
   name: string;
   beds: IIpdBed[];
   chargePerDay?: number;
+  nursingChargePerDay?: number;
 }
 
 export interface IIpdBedSummary {

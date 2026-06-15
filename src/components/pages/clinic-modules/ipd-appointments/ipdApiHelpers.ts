@@ -4,6 +4,7 @@ import type {
   IIpdDoctorVisit,
   IIpdProcedure,
   IIpdTransaction,
+  IPathlabCaseData,
 } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
 import { calcIpdProceduresTotal } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
@@ -21,6 +22,9 @@ export interface IIpdBillingCharge {
   isCompleted?: boolean;
   totalCharge?: number;
   charge?: number;
+  caseId?: string;
+  caseReadableId?: string;
+  caseData?: IPathlabCaseData;
 }
 
 export const getIpdBillingChargeAmount = (charge: IIpdBillingCharge): number => {

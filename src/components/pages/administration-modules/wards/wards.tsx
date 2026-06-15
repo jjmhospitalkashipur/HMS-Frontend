@@ -12,6 +12,7 @@ interface IWardApi {
   _id: string;
   name?: string;
   chargePerDay?: number;
+  nursingChargePerDay?: number;
   description?: string;
   metadata?: { floor?: number; wing?: string };
   createdAt?: string;
@@ -21,6 +22,7 @@ interface IWardRow {
   id: string;
   Name: string;
   ChargePerDay: string;
+  NursingChargePerDay: string;
   Description: string;
   Floor: string;
   Wing: string;
@@ -54,6 +56,7 @@ const WardsListComponent = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createCharge, setCreateCharge] = useState("");
+  const [createNursingCharge, setCreateNursingCharge] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createFloor, setCreateFloor] = useState("");
   const [createWing, setCreateWing] = useState("");
@@ -64,6 +67,7 @@ const WardsListComponent = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCharge, setEditCharge] = useState("");
+  const [editNursingCharge, setEditNursingCharge] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editFloor, setEditFloor] = useState("");
   const [editWing, setEditWing] = useState("");
@@ -74,6 +78,7 @@ const WardsListComponent = () => {
     id: w._id,
     Name: w.name?.trim() || "—",
     ChargePerDay: formatCharge(w.chargePerDay),
+    NursingChargePerDay: formatCharge(w.nursingChargePerDay),
     Description: w.description?.trim() || "—",
     Floor:
       w.metadata?.floor != null && !Number.isNaN(Number(w.metadata.floor))
@@ -151,6 +156,7 @@ const WardsListComponent = () => {
   const openCreateModal = () => {
     setCreateName("");
     setCreateCharge("");
+    setCreateNursingCharge("");
     setCreateDescription("");
     setCreateFloor("");
     setCreateWing("");
@@ -168,6 +174,11 @@ const WardsListComponent = () => {
         ? record.ChargePerDay.replace(/[₹,]/g, "").trim()
         : ""
     );
+    setEditNursingCharge(
+      record.NursingChargePerDay !== "—"
+        ? record.NursingChargePerDay.replace(/[₹,]/g, "").trim()
+        : ""
+    );
     setEditDescription(record.Description !== "—" ? record.Description : "");
     setEditFloor(record.Floor !== "—" ? record.Floor : "");
     setEditWing(record.Wing !== "—" ? record.Wing : "");
@@ -179,8 +190,14 @@ const WardsListComponent = () => {
     e.preventDefault();
     if (!API_BASE_URL) return;
     const charge = Number(createCharge);
+    const nursingChargeTrim = createNursingCharge.trim();
+    const nursingCharge = nursingChargeTrim ? Number(nursingChargeTrim) : undefined;
     if (!createName.trim() || Number.isNaN(charge)) {
       setCreateError("Name and charge per day are required.");
+      return;
+    }
+    if (nursingChargeTrim && Number.isNaN(nursingCharge)) {
+      setCreateError("Nursing charge per day must be a valid number.");
       return;
     }
     try {
@@ -189,6 +206,7 @@ const WardsListComponent = () => {
       await axios.post(`${API_BASE_URL}/hospital/wards`, {
         name: createName.trim(),
         chargePerDay: charge,
+        nursingChargePerDay: nursingCharge,
         description: createDescription.trim() || undefined,
         metadata: buildMetadata(createFloor, createWing),
       });
@@ -209,8 +227,14 @@ const WardsListComponent = () => {
     e.preventDefault();
     if (!API_BASE_URL || !editingId) return;
     const charge = Number(editCharge);
+    const nursingChargeTrim = editNursingCharge.trim();
+    const nursingCharge = nursingChargeTrim ? Number(nursingChargeTrim) : undefined;
     if (!editName.trim() || Number.isNaN(charge)) {
       setEditError("Name and charge per day are required.");
+      return;
+    }
+    if (nursingChargeTrim && Number.isNaN(nursingCharge)) {
+      setEditError("Nursing charge per day must be a valid number.");
       return;
     }
     try {
@@ -219,6 +243,7 @@ const WardsListComponent = () => {
       await axios.put(`${API_BASE_URL}/hospital/wards/${editingId}`, {
         name: editName.trim(),
         chargePerDay: charge,
+        nursingChargePerDay: nursingCharge,
         description: editDescription.trim() || undefined,
         metadata: buildMetadata(editFloor, editWing),
       });
@@ -266,6 +291,12 @@ const WardsListComponent = () => {
     {
       title: columnTitle("Charge / Day"),
       dataIndex: "ChargePerDay",
+      sorter: false,
+      render: (text: string) => renderCellText(text),
+    },
+    {
+      title: columnTitle("Nursing Charge / Day"),
+      dataIndex: "NursingChargePerDay",
       sorter: false,
       render: (text: string) => renderCellText(text),
     },
@@ -328,6 +359,8 @@ const WardsListComponent = () => {
     setName: (v: string) => void,
     charge: string,
     setCharge: (v: string) => void,
+    nursingCharge: string,
+    setNursingCharge: (v: string) => void,
     description: string,
     setDescription: (v: string) => void,
     floor: string,
@@ -336,26 +369,24 @@ const WardsListComponent = () => {
     setWing: (v: string) => void
   ) => (
     <>
+      <div className="mb-3">
+        <label className="form-label fw-medium text-dark">
+          Name<span className="text-danger ms-1">*</span>
+        </label>
+        <input
+          type="text"
+          className="form-control text-dark"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="General Ward A"
+          required
+        />
+      </div>
       <div className="row">
-        <div className="col-sm-8">
+        <div className="col-sm-6">
           <div className="mb-3">
             <label className="form-label fw-medium text-dark">
-              Name<span className="text-danger ms-1">*</span>
-            </label>
-            <input
-              type="text"
-              className="form-control text-dark"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="General Ward A"
-              required
-            />
-          </div>
-        </div>
-        <div className="col-sm-4">
-          <div className="mb-3">
-            <label className="form-label fw-medium text-dark">
-              Charge/day (₹)<span className="text-danger ms-1">*</span>
+              Bed charge/day (₹)<span className="text-danger ms-1">*</span>
             </label>
             <input
               type="number"
@@ -365,6 +396,19 @@ const WardsListComponent = () => {
               onChange={(e) => setCharge(e.target.value)}
               placeholder="500"
               required
+            />
+          </div>
+        </div>
+        <div className="col-sm-6">
+          <div className="mb-3">
+            <label className="form-label fw-medium text-dark">Nursing charge/day (₹)</label>
+            <input
+              type="number"
+              min={0}
+              className="form-control text-dark"
+              value={nursingCharge}
+              onChange={(e) => setNursingCharge(e.target.value)}
+              placeholder="200"
             />
           </div>
         </div>
@@ -472,7 +516,7 @@ const WardsListComponent = () => {
 
       {createModalOpen && (
         <div
-          className="offcanvas offcanvas-end show position-fixed"
+          className="offcanvas offcanvas-end show position-fixed d-flex flex-column"
           style={offcanvasStyle}
           tabIndex={-1}
           aria-modal="true"
@@ -486,8 +530,8 @@ const WardsListComponent = () => {
             </h5>
             <button type="button" className="btn-close" aria-label="Close" onClick={closePanels} />
           </div>
-          <form onSubmit={handleCreateSubmit}>
-            <div className="offcanvas-body text-dark">
+          <form onSubmit={handleCreateSubmit} className="d-flex flex-column flex-grow-1 min-h-0">
+            <div className="offcanvas-body text-dark flex-grow-1 overflow-y-auto">
               {createError && (
                 <div className="alert alert-danger py-2" role="alert">
                   {createError}
@@ -498,6 +542,8 @@ const WardsListComponent = () => {
                 setCreateName,
                 createCharge,
                 setCreateCharge,
+                createNursingCharge,
+                setCreateNursingCharge,
                 createDescription,
                 setCreateDescription,
                 createFloor,
@@ -520,7 +566,7 @@ const WardsListComponent = () => {
 
       {editModalOpen && (
         <div
-          className="offcanvas offcanvas-end show position-fixed"
+          className="offcanvas offcanvas-end show position-fixed d-flex flex-column"
           style={offcanvasStyle}
           tabIndex={-1}
           aria-modal="true"
@@ -534,8 +580,8 @@ const WardsListComponent = () => {
             </h5>
             <button type="button" className="btn-close" aria-label="Close" onClick={closePanels} />
           </div>
-          <form onSubmit={handleEditSubmit}>
-            <div className="offcanvas-body text-dark">
+          <form onSubmit={handleEditSubmit} className="d-flex flex-column flex-grow-1 min-h-0">
+            <div className="offcanvas-body text-dark flex-grow-1 overflow-y-auto">
               {editError && (
                 <div className="alert alert-danger py-2" role="alert">
                   {editError}
@@ -546,6 +592,8 @@ const WardsListComponent = () => {
                 setEditName,
                 editCharge,
                 setEditCharge,
+                editNursingCharge,
+                setEditNursingCharge,
                 editDescription,
                 setEditDescription,
                 editFloor,

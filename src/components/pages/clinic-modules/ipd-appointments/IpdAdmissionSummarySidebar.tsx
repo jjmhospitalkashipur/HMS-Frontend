@@ -26,6 +26,7 @@ export interface IIpdSummaryBed {
   bedCode?: string;
   wardName?: string;
   ratePerDay?: number;
+  nursingChargePerDay?: number;
 }
 
 interface ISummaryCardProps {
@@ -120,18 +121,19 @@ export const resolveIpdBedSummary = (
   let resolvedCode = bedCode?.trim() || undefined;
   let wardName: string | undefined;
   let ratePerDay: number | undefined;
+  let nursingChargePerDay: number | undefined;
 
   bedBlockData?.wards?.forEach((ward) => {
     const bed = ward.beds.find((item) => item._id === bedId);
     if (!bed) return;
     resolvedCode = bed.bedCode;
     wardName = ward.name;
-    ratePerDay =
-      ward.chargePerDay ??
-      wardOptions.find((option) => option.value === ward._id)?.chargePerDay;
+    const wardOption = wardOptions.find((option) => option.value === ward._id);
+    ratePerDay = ward.chargePerDay ?? wardOption?.chargePerDay;
+    nursingChargePerDay = ward.nursingChargePerDay ?? wardOption?.nursingChargePerDay;
   });
 
-  return { bedCode: resolvedCode, wardName, ratePerDay };
+  return { bedCode: resolvedCode, wardName, ratePerDay, nursingChargePerDay };
 };
 
 const IpdAdmissionSummarySidebar = ({

@@ -79,6 +79,7 @@ const mapWard = (raw: Record<string, unknown>): IIpdWard => {
     name: String(raw.name ?? raw.wardName ?? raw.label ?? "Ward"),
     beds,
     chargePerDay: parseChargePerDay(raw.chargePerDay),
+    nursingChargePerDay: parseChargePerDay(raw.nursingChargePerDay),
   };
 };
 
@@ -133,6 +134,7 @@ const groupBedsByWard = (bedsRaw: unknown[]): IIpdWard[] => {
         name: wardName,
         beds: [],
         chargePerDay: parseChargePerDay(wardRecord?.chargePerDay),
+        nursingChargePerDay: parseChargePerDay(wardRecord?.nursingChargePerDay),
       });
     }
     wardMap.get(wardId)?.beds.push(mapBed(bed));
@@ -145,6 +147,7 @@ export interface IIpdWardOption {
   value: string;
   label: string;
   chargePerDay?: number;
+  nursingChargePerDay?: number;
 }
 
 export const fetchIpdWardOptions = async (): Promise<IIpdWardOption[]> => {
@@ -164,6 +167,7 @@ export const fetchIpdWardOptions = async (): Promise<IIpdWardOption[]> => {
         value: String(w._id ?? w.id ?? ""),
         label: String(w.name ?? w.wardName ?? w.label ?? "Ward"),
         chargePerDay: parseChargePerDay(w.chargePerDay),
+        nursingChargePerDay: parseChargePerDay(w.nursingChargePerDay),
       }))
       .filter((w: IIpdWardOption) => Boolean(w.value));
   } catch {

@@ -44,6 +44,7 @@ const AddProcedureComponent = () => {
   const [procedureType, setProcedureType] = useState<Option | null>(TYPE_OPTIONS[0]);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [isPackage, setIsPackage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -74,6 +75,7 @@ const AddProcedureComponent = () => {
         status: status?.value ?? "Active",
         type: procedureType?.value ?? "both",
         price: priceNum,
+        isPackage,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -129,8 +131,8 @@ const AddProcedureComponent = () => {
                   )}
                   <form onSubmit={handleSubmit}>
                     <div className="pb-0">
-                      <div className="row">
-                        <div className="col-lg-2">
+                      <div className="row g-2">
+                        <div className="col-12 col-md-6 col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">
                               Procedure Name
@@ -144,7 +146,7 @@ const AddProcedureComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-2">
+                        <div className="col-6 col-md-4 col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">Department</label>
                             <CommonSelect
@@ -155,7 +157,7 @@ const AddProcedureComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-2">
+                        <div className="col-6 col-md-4 col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">Category</label>
                             <CommonSelect
@@ -166,7 +168,7 @@ const AddProcedureComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-2">
+                        <div className="col-6 col-md-4 col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">Status</label>
                             <CommonSelect
@@ -177,7 +179,7 @@ const AddProcedureComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-2">
+                        <div className="col-6 col-md-4 col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">Type</label>
                             <CommonSelect
@@ -188,7 +190,33 @@ const AddProcedureComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-2">
+                        <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 88, maxWidth: 100 }}>
+                          <div className="mb-3">
+                            <label className="form-label" htmlFor="add-procedure-is-package">
+                              Package
+                            </label>
+                            <div
+                              className="d-flex align-items-center"
+                              style={{ minHeight: 38 }}
+                            >
+                              <div className="form-check form-switch mb-0">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  role="switch"
+                                  id="add-procedure-is-package"
+                                  checked={isPackage}
+                                  onChange={(e) => setIsPackage(e.target.checked)}
+                                  aria-label="Mark as package"
+                                />
+                                <span className="form-check-label ms-1">
+                                  {isPackage ? "Yes" : "No"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 100, maxWidth: 130 }}>
                           <div className="mb-3">
                             <label className="form-label">
                               Price
@@ -209,7 +237,7 @@ const AddProcedureComponent = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="col-lg-12">
+                        <div className="col-12">
                           <div className="mb-3">
                             <label className="form-label">Description</label>
                             <textarea
