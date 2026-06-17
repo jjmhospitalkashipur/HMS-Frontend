@@ -8,7 +8,7 @@ import Modals from "./modals/modals";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
-import { API_BASE_URL } from "@/environment";
+import { API_BASE_URL, PATHLAB_PORTAL_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import { formatInstantInIST } from "@/core/utils/dayjsIST";
 import { Marital_Status } from "@/core/common/selectOption";
@@ -698,7 +698,7 @@ const PatientDetailsComponent = () => {
     });
 
     window.open(
-      `https://lab.jjmhospitalkashipur.com/new-appointment?${params.toString()}`,
+      `${PATHLAB_PORTAL_BASE_URL}/new-appointment?${params.toString()}`,
       "_blank",
       "noopener,noreferrer"
     );
@@ -708,7 +708,7 @@ const PatientDetailsComponent = () => {
     const reportId = pathlabCase?._id ?? "";
     if (!reportId) return;
     window.open(
-      `https://lab.jjmhospitalkashipur.com/reports/view-report/${reportId}`,
+      `${PATHLAB_PORTAL_BASE_URL}/reports/view-report/${reportId}`,
       "_blank",
       "noopener,noreferrer"
     );

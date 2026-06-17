@@ -1,35 +1,41 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "@/routes/all_routes";
-import dayjs from "dayjs";
 
 interface IProcedureDetail {
   _id: string;
   procedureId?: string;
   procedureName?: string;
-  category?: string;
   department?: string;
+  category?: string;
   status?: string;
+  type?: string;
+  isPackage?: boolean;
   price?: number;
-  basePrice?: number;
-  nursingCharges?: number;
-  roomCharges?: number;
-  dayCareBilling?: boolean;
-  daycareProcedure?: boolean;
-  metadata?: string;
   description?: string;
-  documentUrls?: string[];
-  createdAt?: string;
-  updatedAt?: string;
 }
 
+const formatBoolean = (value?: boolean) => (value ? "Yes" : "No");
+
+const formatType = (type?: string) => {
+  const typeLabels: Record<string, string> = {
+    both: "Both",
+    daycare: "Daycare",
+    ipd: "IPD",
+  };
+  if (!type) return "—";
+  return typeLabels[type] ?? type;
+};
+
+const formatCurrency = (value?: number) =>
+  value != null ? `₹${value}` : "—";
+
 const ProcedureDetailsContent = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const procedureId = searchParams.get("id");
   const [procedure, setProcedure] = useState<IProcedureDetail | null>(null);
@@ -148,59 +154,33 @@ const ProcedureDetailsContent = () => {
               <div className="card-body">
                 <div className="row">
                   <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Procedure ID</label>
-                    <p className="mb-0 fw-medium">{procedure.procedureId ?? "—"}</p>
-                  </div>
-                  <div className="col-md-6 col-lg-4 mb-3">
                     <label className="form-label text-muted small mb-1">Procedure Name</label>
                     <p className="mb-0 fw-medium">{procedure.procedureName ?? "—"}</p>
+                  </div>
+                  <div className="col-md-6 col-lg-4 mb-3">
+                    <label className="form-label text-muted small mb-1">Department</label>
+                    <p className="mb-0 fw-medium">{procedure.department ?? "—"}</p>
                   </div>
                   <div className="col-md-6 col-lg-4 mb-3">
                     <label className="form-label text-muted small mb-1">Category</label>
                     <p className="mb-0 fw-medium">{procedure.category ?? "—"}</p>
                   </div>
                   <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Department</label>
-                    <p className="mb-0 fw-medium">{procedure.department ?? procedure.category ?? "—"}</p>
+                    <label className="form-label text-muted small mb-1">Type</label>
+                    <p className="mb-0 fw-medium">{formatType(procedure.type)}</p>
                   </div>
                   <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Base Price</label>
-                    <p className="mb-0 fw-medium">
-                      {procedure.price != null || procedure.basePrice != null
-                        ? `₹${procedure.price ?? procedure.basePrice}`
-                        : "—"}
-                    </p>
+                    <label className="form-label text-muted small mb-1">Package</label>
+                    <p className="mb-0 fw-medium">{formatBoolean(procedure.isPackage)}</p>
                   </div>
                   <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Nursing Charges</label>
-                    <p className="mb-0 fw-medium">
-                      {procedure.nursingCharges != null ? `₹${procedure.nursingCharges}` : "—"}
-                    </p>
-                  </div>
-                  <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Room Charges</label>
-                    <p className="mb-0 fw-medium">
-                      {procedure.roomCharges != null ? `₹${procedure.roomCharges}` : "—"}
-                    </p>
-                  </div>
-                  <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Day Care Billing</label>
-                    <p className="mb-0 fw-medium">{procedure.dayCareBilling ? "Yes" : "No"}</p>
-                  </div>
-                  <div className="col-md-6 col-lg-4 mb-3">
-                    <label className="form-label text-muted small mb-1">Day Care Procedure</label>
-                    <p className="mb-0 fw-medium">{procedure.daycareProcedure ? "Yes" : "No"}</p>
+                    <label className="form-label text-muted small mb-1">Price</label>
+                    <p className="mb-0 fw-medium">{formatCurrency(procedure.price)}</p>
                   </div>
                   <div className="col-12 mb-3">
                     <label className="form-label text-muted small mb-1">Description</label>
                     <p className="mb-0 fw-medium">{procedure.description ?? "—"}</p>
                   </div>
-                  {procedure.metadata && (
-                    <div className="col-12 mb-3">
-                      <label className="form-label text-muted small mb-1">Metadata</label>
-                      <p className="mb-0 fw-medium">{procedure.metadata}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

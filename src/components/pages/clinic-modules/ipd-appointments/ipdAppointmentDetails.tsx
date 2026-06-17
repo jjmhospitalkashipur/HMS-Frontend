@@ -6,7 +6,7 @@ import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
 import { normalizeRole } from "@/core/auth/roleAccess";
 import axios from "axios";
-import { API_BASE_URL } from "@/environment";
+import { API_BASE_URL, PATHLAB_PORTAL_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import PrintReceipt, { type IReceiptData } from "@/components/pages/clinic-modules/appointments/printReceipt";
 import {
@@ -213,7 +213,7 @@ const IpdAppointmentDetailsComponent = () => {
     });
 
     window.open(
-      `https://lab.jjmhospitalkashipur.com/new-appointment?${params.toString()}`,
+      `${PATHLAB_PORTAL_BASE_URL}/new-appointment?${params.toString()}`,
       "_blank",
       "noopener,noreferrer"
     );

@@ -2,6 +2,7 @@
 
 
 import { all_routes } from "@/routes/all_routes";
+import { PATHLAB_PORTAL_BASE_URL } from "@/environment";
 
 
 const routes = all_routes;
@@ -87,7 +88,7 @@ export const SidebarData = [
       },
       {
         label: "Pathlab",
-        link: "https://lab.jjmhospitalkashipur.com",
+        link: PATHLAB_PORTAL_BASE_URL,
         submenu: false,
         showSubRoute: false,
         icon: "flask",

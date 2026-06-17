@@ -19,7 +19,7 @@ import {
   type IDaycareAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
 
-interface IDialysisDaycareAppointmentSummary {
+interface IDialysisAppointmentSummary {
   totalPrice?: number;
   subtotal?: number;
   discount?: number;
@@ -34,6 +34,7 @@ interface IDialysisSessionRow {
   daycareAppointmentId?: string;
   status?: string;
   createdAt?: string;
+  dialysisSessionSource?: string;
   patient?: {
     name?: string;
     age?: number;
@@ -46,7 +47,8 @@ interface IDialysisSessionRow {
     price?: number;
     procedureName?: string;
   };
-  daycareAppointment?: IDialysisDaycareAppointmentSummary;
+  daycareAppointment?: IDialysisAppointmentSummary;
+  ipdAppointment?: IDialysisAppointmentSummary;
 }
 
 interface IDialysisPaginationMeta {
@@ -83,6 +85,20 @@ const resolveDialysisTotalCount = (
   if (typeof data?.total === "number") return data.total;
   if (typeof data?.count === "number") return data.count;
   return sessionsLength;
+};
+
+const formatDialysisSessionSource = (source?: string) => {
+  const normalized = source?.trim().toLowerCase();
+  if (normalized === "ipd") return "IPD";
+  if (normalized === "daycare") return "Daycare";
+  return source?.trim() || "—";
+};
+
+const resolveDialysisAppointmentSummary = (session: IDialysisSessionRow) => {
+  const source = session.dialysisSessionSource?.trim().toLowerCase();
+  if (source === "ipd") return session.ipdAppointment;
+  if (source === "daycare") return session.daycareAppointment;
+  return session.daycareAppointment ?? session.ipdAppointment;
 };
 
 const DialysisComponent = () => {
@@ -305,6 +321,30 @@ const DialysisComponent = () => {
                   ),
                 },
                 {
+                  title: "Source",
+                  dataIndex: "dialysisSessionSource",
+                  sorter: false,
+                  showSorterTooltip: false,
+                  render: (_: unknown, record: any) => {
+                    const source = String(record.dialysisSessionSource ?? "").toLowerCase();
+                    const isIpd = source === "ipd";
+                    const isDaycare = source === "daycare";
+                    return (
+                      <span
+                        className={`badge border px-2 py-1 fs-13 fw-medium ${
+                          isIpd
+                            ? "badge-soft-primary border-primary"
+                            : isDaycare
+                              ? "badge-soft-info border-info"
+                              : "badge-soft-secondary border-secondary"
+                        }`}
+                      >
+                        {formatDialysisSessionSource(record.dialysisSessionSource)}
+                      </span>
+                    );
+                  },
+                },
+                {
                   title: "Total",
                   dataIndex: "totalAmount",
                   sorter: false,
@@ -411,16 +451,16 @@ const DialysisComponent = () => {
                 },
               ]}
               dataSource={dialysisSessions.map((session) => {
-                const dc = session.daycareAppointment;
-                const discount = Number(dc?.discount ?? 0) || 0;
+                const appointment = resolveDialysisAppointmentSummary(session);
+                const discount = Number(appointment?.discount ?? 0) || 0;
                 const gross =
-                  dc?.totalPrice != null
-                    ? Number(dc.totalPrice)
-                    : dc?.subtotal != null
-                      ? Number(dc.subtotal)
+                  appointment?.totalPrice != null
+                    ? Number(appointment.totalPrice)
+                    : appointment?.subtotal != null
+                      ? Number(appointment.subtotal)
                       : Number(session.procedure?.price ?? 0) || 0;
-                const totalAmount = dc ? Math.max(0, gross - discount) : gross;
-                const paymentStatus = dc?.paymentStatus?.trim() || "Unpaid";
+                const totalAmount = appointment ? Math.max(0, gross - discount) : gross;
+                const paymentStatus = appointment?.paymentStatus?.trim() || "Unpaid";
 
                 return {
                   key: session._id,
@@ -428,6 +468,7 @@ const DialysisComponent = () => {
                   daycareAppointmentId: session.daycareAppointmentId,
                   sessionId: session.sessionId ?? "-",
                   patientName: session.patient?.name ?? "-",
+                  dialysisSessionSource: session.dialysisSessionSource,
                   meta: [
                     formatAgeForListing(
                       session.patient?.age,
