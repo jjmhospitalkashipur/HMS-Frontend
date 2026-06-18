@@ -4019,7 +4019,63 @@ const NewAppointmentComponent = () => {
                                     ) : null}
                                   </div>
                                 </div>
-                                {ipdHasSelectedPackageProcedure ? (
+                                {ipdHasSelectedPackageProcedure && !ipdViaOpd ? (
+                                  <>
+                                    <div className="flex-shrink-0">
+                                      <label className="form-label mb-1 fw-medium fs-14">Bed Charges</label>
+                                      <div
+                                        className="d-flex align-items-center gap-2 flex-nowrap"
+                                        style={{ minHeight: "38px" }}
+                                      >
+                                        <div className="form-check form-switch mb-0">
+                                          <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            role="switch"
+                                            id="ipd-new-allow-bed-charges-toggle"
+                                            checked={ipdAllowBedCharges}
+                                            onChange={(e) => setIpdAllowBedCharges(e.target.checked)}
+                                            aria-label="Allow bed charges for package procedure"
+                                          />
+                                          <label
+                                            className="form-check-label fw-medium fs-14"
+                                            htmlFor="ipd-new-allow-bed-charges-toggle"
+                                          >
+                                            {ipdAllowBedCharges ? "Yes" : "No"}
+                                          </label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                      <label className="form-label mb-1 fw-medium fs-14">Nursing Charges</label>
+                                      <div
+                                        className="d-flex align-items-center gap-2 flex-nowrap"
+                                        style={{ minHeight: "38px" }}
+                                      >
+                                        <div className="form-check form-switch mb-0">
+                                          <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            role="switch"
+                                            id="ipd-new-allow-nursing-charges-toggle"
+                                            checked={ipdAllowNursingCharges}
+                                            onChange={(e) => setIpdAllowNursingCharges(e.target.checked)}
+                                            aria-label="Allow nursing charges for package procedure"
+                                          />
+                                          <label
+                                            className="form-check-label fw-medium fs-14"
+                                            htmlFor="ipd-new-allow-nursing-charges-toggle"
+                                          >
+                                            {ipdAllowNursingCharges ? "Yes" : "No"}
+                                          </label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : null}
+                              </div>
+                              {ipdHasSelectedPackageProcedure && ipdViaOpd ? (
+                                <div className="d-flex flex-column flex-sm-row align-items-sm-end gap-3 mt-3">
                                   <div className="flex-shrink-0">
                                     <label className="form-label mb-1 fw-medium fs-14">Bed Charges</label>
                                     <div
@@ -4031,22 +4087,20 @@ const NewAppointmentComponent = () => {
                                           className="form-check-input"
                                           type="checkbox"
                                           role="switch"
-                                          id="ipd-new-allow-bed-charges-toggle"
+                                          id="ipd-new-allow-bed-charges-toggle-via-opd"
                                           checked={ipdAllowBedCharges}
                                           onChange={(e) => setIpdAllowBedCharges(e.target.checked)}
                                           aria-label="Allow bed charges for package procedure"
                                         />
                                         <label
                                           className="form-check-label fw-medium fs-14"
-                                          htmlFor="ipd-new-allow-bed-charges-toggle"
+                                          htmlFor="ipd-new-allow-bed-charges-toggle-via-opd"
                                         >
                                           {ipdAllowBedCharges ? "Yes" : "No"}
                                         </label>
                                       </div>
                                     </div>
                                   </div>
-                                ) : null}
-                                {ipdHasSelectedPackageProcedure ? (
                                   <div className="flex-shrink-0">
                                     <label className="form-label mb-1 fw-medium fs-14">Nursing Charges</label>
                                     <div
@@ -4058,22 +4112,22 @@ const NewAppointmentComponent = () => {
                                           className="form-check-input"
                                           type="checkbox"
                                           role="switch"
-                                          id="ipd-new-allow-nursing-charges-toggle"
+                                          id="ipd-new-allow-nursing-charges-toggle-via-opd"
                                           checked={ipdAllowNursingCharges}
                                           onChange={(e) => setIpdAllowNursingCharges(e.target.checked)}
                                           aria-label="Allow nursing charges for package procedure"
                                         />
                                         <label
                                           className="form-check-label fw-medium fs-14"
-                                          htmlFor="ipd-new-allow-nursing-charges-toggle"
+                                          htmlFor="ipd-new-allow-nursing-charges-toggle-via-opd"
                                         >
                                           {ipdAllowNursingCharges ? "Yes" : "No"}
                                         </label>
                                       </div>
                                     </div>
                                   </div>
-                                ) : null}
-                              </div>
+                                </div>
+                              ) : null}
                               <div className="row g-3">
                                 {ipdMlc ? (
                                   <IpdMlcFields
