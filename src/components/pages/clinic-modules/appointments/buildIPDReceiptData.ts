@@ -171,6 +171,7 @@ export interface IIpdAppointmentDetail {
   doctorVisitCharges?: boolean;
   doctorChargesAmount?: number;
   bedChargesTotal?: number;
+  nursingChargesTotal?: number;
   subtotal?: number;
   discount?: number;
   totalPrice?: number;
@@ -193,6 +194,15 @@ export interface IIpdAppointmentDetail {
     wardId?: string;
     wardName?: string;
     chargePerDay?: number;
+    fromDate?: string;
+    toDate?: string;
+    days?: number;
+    totalCharge?: number;
+  };
+  nursingCharge?: {
+    wardId?: string;
+    wardName?: string;
+    nursingChargePerDay?: number;
     fromDate?: string;
     toDate?: string;
     days?: number;
@@ -222,8 +232,13 @@ export const resolveIpdGrossTotal = (ipd: IIpdAppointmentDetail): number => {
     (Number.isFinite(Number(ipd.bedCharge?.totalCharge))
       ? Number(ipd.bedCharge?.totalCharge)
       : 0);
+  const nursingTotal =
+    ipd.nursingChargesTotal ??
+    (Number.isFinite(Number(ipd.nursingCharge?.totalCharge))
+      ? Number(ipd.nursingCharge?.totalCharge)
+      : 0);
 
-  const computed = procedureTotal + doctorTotal + bedTotal;
+  const computed = procedureTotal + doctorTotal + bedTotal + nursingTotal;
   if (computed > 0) return computed;
 
   if (subtotal != null && Number.isFinite(Number(subtotal))) return Number(subtotal);
@@ -317,6 +332,31 @@ export const buildIPDReceiptData = (
         ? `Bed Charges - ${wardName}${bedChargeDayLabel}`
         : `Bed Charges${bedChargeDayLabel}`,
       amount: bedChargeTotal,
+      paymentMode: "",
+      transactionDate: ipd.appointmentDate || ipd.createdAt || "",
+      createdAt: ipd.createdAt ?? "",
+    });
+  }
+
+  const nursingChargeTotal =
+    ipd.nursingChargesTotal ??
+    (Number.isFinite(Number(ipd.nursingCharge?.totalCharge))
+      ? Number(ipd.nursingCharge?.totalCharge)
+      : 0);
+  if (nursingChargeTotal > 0) {
+    const nursingChargeDays = Number(ipd.nursingCharge?.days ?? 0);
+    const nursingChargeDayLabel =
+      nursingChargeDays > 0
+        ? ` (${nursingChargeDays} ${nursingChargeDays === 1 ? "day" : "days"})`
+        : "";
+    const nursingWardName = ipd.nursingCharge?.wardName?.trim();
+    charges.push({
+      _id: `${ipd._id}-nursing`,
+      transactionId: "",
+      transactionType: nursingWardName
+        ? `Nursing Charges - ${nursingWardName}${nursingChargeDayLabel}`
+        : `Nursing Charges${nursingChargeDayLabel}`,
+      amount: nursingChargeTotal,
       paymentMode: "",
       transactionDate: ipd.appointmentDate || ipd.createdAt || "",
       createdAt: ipd.createdAt ?? "",

@@ -229,12 +229,28 @@ const IpdAppointmentsComponent = () => {
     ]
   );
 
+  const getIpdExportParams = useCallback((): Record<string, string> => {
+    const params: Record<string, string> = {};
+    if (appliedDoctorId) {
+      params.doctorId = appliedDoctorId;
+    }
+    if (activeTab === "today") {
+      const today = todayISODateInIST();
+      params.from = today;
+      params.to = today;
+    } else if (appliedStartDate && appliedEndDate) {
+      params.from = appliedStartDate;
+      params.to = appliedEndDate;
+    }
+    return params;
+  }, [activeTab, appliedDoctorId, appliedStartDate, appliedEndDate]);
+
   const handleExportIpd = async () => {
     if (!API_BASE_URL) return;
     setExporting(true);
     try {
-      const params = getIpdQueryParams(false);
-      const response = await axios.get(`${API_BASE_URL}/hospital/ipd-appointments/export`, {
+      const params = getIpdExportParams();
+      const response = await axios.get(`${API_BASE_URL}/hospital/ipd/export`, {
         params,
         responseType: "blob",
       });
@@ -255,7 +271,7 @@ const IpdAppointmentsComponent = () => {
       const fromHeader = match?.[1]?.trim();
       const filename =
         (fromHeader ? decodeURIComponent(fromHeader) : null) ||
-        `ipd-appointments-export-${dayjs().format("YYYY-MM-DD-HHmm")}.xlsx`;
+        `ipd-export-${dayjs().format("YYYY-MM-DD-HHmm")}.xlsx`;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -465,20 +481,29 @@ const IpdAppointmentsComponent = () => {
       dataIndex: "IPD_ID",
       sorter: false,
       showSorterTooltip: false,
+      width: 130,
+      onCell: () => ({
+        style: {
+          whiteSpace: "normal",
+          wordBreak: "break-word",
+          verticalAlign: "top",
+          maxWidth: 130,
+        },
+      }),
       render: (text: string, record: IRow) => (
-        <div className="d-flex flex-column gap-1">
+        <div className="d-flex flex-column gap-1" style={{ maxWidth: 130 }}>
           <span className="text-dark fw-semibold">{text || "—"}</span>
           {record.IsDischarged ? (
             <div className="d-flex flex-wrap align-items-center gap-1">
               <span className="badge badge-soft-success border border-success fs-10 px-2 py-1 w-fit-content">
                 Discharged
               </span>
-              {record.DischargeTypeLabel ? (
+              {record.DischargeType && record.DischargeType !== "Normal" ? (
                 <span
                   className="badge badge-soft-info border border-info fs-10 px-2 py-1 w-fit-content"
                   title={record.DischargeTypeLabel}
                 >
-                  {record.DischargeTypeLabel}
+                  {record.DischargeType}
                 </span>
               ) : null}
             </div>
