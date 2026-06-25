@@ -1,0 +1,306 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
+import dayjs from "dayjs";
+
+export interface IPrintXrayReportData {
+  sessionId?: string;
+  mrd?: string;
+  patientName?: string;
+  age?: string;
+  gender?: string;
+  procedureName?: string;
+  department?: string;
+  tokenDate?: string;
+  reportHtml?: string;
+}
+
+interface IPrintXrayReportProps {
+  reportData: IPrintXrayReportData;
+  onClose?: () => void;
+}
+
+const formatAgeForPrint = (
+  years?: number | null,
+  months?: number | null,
+  days?: number | null
+): string | undefined => {
+  const y = years != null ? Number(years) : undefined;
+  if (y != null && Number.isFinite(y)) {
+    if (y === 0) {
+      const m = months != null ? Number(months) : 0;
+      if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+      if (days != null) return `${days} ${Number(days) === 1 ? "Day" : "Days"}`;
+      return undefined;
+    }
+    return `${y} ${y === 1 ? "Year" : "Years"}`;
+  }
+  const m = months != null ? Number(months) : 0;
+  if (m > 0) return `${m} ${m === 1 ? "Month" : "Months"}`;
+  if (days != null) return `${days} ${Number(days) === 1 ? "Day" : "Days"}`;
+  return undefined;
+};
+
+const formatPrintDate = (value?: string | null) => {
+  if (!value?.trim()) return "—";
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("DD MMM YYYY") : "—";
+};
+
+export const buildPrintXrayReportData = (session: {
+  sessionId?: string;
+  tokenDate?: string;
+  reportHtml?: string;
+  patient?: {
+    name?: string;
+    mrd?: string;
+    age?: number;
+    months?: number;
+    days?: number;
+    gender?: string;
+  };
+  procedure?: {
+    procedureName?: string;
+    department?: string;
+  };
+}): IPrintXrayReportData => ({
+  sessionId: session.sessionId,
+  mrd: session.patient?.mrd,
+  patientName: session.patient?.name,
+  age: formatAgeForPrint(session.patient?.age, session.patient?.months, session.patient?.days),
+  gender: session.patient?.gender,
+  procedureName: session.procedure?.procedureName,
+  department: session.procedure?.department,
+  tokenDate: session.tokenDate,
+  reportHtml: session.reportHtml,
+});
+
+const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
+  const printRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const printEffectKey = useMemo(
+    () =>
+      [reportData.sessionId ?? "", reportData.reportHtml ?? "", reportData.tokenDate ?? ""].join(
+        "|"
+      ),
+    [reportData.sessionId, reportData.reportHtml, reportData.tokenDate]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const doPrint = () => {
+      if (!printRef.current || cancelled) return;
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("title", "X-ray report print");
+      iframe.style.cssText =
+        "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+      document.body.appendChild(iframe);
+      const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+      const iframeWin = iframe.contentWindow;
+      if (!iframeDoc || !iframeWin) {
+        iframe.remove();
+        return;
+      }
+      if (cancelled) return;
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>X-Ray Report - ${reportData.sessionId || "Xray"}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                margin: 0;
+                padding: 2px 14px;
+                font-family: Tahoma, Arial, sans-serif;
+                font-size: 16px;
+                color: #000;
+                background: #fff;
+                line-height: 1.4;
+              }
+              .receipt-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 0 60px; background: #fff; }
+              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; gap: 12px; }
+              .header-left { display: flex; align-items: center; gap: 10px; }
+              .header-center { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 54px; }
+              .header-center .receipt-title { transform: translateX(18px); }
+              .logo-img { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
+              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 2px 0; color: #000; }
+              .header-info .certification { font-size: 12px; color: #000; margin-top: 2px; }
+              .header-right { text-align: right; }
+              .header-right .address { font-size: 14px; color: #000; margin-bottom: 4px; line-height: 1.4; }
+              .header-right .contact { font-size: 14px; color: #000; line-height: 1.6; }
+              .receipt-title {
+                text-align: center;
+                font-size: 20px;
+                font-weight: bold;
+                letter-spacing: 0.04em;
+                color: #000;
+              }
+              .content-box { border: none; padding: 8px 12px 0 12px; margin-bottom: 12px; }
+              .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; }
+              .patient-info-table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
+              .patient-info-table td { border: 1px solid #000; padding: 4px 8px; vertical-align: middle; }
+              .info-label-cell { background-color: #f8f9fa; font-weight: 600; white-space: nowrap; width: 18%; }
+              .info-value-cell { background-color: #ffffff; font-weight: 500; width: 40%; }
+              .info-value-cell-narrow { width: 24%; }
+              .section { margin-bottom: 12px; }
+              .section-title {
+                font-size: 14px;
+                font-weight: bold;
+                border-bottom: 1px solid #000;
+                padding-bottom: 3px;
+                margin-bottom: 8px;
+              }
+              .xray-report-html {
+                font-size: 15px;
+                font-weight: 500;
+                color: #000;
+                white-space: pre-wrap;
+                word-break: break-word;
+                line-height: 1.55;
+              }
+              .xray-report-html * { color: #000 !important; }
+              .xray-report-html strong, .xray-report-html b { font-weight: bold; }
+              .xray-report-html em, .xray-report-html i { font-style: italic; }
+              .xray-report-html u { text-decoration: underline; }
+              .report-end {
+                margin-top: 24px;
+                padding-top: 8px;
+                border-top: 1px solid #000;
+                text-align: center;
+                font-size: 13px;
+                font-weight: 600;
+                color: #000;
+              }
+              @media print {
+                @page { margin: 8mm 10mm 10mm 10mm; size: A4; }
+                body { padding: 0; background: white !important; }
+              }
+            </style>
+          </head>
+          <body>
+            ${printRef.current.innerHTML}
+          </body>
+        </html>
+      `;
+
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      const finish = () => {
+        if (cancelled) return;
+        try {
+          iframeWin.focus();
+          iframeWin.print();
+        } finally {
+          window.setTimeout(() => {
+            if (cancelled) return;
+            iframe.remove();
+            onCloseRef.current?.();
+          }, 250);
+        }
+      };
+
+      window.setTimeout(finish, 250);
+    };
+
+    doPrint();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [printEffectKey, reportData.sessionId]);
+
+  const patientName = reportData.patientName?.trim() || "—";
+  const patientAge =
+    reportData.age != null && String(reportData.age).trim() !== "" ? String(reportData.age) : "—";
+  const patientGender = reportData.gender?.trim() || "—";
+  const patientAgeGender = patientGender !== "—" ? `${patientAge} / ${patientGender}` : patientAge;
+  const procedureLine = [reportData.procedureName, reportData.department]
+    .filter((v) => v?.trim())
+    .join(" · ");
+
+  const logoUrl =
+    typeof window !== "undefined"
+      ? new URL(encodeURI("/JJM Logo.png"), window.location.origin).href
+      : encodeURI("/JJM Logo.png");
+
+  return (
+    <div style={{ display: "none" }}>
+      <div ref={printRef} className="receipt-container">
+        <div className="header">
+          <div className="header-left">
+            <img src={logoUrl} alt="JJM Hospital" className="logo-img" />
+            <div className="header-info">
+              <h2>JJM Hospital</h2>
+              <div className="certification">ISO 9001:2000 Certified</div>
+            </div>
+          </div>
+          <div className="header-center">
+            <div className="receipt-title">X-Ray Report</div>
+          </div>
+          <div className="header-right">
+            <div className="address">
+              Jaspur Rd, opposite Anaj Mandi, Sarverkhera,
+              <br />
+              Kashipur, Uttarakhand 244713
+            </div>
+            <div className="contact">Phone: +91 9634844075</div>
+          </div>
+        </div>
+
+        <div className="content-box">
+          <div className="patient-details-box">
+            <table className="patient-info-table">
+              <tbody>
+                <tr>
+                  <td className="info-label-cell">MRD No.:</td>
+                  <td className="info-value-cell">{reportData.mrd ?? "—"}</td>
+                  <td className="info-label-cell">Session ID:</td>
+                  <td className="info-value-cell info-value-cell-narrow">
+                    {reportData.sessionId ?? "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Patient Name:</td>
+                  <td className="info-value-cell">{patientName}</td>
+                  <td className="info-label-cell">Age / Gender:</td>
+                  <td className="info-value-cell info-value-cell-narrow">{patientAgeGender}</td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Procedure:</td>
+                  <td className="info-value-cell" colSpan={3}>
+                    {procedureLine || "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="info-label-cell">Date:</td>
+                  <td className="info-value-cell" colSpan={3}>
+                    {formatPrintDate(reportData.tokenDate)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="section">
+            <div className="section-title">Report</div>
+            <div
+              className="xray-report-html"
+              dangerouslySetInnerHTML={{ __html: reportData.reportHtml ?? "" }}
+            />
+          </div>
+
+          <div className="report-end">— End of report —</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PrintXrayReport;

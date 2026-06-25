@@ -45,6 +45,7 @@ const AddProcedureComponent = () => {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [isPackage, setIsPackage] = useState(false);
+  const [isXray, setIsXray] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -76,6 +77,7 @@ const AddProcedureComponent = () => {
         type: procedureType?.value ?? "both",
         price: priceNum,
         isPackage,
+        isXray,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -211,6 +213,32 @@ const AddProcedureComponent = () => {
                                 />
                                 <span className="form-check-label ms-1">
                                   {isPackage ? "Yes" : "No"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 88, maxWidth: 100 }}>
+                          <div className="mb-3">
+                            <label className="form-label" htmlFor="add-procedure-is-xray">
+                              X Ray
+                            </label>
+                            <div
+                              className="d-flex align-items-center"
+                              style={{ minHeight: 38 }}
+                            >
+                              <div className="form-check form-switch mb-0">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  role="switch"
+                                  id="add-procedure-is-xray"
+                                  checked={isXray}
+                                  onChange={(e) => setIsXray(e.target.checked)}
+                                  aria-label="Mark as X ray"
+                                />
+                                <span className="form-check-label ms-1">
+                                  {isXray ? "Yes" : "No"}
                                 </span>
                               </div>
                             </div>

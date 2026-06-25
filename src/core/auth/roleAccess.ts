@@ -19,6 +19,7 @@ const COMMON_AUTH_PATH_PREFIXES: string[] = [
   all_routes.notificationssettings,
   all_routes.notifications,
   all_routes.pharmaTokenQueue,
+  all_routes.xrayTokenQueue,
 ];
 
 /**

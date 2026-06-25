@@ -77,6 +77,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "Xrays",
+        link: routes.xrays,
+        submenu: false,
+        showSubRoute: false,
+        icon: "scan",
+        base: "Xrays",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Patients",
         link: routes.patients,
         submenu: false,
