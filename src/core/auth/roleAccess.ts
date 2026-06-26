@@ -79,6 +79,11 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.pharmaTokens,
     all_routes.pharmaTokenQueue,
   ],
+  XRAY: [
+    all_routes.xrays,
+    all_routes.xrayDetails,
+    all_routes.xrayTokenQueue,
+  ],
   ACCOUNTANT: [
     all_routes.dashboard,
     all_routes.transactions,
@@ -122,6 +127,8 @@ export const getDefaultRouteForRole = (role: string): string => {
       return all_routes.patients;
     case "PHARMACIST":
       return all_routes.pharmaTokens;
+    case "XRAY":
+      return all_routes.xrays;
     case "ACCOUNTANT":
       return all_routes.transactions;
     default:

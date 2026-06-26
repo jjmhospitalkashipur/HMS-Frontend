@@ -15,6 +15,7 @@ const ROLE_OPTIONS: Option[] = [
   { value: "RECEPTIONIST2", label: "Receptionist 2" },
   { value: "DIALYSIS", label: "Dialysis" },
   { value: "PHARMACIST", label: "Pharmacist" },
+  { value: "XRAY", label: "Xray" },
 ];
 
 const normalizeRoleValue = (roleDisplay: string): string => {
