@@ -13,42 +13,60 @@ import { all_routes } from "@/routes/all_routes";
 import PrintReceipt, {
   type IReceiptData,
 } from "@/components/pages/clinic-modules/appointments/printReceipt";
+import { enrichDaycareDoctorForReceipt } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
+import { enrichIPDDoctorForReceipt } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
 import {
-  buildDaycareReceiptData,
-  enrichDaycareDoctorForReceipt,
-  type IDaycareAppointmentDetail,
-} from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
+  extractIpdFromGetResponse,
+  mapIpdApiToAppointmentDetail,
+  type IIpdApiRecord,
+} from "@/components/pages/clinic-modules/ipd-appointments/ipdApiHelpers";
+import {
+  buildDialysisSessionReceiptData,
+  type IDialysisSessionReceiptInput,
+} from "@/components/pages/clinic-modules/dialysis/buildDialysisSessionReceiptData";
 
 interface IDialysisAppointmentSummary {
+  daycareId?: string;
+  appointmentId?: string;
+  ipdId?: string;
+  receiptId?: string;
+  appointmentDate?: string;
+  admissionDate?: string;
+  procedurePrice?: number;
   totalPrice?: number;
   subtotal?: number;
   discount?: number;
   amountPaid?: number;
   paymentStatus?: string;
+  status?: string;
 }
 
 interface IDialysisSessionRow {
   _id: string;
   sessionId: string;
   patientId?: string;
-  daycareAppointmentId?: string;
+  daycareAppointmentId?: string | null;
+  ipdId?: string | null;
   status?: string;
   createdAt?: string;
   dialysisSessionSource?: string;
   patient?: {
     name?: string;
+    title?: string;
+    mrd?: string;
     age?: number;
     months?: number;
     days?: number;
     gender?: string;
     phone?: string;
+    address?: string;
   };
   procedure?: {
     price?: number;
     procedureName?: string;
   };
-  daycareAppointment?: IDialysisAppointmentSummary;
-  ipdAppointment?: IDialysisAppointmentSummary;
+  daycareAppointment?: IDialysisAppointmentSummary | null;
+  ipdAppointment?: IDialysisAppointmentSummary | null;
 }
 
 interface IDialysisPaginationMeta {
@@ -96,9 +114,62 @@ const formatDialysisSessionSource = (source?: string) => {
 
 const resolveDialysisAppointmentSummary = (session: IDialysisSessionRow) => {
   const source = session.dialysisSessionSource?.trim().toLowerCase();
-  if (source === "ipd") return session.ipdAppointment;
-  if (source === "daycare") return session.daycareAppointment;
-  return session.daycareAppointment ?? session.ipdAppointment;
+  if (source === "ipd") return session.ipdAppointment ?? undefined;
+  if (source === "daycare") return session.daycareAppointment ?? undefined;
+  return session.daycareAppointment ?? session.ipdAppointment ?? undefined;
+};
+
+const resolveDialysisProcedureAmount = (session: IDialysisSessionRow) => {
+  const appointment = resolveDialysisAppointmentSummary(session);
+  return Number(appointment?.procedurePrice ?? session.procedure?.price ?? 0) || 0;
+};
+
+const canPrintDialysisReceipt = (session: IDialysisSessionRow) => {
+  const source = session.dialysisSessionSource?.trim().toLowerCase();
+  if (source === "ipd") return Boolean(session.ipdId);
+  if (source === "daycare") return Boolean(session.daycareAppointmentId);
+  return Boolean(session.daycareAppointmentId || session.ipdId);
+};
+
+const fetchDialysisReceiptDoctor = async (
+  session: IDialysisSessionRow
+): Promise<IDialysisSessionReceiptInput["doctor"]> => {
+  if (!API_BASE_URL) return undefined;
+
+  const source = session.dialysisSessionSource?.trim().toLowerCase();
+
+  if (source === "daycare" && session.daycareAppointmentId) {
+    try {
+      const res = await axios.get(
+        `${API_BASE_URL}/hospital/daycare-appointments/${session.daycareAppointmentId}`
+      );
+      const raw = res.data?.data?.daycareAppointment ?? res.data?.data;
+      if (!raw || typeof raw !== "object") return undefined;
+      const enriched = await enrichDaycareDoctorForReceipt(
+        raw as Parameters<typeof enrichDaycareDoctorForReceipt>[0]
+      );
+      return enriched.doctor;
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (source === "ipd" && session.ipdId) {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/hospital/ipd/${session.ipdId}`);
+      const raw = extractIpdFromGetResponse(res.data?.data) as IIpdApiRecord | null;
+      if (!raw?._id) return undefined;
+      const responseReceiptId = res.data?.data?.receiptId as string | undefined;
+      const enriched = await enrichIPDDoctorForReceipt(
+        mapIpdApiToAppointmentDetail(raw, responseReceiptId)
+      );
+      return enriched.doctor;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
 };
 
 const DialysisComponent = () => {
@@ -190,31 +261,22 @@ const DialysisComponent = () => {
     }
   };
 
-  const handlePrintReceipt = async (daycareAppointmentId: string | undefined, sessionRowId: string) => {
-    if (!daycareAppointmentId || !API_BASE_URL) {
-      alert("No linked daycare appointment found for this session. Receipt is not available.");
+  const handlePrintReceipt = async (session: IDialysisSessionRow) => {
+    if (!canPrintDialysisReceipt(session)) {
+      alert("No linked appointment found for this dialysis session. Receipt is not available.");
       return;
     }
-    setPrintingSessionId(sessionRowId);
+    if (!API_BASE_URL) return;
+
+    setPrintingSessionId(session._id);
     try {
-      const res = await axios.get(`${API_BASE_URL}/hospital/daycare-appointments/${daycareAppointmentId}`);
-      if (res.data?.code !== 200 || !res.data?.data) {
-        alert(res.data?.message ?? "Failed to load daycare appointment for receipt.");
-        return;
-      }
-      const raw = res.data.data?.daycareAppointment ?? res.data.data;
-      const responseReceiptId = res.data?.data?.receiptId as string | undefined;
-      let daycare: IDaycareAppointmentDetail = {
-        ...(raw as IDaycareAppointmentDetail),
-        receiptId: (raw as IDaycareAppointmentDetail)?.receiptId ?? responseReceiptId,
-      };
-      daycare = await enrichDaycareDoctorForReceipt(daycare);
-      const baseTotal = daycare.totalPrice ?? daycare.subtotal ?? 0;
-      const transactions = daycare.transactions || [];
-      const totalPaidFromTx = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-      const totalPaid = daycare.amountPaid != null ? daycare.amountPaid : totalPaidFromTx;
-      const dueAmount = Math.max(0, baseTotal - totalPaid);
-      setReceiptData(buildDaycareReceiptData(daycare, dueAmount));
+      const doctor = await fetchDialysisReceiptDoctor(session);
+      setReceiptData(
+        buildDialysisSessionReceiptData({
+          ...session,
+          doctor,
+        })
+      );
       setShowPrintReceipt(true);
     } catch {
       alert("Failed to load receipt. Please try again.");
@@ -403,8 +465,8 @@ const DialysisComponent = () => {
                   width: 110,
                   render: (_: unknown, record: any) => {
                     const sessionKey = record.key as string;
-                    const daycareId = record.daycareAppointmentId as string | undefined;
-                    const canPrint = Boolean(daycareId);
+                    const session = dialysisSessions.find((s) => s._id === sessionKey);
+                    const canPrint = Boolean(record.canPrint);
                     const canOpenForm = Boolean(record.patientId);
                     return (
                       <div className="d-flex align-items-center justify-content-end gap-2">
@@ -427,12 +489,12 @@ const DialysisComponent = () => {
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center"
-                          title={canPrint ? "Print daycare receipt" : "No linked daycare appointment"}
-                          aria-label="Print receipt"
+                          title={canPrint ? "Print dialysis receipt" : "No linked appointment"}
+                          aria-label="Print dialysis receipt"
                           disabled={!canPrint || printingSessionId === sessionKey}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePrintReceipt(daycareId, sessionKey);
+                            if (session) void handlePrintReceipt(session);
                           }}
                         >
                           {printingSessionId === sessionKey ? (
@@ -453,19 +515,14 @@ const DialysisComponent = () => {
               dataSource={dialysisSessions.map((session) => {
                 const appointment = resolveDialysisAppointmentSummary(session);
                 const discount = Number(appointment?.discount ?? 0) || 0;
-                const gross =
-                  appointment?.totalPrice != null
-                    ? Number(appointment.totalPrice)
-                    : appointment?.subtotal != null
-                      ? Number(appointment.subtotal)
-                      : Number(session.procedure?.price ?? 0) || 0;
-                const totalAmount = appointment ? Math.max(0, gross - discount) : gross;
+                const procedureAmount = resolveDialysisProcedureAmount(session);
+                const totalAmount = Math.max(0, procedureAmount - discount);
                 const paymentStatus = appointment?.paymentStatus?.trim() || "Unpaid";
 
                 return {
                   key: session._id,
                   patientId: session.patientId,
-                  daycareAppointmentId: session.daycareAppointmentId,
+                  canPrint: canPrintDialysisReceipt(session),
                   sessionId: session.sessionId ?? "-",
                   patientName: session.patient?.name ?? "-",
                   dialysisSessionSource: session.dialysisSessionSource,
