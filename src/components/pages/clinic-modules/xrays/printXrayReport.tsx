@@ -122,7 +122,7 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
                 background: #fff;
                 line-height: 1.4;
               }
-              .receipt-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 0 60px; background: #fff; }
+              .receipt-container { width: 100%; max-width: 100%; margin: 0 auto; padding: 0 12px; background: #fff; }
               .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; gap: 12px; }
               .header-left { display: flex; align-items: center; gap: 10px; }
               .header-center { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 54px; }
@@ -159,11 +159,26 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
                 font-size: 15px;
                 font-weight: 500;
                 color: #000;
-                white-space: pre-wrap;
                 word-break: break-word;
                 line-height: 1.55;
+                overflow: visible;
               }
               .xray-report-html * { color: #000 !important; }
+              .xray-report-html p { margin: 0.5em 0; }
+              .xray-report-html ol,
+              .xray-report-html ul {
+                margin: 0.5em 0;
+                padding-left: 2em;
+              }
+              .xray-report-html li {
+                margin-bottom: 0.35em;
+                padding-left: 0.25em;
+              }
+              .xray-report-html blockquote {
+                margin: 0.5em 0;
+                padding-left: 1em;
+                border-left: 2px solid #ccc;
+              }
               .xray-report-html strong, .xray-report-html b { font-weight: bold; }
               .xray-report-html em, .xray-report-html i { font-style: italic; }
               .xray-report-html u { text-decoration: underline; }
@@ -177,8 +192,10 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
                 color: #000;
               }
               @media print {
-                @page { margin: 8mm 10mm 10mm 10mm; size: A4; }
+                @page { margin: 12mm 12mm 12mm 14mm; size: A4; }
                 body { padding: 0; background: white !important; }
+                .receipt-container { max-width: none; width: 100%; padding: 0; }
+                .content-box { padding-left: 0; padding-right: 0; }
               }
             </style>
           </head>
@@ -274,13 +291,9 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
                 </tr>
                 <tr>
                   <td className="info-label-cell">Procedure:</td>
-                  <td className="info-value-cell" colSpan={3}>
-                    {procedureLine || "—"}
-                  </td>
-                </tr>
-                <tr>
+                  <td className="info-value-cell">{procedureLine || "—"}</td>
                   <td className="info-label-cell">Date:</td>
-                  <td className="info-value-cell" colSpan={3}>
+                  <td className="info-value-cell info-value-cell-narrow">
                     {formatPrintDate(reportData.tokenDate)}
                   </td>
                 </tr>

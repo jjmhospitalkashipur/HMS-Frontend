@@ -520,11 +520,13 @@ const Modals = () => {
   const [opdNumber, setOpdNumber] = useState<string>("");
   const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState<string>("");
   const [address, setAddress] = useState<string>("");
-  // const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
-  // const [existingImageUrl, setExistingImageUrl] = useState<string>("");
+  const [existingImageUrl, setExistingImageUrl] = useState<string>("");
+  const [savedImageUrl, setSavedImageUrl] = useState<string>("");
   const [existingPosterUrl, setExistingPosterUrl] = useState<string>("");
-  // const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [savedPosterUrl, setSavedPosterUrl] = useState<string>("");
+  const [photoRemoved, setPhotoRemoved] = useState(false);
   const [posterRemoved, setPosterRemoved] = useState(false);
   const [sessions, setSessions] = useState<Option[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -553,11 +555,13 @@ const Modals = () => {
     setOpdNumber("");
     setMaxAppointmentsPerSlot("");
     setAddress("");
-    // setPhotoFile(null);
+    setPhotoFile(null);
     setPosterFile(null);
-    // setExistingImageUrl("");
+    setExistingImageUrl("");
+    setSavedImageUrl("");
     setExistingPosterUrl("");
-    // setPhotoRemoved(false);
+    setSavedPosterUrl("");
+    setPhotoRemoved(false);
     setPosterRemoved(false);
     setSessions([]);
     setVisitTypes([
@@ -596,11 +600,15 @@ const Modals = () => {
         setOpdNumber(doctor.opdNumber || "");
         setMaxAppointmentsPerSlot(doctor.maxAppointmentsPerSlot?.toString() || "");
         setAddress(doctor.address || "");
-        // setExistingImageUrl(doctor.imageUrl ?? "");
-        setExistingPosterUrl(doctor.posterUrl ?? "");
-        // setPhotoRemoved(false);
+        const imageUrl = doctor.imageUrl ?? "";
+        const posterUrl = doctor.posterUrl ?? "";
+        setExistingImageUrl(imageUrl);
+        setSavedImageUrl(imageUrl);
+        setExistingPosterUrl(posterUrl);
+        setSavedPosterUrl(posterUrl);
+        setPhotoRemoved(false);
         setPosterRemoved(false);
-        // setPhotoFile(null);
+        setPhotoFile(null);
         setPosterFile(null);
 
         // Map sessions (backend may send "noon" or "Afternoon"; we use "Afternoon", capitalize others)
@@ -831,17 +839,13 @@ const Modals = () => {
 
       setLoading(true);
 
-      // let uploadedImageUrl = existingImageUrl;
+      let uploadedImageUrl = existingImageUrl;
       let uploadedPosterUrl = existingPosterUrl;
-      // if (photoFile) {
-      //   uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
-      // } else if (photoRemoved) {
-      //   uploadedImageUrl = "";
-      // }
+      if (photoFile) {
+        uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
+      }
       if (posterFile) {
         uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
-      } else if (posterRemoved) {
-        uploadedPosterUrl = "";
       }
 
       // Map visit types to API shape: visitType, appointmentType, charge
@@ -861,11 +865,8 @@ const Modals = () => {
         .filter(s => s.value && s.value !== "Select")
         .map(s => s.value);
 
-      const doctorData = {
+      const doctorData: Record<string, unknown> = {
         name: name,
-        // imageUrl: photoRemoved
-        //   ? ""
-        //   : uploadedImageUrl?.trim() || undefined,
         email: email || undefined,
         phone: formatPatientPhoneForApi(phone),
         dob: formatDob(),
@@ -877,13 +878,22 @@ const Modals = () => {
         gender: gender?.value !== "Select" ? gender?.value : "",
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
-        posterUrl: posterRemoved
-          ? ""
-          : uploadedPosterUrl?.trim() || undefined,
         visitTypes: visitTypesData,
         sessions: sessionsData.length > 0 ? sessionsData : undefined,
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || undefined,
       };
+
+      if (photoFile) {
+        doctorData.imageUrl = uploadedImageUrl?.trim();
+      } else if (photoRemoved && savedImageUrl.trim()) {
+        doctorData.imageUrl = "";
+      }
+
+      if (posterFile) {
+        doctorData.posterUrl = uploadedPosterUrl?.trim();
+      } else if (posterRemoved && savedPosterUrl.trim()) {
+        doctorData.posterUrl = "";
+      }
 
       const response = await axios.patch(`${API_BASE_URL}/hospital/doctors/${doctorId}`, doctorData);
       const isSuccess = response.status >= 200 && response.status < 300;
@@ -1735,7 +1745,25 @@ const Modals = () => {
                     />
                   </div>
                   <div className="row">
-                    {/* Photo upload hidden — poster only for queue display */}
+                    <div className="col-lg-6">
+                      <IpdPatientCompactUpload
+                        label="Profile Image"
+                        placeholder="Add profile image"
+                        hint="Jpg / Png"
+                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                        file={photoFile}
+                        previewUrl={!photoRemoved ? existingImageUrl || undefined : undefined}
+                        onFileChange={(file) => {
+                          setPhotoFile(file);
+                          if (file) setPhotoRemoved(false);
+                        }}
+                        onClear={() => {
+                          setPhotoFile(null);
+                          setExistingImageUrl("");
+                          setPhotoRemoved(true);
+                        }}
+                      />
+                    </div>
                     <div className="col-lg-6">
                       <IpdPatientCompactUpload
                         label="Poster"
