@@ -99,11 +99,13 @@ const Modals = ({ onEditSuccess }: IModalsProps) => {
     }
   }, []);
 
-  const fetchProcedures = useCallback(async () => {
+  const fetchProcedures = useCallback(async (search = "") => {
     if (!API_BASE_URL) return;
     setProceduresLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50, type: "daycare,both" } });
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { search: search || undefined, type: "daycare,both" },
+      });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
       setProceduresOptions(
@@ -116,7 +118,7 @@ const Modals = ({ onEditSuccess }: IModalsProps) => {
       arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
       });
-      setProcedurePriceById(priceMap);
+      setProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
     } catch {
       setProceduresOptions([]);
       setProcedurePriceById({});
@@ -498,7 +500,8 @@ const Modals = ({ onEditSuccess }: IModalsProps) => {
                         options={proceduresOptions}
                         value={addProcedureSelect}
                         onChange={handleAddProcedure}
-                        placeholder="Select procedure..."
+                        onInputChange={(v) => fetchProcedures(v)}
+                        placeholder="Search procedure..."
                         isLoading={proceduresLoading}
                       />
                     </div>

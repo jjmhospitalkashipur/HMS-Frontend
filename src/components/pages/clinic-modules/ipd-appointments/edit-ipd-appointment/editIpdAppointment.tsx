@@ -294,7 +294,7 @@ const EditIpdAppointmentComponent = () => {
     setProceduresLoading(true);
     try {
       const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-        params: { limit: 50, search: search || undefined, type: "ipd,both" },
+        params: { search: search || undefined, type: "ipd,both" },
       });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];

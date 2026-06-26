@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
@@ -164,11 +164,15 @@ const EditDaycareAppointmentComponent = () => {
     []
   );
 
-  const fetchProcedures = useCallback(async () => {
+  const procedureSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchProcedures = useCallback(async (search = "") => {
     if (!API_BASE_URL) return;
     setProceduresLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, { params: { limit: 50, type: "daycare,both" } });
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { search: search || undefined, type: "daycare,both" },
+      });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
       setProceduresOptions(
@@ -181,7 +185,7 @@ const EditDaycareAppointmentComponent = () => {
       arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
       });
-      setProcedurePriceById(priceMap);
+      setProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
     } catch {
       setProceduresOptions([]);
       setProcedurePriceById({});
@@ -326,6 +330,19 @@ const EditDaycareAppointmentComponent = () => {
       setDaycareDoctorCharge(match.charge);
     }
   }, [selectedDoctor?.value, doctors, daycareDoctorCharge]);
+
+  const handleProcedureInputChange = useCallback(
+    (value: string) => {
+      if (procedureSearchDebounceRef.current) {
+        clearTimeout(procedureSearchDebounceRef.current);
+        procedureSearchDebounceRef.current = null;
+      }
+      procedureSearchDebounceRef.current = setTimeout(() => {
+        void fetchProcedures(value);
+      }, 300);
+    },
+    [fetchProcedures]
+  );
 
   const handleAddProcedure = (option: Option | null) => {
     if (!option?.value || procedurePriceById[option.value] == null) return;
@@ -855,7 +872,8 @@ const EditDaycareAppointmentComponent = () => {
                             options={proceduresOptions}
                             value={addProcedureSelect}
                             onChange={handleAddProcedure}
-                            placeholder="Select procedure..."
+                            onInputChange={handleProcedureInputChange}
+                            placeholder="Search procedure..."
                             isLoading={proceduresLoading}
                           />
                         </div>

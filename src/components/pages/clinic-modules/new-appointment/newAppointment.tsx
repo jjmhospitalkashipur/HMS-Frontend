@@ -209,6 +209,7 @@ const NewAppointmentComponent = () => {
   const [doctorOptions, setDoctorOptions] = useState<Option[]>([]);
   const [doctorSearchLoading, setDoctorSearchLoading] = useState<boolean>(false);
   const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const procedureSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ipdOpdConvertPrefillRef = useRef(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type.find(v => v.value === "New") || Visit_Type[0] || null);
@@ -680,46 +681,57 @@ const NewAppointmentComponent = () => {
   }, [updateDaycareTotalFromDoctorCharge]);
 
   // Fetch procedures for Daycare (used for procedureIds)
-  useEffect(() => {
-    if (appointmentTab !== "Daycare") return;
-    const fetchProcedures = async () => {
-      if (!API_BASE_URL) return;
-      try {
-        setDaycareProceduresLoading(true);
-        const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-          params: { limit: 50, type: "daycare,both" },
+  const fetchDaycareProcedures = useCallback(async (search = "") => {
+    if (!API_BASE_URL) return;
+    try {
+      setDaycareProceduresLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { search: search || undefined, type: "daycare,both" },
+      });
+      if (res.data?.code === 200 && Array.isArray(res.data?.data?.procedures)) {
+        const list = res.data.data.procedures as Array<{
+          _id: string;
+          procedureName?: string;
+          price?: number;
+          basePrice?: number;
+        }>;
+        setDaycareProceduresOptions(
+          list.map((p) => ({
+            value: p._id,
+            label: p.procedureName ?? "—",
+          }))
+        );
+        const priceMap: Record<string, number> = {};
+        list.forEach((p) => {
+          priceMap[p._id] = (p.price ?? p.basePrice ?? 0) as number;
         });
-        if (res.data?.code === 200 && Array.isArray(res.data?.data?.procedures)) {
-          const list = res.data.data.procedures as Array<{
-            _id: string;
-            procedureName?: string;
-            price?: number;
-            basePrice?: number;
-          }>;
-          setDaycareProceduresOptions(
-            list.map((p) => ({
-              value: p._id,
-              label: p.procedureName ?? "—",
-            }))
-          );
-          const priceMap: Record<string, number> = {};
-          list.forEach((p) => {
-            priceMap[p._id] = (p.price ?? p.basePrice ?? 0) as number;
-          });
-          setDaycareProcedurePriceById(priceMap);
-        } else {
-          setDaycareProceduresOptions([]);
-          setDaycareProcedurePriceById({});
-        }
-      } catch {
+        setDaycareProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
+      } else {
         setDaycareProceduresOptions([]);
-        setDaycareProcedurePriceById({});
-      } finally {
-        setDaycareProceduresLoading(false);
       }
-    };
-    fetchProcedures();
-  }, [appointmentTab]);
+    } catch {
+      setDaycareProceduresOptions([]);
+    } finally {
+      setDaycareProceduresLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (appointmentTab === "Daycare") void fetchDaycareProcedures();
+  }, [appointmentTab, fetchDaycareProcedures]);
+
+  const handleDaycareProcedureInputChange = useCallback(
+    (value: string) => {
+      if (procedureSearchDebounceRef.current) {
+        clearTimeout(procedureSearchDebounceRef.current);
+        procedureSearchDebounceRef.current = null;
+      }
+      procedureSearchDebounceRef.current = setTimeout(() => {
+        void fetchDaycareProcedures(value);
+      }, 300);
+    },
+    [fetchDaycareProcedures]
+  );
 
   // When Day Care is selected, set visit type to "New" and date to today
   useEffect(() => {
@@ -1672,7 +1684,7 @@ const NewAppointmentComponent = () => {
     try {
       setIpdProceduresLoading(true);
       const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
-        params: { limit: 50, search: search || undefined, type: "ipd,both" },
+        params: { search: search || undefined, type: "ipd,both" },
       });
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
@@ -3500,7 +3512,8 @@ const NewAppointmentComponent = () => {
                                     options={daycareProceduresOptions}
                                     value={daycareAddProcedureSelect}
                                     onChange={handleDaycareAddProcedure}
-                                    placeholder="Select procedure..."
+                                    onInputChange={handleDaycareProcedureInputChange}
+                                    placeholder="Search procedure..."
                                     isLoading={daycareProceduresLoading}
                                   />
                                 </div>
