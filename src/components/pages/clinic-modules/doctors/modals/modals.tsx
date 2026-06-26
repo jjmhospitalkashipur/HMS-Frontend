@@ -839,15 +839,6 @@ const Modals = () => {
 
       setLoading(true);
 
-      let uploadedImageUrl = existingImageUrl;
-      let uploadedPosterUrl = existingPosterUrl;
-      if (photoFile) {
-        uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
-      }
-      if (posterFile) {
-        uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
-      }
-
       // Map visit types to API shape: visitType, appointmentType, charge
       // OPD, Day Care, IPD → visitType "New"; others (Emergency, Follow-up, Follow-up-report, MR) → appointmentType "OPD"
       const visitTypesData = visitTypes
@@ -884,12 +875,14 @@ const Modals = () => {
       };
 
       if (photoFile) {
+        const uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
         doctorData.imageUrl = uploadedImageUrl?.trim();
       } else if (photoRemoved && savedImageUrl.trim()) {
         doctorData.imageUrl = "";
       }
 
       if (posterFile) {
+        const uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
         doctorData.posterUrl = uploadedPosterUrl?.trim();
       } else if (posterRemoved && savedPosterUrl.trim()) {
         doctorData.posterUrl = "";
