@@ -37,6 +37,14 @@ export interface IReceiptTransaction {
   createdAt?: string;
 }
 
+export interface IBillingLineItem {
+  srNo: number;
+  description: string;
+  units: number;
+  rate: number;
+  amount: number;
+}
+
 export interface IReceiptData {
   visitId?: string;
   appointmentId?: string;
@@ -63,6 +71,8 @@ export interface IReceiptData {
   /** Shown in brackets on the Discount line when a discount is applied (e.g. IPD Final Bill). */
   discountAuthorizedBy?: string;
   transactions?: IReceiptTransaction[];
+  /** IPD Final Bill: itemized charges table (S. No., Description, Unit, Rate, Amount). */
+  billingLineItems?: IBillingLineItem[];
   totalAmount?: number;
   discount?: number;
   dueAmount?: number;
@@ -167,7 +177,40 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
               .transaction-row { display: flex; padding: 8px 0; border-bottom: 1px solid #000; font-size: 15px; font-weight: 600; }
               .transaction-row .col-type { width: 75%; }
               .transaction-row .col-rate { width: 25%; text-align: right; }
+              .receipt-container-wide { max-width: 100%; padding: 0 12px; }
+              .billing-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+                table-layout: fixed;
+              }
+              .billing-table th,
+              .billing-table td {
+                border: 1px solid #000;
+                padding: 4px 6px;
+                vertical-align: top;
+              }
+              .billing-table th {
+                font-weight: bold;
+                text-align: center;
+                font-size: 13px;
+              }
+              .billing-table .col-sno { width: 7%; text-align: center; }
+              .billing-table .col-desc { width: 51%; text-align: left; font-weight: 600; }
+              .billing-table .col-unit { width: 7%; text-align: right; }
+              .billing-table .col-rate { width: 17%; text-align: right; }
+              .billing-table .col-amount { width: 18%; text-align: right; }
+              .billing-total-row td {
+                font-weight: bold;
+                font-size: 13px;
+              }
+              .billing-total-label { text-align: right; }
+              .billing-total-colon { text-align: center; }
               .summary-section { margin-top: 10px; }
+              .summary-section-billing .summary-row {
+                font-size: 13px;
+                padding: 5px 0;
+              }
               .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; font-weight: 600; border-bottom: 1px solid #000; }
               .summary-row.total-paid { font-weight: bold; border-bottom: none; margin-top: 0; padding-bottom: 8px; }
               .footer { margin-top: 10px; display: flex; justify-content: space-between; font-size: 11px; color: #000; }
@@ -262,6 +305,10 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
   const visitDate = receiptData.visitDate ? dayjs(receiptData.visitDate).format("DD MMM YYYY") : "—";
   const visitTime = receiptData.visitTime ? formatTime(receiptData.visitTime) : "—";
   const transactions = receiptData.transactions ?? [];
+  const billingLineItems = receiptData.billingLineItems ?? [];
+  const useBillingTable = billingLineItems.length > 0;
+  const formatBillNumber = (value: number) =>
+    Number.isFinite(value) ? value.toFixed(2) : "0.00";
   // Treat totalAmount as the gross/subtotal before discount when provided
   const totalAmount =
     receiptData.totalAmount ??
@@ -286,7 +333,10 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
 
   return (
     <div style={{ display: "none" }}>
-      <div ref={printRef} className="receipt-container">
+      <div
+        ref={printRef}
+        className={`receipt-container${useBillingTable ? " receipt-container-wide" : ""}`}
+      >
         {/* Header */}
         <div className="header">
           <div className="header-left">
@@ -344,36 +394,75 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
             </table>
           </div>
 
-          {/* Transactions Section */}
-          <div className="transactions-section">
-            <div className="transaction-header">
-              <div className="col-type">Type</div>
-              <div className="col-rate">Amount</div>
+          {/* Charges Section */}
+          {useBillingTable ? (
+            <div className="transactions-section">
+              <table className="billing-table">
+                <thead>
+                  <tr>
+                    <th className="col-sno">S. No.</th>
+                    <th className="col-desc">Description</th>
+                    <th className="col-unit">Unit</th>
+                    <th className="col-rate">Rate</th>
+                    <th className="col-amount">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billingLineItems.map((item) => (
+                    <tr key={item.srNo}>
+                      <td className="col-sno">{item.srNo}</td>
+                      <td className="col-desc">{item.description}</td>
+                      <td className="col-unit">{formatBillNumber(item.units)}</td>
+                      <td className="col-rate">{formatBillNumber(item.rate)}</td>
+                      <td className="col-amount">{formatBillNumber(item.amount)}</td>
+                    </tr>
+                  ))}
+                  <tr className="billing-total-row">
+                    <td className="col-sno" />
+                    <td className="col-desc billing-total-label" colSpan={2}>
+                      Total
+                    </td>
+                    <td className="col-rate billing-total-colon">:</td>
+                    <td className="col-amount">{formatBillNumber(totalAmount)}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            {transactions.length === 0 ? (
-              <div className="payment-no-data">No Entries Found</div>
-            ) : (
-              transactions.map((txn, index) => (
-                <div key={txn._id} className="transaction-row">
-                  <div className="col-type">
-                    {txn.transactionType
-                      ? txn.transactionType
-                      : `${receiptData.appointmentType ?? "—"}${
-                          receiptData.visitType ? ` (${receiptData.visitType})` : ""
-                        }`}
+          ) : (
+            <div className="transactions-section">
+              <div className="transaction-header">
+                <div className="col-type">Type</div>
+                <div className="col-rate">Amount</div>
+              </div>
+              {transactions.length === 0 ? (
+                <div className="payment-no-data">No Entries Found</div>
+              ) : (
+                transactions.map((txn) => (
+                  <div key={txn._id} className="transaction-row">
+                    <div className="col-type">
+                      {txn.transactionType
+                        ? txn.transactionType
+                        : `${receiptData.appointmentType ?? "—"}${
+                            receiptData.visitType ? ` (${receiptData.visitType})` : ""
+                          }`}
+                    </div>
+                    <div className="col-rate">
+                      ₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}
+                    </div>
                   </div>
-                  <div className="col-rate">₹{typeof txn.amount === "number" ? txn.amount.toFixed(2) : "0.00"}</div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          )}
 
           {/* Summary Section */}
-          <div className="summary-section">
-            <div className="summary-row">
-              <span>Total:</span>
-              <span>₹{totalAmount.toFixed(2)}</span>
-            </div>
+          <div className={`summary-section${useBillingTable ? " summary-section-billing" : ""}`}>
+            {!useBillingTable && (
+              <div className="summary-row">
+                <span>Total:</span>
+                <span>₹{totalAmount.toFixed(2)}</span>
+              </div>
+            )}
             {discount > 0 && (
               <>
                 <div className="summary-row">

@@ -62,6 +62,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
   const [description, setDescription] = useState("");
   const [isPackage, setIsPackage] = useState(false);
   const [isXray, setIsXray] = useState(false);
+  const [isUltrasound, setIsUltrasound] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editFetchLoading, setEditFetchLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -76,6 +77,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
     setDescription("");
     setIsPackage(false);
     setIsXray(false);
+    setIsUltrasound(false);
     setProcedureId(null);
     setEditError("");
   }, []);
@@ -108,6 +110,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
       setDescription(data.description ?? "");
       setIsPackage(Boolean(data.isPackage));
       setIsXray(Boolean(data.isXray));
+      setIsUltrasound(Boolean(data.isUltrasound));
     } catch {
       setEditError("Failed to load procedure.");
     } finally {
@@ -156,6 +159,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
         price: priceNum,
         isPackage,
         isXray,
+        isUltrasound: isXray ? isUltrasound : false,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -383,7 +387,11 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                               role="switch"
                               id="edit-procedure-is-xray"
                               checked={isXray}
-                              onChange={(e) => setIsXray(e.target.checked)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setIsXray(checked);
+                                if (!checked) setIsUltrasound(false);
+                              }}
                               aria-label="Mark as X ray"
                             />
                             <span className="form-check-label ms-1">
@@ -393,6 +401,34 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                         </div>
                       </div>
                     </div>
+                    {isXray ? (
+                      <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 100, maxWidth: 120 }}>
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium" htmlFor="edit-procedure-is-ultrasound">
+                            Ultrasound
+                          </label>
+                          <div
+                            className="d-flex align-items-center"
+                            style={{ minHeight: 38 }}
+                          >
+                            <div className="form-check form-switch mb-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                id="edit-procedure-is-ultrasound"
+                                checked={isUltrasound}
+                                onChange={(e) => setIsUltrasound(e.target.checked)}
+                                aria-label="Mark as ultrasound"
+                              />
+                              <span className="form-check-label ms-1">
+                                {isUltrasound ? "Yes" : "No"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 100, maxWidth: 130 }}>
                       <div className="mb-3">
                         <label className="form-label mb-1 fw-medium">

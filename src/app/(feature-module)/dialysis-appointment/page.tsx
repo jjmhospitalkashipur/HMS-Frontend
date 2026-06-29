@@ -252,6 +252,9 @@ const DialysisAppointmentContent = () => {
     setCheck("comp.dialyzerReaction", Boolean(comp.dialyzerReaction));
     setCheck("comp.seizures", Boolean(comp.seizures));
     setCheck("comp.noComplication", Boolean(comp.noComplication));
+    setCheck("comp.formSibring", Boolean(comp.formSibring));
+    setCheck("comp.hypoglycemia", Boolean(comp.hypoglycemia));
+    setCheck("comp.hypertension", Boolean(comp.hypertension));
     setVal("comp.other", comp.other);
 
     const treat = session.treatmentGiven ?? {};
@@ -518,6 +521,9 @@ const DialysisAppointmentContent = () => {
       rigor: getBool("comp.rigor"),
       vomiting: getBool("comp.vomiting"),
       pruritus: getBool("comp.pruritus"),
+      formSibring: getBool("comp.formSibring"),
+      hypoglycemia: getBool("comp.hypoglycemia"),
+      hypertension: getBool("comp.hypertension"),
       other: get("comp.other"),
     };
 
@@ -1557,6 +1563,45 @@ const DialysisAppointmentContent = () => {
                             />
                             <label className="form-check-label" htmlFor="comp-no-complication" style={{ color: "#000" }}>
                               No Complication
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-3 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-form-sibring"
+                              name="comp.formSibring"
+                            />
+                            <label className="form-check-label" htmlFor="comp-form-sibring" style={{ color: "#000" }}>
+                              Sibring
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-3 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-hypoglycemia"
+                              name="comp.hypoglycemia"
+                            />
+                            <label className="form-check-label" htmlFor="comp-hypoglycemia" style={{ color: "#000" }}>
+                              Hypoglycemia
+                            </label>
+                          </div>
+                        </div>
+                        <div className="col-md-3 col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="comp-hypertension"
+                              name="comp.hypertension"
+                            />
+                            <label className="form-check-label" htmlFor="comp-hypertension" style={{ color: "#000" }}>
+                              Hypertension
                             </label>
                           </div>
                         </div>

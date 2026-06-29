@@ -1,6 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import type { IReceiptData, IReceiptTransaction, IPathlabReceiptData, IPathlabTestItem } from "./printReceipt";
+import type { IReceiptData, IReceiptTransaction, IPathlabReceiptData, IPathlabTestItem, IBillingLineItem } from "./printReceipt";
 
 export async function enrichIPDDoctorForReceipt(
   ipd: IIpdAppointmentDetail
@@ -147,6 +147,9 @@ export interface IIpdBillingChargeSummary {
   type?: string;
   procedureId?: string;
   procedureName?: string;
+  procedureCategory?: string;
+  doctorId?: string;
+  doctorName?: string;
   price?: number;
   units?: number;
   totalCharge?: number;
@@ -244,6 +247,176 @@ export const resolveIpdGrossTotal = (ipd: IIpdAppointmentDetail): number => {
   if (subtotal != null && Number.isFinite(Number(subtotal))) return Number(subtotal);
   if (totalPrice != null && Number.isFinite(Number(totalPrice))) return Number(totalPrice);
   return 0;
+};
+
+const resolveBillingChargeAmount = (charge: IIpdBillingChargeSummary): number => {
+  const total = Number(charge.totalCharge);
+  if (Number.isFinite(total) && total >= 0) return total;
+  const flat = Number(charge.charge);
+  if (Number.isFinite(flat) && flat >= 0) return flat;
+  const price = Number(charge.price) || 0;
+  const units = Math.max(1, Number(charge.units) || 1);
+  return price * units;
+};
+
+const resolveBillingChargeRate = (
+  charge: IIpdBillingChargeSummary,
+  units: number,
+  amount: number
+): number => {
+  const price = Number(charge.price);
+  if (Number.isFinite(price) && price >= 0) return price;
+  const flat = Number(charge.charge);
+  if (Number.isFinite(flat) && flat >= 0) return flat;
+  return units > 0 ? amount / units : amount;
+};
+
+const formatChargeDayLabel = (days: number): string =>
+  days > 0 ? ` (${days} ${days === 1 ? "day" : "days"})` : "";
+
+const buildBedChargeLabel = (wardName?: string): string => {
+  const ward = wardName?.trim();
+  return ward ? `Bed Charges - ${ward}` : "Bed Charges";
+};
+
+const buildNursingChargeLabel = (wardName?: string, days = 1): string => {
+  const dayLabel = formatChargeDayLabel(days);
+  const ward = wardName?.trim();
+  return ward ? `Nursing Charges - ${ward}${dayLabel}` : `Nursing Charges${dayLabel}`;
+};
+
+const buildIpdBillingLineItems = (ipd: IIpdAppointmentDetail): IBillingLineItem[] => {
+  const items: IBillingLineItem[] = [];
+  let srNo = 0;
+
+  const pushItem = (description: string, units: number, rate: number, amount: number) => {
+    srNo += 1;
+    items.push({
+      srNo,
+      description: description.trim() || "—",
+      units,
+      rate,
+      amount,
+    });
+  };
+
+  const billing = ipd.billingCharges ?? [];
+
+  if (billing.length > 0) {
+    billing.forEach((charge) => {
+      const type = charge.type?.trim().toLowerCase() ?? "";
+      if (type === "test") return;
+
+      const units = Math.max(1, Number(charge.units) || 1);
+      const amount = resolveBillingChargeAmount(charge);
+      const rate = resolveBillingChargeRate(charge, units, amount);
+
+      if (type === "procedure") {
+        pushItem(charge.procedureName?.trim() || "Procedure", units, rate, amount);
+        return;
+      }
+
+      if (type === "doctor") {
+        pushItem(
+          charge.doctorName?.trim() || ipd.doctor?.name?.trim() || "Doctor Visit Charges",
+          units,
+          rate,
+          amount
+        );
+        return;
+      }
+
+      if (type === "bed") {
+        const wardName = ipd.bedCharge?.wardName?.trim();
+        pushItem(buildBedChargeLabel(wardName), units, rate, amount);
+        return;
+      }
+
+      if (type === "nursing") {
+        const wardName = ipd.nursingCharge?.wardName?.trim();
+        pushItem(buildNursingChargeLabel(wardName, units), units, rate, amount);
+        return;
+      }
+
+      const fallbackDescription =
+        charge.procedureName?.trim() ||
+        charge.doctorName?.trim() ||
+        "Charge";
+      pushItem(fallbackDescription, units, rate, amount);
+    });
+
+    const hasBedInBilling = billing.some((c) => c.type?.trim().toLowerCase() === "bed");
+    const hasNursingInBilling = billing.some((c) => c.type?.trim().toLowerCase() === "nursing");
+
+    if (!hasBedInBilling && ipd.bedCharge) {
+      const days = Math.max(1, Number(ipd.bedCharge.days) || 1);
+      const rate = Number(ipd.bedCharge.chargePerDay) || 0;
+      const amount = Number.isFinite(Number(ipd.bedCharge.totalCharge))
+        ? Number(ipd.bedCharge.totalCharge)
+        : rate * days;
+      pushItem(buildBedChargeLabel(ipd.bedCharge.wardName), days, rate, amount);
+    }
+
+    if (!hasNursingInBilling && ipd.nursingCharge) {
+      const days = Math.max(1, Number(ipd.nursingCharge.days) || 1);
+      const rate = Number(ipd.nursingCharge.nursingChargePerDay) || 0;
+      const amount = Number.isFinite(Number(ipd.nursingCharge.totalCharge))
+        ? Number(ipd.nursingCharge.totalCharge)
+        : rate * days;
+      pushItem(buildNursingChargeLabel(ipd.nursingCharge.wardName, days), days, rate, amount);
+    }
+
+    return items;
+  }
+
+  if (ipd.procedures && ipd.procedures.length > 0) {
+    ipd.procedures.forEach((proc) => {
+      const units = Math.max(1, Number(proc.units) || 1);
+      const amount = Number(proc.price) || 0;
+      const rate =
+        Number(proc.unitPrice) ||
+        (units > 0 ? amount / units : amount);
+      pushItem(proc.procedureName?.trim() || "Procedure", units, rate, amount);
+    });
+  } else {
+    const procTotal = ipd.procedureChargesTotal ?? 0;
+    if (procTotal > 0) {
+      pushItem("Procedure Charges", 1, procTotal, procTotal);
+    }
+  }
+
+  const docTotal = ipd.doctorChargesAmount ?? 0;
+  if (docTotal > 0 || (ipd.doctorVisits && ipd.doctorVisits.length > 0)) {
+    const visit = ipd.doctorVisits?.[0];
+    const days = Math.max(1, Number(visit?.days) || 1);
+    const rate = Number(visit?.chargePerDay) || docTotal;
+    const description = visit?.doctorName?.trim() || ipd.doctor?.name?.trim() || "Doctor Visit Charges";
+    pushItem(description, days, rate, docTotal);
+  }
+
+  if (ipd.bedCharge) {
+    const days = Math.max(1, Number(ipd.bedCharge.days) || 1);
+    const rate = Number(ipd.bedCharge.chargePerDay) || 0;
+    const amount = Number.isFinite(Number(ipd.bedCharge.totalCharge))
+      ? Number(ipd.bedCharge.totalCharge)
+      : rate * days;
+    if (amount > 0 || rate > 0) {
+      pushItem(buildBedChargeLabel(ipd.bedCharge.wardName), days, rate, amount);
+    }
+  }
+
+  if (ipd.nursingCharge) {
+    const days = Math.max(1, Number(ipd.nursingCharge.days) || 1);
+    const rate = Number(ipd.nursingCharge.nursingChargePerDay) || 0;
+    const amount = Number.isFinite(Number(ipd.nursingCharge.totalCharge))
+      ? Number(ipd.nursingCharge.totalCharge)
+      : rate * days;
+    if (amount > 0 || rate > 0) {
+      pushItem(buildNursingChargeLabel(ipd.nursingCharge.wardName, days), days, rate, amount);
+    }
+  }
+
+  return items;
 };
 
 export const buildIPDReceiptData = (
@@ -364,6 +537,7 @@ export const buildIPDReceiptData = (
   }
 
   const discountAmount = ipd.discount ?? 0;
+  const billingLineItems = buildIpdBillingLineItems(ipd);
 
   return {
     printTitle: "Final Bill",
@@ -386,6 +560,7 @@ export const buildIPDReceiptData = (
     medicalLicenseNo: ipd.doctor?.medicalLicenseNo,
     receiptId: ipd.receiptId,
     transactions: charges,
+    billingLineItems,
     totalAmount: resolveIpdGrossTotal(ipd),
     discount: discountAmount,
     discountAuthorizedBy: discountAmount > 0 ? "Dr. Abhishek Goel" : undefined,

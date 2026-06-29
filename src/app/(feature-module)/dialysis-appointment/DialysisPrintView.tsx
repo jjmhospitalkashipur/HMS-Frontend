@@ -127,6 +127,9 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     dialyzerReaction: checked("comp.dialyzerReaction"),
     seizures: checked("comp.seizures"),
     noComplication: checked("comp.noComplication"),
+    formSibring: checked("comp.formSibring"),
+    hypoglycemia: checked("comp.hypoglycemia"),
+    hypertension: checked("comp.hypertension"),
     otherComp: get("comp.other"),
 
     // treatment
@@ -195,6 +198,9 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     [v.pruritus, "Pruritus"],
     [v.dialyzerReaction, "Dialyzer Reaction"],
     [v.seizures, "Seizures"],
+    [v.formSibring, "Sibring"],
+    [v.hypoglycemia, "Hypoglycemia"],
+    [v.hypertension, "Hypertension"],
   ];
 
   const html = /* html */ `<!DOCTYPE html>

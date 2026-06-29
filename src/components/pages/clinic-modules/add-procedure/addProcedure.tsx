@@ -46,6 +46,7 @@ const AddProcedureComponent = () => {
   const [description, setDescription] = useState("");
   const [isPackage, setIsPackage] = useState(false);
   const [isXray, setIsXray] = useState(false);
+  const [isUltrasound, setIsUltrasound] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -78,6 +79,7 @@ const AddProcedureComponent = () => {
         price: priceNum,
         isPackage,
         isXray,
+        isUltrasound: isXray ? isUltrasound : false,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -234,7 +236,11 @@ const AddProcedureComponent = () => {
                                   role="switch"
                                   id="add-procedure-is-xray"
                                   checked={isXray}
-                                  onChange={(e) => setIsXray(e.target.checked)}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setIsXray(checked);
+                                    if (!checked) setIsUltrasound(false);
+                                  }}
                                   aria-label="Mark as X ray"
                                 />
                                 <span className="form-check-label ms-1">
@@ -244,6 +250,34 @@ const AddProcedureComponent = () => {
                             </div>
                           </div>
                         </div>
+                        {isXray ? (
+                          <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 100, maxWidth: 120 }}>
+                            <div className="mb-3">
+                              <label className="form-label" htmlFor="add-procedure-is-ultrasound">
+                                Ultrasound
+                              </label>
+                              <div
+                                className="d-flex align-items-center"
+                                style={{ minHeight: 38 }}
+                              >
+                                <div className="form-check form-switch mb-0">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    role="switch"
+                                    id="add-procedure-is-ultrasound"
+                                    checked={isUltrasound}
+                                    onChange={(e) => setIsUltrasound(e.target.checked)}
+                                    aria-label="Mark as ultrasound"
+                                  />
+                                  <span className="form-check-label ms-1">
+                                    {isUltrasound ? "Yes" : "No"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                         <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 100, maxWidth: 130 }}>
                           <div className="mb-3">
                             <label className="form-label">

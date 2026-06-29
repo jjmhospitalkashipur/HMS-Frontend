@@ -123,22 +123,10 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
                 line-height: 1.4;
               }
               .receipt-container { width: 100%; max-width: 100%; margin: 0 auto; padding: 0 12px; background: #fff; }
-              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; gap: 12px; }
-              .header-left { display: flex; align-items: center; gap: 10px; }
-              .header-center { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 54px; }
-              .header-center .receipt-title { transform: translateX(18px); }
-              .logo-img { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
-              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 2px 0; color: #000; }
-              .header-info .certification { font-size: 12px; color: #000; margin-top: 2px; }
-              .header-right { text-align: right; }
-              .header-right .address { font-size: 14px; color: #000; margin-bottom: 4px; line-height: 1.4; }
-              .header-right .contact { font-size: 14px; color: #000; line-height: 1.6; }
-              .receipt-title {
-                text-align: center;
-                font-size: 20px;
-                font-weight: bold;
-                letter-spacing: 0.04em;
-                color: #000;
+              .header-spacer {
+                min-height: 70px;
+                margin-bottom: 10px;
+                padding-bottom: 8px;
               }
               .content-box { border: none; padding: 8px 12px 0 12px; margin-bottom: 12px; }
               .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; }
@@ -253,34 +241,10 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
     ? `Xray of ${reportData.procedureName.trim()}`
     : "Xray Report";
 
-  const logoUrl =
-    typeof window !== "undefined"
-      ? new URL(encodeURI("/JJM Logo.png"), window.location.origin).href
-      : encodeURI("/JJM Logo.png");
-
   return (
     <div style={{ display: "none" }}>
       <div ref={printRef} className="receipt-container">
-        <div className="header">
-          <div className="header-left">
-            <img src={logoUrl} alt="JJM Hospital" className="logo-img" />
-            <div className="header-info">
-              <h2>JJM Hospital</h2>
-              <div className="certification">ISO 9001:2000 Certified</div>
-            </div>
-          </div>
-          <div className="header-center">
-            <div className="receipt-title">X-Ray Report</div>
-          </div>
-          <div className="header-right">
-            <div className="address">
-              Jaspur Rd, opposite Anaj Mandi, Sarverkhera,
-              <br />
-              Kashipur, Uttarakhand 244713
-            </div>
-            <div className="contact">Phone: +91 9634844075</div>
-          </div>
-        </div>
+        <div className="header-spacer" aria-hidden="true" />
 
         <div className="content-box">
           <div className="patient-details-box">
