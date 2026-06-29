@@ -66,7 +66,7 @@ import {
   removeIpdProcedureRow,
   toggleIpdProcedureCompleted,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
-import LinkAbhaFields from "@/core/common/linkAbhaFields/LinkAbhaFields";
+// import LinkAbhaFields from "@/core/common/linkAbhaFields/LinkAbhaFields";
 import { linkAbhaSingle, validateAbhaLinkFields } from "@/core/utils/abhaLinkApi";
 
 /** IPD tab in appointments form — set to `false` to hide */
@@ -3055,7 +3055,7 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
-                          <LinkAbhaFields
+                          {/* <LinkAbhaFields
                             idPrefix="opd"
                             enabled={linkAbhaEnabled}
                             onEnabledChange={setLinkAbhaEnabled}
@@ -3063,7 +3063,7 @@ const NewAppointmentComponent = () => {
                             onAbhaAddressChange={setAbhaAddress}
                             abhaNumber={abhaNumber}
                             onAbhaNumberChange={setAbhaNumber}
-                          />
+                          /> */}
                           {visitType?.value === "MR" && (
                             <>
                               <div className="col-12 col-sm-6 col-lg-3">
@@ -3518,7 +3518,7 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
-                          <LinkAbhaFields
+                          {/* <LinkAbhaFields
                             idPrefix="daycare"
                             enabled={daycareLinkAbhaEnabled}
                             onEnabledChange={setDaycareLinkAbhaEnabled}
@@ -3526,7 +3526,7 @@ const NewAppointmentComponent = () => {
                             onAbhaAddressChange={setDaycareAbhaAddress}
                             abhaNumber={daycareAbhaNumber}
                             onAbhaNumberChange={setDaycareAbhaNumber}
-                          />
+                          /> */}
                         </div>
                       </div>
                     </div>
@@ -3988,7 +3988,7 @@ const NewAppointmentComponent = () => {
                                   <label className="form-label mb-1 fw-medium fs-14">Relation to Patient</label>
                                   <input type="text" className="form-control" placeholder="Son, Daughter, Spouse…" value={ipdAttendantRelation} onChange={(e) => setIpdAttendantRelation(e.target.value)} />
                                 </div>
-                                <LinkAbhaFields
+                                {/* <LinkAbhaFields
                                   idPrefix="ipd"
                                   enabled={ipdLinkAbhaEnabled}
                                   onEnabledChange={setIpdLinkAbhaEnabled}
@@ -3996,7 +3996,7 @@ const NewAppointmentComponent = () => {
                                   onAbhaAddressChange={setIpdAbhaAddress}
                                   abhaNumber={ipdAbhaNumber}
                                   onAbhaNumberChange={setIpdAbhaNumber}
-                                />
+                                /> */}
                               </div>
 
                               {/* Documents Section */}

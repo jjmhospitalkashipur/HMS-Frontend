@@ -68,7 +68,7 @@ export interface IReceiptData {
   medicalLicenseNo?: string;
   receiptId?: string;
   printTitle?: string;
-  /** Shown in brackets on the Discount line when a discount is applied (e.g. IPD Final Bill). */
+  /** Shown after "Discount by" on the Discount line when a discount is applied (e.g. IPD Final Bill). */
   discountAuthorizedBy?: string;
   transactions?: IReceiptTransaction[];
   /** IPD Final Bill: itemized charges table (S. No., Description, Unit, Rate, Amount). */
@@ -317,7 +317,7 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
   const discountAuthorizedBy = receiptData.discountAuthorizedBy?.trim();
   const discountLabel =
     discount > 0 && discountAuthorizedBy
-      ? `Discount (${discountAuthorizedBy})`
+      ? `Discount by ${discountAuthorizedBy}`
       : "Discount";
   const finalAmount = totalAmount - discount;
   const totalPaid =
