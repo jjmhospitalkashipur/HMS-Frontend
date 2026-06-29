@@ -14,6 +14,7 @@ interface IXrayQueuePatient {
 interface IXrayQueueToken {
   _id?: string;
   xrayTokenId: number;
+  xrayTokenDisplay?: string;
   status: string;
   patient?: IXrayQueuePatient;
 }
@@ -71,6 +72,7 @@ const normalizeQueueToken = (rawToken: IXrayQueueToken): IXrayQueueToken => {
   return {
     ...rawToken,
     xrayTokenId: Number.isFinite(normalizedTokenId) ? normalizedTokenId : 0,
+    xrayTokenDisplay: rawToken?.xrayTokenDisplay?.trim() || undefined,
     status: String(rawToken?.status ?? "").trim(),
     patient: rawToken?.patient
       ? {
@@ -79,6 +81,13 @@ const normalizeQueueToken = (rawToken: IXrayQueueToken): IXrayQueueToken => {
         }
       : undefined,
   };
+};
+
+const getXrayTokenDisplayValue = (item?: IXrayQueueToken): string | number => {
+  const display = item?.xrayTokenDisplay?.trim();
+  if (display) return display;
+  if (item?.xrayTokenId != null && item.xrayTokenId > 0) return item.xrayTokenId;
+  return "—";
 };
 
 const isTerminalQueueStatus = (status?: string): boolean => {
@@ -325,7 +334,7 @@ const XrayTokenQueueComponent = () => {
                           fontSize: "clamp(1rem, 1.8vw, 5.5rem)",
                         }}
                       >
-                        {item?.xrayTokenId ?? "—"}
+                        {getXrayTokenDisplayValue(item)}
                       </td>
                       <td
                         className={`align-middle fw-medium text-center ${getXrayQueueRowTextClass(item?.status)}`}
