@@ -59,12 +59,15 @@ import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
 import {
   addIpdProcedureRow,
+  buildIpdProcedureBillingCharges,
   calcIpdProceduresTotal,
   decrementIpdProcedureUnits,
   incrementIpdProcedureUnits,
   removeIpdProcedureRow,
   toggleIpdProcedureCompleted,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
+import LinkAbhaFields from "@/core/common/linkAbhaFields/LinkAbhaFields";
+import { linkAbhaSingle, validateAbhaLinkFields } from "@/core/utils/abhaLinkApi";
 
 /** IPD tab in appointments form — set to `false` to hide */
 const IPD_APPOINTMENT_TAB_ENABLED = true;
@@ -223,6 +226,11 @@ const NewAppointmentComponent = () => {
   const [attendantName, setAttendantName] = useState<string>("");
   const [attendantRelation, setAttendantRelation] = useState<string>("");
 
+  // ABHA link (OPD)
+  const [linkAbhaEnabled, setLinkAbhaEnabled] = useState<boolean>(false);
+  const [abhaAddress, setAbhaAddress] = useState<string>("");
+  const [abhaNumber, setAbhaNumber] = useState<string>("");
+
   // Tab: OPD | Daycare | IPD (separate forms; IPD hidden when IPD_APPOINTMENT_TAB_ENABLED is false)
   const tabParam = searchParams?.get("tab")?.toLowerCase();
   const [appointmentTab, setAppointmentTab] = useState<"OPD" | "Daycare" | "IPD">(
@@ -252,6 +260,9 @@ const NewAppointmentComponent = () => {
   const [daycareAddress, setDaycareAddress] = useState<string>("");
   const [daycareAadharNo, setDaycareAadharNo] = useState<string>("");
   const [daycareAyushmanNo, setDaycareAyushmanNo] = useState<string>("");
+  const [daycareLinkAbhaEnabled, setDaycareLinkAbhaEnabled] = useState<boolean>(false);
+  const [daycareAbhaAddress, setDaycareAbhaAddress] = useState<string>("");
+  const [daycareAbhaNumber, setDaycareAbhaNumber] = useState<string>("");
   const [daycareSelectedPatient, setDaycareSelectedPatient] = useState<IPatient | null>(null);
   const [daycarePatientSearchResults, setDaycarePatientSearchResults] = useState<IPatient[]>([]);
   const [daycareShowPatientDropdown, setDaycareShowPatientDropdown] = useState<boolean>(false);
@@ -325,6 +336,9 @@ const NewAppointmentComponent = () => {
   const [ipdAyushmanCardS3Url, setIpdAyushmanCardS3Url] = useState<string>("");
   const [ipdOtherDocsS3Urls, setIpdOtherDocsS3Urls] = useState<string[]>([]);
   const [ipdAyushmanNo, setIpdAyushmanNo] = useState<string>("");
+  const [ipdLinkAbhaEnabled, setIpdLinkAbhaEnabled] = useState<boolean>(false);
+  const [ipdAbhaAddress, setIpdAbhaAddress] = useState<string>("");
+  const [ipdAbhaNumber, setIpdAbhaNumber] = useState<string>("");
   const [ipdAttendantName, setIpdAttendantName] = useState<string>("");
   const [ipdAttendantRelation, setIpdAttendantRelation] = useState<string>("");
   const [ipdMaritalStatus, setIpdMaritalStatus] = useState<Option | null>(Marital_Status[0] || null);
@@ -1051,6 +1065,38 @@ const NewAppointmentComponent = () => {
     return Number.isFinite(n) && !Number.isNaN(n) ? Math.max(0, n) : 0;
   };
 
+  const tryLinkAbhaIfEnabled = async (
+    enabled: boolean,
+    fields: {
+      abhaAddress: string;
+      abhaNumber: string;
+      name: string;
+      gender?: string;
+      dob?: dayjs.Dayjs | Date | string | null;
+      ageYears?: string | number;
+      visitType: "OPD" | "Daycare" | "IPD";
+    }
+  ): Promise<string | null> => {
+    if (!enabled || !API_BASE_URL) return null;
+    try {
+      await linkAbhaSingle(API_BASE_URL, {
+        abhaAddress: fields.abhaAddress,
+        abhaNumber: fields.abhaNumber,
+        name: fields.name,
+        gender: fields.gender,
+        dob: fields.dob,
+        ageYears: fields.ageYears,
+        visitType: fields.visitType,
+      });
+      return null;
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to link ABHA.";
+      return msg;
+    }
+  };
+
   const formatDob = (): string => {
     if (!dob) return "";
     if (dayjs.isDayjs(dob)) {
@@ -1119,6 +1165,19 @@ const NewAppointmentComponent = () => {
         setDaycareError(daycarePhoneValidation.message ?? "Invalid phone number.");
         return;
       }
+    }
+    const daycareAbhaValidationError = validateAbhaLinkFields({
+      enabled: daycareLinkAbhaEnabled,
+      abhaAddress: daycareAbhaAddress,
+      abhaNumber: daycareAbhaNumber,
+      name: daycareName,
+      gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
+      dob: daycareDob,
+      ageYears: daycareAgeYears,
+    });
+    if (daycareAbhaValidationError) {
+      setDaycareError(daycareAbhaValidationError);
+      return;
     }
     setDaycareLoading(true);
     try {
@@ -1230,6 +1289,19 @@ const NewAppointmentComponent = () => {
         }
       }
 
+      const daycareAbhaError = await tryLinkAbhaIfEnabled(daycareLinkAbhaEnabled, {
+        abhaAddress: daycareAbhaAddress,
+        abhaNumber: daycareAbhaNumber,
+        name: daycareName,
+        gender: daycareGender?.value !== "Select" ? daycareGender?.value : "",
+        dob: daycareDob,
+        ageYears: daycareAgeYears,
+        visitType: "Daycare",
+      });
+      if (daycareAbhaError) {
+        alert(`Daycare appointment created but ABHA linking failed: ${daycareAbhaError}`);
+      }
+
       router.push(all_routes.daycareAppointments);
     } catch (err: any) {
       const daycareErrMessage =
@@ -1315,6 +1387,21 @@ const NewAppointmentComponent = () => {
         return;
       }
 
+      const abhaValidationError = validateAbhaLinkFields({
+        enabled: linkAbhaEnabled,
+        abhaAddress,
+        abhaNumber,
+        name,
+        gender: gender?.value !== "Select" ? gender?.value : "",
+        dob,
+        ageYears,
+      });
+      if (abhaValidationError) {
+        setError(abhaValidationError);
+        alert(abhaValidationError);
+        return;
+      }
+
       doCreateAppointment(undefined);
     } catch (err) {
       setError("Validation failed.");
@@ -1376,6 +1463,18 @@ const NewAppointmentComponent = () => {
             } catch (txErr) {
               console.error("Visit created but transaction failed:", txErr);
             }
+          }
+          const abhaError = await tryLinkAbhaIfEnabled(linkAbhaEnabled, {
+            abhaAddress,
+            abhaNumber,
+            name,
+            gender: gender?.value !== "Select" ? gender?.value : "",
+            dob,
+            ageYears,
+            visitType: "OPD",
+          });
+          if (abhaError) {
+            alert(`Appointment created but ABHA linking failed: ${abhaError}`);
           }
           router.push(all_routes.appointments);
           return;
@@ -1446,6 +1545,18 @@ const NewAppointmentComponent = () => {
           } catch (txErr) {
             console.error("Visit created but transaction failed:", txErr);
           }
+        }
+        const abhaError = await tryLinkAbhaIfEnabled(linkAbhaEnabled, {
+          abhaAddress,
+          abhaNumber,
+          name,
+          gender: gender?.value !== "Select" ? gender?.value : "",
+          dob,
+          ageYears,
+          visitType: "OPD",
+        });
+        if (abhaError) {
+          alert(`Appointment created but ABHA linking failed: ${abhaError}`);
         }
         router.push(all_routes.appointments);
       } else {
@@ -1552,6 +1663,7 @@ const NewAppointmentComponent = () => {
     if (ipdProcedurePriceById[option.value] == null) return;
     const price = ipdProcedurePriceById[option.value] ?? 0;
     const category = ipdProcedureCategoryById[option.value];
+    setIpdProcedurePriceById((prev) => ({ ...prev, [option.value]: price }));
     setIpdAddedProcedures((prev) =>
       addIpdProcedureRow(prev, { id: option.value, name: option.label, price, category })
     );
@@ -2137,14 +2249,7 @@ const NewAppointmentComponent = () => {
     const bedId = ipdSelectedBedId;
     if (!doctorId || !bedId) return null;
 
-    const procedureCharges: IIpdBillingCharge[] = ipdAddedProcedures
-      .filter((p) => p.id && ipdProcedurePriceById[p.id] != null && p.units > 0)
-      .map((p) => ({
-        type: "procedure",
-        procedureId: p.id,
-        units: p.units,
-        isCompleted: Boolean(p.isCompleted),
-      }));
+    const procedureCharges: IIpdBillingCharge[] = buildIpdProcedureBillingCharges(ipdAddedProcedures);
     const billingCharges = [
       ...procedureCharges,
       ...buildIpdDoctorBillingCharges(ipdDoctorVisits, doctorId),
@@ -2264,6 +2369,19 @@ const NewAppointmentComponent = () => {
       setIpdError("Please select a consulting doctor.");
       return;
     }
+    const ipdAbhaValidationError = validateAbhaLinkFields({
+      enabled: ipdLinkAbhaEnabled,
+      abhaAddress: ipdAbhaAddress,
+      abhaNumber: ipdAbhaNumber,
+      name: ipdName,
+      gender: ipdGender?.value !== "Select" ? ipdGender?.value : "",
+      dob: ipdDob,
+      ageYears: ipdAgeYears,
+    });
+    if (ipdAbhaValidationError) {
+      setIpdError(ipdAbhaValidationError);
+      return;
+    }
     setIpdLoading(true);
     try {
       let uploadedImageUrl = "";
@@ -2301,6 +2419,18 @@ const NewAppointmentComponent = () => {
       if (!ok && !codeOk) {
         setIpdError(response?.data?.message ?? "Failed to create IPD admission.");
         return;
+      }
+      const ipdAbhaError = await tryLinkAbhaIfEnabled(ipdLinkAbhaEnabled, {
+        abhaAddress: ipdAbhaAddress,
+        abhaNumber: ipdAbhaNumber,
+        name: ipdName,
+        gender: ipdGender?.value !== "Select" ? ipdGender?.value : "",
+        dob: ipdDob,
+        ageYears: ipdAgeYears,
+        visitType: "IPD",
+      });
+      if (ipdAbhaError) {
+        alert(`IPD admission created but ABHA linking failed: ${ipdAbhaError}`);
       }
       router.push(all_routes.ipdAppointments);
     } catch (err: unknown) {
@@ -2925,6 +3055,15 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
+                          <LinkAbhaFields
+                            idPrefix="opd"
+                            enabled={linkAbhaEnabled}
+                            onEnabledChange={setLinkAbhaEnabled}
+                            abhaAddress={abhaAddress}
+                            onAbhaAddressChange={setAbhaAddress}
+                            abhaNumber={abhaNumber}
+                            onAbhaNumberChange={setAbhaNumber}
+                          />
                           {visitType?.value === "MR" && (
                             <>
                               <div className="col-12 col-sm-6 col-lg-3">
@@ -3379,6 +3518,15 @@ const NewAppointmentComponent = () => {
                               />
                             </div>
                           </div>
+                          <LinkAbhaFields
+                            idPrefix="daycare"
+                            enabled={daycareLinkAbhaEnabled}
+                            onEnabledChange={setDaycareLinkAbhaEnabled}
+                            abhaAddress={daycareAbhaAddress}
+                            onAbhaAddressChange={setDaycareAbhaAddress}
+                            abhaNumber={daycareAbhaNumber}
+                            onAbhaNumberChange={setDaycareAbhaNumber}
+                          />
                         </div>
                       </div>
                     </div>
@@ -3840,6 +3988,15 @@ const NewAppointmentComponent = () => {
                                   <label className="form-label mb-1 fw-medium fs-14">Relation to Patient</label>
                                   <input type="text" className="form-control" placeholder="Son, Daughter, Spouse…" value={ipdAttendantRelation} onChange={(e) => setIpdAttendantRelation(e.target.value)} />
                                 </div>
+                                <LinkAbhaFields
+                                  idPrefix="ipd"
+                                  enabled={ipdLinkAbhaEnabled}
+                                  onEnabledChange={setIpdLinkAbhaEnabled}
+                                  abhaAddress={ipdAbhaAddress}
+                                  onAbhaAddressChange={setIpdAbhaAddress}
+                                  abhaNumber={ipdAbhaNumber}
+                                  onAbhaNumberChange={setIpdAbhaNumber}
+                                />
                               </div>
 
                               {/* Documents Section */}

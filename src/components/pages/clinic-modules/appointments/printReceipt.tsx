@@ -60,6 +60,8 @@ export interface IReceiptData {
   medicalLicenseNo?: string;
   receiptId?: string;
   printTitle?: string;
+  /** Shown in brackets on the Discount line when a discount is applied (e.g. IPD Final Bill). */
+  discountAuthorizedBy?: string;
   transactions?: IReceiptTransaction[];
   totalAmount?: number;
   discount?: number;
@@ -265,6 +267,11 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
     receiptData.totalAmount ??
     transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const discount = receiptData.discount ?? 0;
+  const discountAuthorizedBy = receiptData.discountAuthorizedBy?.trim();
+  const discountLabel =
+    discount > 0 && discountAuthorizedBy
+      ? `Discount (${discountAuthorizedBy})`
+      : "Discount";
   const finalAmount = totalAmount - discount;
   const totalPaid =
     receiptData.paidAmount != null
@@ -370,7 +377,7 @@ const PrintReceipt = ({ receiptData, pathlabReceiptData, onClose }: IPrintReceip
             {discount > 0 && (
               <>
                 <div className="summary-row">
-                  <span>Discount:</span>
+                  <span>{discountLabel}:</span>
                   <span>₹{discount.toFixed(2)}</span>
                 </div>
                 <div className="summary-row">

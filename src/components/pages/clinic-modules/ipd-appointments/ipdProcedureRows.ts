@@ -40,6 +40,26 @@ export const decrementIpdProcedureUnits = (
 export const removeIpdProcedureRow = (prev: IIpdProcedureRow[], id: string): IIpdProcedureRow[] =>
   prev.filter((p) => p.id !== id);
 
+export interface IIpdProcedureBillingChargePayload {
+  type: "procedure";
+  procedureId: string;
+  units: number;
+  isCompleted: boolean;
+}
+
+/** Build procedure billing lines from table rows (all added procedures, not only search-loaded prices). */
+export const buildIpdProcedureBillingCharges = (
+  rows: IIpdProcedureRow[]
+): IIpdProcedureBillingChargePayload[] =>
+  rows
+    .filter((p) => Boolean(p.id?.trim()) && p.units > 0)
+    .map((p) => ({
+      type: "procedure" as const,
+      procedureId: p.id,
+      units: p.units,
+      isCompleted: Boolean(p.isCompleted),
+    }));
+
 interface IBillingProcedureCharge {
   type?: string;
   procedureId?: string;
@@ -50,6 +70,24 @@ interface IBillingProcedureCharge {
   units?: number;
   isCompleted?: boolean;
 }
+
+export const seedIpdProcedureMapsFromBilling = (
+  charges: IBillingProcedureCharge[]
+): { priceById: Record<string, number>; categoryById: Record<string, string> } => {
+  const priceById: Record<string, number> = {};
+  const categoryById: Record<string, string> = {};
+  charges
+    .filter((c) => c.type === "procedure" && c.procedureId)
+    .forEach((c) => {
+      const procId = c.procedureId as string;
+      if (c.price != null && Number.isFinite(Number(c.price))) {
+        priceById[procId] = Number(c.price);
+      }
+      const category = c.procedureCategory ?? c.category;
+      if (category?.trim()) categoryById[procId] = category.trim();
+    });
+  return { priceById, categoryById };
+};
 
 export const ipdProcedureRowsFromBilling = (
   charges: IBillingProcedureCharge[],

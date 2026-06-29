@@ -29,15 +29,31 @@ interface IXraySessionProcedure {
   department?: string;
 }
 
+interface IXrayAppointmentSummary {
+  daycareId?: string;
+  ipdId?: string;
+  appointmentId?: string;
+  receiptId?: string;
+  procedurePrice?: number;
+  totalPrice?: number;
+  discount?: number;
+  amountPaid?: number;
+  paymentStatus?: string;
+}
+
 interface IXraySessionRow {
   _id: string;
   sessionId?: string;
   xrayTokenId?: number | string;
   tokenDate?: string;
   source?: string;
+  daycareAppointmentId?: string | null;
+  ipdId?: string | null;
   status?: string;
   patient?: IXraySessionPatient;
   procedure?: IXraySessionProcedure;
+  daycareAppointment?: IXrayAppointmentSummary | null;
+  ipdAppointment?: IXrayAppointmentSummary | null;
 }
 
 interface IXrayPaginationMeta {
@@ -94,6 +110,25 @@ const resolveTotalCount = (
   if (typeof pagination?.totalCount === "number") return pagination.totalCount;
   if (typeof pagination?.total === "number") return pagination.total;
   return sessionsLength;
+};
+
+const formatXraySessionSource = (source?: string) => {
+  const normalized = source?.trim().toLowerCase();
+  if (normalized === "ipd") return "IPD";
+  if (normalized === "daycare") return "Daycare";
+  return source?.trim() || "—";
+};
+
+const resolveXrayAppointmentSummary = (session: IXraySessionRow) => {
+  const source = session.source?.trim().toLowerCase();
+  if (source === "ipd") return session.ipdAppointment ?? undefined;
+  if (source === "daycare") return session.daycareAppointment ?? undefined;
+  return session.daycareAppointment ?? session.ipdAppointment ?? undefined;
+};
+
+const resolveXrayTotalAmount = (session: IXraySessionRow) => {
+  const appointment = resolveXrayAppointmentSummary(session);
+  return Number(appointment?.totalPrice ?? 0) || 0;
 };
 
 const XraysComponent = () => {
@@ -232,6 +267,10 @@ const XraysComponent = () => {
       ? dayjs(session.tokenDate).format("DD MMM YYYY")
       : "—";
 
+    const appointment = resolveXrayAppointmentSummary(session);
+    const totalAmount = resolveXrayTotalAmount(session);
+    const paymentStatus = appointment?.paymentStatus?.trim() || "Unpaid";
+
     return {
       key: session._id,
       sessionId: session.sessionId ?? "—",
@@ -241,6 +280,9 @@ const XraysComponent = () => {
       procedureName: session.procedure?.procedureName ?? "—",
       department: session.procedure?.department ?? "—",
       tokenDate: formattedDate,
+      source: session.source,
+      totalAmount,
+      paymentStatus,
       status: normalizeXrayStatus(session.status),
     };
   });
@@ -345,6 +387,55 @@ const XraysComponent = () => {
                       ) : null}
                     </div>
                   ),
+                },
+                {
+                  title: "Source",
+                  dataIndex: "source",
+                  sorter: false,
+                  showSorterTooltip: false,
+                  render: (_: unknown, record: (typeof tableData)[number]) => {
+                    const normalizedSource = String(record.source ?? "").toLowerCase();
+                    const isIpd = normalizedSource === "ipd";
+                    const isDaycare = normalizedSource === "daycare";
+                    return (
+                      <span
+                        className={`badge border px-2 py-1 fs-13 fw-medium ${
+                          isIpd
+                            ? "badge-soft-primary border-primary"
+                            : isDaycare
+                              ? "badge-soft-info border-info"
+                              : "badge-soft-secondary border-secondary"
+                        }`}
+                      >
+                        {formatXraySessionSource(record.source)}
+                      </span>
+                    );
+                  },
+                },
+                {
+                  title: "Total",
+                  dataIndex: "totalAmount",
+                  sorter: false,
+                  showSorterTooltip: false,
+                  render: (value: number, record: (typeof tableData)[number]) => {
+                    const paymentStatus = record.paymentStatus || "Unpaid";
+                    const isPaid = paymentStatus === "Paid";
+                    return (
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="fw-semibold text-dark">
+                          ₹{(Number(value) || 0).toFixed(2)}
+                        </span>
+                        <span
+                          className={`d-inline-flex align-items-center justify-content-center rounded-circle ${
+                            isPaid ? "bg-success" : "bg-warning"
+                          }`}
+                          style={{ width: "15px", height: "15px", minWidth: "15px" }}
+                        >
+                          <i className="ti ti-check fs-10 text-white" />
+                        </span>
+                      </div>
+                    );
+                  },
                 },
                 {
                   title: "Status",

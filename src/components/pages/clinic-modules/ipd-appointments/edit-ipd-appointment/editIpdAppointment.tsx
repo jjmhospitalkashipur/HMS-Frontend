@@ -46,12 +46,14 @@ import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import type { IIpdProcedureRow } from "@/components/pages/clinic-modules/ipd-appointments/IpdProceduresTable";
 import {
   addIpdProcedureRow,
+  buildIpdProcedureBillingCharges,
   calcIpdProceduresTotal,
   decrementIpdProcedureUnits,
   incrementIpdProcedureUnits,
   ipdProcedureRowsFromBilling,
   ipdProcedureRowsFromLegacy,
   removeIpdProcedureRow,
+  seedIpdProcedureMapsFromBilling,
   toggleIpdProcedureCompleted,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 import {
@@ -640,6 +642,9 @@ const EditIpdAppointmentComponent = () => {
           setDiscountFromApi(discountNum);
         }
         const billing = Array.isArray(data.billingCharges) ? data.billingCharges : [];
+        const { priceById, categoryById } = seedIpdProcedureMapsFromBilling(billing);
+        setProcedurePriceById((prev) => ({ ...prev, ...priceById }));
+        setProcedureCategoryById((prev) => ({ ...prev, ...categoryById }));
         setDoctorVisits(ipdDoctorVisitRowsFromBilling(billing));
         if (billing.length) {
           setAddedProcedures(ipdProcedureRowsFromBilling(billing, procedurePriceById));
@@ -692,6 +697,7 @@ const EditIpdAppointmentComponent = () => {
       if (!option?.value || procedurePriceById[option.value] == null) return;
       const price = procedurePriceById[option.value] ?? 0;
       const category = procedureCategoryById[option.value];
+      setProcedurePriceById((prev) => ({ ...prev, [option.value]: price }));
       setAddedProcedures((prev) =>
         addIpdProcedureRow(prev, { id: option.value, name: option.label, price, category })
       );
@@ -728,17 +734,8 @@ const EditIpdAppointmentComponent = () => {
     const doctorId = selectedDoctor?.value;
     if (!doctorId) return [];
 
-    const procedureCharges: IIpdBillingChargePayload[] = addedProcedures
-      .filter((p) => p.id && procedurePriceById[p.id] != null && p.units > 0)
-      .map((p) => ({
-        type: "procedure",
-        procedureId: p.id,
-        units: p.units,
-        isCompleted: Boolean(p.isCompleted),
-      }));
-
     return [
-      ...procedureCharges,
+      ...buildIpdProcedureBillingCharges(addedProcedures),
       ...buildIpdDoctorBillingCharges(doctorVisits, doctorId),
     ];
   };

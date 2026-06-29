@@ -155,6 +155,14 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
                 padding-bottom: 3px;
                 margin-bottom: 8px;
               }
+              .xray-report-title {
+                text-align: center;
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                padding-bottom: 4px;
+                border-bottom: 1px solid #000;
+              }
               .xray-report-html {
                 font-size: 15px;
                 font-weight: 500;
@@ -241,6 +249,9 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
   const procedureLine = [reportData.procedureName, reportData.department]
     .filter((v) => v?.trim())
     .join(" · ");
+  const xrayReportTitle = reportData.procedureName?.trim()
+    ? `Xray of ${reportData.procedureName.trim()}`
+    : "Xray Report";
 
   const logoUrl =
     typeof window !== "undefined"
@@ -302,7 +313,7 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
           </div>
 
           <div className="section">
-            <div className="section-title">Report</div>
+            <div className="xray-report-title">{xrayReportTitle}</div>
             <div
               className="xray-report-html"
               dangerouslySetInnerHTML={{ __html: reportData.reportHtml ?? "" }}

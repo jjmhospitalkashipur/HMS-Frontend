@@ -363,8 +363,10 @@ export const buildIPDReceiptData = (
     });
   }
 
+  const discountAmount = ipd.discount ?? 0;
+
   return {
-    printTitle: "IPD Summary",
+    printTitle: "Final Bill",
     visitId: ipd.ipdId,
     appointmentId: ipd.appointmentId,
     visitDate: ipd.appointmentDate,
@@ -385,7 +387,8 @@ export const buildIPDReceiptData = (
     receiptId: ipd.receiptId,
     transactions: charges,
     totalAmount: resolveIpdGrossTotal(ipd),
-    discount: ipd.discount ?? 0,
+    discount: discountAmount,
+    discountAuthorizedBy: discountAmount > 0 ? "Dr. Abhishek Goel" : undefined,
     dueAmount,
     paidAmount: ipd.amountPaid ?? 0,
   };
