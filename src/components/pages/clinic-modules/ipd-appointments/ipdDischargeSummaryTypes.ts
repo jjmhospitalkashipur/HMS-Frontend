@@ -8,6 +8,136 @@ export const DISCHARGE_TYPE_OPTIONS: { value: TDischargeType; label: string }[] 
   { value: "Refer", label: "Refer" },
 ];
 
+export const CONDITION_ON_DISCHARGE_OPTIONS = [
+  { value: "Stable", label: "Stable" },
+  { value: "Improved", label: "Improved" },
+  { value: "Unchanged", label: "Unchanged" },
+  { value: "Unstable", label: "Unstable" },
+  { value: "Critical", label: "Critical" },
+  { value: "Deceased", label: "Deceased" },
+  { value: "Referred", label: "Referred" },
+] as const;
+
+export const DOSAGE_OPTIONS = [
+  { value: "1-0-0", label: "1-0-0" },
+  { value: "0-1-0", label: "0-1-0" },
+  { value: "0-0-1", label: "0-0-1" },
+  { value: "1-0-1", label: "1-0-1" },
+  { value: "1-1-1", label: "1-1-1" },
+  { value: "1-1-0", label: "1-1-0" },
+  { value: "0-1-1", label: "0-1-1" },
+  { value: "SOS (as needed)", label: "SOS (As Needed)" },
+  { value: "STAT (immediately, once)", label: "STAT (Immediately, Once)" },
+] as const;
+
+export type TDurationUnit = "Days" | "Weeks" | "Months";
+
+export const DURATION_PRESET_OPTIONS = [
+  { value: "3 Days", label: "3 Days" },
+  { value: "5 Days", label: "5 Days" },
+  { value: "7 Days", label: "7 Days" },
+  { value: "10 Days", label: "10 Days" },
+  { value: "15 Days", label: "15 Days" },
+  { value: "1 Month", label: "1 Month" },
+  { value: "Ongoing/Continue", label: "Ongoing/Continue" },
+  { value: "Custom", label: "Custom" },
+] as const;
+
+export const DURATION_UNIT_OPTIONS: { value: TDurationUnit; label: string }[] = [
+  { value: "Days", label: "Days" },
+  { value: "Weeks", label: "Weeks" },
+  { value: "Months", label: "Months" },
+];
+
+export const FOLLOW_UP_PRESET_OPTIONS = [
+  { value: "After 3 Days", label: "After 3 Days" },
+  { value: "After 5 Days", label: "After 5 Days" },
+  { value: "After 7 Days", label: "After 7 Days" },
+  { value: "After 10 Days", label: "After 10 Days" },
+  { value: "After 15 Days", label: "After 15 Days" },
+  { value: "After 1 Month", label: "After 1 Month" },
+  { value: "Specific Date", label: "Specific Date" },
+] as const;
+
+export const FOLLOW_UP_SPECIFIC_DATE_VALUE = "Specific Date";
+
+/** Stored / displayed follow-up date format: DD-MM-YYYY */
+const FOLLOW_UP_DATE_DISPLAY_RE = /^(\d{2})-(\d{2})-(\d{4})$/;
+/** HTML date input / legacy ISO format: YYYY-MM-DD */
+const FOLLOW_UP_DATE_ISO_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export const isFollowUpSpecificDate = (followUp: string): boolean => {
+  const trimmed = followUp.trim();
+  if (!trimmed) return false;
+  if (FOLLOW_UP_PRESET_OPTIONS.some((o) => o.value === trimmed)) return false;
+  return FOLLOW_UP_DATE_DISPLAY_RE.test(trimmed) || FOLLOW_UP_DATE_ISO_RE.test(trimmed);
+};
+
+/** Convert stored follow-up date to YYYY-MM-DD for `<input type="date">`. */
+export const followUpToDateInputValue = (followUp: string): string => {
+  const trimmed = followUp.trim();
+  const displayMatch = trimmed.match(FOLLOW_UP_DATE_DISPLAY_RE);
+  if (displayMatch?.[1] && displayMatch[2] && displayMatch[3]) {
+    return `${displayMatch[3]}-${displayMatch[2]}-${displayMatch[1]}`;
+  }
+  const isoMatch = trimmed.match(FOLLOW_UP_DATE_ISO_RE);
+  if (isoMatch?.[1] && isoMatch[2] && isoMatch[3]) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+  return "";
+};
+
+/** Convert YYYY-MM-DD from date input to DD-MM-YYYY for storage. */
+export const dateInputValueToFollowUp = (isoDate: string): string => {
+  const trimmed = isoDate.trim();
+  const isoMatch = trimmed.match(FOLLOW_UP_DATE_ISO_RE);
+  if (!isoMatch?.[1] || !isoMatch[2] || !isoMatch[3]) return "";
+  return `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]}`;
+};
+
+/** Normalize any recognized date to DD-MM-YYYY for payload/display. */
+export const normalizeFollowUpDate = (followUp: string): string => {
+  const trimmed = followUp.trim();
+  if (!trimmed) return "";
+  if (FOLLOW_UP_PRESET_OPTIONS.some((o) => o.value === trimmed)) return trimmed;
+  const fromInput = followUpToDateInputValue(trimmed);
+  if (!fromInput) return trimmed;
+  return dateInputValueToFollowUp(fromInput);
+};
+
+export interface IParsedDuration {
+  preset: string;
+  customValue: string;
+  customUnit: TDurationUnit;
+}
+
+export const parseMedicineDuration = (duration: string): IParsedDuration => {
+  const trimmed = duration.trim();
+  if (!trimmed) {
+    return { preset: "", customValue: "", customUnit: "Days" };
+  }
+  const isPreset = DURATION_PRESET_OPTIONS.some(
+    (o) => o.value === trimmed && o.value !== "Custom"
+  );
+  if (isPreset) {
+    return { preset: trimmed, customValue: "", customUnit: "Days" };
+  }
+  const match = trimmed.match(/^(\d+)\s+(Days|Weeks|Months)$/i);
+  if (match?.[1] && match[2]) {
+    const unitRaw = match[2].toLowerCase();
+    const customUnit: TDurationUnit =
+      unitRaw === "weeks" ? "Weeks" : unitRaw === "months" ? "Months" : "Days";
+    return { preset: "Custom", customValue: match[1], customUnit };
+  }
+  return { preset: "Custom", customValue: trimmed, customUnit: "Days" };
+};
+
+export const buildCustomDuration = (value: string, unit: TDurationUnit): string => {
+  const num = value.trim();
+  if (!num) return "";
+  return `${num} ${unit}`;
+};
+
 export const showDischargeTypeDetailCard = (type: TDischargeType): boolean => type !== "Normal";
 
 export const parseDischargeType = (value: unknown): TDischargeType | undefined => {
@@ -178,7 +308,7 @@ export const normalizeDischargeSummaryFromApi = (
       ? medicinesOnDischarge
       : [{ medicineName: "", duration: "", dosage: "", instructions: "" }],
     adviceOnDischarge,
-    followUp: String(nested.followUp ?? ""),
+    followUp: normalizeFollowUpDate(String(nested.followUp ?? "")),
     lamaReason: String(nested.lamaReason ?? ""),
     dorRequestedBy: String(nested.dorRequestedBy ?? ""),
     dorReason: String(nested.dorReason ?? ""),
@@ -256,7 +386,7 @@ export const buildDischargeSummaryPayload = (
     adviceOnDischarge: form.adviceOnDischarge.trim()
       ? [form.adviceOnDischarge.trim()]
       : [],
-    followUp: form.followUp.trim(),
+    followUp: normalizeFollowUpDate(form.followUp),
   };
 
   switch (form.dischargeType) {

@@ -5,14 +5,26 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import {
+  buildCustomDuration,
   buildDischargeSummaryPayload,
+  CONDITION_ON_DISCHARGE_OPTIONS,
   DISCHARGE_TYPE_OPTIONS,
+  DOSAGE_OPTIONS,
+  DURATION_PRESET_OPTIONS,
+  DURATION_UNIT_OPTIONS,
   emptyDischargeSummaryForm,
+  FOLLOW_UP_PRESET_OPTIONS,
+  FOLLOW_UP_SPECIFIC_DATE_VALUE,
+  dateInputValueToFollowUp,
+  followUpToDateInputValue,
+  isFollowUpSpecificDate,
   normalizeDischargeSummaryFromApi,
+  parseMedicineDuration,
   showDischargeTypeDetailCard,
   validateDischargeSummaryForm,
   type IDischargeSummaryFormState,
   type TDischargeType,
+  type TDurationUnit,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 
 interface IProps {
@@ -70,6 +82,23 @@ const getAxiosMessage = (err: unknown, fallback: string) => {
   return fallback;
 };
 
+const buildDurationUiState = (
+  medicines: IDischargeSummaryFormState["medicinesOnDischarge"]
+) => {
+  const nextMode: Record<number, boolean> = {};
+  const nextDraft: Record<number, { value: string; unit: TDurationUnit }> = {};
+  medicines.forEach((med, index) => {
+    const parsed = parseMedicineDuration(med.duration);
+    if (parsed.preset !== "Custom") return;
+    nextMode[index] = true;
+    nextDraft[index] = {
+      value: parsed.customValue,
+      unit: parsed.customUnit,
+    };
+  });
+  return { nextMode, nextDraft };
+};
+
 const IpdDischargeSummaryForm = ({
   ipdId,
   ipdStatus,
@@ -84,23 +113,115 @@ const IpdDischargeSummaryForm = ({
   const [feedback, setFeedback] = useState<{ type: "success" | "danger"; text: string } | null>(
     null
   );
+  const [customDurationMode, setCustomDurationMode] = useState<Record<number, boolean>>({});
+  const [customDurationDraft, setCustomDurationDraft] = useState<
+    Record<number, { value: string; unit: TDurationUnit }>
+  >({});
+  const [followUpDateMode, setFollowUpDateMode] = useState(false);
 
   const isDischarged =
     ipdStatus === "Completed" ||
     ipdStatus === "Discharged" ||
     ipdStatus?.toLowerCase() === "discharged";
 
-  const dischargeTypeSelectOptions = useMemo<Option[]>(
-    () =>
-      DISCHARGE_TYPE_OPTIONS.map((opt) => ({
-        value: opt.value,
-        label: opt.label,
-      })),
+  const toSelectOptions = <T extends { value: string; label: string }>(
+    opts: readonly T[]
+  ): Option[] => opts.map((opt) => ({ value: opt.value, label: opt.label }));
+
+  const dischargeTypeSelectOptions = useMemo(
+    () => toSelectOptions(DISCHARGE_TYPE_OPTIONS),
+    []
+  );
+  const conditionOnDischargeOptions = useMemo(
+    () => toSelectOptions(CONDITION_ON_DISCHARGE_OPTIONS),
+    []
+  );
+  const dosageSelectOptions = useMemo(() => toSelectOptions(DOSAGE_OPTIONS), []);
+  const durationPresetOptions = useMemo(
+    () => toSelectOptions(DURATION_PRESET_OPTIONS),
+    []
+  );
+  const durationUnitOptions = useMemo(
+    () => toSelectOptions(DURATION_UNIT_OPTIONS),
+    []
+  );
+  const followUpPresetOptions = useMemo(
+    () => toSelectOptions(FOLLOW_UP_PRESET_OPTIONS),
     []
   );
 
   const selectedDischargeType =
     dischargeTypeSelectOptions.find((o) => o.value === form.dischargeType) ?? null;
+  const selectedConditionOnDischarge =
+    conditionOnDischargeOptions.find((o) => o.value === form.conditionOnDischarge) ??
+    null;
+  const followUpIsSpecificDate = isFollowUpSpecificDate(form.followUp);
+  const showFollowUpDatePicker = followUpDateMode || followUpIsSpecificDate;
+  const selectedFollowUp =
+    followUpPresetOptions.find((o) =>
+      showFollowUpDatePicker
+        ? o.value === FOLLOW_UP_SPECIFIC_DATE_VALUE
+        : o.value === form.followUp
+    ) ?? null;
+
+  const updateMedicineField = (
+    index: number,
+    patch: Partial<IDischargeSummaryFormState["medicinesOnDischarge"][number]>
+  ) => {
+    setForm((prev) => {
+      const next = [...prev.medicinesOnDischarge];
+      const current = next[index];
+      if (!current) return prev;
+      next[index] = { ...current, ...patch };
+      return { ...prev, medicinesOnDischarge: next };
+    });
+  };
+
+  const handleDurationPresetChange = (index: number, preset: string | undefined) => {
+    if (!preset) {
+      setCustomDurationMode((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      setCustomDurationDraft((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      updateMedicineField(index, { duration: "" });
+      return;
+    }
+    if (preset === "Custom") {
+      setCustomDurationMode((prev) => ({ ...prev, [index]: true }));
+      setCustomDurationDraft((prev) => ({
+        ...prev,
+        [index]: prev[index] ?? { value: "", unit: "Days" },
+      }));
+      updateMedicineField(index, { duration: "" });
+      return;
+    }
+    setCustomDurationMode((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    setCustomDurationDraft((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    updateMedicineField(index, { duration: preset });
+  };
+
+  const handleCustomDurationChange = (
+    index: number,
+    value: string,
+    unit: TDurationUnit
+  ) => {
+    setCustomDurationDraft((prev) => ({ ...prev, [index]: { value, unit } }));
+    updateMedicineField(index, { duration: buildCustomDuration(value, unit) });
+  };
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -108,9 +229,16 @@ const IpdDischargeSummaryForm = ({
       const normalized = normalizeDischargeSummaryFromApi(initialSummary);
       if (normalized) {
         setForm(normalized);
+        const { nextMode, nextDraft } = buildDurationUiState(normalized.medicinesOnDischarge);
+        setCustomDurationMode(nextMode);
+        setCustomDurationDraft(nextDraft);
+        setFollowUpDateMode(isFollowUpSpecificDate(normalized.followUp));
         return;
       }
       setForm(emptyDischargeSummaryForm());
+      setCustomDurationMode({});
+      setCustomDurationDraft({});
+      setFollowUpDateMode(false);
     } finally {
       setLoading(false);
     }
@@ -191,6 +319,17 @@ const IpdDischargeSummaryForm = ({
   };
 
   const removeMedicine = (index: number) => {
+    const reindexRecord = <T,>(prev: Record<number, T>): Record<number, T> => {
+      const next: Record<number, T> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const i = Number(key);
+        if (Number.isNaN(i) || i === index) return;
+        next[i > index ? i - 1 : i] = val;
+      });
+      return next;
+    };
+    setCustomDurationMode((prev) => reindexRecord(prev));
+    setCustomDurationDraft((prev) => reindexRecord(prev));
     setForm((prev) => ({
       ...prev,
       medicinesOnDischarge:
@@ -281,16 +420,19 @@ const IpdDischargeSummaryForm = ({
                     />
                   </div>
                   <div className="col-12 col-md-4">
-                    <label className={LABEL_CLASS} htmlFor="ipd-condition-on-discharge">
+                    <label className={LABEL_CLASS}>
                       Condition on Discharge
                     </label>
-                    <input
-                      id="ipd-condition-on-discharge"
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Stable"
-                      value={form.conditionOnDischarge}
-                      onChange={(e) => updateField("conditionOnDischarge", e.target.value)}
+                    <CommonSelect
+                      instanceId="ipd-condition-on-discharge"
+                      options={conditionOnDischargeOptions}
+                      value={selectedConditionOnDischarge}
+                      onChange={(opt) =>
+                        updateField("conditionOnDischarge", opt?.value ?? "")
+                      }
+                      placeholder="Select condition"
+                      className="w-100"
+                      disabled={isDischarged || savingDraft}
                     />
                   </div>
                 </div>
@@ -508,32 +650,33 @@ const IpdDischargeSummaryForm = ({
                   ))}
                 </div>
 
-                <div className="mb-3">
-                  <label className={LABEL_CLASS} htmlFor="ipd-course-in-hospital">
-                    Course in Hospital
-                  </label>
-                  <textarea
-                    id="ipd-course-in-hospital"
-                    className="form-control"
-                    rows={1}
-                    style={COMPACT_TEXTAREA_STYLE}
-                    value={form.courseInHospital}
-                    onChange={(e) => updateField("courseInHospital", e.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className={LABEL_CLASS} htmlFor="ipd-treatment-given">
-                    Treatment Given
-                  </label>
-                  <textarea
-                    id="ipd-treatment-given"
-                    className="form-control"
-                    rows={1}
-                    style={COMPACT_TEXTAREA_STYLE}
-                    value={form.treatmentGiven}
-                    onChange={(e) => updateField("treatmentGiven", e.target.value)}
-                  />
+                <div className="row g-2 mb-3">
+                  <div className="col-12 col-md-6">
+                    <label className={LABEL_CLASS} htmlFor="ipd-course-in-hospital">
+                      Course in Hospital
+                    </label>
+                    <textarea
+                      id="ipd-course-in-hospital"
+                      className="form-control"
+                      rows={1}
+                      style={COMPACT_TEXTAREA_STYLE}
+                      value={form.courseInHospital}
+                      onChange={(e) => updateField("courseInHospital", e.target.value)}
+                    />
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <label className={LABEL_CLASS} htmlFor="ipd-treatment-given">
+                      Treatment Given
+                    </label>
+                    <textarea
+                      id="ipd-treatment-given"
+                      className="form-control"
+                      rows={1}
+                      style={COMPACT_TEXTAREA_STYLE}
+                      value={form.treatmentGiven}
+                      onChange={(e) => updateField("treatmentGiven", e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="mb-3">
@@ -548,46 +691,65 @@ const IpdDischargeSummaryForm = ({
                       Add
                     </button>
                   </div>
-                  {form.medicinesOnDischarge.map((med, index) => (
+                  {form.medicinesOnDischarge.map((med, index) => {
+                    const parsedDuration = parseMedicineDuration(med.duration);
+                    const isCustomDuration =
+                      Boolean(customDurationMode[index]) || parsedDuration.preset === "Custom";
+                    const selectedDuration = isCustomDuration
+                      ? durationPresetOptions.find((o) => o.value === "Custom") ?? null
+                      : durationPresetOptions.find((o) => o.value === parsedDuration.preset) ??
+                        null;
+                    const customDraft = customDurationDraft[index] ?? {
+                      value: parsedDuration.customValue,
+                      unit: parsedDuration.customUnit,
+                    };
+                    const selectedDosage =
+                      dosageSelectOptions.find((o) => o.value === med.dosage) ?? null;
+                    const selectedUnit =
+                      durationUnitOptions.find((o) => o.value === customDraft.unit) ??
+                      durationUnitOptions[0] ??
+                      null;
+
+                    return (
                     <div className="border rounded p-2 mb-2 bg-light" key={`med-${index}`}>
                       <div className="row g-2 align-items-center">
                         <div className="col-12 col-md-5">
                           <input
                             type="text"
-                            className="form-control form-control-sm"
+                            className="form-control text-dark"
+                            style={PAIRED_INPUT_STYLE}
                             placeholder="Medicine name"
                             value={med.medicineName}
-                            onChange={(e) => {
-                              const next = [...form.medicinesOnDischarge];
-                              next[index] = { ...next[index], medicineName: e.target.value };
-                              updateField("medicinesOnDischarge", next);
-                            }}
+                            onChange={(e) =>
+                              updateMedicineField(index, { medicineName: e.target.value })
+                            }
+                            aria-label={`Medicine name ${index + 1}`}
                           />
                         </div>
                         <div className="col-6 col-md-3">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
+                          <CommonSelect
+                            instanceId={`ipd-med-duration-${index}`}
+                            options={durationPresetOptions}
+                            value={selectedDuration}
+                            onChange={(opt) =>
+                              handleDurationPresetChange(index, opt?.value)
+                            }
                             placeholder="Duration"
-                            value={med.duration}
-                            onChange={(e) => {
-                              const next = [...form.medicinesOnDischarge];
-                              next[index] = { ...next[index], duration: e.target.value };
-                              updateField("medicinesOnDischarge", next);
-                            }}
+                            className="w-100"
+                            disabled={isDischarged || savingDraft}
                           />
                         </div>
                         <div className="col-6 col-md-3">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Dosage (e.g. 1-0-1)"
-                            value={med.dosage}
-                            onChange={(e) => {
-                              const next = [...form.medicinesOnDischarge];
-                              next[index] = { ...next[index], dosage: e.target.value };
-                              updateField("medicinesOnDischarge", next);
-                            }}
+                          <CommonSelect
+                            instanceId={`ipd-med-dosage-${index}`}
+                            options={dosageSelectOptions}
+                            value={selectedDosage}
+                            onChange={(opt) =>
+                              updateMedicineField(index, { dosage: opt?.value ?? "" })
+                            }
+                            placeholder="Dosage"
+                            className="w-100"
+                            disabled={isDischarged || savingDraft}
                           />
                         </div>
                         <div className="col-auto ms-md-auto">
@@ -600,51 +762,140 @@ const IpdDischargeSummaryForm = ({
                             <i className="ti ti-trash" />
                           </button>
                         </div>
-                        <div className="col-12">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Instructions (optional)"
-                            value={med.instructions ?? ""}
-                            onChange={(e) => {
-                              const next = [...form.medicinesOnDischarge];
-                              next[index] = { ...next[index], instructions: e.target.value };
-                              updateField("medicinesOnDischarge", next);
-                            }}
-                          />
-                        </div>
+                        {isCustomDuration ? (
+                          <>
+                            <div className="col-4 col-sm-2 col-md-1">
+                              <input
+                                type="number"
+                                min={1}
+                                className="form-control text-dark"
+                                style={PAIRED_INPUT_STYLE}
+                                placeholder="No."
+                                value={customDraft.value}
+                                onChange={(e) =>
+                                  handleCustomDurationChange(
+                                    index,
+                                    e.target.value,
+                                    customDraft.unit
+                                  )
+                                }
+                                aria-label={`Custom duration value ${index + 1}`}
+                              />
+                            </div>
+                            <div className="col-8 col-sm-3 col-md-2">
+                              <CommonSelect
+                                instanceId={`ipd-med-duration-unit-${index}`}
+                                options={durationUnitOptions}
+                                value={selectedUnit}
+                                onChange={(opt) =>
+                                  handleCustomDurationChange(
+                                    index,
+                                    customDraft.value,
+                                    (opt?.value as TDurationUnit) ?? "Days"
+                                  )
+                                }
+                                placeholder="Unit"
+                                className="w-100"
+                                disabled={isDischarged || savingDraft}
+                              />
+                            </div>
+                            <div className="col-12 col-sm-7 col-md-9">
+                              <input
+                                type="text"
+                                className="form-control text-dark"
+                                style={PAIRED_INPUT_STYLE}
+                                placeholder="Instructions (optional)"
+                                value={med.instructions ?? ""}
+                                onChange={(e) =>
+                                  updateMedicineField(index, { instructions: e.target.value })
+                                }
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="col-12">
+                            <input
+                              type="text"
+                              className="form-control text-dark"
+                              style={PAIRED_INPUT_STYLE}
+                              placeholder="Instructions (optional)"
+                              value={med.instructions ?? ""}
+                              onChange={(e) =>
+                                updateMedicineField(index, { instructions: e.target.value })
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                <div className="mb-3">
-                  <label className={LABEL_CLASS} htmlFor="ipd-advice-on-discharge">
-                    Advice on Discharge
-                  </label>
-                  <textarea
-                    id="ipd-advice-on-discharge"
-                    className="form-control"
-                    rows={1}
-                    style={COMPACT_TEXTAREA_STYLE}
-                    placeholder="Enter advice for the patient on discharge"
-                    value={form.adviceOnDischarge}
-                    onChange={(e) => updateField("adviceOnDischarge", e.target.value)}
-                  />
-                </div>
-
-                <div className="mb-0">
-                  <label className={LABEL_CLASS} htmlFor="ipd-follow-up">
-                    Follow Up
-                  </label>
-                  <textarea
-                    id="ipd-follow-up"
-                    className="form-control"
-                    rows={1}
-                    style={COMPACT_TEXTAREA_STYLE}
-                    value={form.followUp}
-                    onChange={(e) => updateField("followUp", e.target.value)}
-                  />
+                <div className="row g-2 mb-0">
+                  <div className="col-12 col-md-6">
+                    <label className={LABEL_CLASS} htmlFor="ipd-advice-on-discharge">
+                      Advice on Discharge
+                    </label>
+                    <textarea
+                      id="ipd-advice-on-discharge"
+                      className="form-control"
+                      rows={1}
+                      style={COMPACT_TEXTAREA_STYLE}
+                      placeholder="Enter advice for the patient on discharge"
+                      value={form.adviceOnDischarge}
+                      onChange={(e) => updateField("adviceOnDischarge", e.target.value)}
+                    />
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <label className={LABEL_CLASS}>Follow Up</label>
+                    <div className="row g-2">
+                      <div className={showFollowUpDatePicker ? "col-12 col-sm-6" : "col-12"}>
+                        <CommonSelect
+                          instanceId="ipd-follow-up"
+                          options={followUpPresetOptions}
+                          value={selectedFollowUp}
+                          onChange={(opt) => {
+                            const value = opt?.value ?? "";
+                            if (value === FOLLOW_UP_SPECIFIC_DATE_VALUE) {
+                              setFollowUpDateMode(true);
+                              updateField(
+                                "followUp",
+                                followUpIsSpecificDate ? form.followUp : ""
+                              );
+                              return;
+                            }
+                            setFollowUpDateMode(false);
+                            updateField("followUp", value);
+                          }}
+                          placeholder="Select follow up"
+                          className="w-100"
+                          disabled={isDischarged || savingDraft}
+                        />
+                      </div>
+                      {showFollowUpDatePicker ? (
+                        <div className="col-12 col-sm-6">
+                          <input
+                            id="ipd-follow-up-date"
+                            type="date"
+                            className="form-control"
+                            value={
+                              followUpIsSpecificDate
+                                ? followUpToDateInputValue(form.followUp)
+                                : ""
+                            }
+                            onChange={(e) =>
+                              updateField(
+                                "followUp",
+                                dateInputValueToFollowUp(e.target.value)
+                              )
+                            }
+                            aria-label="Follow up date"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </fieldset>
             </>
