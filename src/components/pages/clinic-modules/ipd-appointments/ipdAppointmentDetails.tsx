@@ -31,6 +31,8 @@ import {
 import PrintDischargeSummary, {
   buildPrintDischargeSummaryData,
 } from "@/components/pages/clinic-modules/ipd-appointments/printDischargeSummary";
+import AddHealthRecordForm from "@/components/pages/clinic-modules/health-records/AddHealthRecordForm";
+import HealthRecordsList from "@/components/pages/clinic-modules/health-records/HealthRecordsList";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
@@ -77,6 +79,9 @@ const IpdAppointmentDetailsComponent = () => {
   const [showFinalDischargeConfirm, setShowFinalDischargeConfirm] = useState(false);
   const [savingFinalDischarge, setSavingFinalDischarge] = useState(false);
   const [dischargeSummaryRaw, setDischargeSummaryRaw] = useState<unknown>(null);
+  const [showAddRecord, setShowAddRecord] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [healthRecordsRefreshKey, setHealthRecordsRefreshKey] = useState(0);
 
   const isAdmin = useMemo(() => {
     try {
@@ -361,6 +366,18 @@ const IpdAppointmentDetailsComponent = () => {
           </h6>
 
           <div className="d-flex flex-wrap align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => {
+                setEditingRecordId(null);
+                setShowAddRecord(true);
+              }}
+              disabled={!ipd?._id}
+            >
+              <i className="ti ti-file-plus me-1" />
+              Add Record
+            </button>
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
@@ -763,6 +780,16 @@ const IpdAppointmentDetailsComponent = () => {
             </div>
           </div>
         </div>
+
+        <HealthRecordsList
+          sourceType="IPD"
+          sourceId={ipd?._id ?? ""}
+          refreshKey={healthRecordsRefreshKey}
+          onEdit={(fhirId) => {
+            setEditingRecordId(fhirId);
+            setShowAddRecord(true);
+          }}
+        />
       </div>
 
       <IpdDischargeSummaryForm
@@ -988,6 +1015,18 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </>
       ) : null}
+      <AddHealthRecordForm
+        sourceType="IPD"
+        sourceId={ipd?._id ?? ""}
+        authorId={ipd?.doctorId ?? doctor?._id}
+        editRecordId={editingRecordId}
+        open={showAddRecord}
+        onClose={() => {
+          setShowAddRecord(false);
+          setEditingRecordId(null);
+        }}
+        onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 };

@@ -13,6 +13,8 @@ import {
   enrichDaycareDoctorForReceipt,
   type IDaycareAppointmentDetail,
 } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
+import AddHealthRecordForm from "@/components/pages/clinic-modules/health-records/AddHealthRecordForm";
+import HealthRecordsList from "@/components/pages/clinic-modules/health-records/HealthRecordsList";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -30,6 +32,9 @@ const DaycareAppointmentDetailsComponent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
   const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
+  const [showAddRecord, setShowAddRecord] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [healthRecordsRefreshKey, setHealthRecordsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -208,14 +213,28 @@ const DaycareAppointmentDetailsComponent = () => {
             </Link>
           </h6>
           
-          <button
-            type="button"
-            className="btn btn-primary btn-sm d-inline-flex align-items-center"
-            onClick={() => setShowPrintReceipt(true)}
-          >
-            <i className="ti ti-receipt me-1" />
-            Print Receipt
-          </button>
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => {
+                setEditingRecordId(null);
+                setShowAddRecord(true);
+              }}
+              disabled={!daycare?._id}
+            >
+              <i className="ti ti-file-plus me-1" />
+              Add Record
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => setShowPrintReceipt(true)}
+            >
+              <i className="ti ti-receipt me-1" />
+              Print Receipt
+            </button>
+          </div>
         </div>
 
         <div className="row">
@@ -535,6 +554,16 @@ const DaycareAppointmentDetailsComponent = () => {
             </div>
           </div>
         </div>
+
+        <HealthRecordsList
+          sourceType="Daycare"
+          sourceId={daycare?._id ?? ""}
+          refreshKey={healthRecordsRefreshKey}
+          onEdit={(fhirId) => {
+            setEditingRecordId(fhirId);
+            setShowAddRecord(true);
+          }}
+        />
       </div>
       {/* Print Receipt */}
       {showPrintReceipt && daycare && (
@@ -682,6 +711,18 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </>
       )}
+      <AddHealthRecordForm
+        sourceType="Daycare"
+        sourceId={daycare?._id ?? ""}
+        authorId={daycare?.doctorId ?? daycare?.doctor?._id}
+        editRecordId={editingRecordId}
+        open={showAddRecord}
+        onClose={() => {
+          setShowAddRecord(false);
+          setEditingRecordId(null);
+        }}
+        onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 };

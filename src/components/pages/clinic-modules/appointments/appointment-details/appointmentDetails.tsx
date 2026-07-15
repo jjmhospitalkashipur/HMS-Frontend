@@ -10,6 +10,8 @@ import dayjs from "dayjs";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import PrintReceipt from "../printReceipt";
 import type { IReceiptData, IReceiptTransaction } from "../printReceipt";
+import AddHealthRecordForm from "@/components/pages/clinic-modules/health-records/AddHealthRecordForm";
+import HealthRecordsList from "@/components/pages/clinic-modules/health-records/HealthRecordsList";
 
 interface IVisit {
   _id: string;
@@ -94,6 +96,9 @@ const AppointmentDetailsComponent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [transactionModeUpdatingId, setTransactionModeUpdatingId] = useState<string | null>(null);
   const [printTransactionId, setPrintTransactionId] = useState<string | null>(null);
+  const [showAddRecord, setShowAddRecord] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [healthRecordsRefreshKey, setHealthRecordsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (visitId) {
@@ -367,6 +372,18 @@ const AppointmentDetailsComponent = () => {
             >
               <i className="ti ti-bed me-1" />
               Convert to IPD
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+              onClick={() => {
+                setEditingRecordId(null);
+                setShowAddRecord(true);
+              }}
+              disabled={!visit?._id}
+            >
+              <i className="ti ti-file-plus me-1" />
+              Add Record
             </button>
             <button
               type="button"
@@ -670,6 +687,16 @@ const AppointmentDetailsComponent = () => {
           </div>
         </div>
 
+        <HealthRecordsList
+          sourceType="Visit"
+          sourceId={visit?._id ?? ""}
+          refreshKey={healthRecordsRefreshKey}
+          onEdit={(fhirId) => {
+            setEditingRecordId(fhirId);
+            setShowAddRecord(true);
+          }}
+        />
+
         {showPrintReceipt && visit && (() => {
           const visitCharge: IReceiptTransaction = {
             _id: visit._id,
@@ -844,6 +871,18 @@ const AppointmentDetailsComponent = () => {
             </div>
           </>
         )}
+        <AddHealthRecordForm
+          sourceType="Visit"
+          sourceId={visit?._id ?? ""}
+          authorId={visit?.doctorId ?? visit?.doctor?._id}
+          editRecordId={editingRecordId}
+          open={showAddRecord}
+          onClose={() => {
+            setShowAddRecord(false);
+            setEditingRecordId(null);
+          }}
+          onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
+        />
       </div>
     </div>
   );
