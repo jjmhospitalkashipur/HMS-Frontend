@@ -373,7 +373,6 @@ const AppointmentDetailsComponent = () => {
               <i className="ti ti-bed me-1" />
               Convert to IPD
             </button>
-            {/* TEMPORARY: Add Record hidden
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
@@ -386,7 +385,6 @@ const AppointmentDetailsComponent = () => {
               <i className="ti ti-file-plus me-1" />
               Add Record
             </button>
-            */}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -689,7 +687,6 @@ const AppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        {/* TEMPORARY: Health records card hidden
         <HealthRecordsList
           sourceType="Visit"
           sourceId={visit?._id ?? ""}
@@ -699,7 +696,6 @@ const AppointmentDetailsComponent = () => {
             setShowAddRecord(true);
           }}
         />
-        */}
 
         {showPrintReceipt && visit && (() => {
           const visitCharge: IReceiptTransaction = {
@@ -875,7 +871,6 @@ const AppointmentDetailsComponent = () => {
             </div>
           </>
         )}
-        {/* TEMPORARY: Add health record form hidden
         <AddHealthRecordForm
           sourceType="Visit"
           sourceId={visit?._id ?? ""}
@@ -888,7 +883,6 @@ const AppointmentDetailsComponent = () => {
           }}
           onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
         />
-        */}
       </div>
     </div>
   );

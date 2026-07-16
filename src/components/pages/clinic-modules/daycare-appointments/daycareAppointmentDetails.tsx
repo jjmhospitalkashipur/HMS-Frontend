@@ -214,7 +214,6 @@ const DaycareAppointmentDetailsComponent = () => {
           </h6>
           
           <div className="d-flex flex-wrap align-items-center gap-2">
-            {/* TEMPORARY: Add Record hidden
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
@@ -227,7 +226,6 @@ const DaycareAppointmentDetailsComponent = () => {
               <i className="ti ti-file-plus me-1" />
               Add Record
             </button>
-            */}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -557,7 +555,6 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        {/* TEMPORARY: Health records card hidden
         <HealthRecordsList
           sourceType="Daycare"
           sourceId={daycare?._id ?? ""}
@@ -567,7 +564,6 @@ const DaycareAppointmentDetailsComponent = () => {
             setShowAddRecord(true);
           }}
         />
-        */}
       </div>
       {/* Print Receipt */}
       {showPrintReceipt && daycare && (
@@ -715,7 +711,6 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </>
       )}
-      {/* TEMPORARY: Add health record form hidden
       <AddHealthRecordForm
         sourceType="Daycare"
         sourceId={daycare?._id ?? ""}
@@ -728,7 +723,6 @@ const DaycareAppointmentDetailsComponent = () => {
         }}
         onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
       />
-      */}
     </div>
   );
 };
