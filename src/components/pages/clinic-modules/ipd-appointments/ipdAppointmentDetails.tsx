@@ -366,6 +366,7 @@ const IpdAppointmentDetailsComponent = () => {
           </h6>
 
           <div className="d-flex flex-wrap align-items-center gap-2">
+            {/* TEMPORARY: Add Record hidden
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
@@ -378,6 +379,7 @@ const IpdAppointmentDetailsComponent = () => {
               <i className="ti ti-file-plus me-1" />
               Add Record
             </button>
+            */}
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
@@ -781,6 +783,7 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </div>
 
+        {/* TEMPORARY: Health records card hidden
         <HealthRecordsList
           sourceType="IPD"
           sourceId={ipd?._id ?? ""}
@@ -790,6 +793,7 @@ const IpdAppointmentDetailsComponent = () => {
             setShowAddRecord(true);
           }}
         />
+        */}
       </div>
 
       <IpdDischargeSummaryForm
@@ -1015,6 +1019,7 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </>
       ) : null}
+      {/* TEMPORARY: Add health record form hidden
       <AddHealthRecordForm
         sourceType="IPD"
         sourceId={ipd?._id ?? ""}
@@ -1027,6 +1032,7 @@ const IpdAppointmentDetailsComponent = () => {
         }}
         onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
       />
+      */}
     </div>
   );
 };

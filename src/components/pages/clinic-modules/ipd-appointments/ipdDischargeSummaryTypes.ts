@@ -8,6 +8,54 @@ export const DISCHARGE_TYPE_OPTIONS: { value: TDischargeType; label: string }[] 
   { value: "Refer", label: "Refer" },
 ];
 
+export const DOR_REQUESTED_BY_TYPE_OPTIONS = [
+  { value: "Patients", label: "Patients" },
+  { value: "Attendant", label: "Attendant" },
+  { value: "Guardian", label: "Guardian" },
+] as const;
+
+export type TDorRequestedByType = (typeof DOR_REQUESTED_BY_TYPE_OPTIONS)[number]["value"];
+
+export const parseDorRequestedBy = (
+  value: unknown
+): { type: TDorRequestedByType | ""; name: string } => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return { type: "", name: "" };
+
+  for (const opt of DOR_REQUESTED_BY_TYPE_OPTIONS) {
+    const colonPrefix = `${opt.value}:`;
+    if (trimmed.toLowerCase().startsWith(colonPrefix.toLowerCase())) {
+      return {
+        type: opt.value,
+        name: trimmed.slice(colonPrefix.length).trim(),
+      };
+    }
+    const dashPrefix = `${opt.value} -`;
+    if (trimmed.toLowerCase().startsWith(dashPrefix.toLowerCase())) {
+      return {
+        type: opt.value,
+        name: trimmed.slice(dashPrefix.length).trim(),
+      };
+    }
+  }
+
+  return { type: "", name: trimmed };
+};
+
+export const buildDorRequestedBy = (type: string, name: string): string => {
+  const trimmedType = type.trim();
+  const trimmedName = name.trim();
+  if (!trimmedType && !trimmedName) return "";
+  if (!trimmedType) return trimmedName;
+  if (!trimmedName) return trimmedType;
+  return `${trimmedType}: ${trimmedName}`;
+};
+
+export const formatDorRequestedByDisplay = (type: string, name: string): string => {
+  const combined = buildDorRequestedBy(type, name);
+  return combined.trim();
+};
+
 export const CONDITION_ON_DISCHARGE_OPTIONS = [
   { value: "Stable", label: "Stable" },
   { value: "Improved", label: "Improved" },
@@ -154,6 +202,21 @@ export interface IFinalDiagnosisRow {
   diagnosisName: string;
 }
 
+const normalizeDiagnosisList = (value: unknown): IFinalDiagnosisRow[] => {
+  if (Array.isArray(value)) {
+    return value
+      .map((d) => ({
+        icdCode: String((d as IFinalDiagnosisRow)?.icdCode ?? ""),
+        diagnosisName: String((d as IFinalDiagnosisRow)?.diagnosisName ?? ""),
+      }))
+      .filter((d) => d.icdCode.trim() || d.diagnosisName.trim());
+  }
+  if (typeof value === "string" && value.trim()) {
+    return [{ icdCode: "", diagnosisName: value.trim() }];
+  }
+  return [];
+};
+
 export interface IMedicineOnDischargeRow {
   medicineName: string;
   duration: string;
@@ -165,11 +228,16 @@ export interface IDischargeSummaryPayload {
   dischargeType: TDischargeType;
   dischargeDate: string;
   clinicalSummary: string;
-  provisionalDiagnosis: string;
+  provisionalDiagnosis: IFinalDiagnosisRow[];
   finalDiagnosis: IFinalDiagnosisRow[];
   courseInHospital: string;
   treatmentGiven: string;
   conditionOnDischarge: string;
+  dischargeBp?: string;
+  dischargePulse?: string;
+  dischargeTemp?: string;
+  dischargeSpO2?: string;
+  allergies?: string;
   medicinesOnDischarge: IMedicineOnDischargeRow[];
   adviceOnDischarge: string[];
   followUp: string;
@@ -185,14 +253,16 @@ export interface IDischargeSummaryPayload {
 export interface IDischargeSummaryFormState
   extends Omit<
     IDischargeSummaryPayload,
-    "adviceOnDischarge" | "finalDiagnosis" | "medicinesOnDischarge"
+    "adviceOnDischarge" | "provisionalDiagnosis" | "finalDiagnosis" | "medicinesOnDischarge"
   > {
+  provisionalDiagnosis: IFinalDiagnosisRow[];
   finalDiagnosis: IFinalDiagnosisRow[];
   medicinesOnDischarge: IMedicineOnDischargeRow[];
   /** Single textarea in UI; serialized to API string[] on save */
   adviceOnDischarge: string;
   lamaReason: string;
-  dorRequestedBy: string;
+  dorRequestedByType: TDorRequestedByType | "";
+  dorRequestedByName: string;
   dorReason: string;
   deathDateTime: string;
   deathCause: string;
@@ -235,18 +305,24 @@ export const emptyDischargeSummaryForm = (): IDischargeSummaryFormState => ({
   dischargeType: "Normal",
   dischargeDate: new Date().toISOString().slice(0, 10),
   clinicalSummary: "",
-  provisionalDiagnosis: "",
-  finalDiagnosis: [{ icdCode: "", diagnosisName: "" }],
+  provisionalDiagnosis: [],
+  finalDiagnosis: [],
   courseInHospital: "",
   treatmentGiven: "",
   conditionOnDischarge: "",
+  dischargeBp: "",
+  dischargePulse: "",
+  dischargeTemp: "",
+  dischargeSpO2: "",
+  allergies: "",
   medicinesOnDischarge: [
     { medicineName: "", duration: "", dosage: "", instructions: "" },
   ],
   adviceOnDischarge: "",
   followUp: "",
   lamaReason: "",
-  dorRequestedBy: "",
+  dorRequestedByType: "",
+  dorRequestedByName: "",
   dorReason: "",
   deathDateTime: "",
   deathCause: "",
@@ -264,12 +340,8 @@ export const normalizeDischargeSummaryFromApi = (
       ? (data.dischargeSummary as Record<string, unknown>)
       : data;
 
-  const finalDiagnosis = Array.isArray(nested.finalDiagnosis)
-    ? (nested.finalDiagnosis as IFinalDiagnosisRow[]).map((d) => ({
-        icdCode: String(d?.icdCode ?? ""),
-        diagnosisName: String(d?.diagnosisName ?? ""),
-      }))
-    : [{ icdCode: "", diagnosisName: "" }];
+  const provisionalDiagnosis = normalizeDiagnosisList(nested.provisionalDiagnosis);
+  const finalDiagnosis = normalizeDiagnosisList(nested.finalDiagnosis);
 
   const medicinesOnDischarge = Array.isArray(nested.medicinesOnDischarge)
     ? (nested.medicinesOnDischarge as IMedicineOnDischargeRow[]).map((m) => ({
@@ -292,6 +364,18 @@ export const normalizeDischargeSummaryFromApi = (
     ? (dischargeTypeRaw as TDischargeType)
     : "Normal";
 
+  const dorRequestedByTypeRaw = String(nested.dorRequestedByType ?? "").trim();
+  const dorRequestedByNameRaw = String(nested.dorRequestedByName ?? "").trim();
+  const dorRequestedByParsed =
+    dorRequestedByTypeRaw || dorRequestedByNameRaw
+      ? {
+          type: DOR_REQUESTED_BY_TYPE_OPTIONS.some((o) => o.value === dorRequestedByTypeRaw)
+            ? (dorRequestedByTypeRaw as TDorRequestedByType)
+            : ("" as const),
+          name: dorRequestedByNameRaw,
+        }
+      : parseDorRequestedBy(nested.dorRequestedBy);
+
   return {
     dischargeType,
     dischargeDate:
@@ -299,18 +383,24 @@ export const normalizeDischargeSummaryFromApi = (
       parseDischargeDateValue(nested.dateOfDischarge) ??
       new Date().toISOString().slice(0, 10),
     clinicalSummary: String(nested.clinicalSummary ?? ""),
-    provisionalDiagnosis: String(nested.provisionalDiagnosis ?? ""),
-    finalDiagnosis: finalDiagnosis.length ? finalDiagnosis : [{ icdCode: "", diagnosisName: "" }],
+    provisionalDiagnosis,
+    finalDiagnosis,
     courseInHospital: String(nested.courseInHospital ?? ""),
     treatmentGiven: String(nested.treatmentGiven ?? ""),
     conditionOnDischarge: String(nested.conditionOnDischarge ?? ""),
+    dischargeBp: String(nested.dischargeBp ?? nested.bpAtDischarge ?? ""),
+    dischargePulse: String(nested.dischargePulse ?? nested.pulseAtDischarge ?? ""),
+    dischargeTemp: String(nested.dischargeTemp ?? nested.tempAtDischarge ?? ""),
+    dischargeSpO2: String(nested.dischargeSpO2 ?? nested.spo2AtDischarge ?? ""),
+    allergies: String(nested.allergies ?? ""),
     medicinesOnDischarge: medicinesOnDischarge.length
       ? medicinesOnDischarge
       : [{ medicineName: "", duration: "", dosage: "", instructions: "" }],
     adviceOnDischarge,
     followUp: normalizeFollowUpDate(String(nested.followUp ?? "")),
     lamaReason: String(nested.lamaReason ?? ""),
-    dorRequestedBy: String(nested.dorRequestedBy ?? ""),
+    dorRequestedByType: dorRequestedByParsed.type,
+    dorRequestedByName: dorRequestedByParsed.name,
     dorReason: String(nested.dorReason ?? ""),
     deathDateTime: toDateTimeLocalValue(nested.deathDateTime),
     deathCause: String(nested.deathCause ?? ""),
@@ -340,7 +430,8 @@ export const validateDischargeSummaryForm = (
       if (!form.lamaReason.trim()) return "LAMA reason is required.";
       break;
     case "DOR":
-      if (!form.dorRequestedBy.trim()) return "Requested by is required for DOR.";
+      if (!form.dorRequestedByType) return "Requested by type is required for DOR.";
+      if (!form.dorRequestedByName.trim()) return "Requested by name is required for DOR.";
       if (!form.dorReason.trim()) return "DOR reason is required.";
       break;
     case "Death":
@@ -365,7 +456,12 @@ export const buildDischargeSummaryPayload = (
     dischargeType: form.dischargeType,
     dischargeDate: form.dischargeDate,
     clinicalSummary: form.clinicalSummary.trim(),
-    provisionalDiagnosis: form.provisionalDiagnosis.trim(),
+    provisionalDiagnosis: form.provisionalDiagnosis
+      .map((d) => ({
+        icdCode: d.icdCode.trim(),
+        diagnosisName: d.diagnosisName.trim(),
+      }))
+      .filter((d) => d.icdCode || d.diagnosisName),
     finalDiagnosis: form.finalDiagnosis
       .map((d) => ({
         icdCode: d.icdCode.trim(),
@@ -375,6 +471,11 @@ export const buildDischargeSummaryPayload = (
     courseInHospital: form.courseInHospital.trim(),
     treatmentGiven: form.treatmentGiven.trim(),
     conditionOnDischarge: form.conditionOnDischarge.trim(),
+    dischargeBp: trimOptional(form.dischargeBp ?? ""),
+    dischargePulse: trimOptional(form.dischargePulse ?? ""),
+    dischargeTemp: trimOptional(form.dischargeTemp ?? ""),
+    dischargeSpO2: trimOptional(form.dischargeSpO2 ?? ""),
+    allergies: trimOptional(form.allergies ?? ""),
     medicinesOnDischarge: form.medicinesOnDischarge
       .map((m) => ({
         medicineName: m.medicineName.trim(),
@@ -398,7 +499,9 @@ export const buildDischargeSummaryPayload = (
     case "DOR":
       return {
         ...base,
-        dorRequestedBy: trimOptional(form.dorRequestedBy),
+        dorRequestedBy: trimOptional(
+          buildDorRequestedBy(form.dorRequestedByType, form.dorRequestedByName)
+        ),
         dorReason: trimOptional(form.dorReason),
       };
     case "Death":

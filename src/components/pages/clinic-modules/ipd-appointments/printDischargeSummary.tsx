@@ -10,6 +10,7 @@ import type {
 import type { IIpdAppointmentDetail } from "@/components/pages/clinic-modules/appointments/buildIPDReceiptData";
 import {
   getDischargeTypeLabel,
+  formatDorRequestedByDisplay,
   normalizeDischargeSummaryFromApi,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 
@@ -26,17 +27,24 @@ export interface IPrintDischargeSummaryData {
   admissionDate?: string;
   dischargeDate?: string;
   clinicalSummary?: string;
-  provisionalDiagnosis?: string;
+  provisionalDiagnosis?: IFinalDiagnosisRow[];
   finalDiagnosis?: IFinalDiagnosisRow[];
   courseInHospital?: string;
   treatmentGiven?: string;
   conditionOnDischarge?: string;
+  dischargeBp?: string;
+  dischargePulse?: string;
+  dischargeTemp?: string;
+  dischargeSpO2?: string;
+  allergies?: string;
   medicinesOnDischarge?: IMedicineOnDischargeRow[];
   adviceOnDischarge?: string[];
   followUp?: string;
   dischargeType?: TDischargeType;
   lamaReason?: string;
   dorRequestedBy?: string;
+  dorRequestedByType?: string;
+  dorRequestedByName?: string;
   dorReason?: string;
   deathDateTime?: string;
   deathCause?: string;
@@ -94,17 +102,27 @@ export const buildPrintDischargeSummaryData = (
     admissionDate: ipd.admissionDate ?? ipd.appointmentDate,
     dischargeDate: summary.dischargeDate,
     clinicalSummary: summary.clinicalSummary,
-    provisionalDiagnosis: summary.provisionalDiagnosis,
+    provisionalDiagnosis: summary.provisionalDiagnosis.filter((d) => d.diagnosisName.trim()),
     finalDiagnosis: summary.finalDiagnosis.filter((d) => d.diagnosisName.trim()),
     courseInHospital: summary.courseInHospital,
     treatmentGiven: summary.treatmentGiven,
     conditionOnDischarge: summary.conditionOnDischarge,
+    dischargeBp: summary.dischargeBp,
+    dischargePulse: summary.dischargePulse,
+    dischargeTemp: summary.dischargeTemp,
+    dischargeSpO2: summary.dischargeSpO2,
+    allergies: summary.allergies,
     medicinesOnDischarge: summary.medicinesOnDischarge.filter((m) => m.medicineName.trim()),
     adviceOnDischarge: adviceLines,
     followUp: summary.followUp,
     dischargeType: summary.dischargeType,
     lamaReason: summary.lamaReason,
-    dorRequestedBy: summary.dorRequestedBy,
+    dorRequestedByType: summary.dorRequestedByType,
+    dorRequestedByName: summary.dorRequestedByName,
+    dorRequestedBy: formatDorRequestedByDisplay(
+      summary.dorRequestedByType,
+      summary.dorRequestedByName
+    ),
     dorReason: summary.dorReason,
     deathDateTime: summary.deathDateTime,
     deathCause: summary.deathCause,
@@ -255,7 +273,7 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 text-align: center;
               }
               @media print {
-                @page { margin: 8mm 10mm 10mm 10mm; size: A4; }
+                @page { margin: 8mm; size: A4; }
                 body { padding: 0; background: white !important; }
               }
             </style>
@@ -320,10 +338,19 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
     dischargeTypeFields.push({ label: "LAMA Reason", value: summaryData.lamaReason!.trim() });
   }
   if (summaryData.dischargeType === "DOR") {
-    if (hasText(summaryData.dorRequestedBy)) {
+    const requestedByDisplay = formatDorRequestedByDisplay(
+      summaryData.dorRequestedByType ?? "",
+      summaryData.dorRequestedByName ?? ""
+    );
+    if (!requestedByDisplay && hasText(summaryData.dorRequestedBy)) {
       dischargeTypeFields.push({
         label: "Requested By",
         value: summaryData.dorRequestedBy!.trim(),
+      });
+    } else if (requestedByDisplay) {
+      dischargeTypeFields.push({
+        label: "Requested By",
+        value: requestedByDisplay,
       });
     }
     if (hasText(summaryData.dorReason)) {
@@ -357,6 +384,7 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
     summaryData.dischargeType !== "Normal" &&
     (Boolean(dischargeTypeLabel) || dischargeTypeFields.length > 0);
 
+  const provisionalDiagnosis = summaryData.provisionalDiagnosis ?? [];
   const finalDiagnosis = summaryData.finalDiagnosis ?? [];
   const medicines = summaryData.medicinesOnDischarge ?? [];
   const adviceLines =
@@ -457,6 +485,40 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
             </div>
           ) : null}
 
+          {hasText(summaryData.dischargeBp) ||
+          hasText(summaryData.dischargePulse) ||
+          hasText(summaryData.dischargeTemp) ||
+          hasText(summaryData.dischargeSpO2) ? (
+            <div className="section">
+              <div className="section-title">Vitals at Discharge</div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>BP</th>
+                    <th>Pulse</th>
+                    <th>Temp</th>
+                    <th>SpO2</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{summaryData.dischargeBp?.trim() ?? "—"}</td>
+                    <td>{summaryData.dischargePulse?.trim() ?? "—"}</td>
+                    <td>{summaryData.dischargeTemp?.trim() ?? "—"}</td>
+                    <td>{summaryData.dischargeSpO2?.trim() ?? "—"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {hasText(summaryData.allergies) ? (
+            <div className="section">
+              <div className="section-title">Allergies</div>
+              <div className="section-body">{summaryData.allergies!.trim()}</div>
+            </div>
+          ) : null}
+
           {hasText(summaryData.clinicalSummary) ? (
             <div className="section">
               <div className="section-title">Clinical Summary</div>
@@ -464,10 +526,23 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
             </div>
           ) : null}
 
-          {hasText(summaryData.provisionalDiagnosis) ? (
+          {provisionalDiagnosis.length > 0 ? (
             <div className="section">
               <div className="section-title">Provisional Diagnosis</div>
-              <div className="section-body">{summaryData.provisionalDiagnosis!.trim()}</div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Diagnosis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {provisionalDiagnosis.map((row, index) => (
+                    <tr key={`prov-diag-${index}`}>
+                      <td>{row.diagnosisName.trim()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
 

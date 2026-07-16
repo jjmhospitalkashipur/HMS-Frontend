@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, type ChangeEvent } from "react";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,7 @@ import {
   type TDischargeType,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 import { getIpdProcedureNamesForListing } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
+import { importMedicinesExcel } from "@/core/api/medicineApi";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
@@ -179,6 +180,8 @@ const IpdAppointmentsComponent = () => {
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [importingMedicines, setImportingMedicines] = useState(false);
+  const medicinesImportInputRef = useRef<HTMLInputElement>(null);
   const [ipdDeleteTarget, setIPDDeleteTarget] = useState<{
     id: string;
     label: string;
@@ -296,6 +299,32 @@ const IpdAppointmentsComponent = () => {
       }
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImportMedicinesClick = () => {
+    medicinesImportInputRef.current?.click();
+  };
+
+  const handleMedicinesFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
+      alert("Please upload an Excel file (.xlsx or .xls).");
+      return;
+    }
+
+    setImportingMedicines(true);
+    try {
+      const message = await importMedicinesExcel(file);
+      alert(message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to import medicines.");
+    } finally {
+      setImportingMedicines(false);
     }
   };
 
@@ -821,6 +850,25 @@ const IpdAppointmentsComponent = () => {
               <h4 className="fw-bold mb-0">IPD Appointments</h4>
             </div>
             <div className="text-end d-flex align-items-center flex-wrap justify-content-end gap-2">
+              <input
+                ref={medicinesImportInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="d-none"
+                onChange={(e) => void handleMedicinesFileChange(e)}
+                aria-hidden
+                tabIndex={-1}
+              />
+              <button
+                type="button"
+                className="btn btn-outline-primary fs-13 btn-md"
+                onClick={handleImportMedicinesClick}
+                disabled={importingMedicines || !API_BASE_URL}
+                aria-busy={importingMedicines}
+              >
+                <i className="ti ti-upload me-1" aria-hidden />
+                {importingMedicines ? "Importing…" : "Import Medicines"}
+              </button>
               <button
                 type="button"
                 className="btn btn-outline-primary fs-13 btn-md"

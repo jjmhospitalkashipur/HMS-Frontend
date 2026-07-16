@@ -4,11 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
+import IcdDiagnosisMultiSelect from "@/components/pages/clinic-modules/ipd-appointments/IcdDiagnosisMultiSelect";
+import MedicineNameSelect from "@/components/pages/clinic-modules/ipd-appointments/MedicineNameSelect";
+import MultiSelectWithOther from "@/components/pages/clinic-modules/ipd-appointments/MultiSelectWithOther";
 import {
   buildCustomDuration,
   buildDischargeSummaryPayload,
   CONDITION_ON_DISCHARGE_OPTIONS,
   DISCHARGE_TYPE_OPTIONS,
+  DOR_REQUESTED_BY_TYPE_OPTIONS,
   DOSAGE_OPTIONS,
   DURATION_PRESET_OPTIONS,
   DURATION_UNIT_OPTIONS,
@@ -149,12 +153,18 @@ const IpdDischargeSummaryForm = ({
     () => toSelectOptions(FOLLOW_UP_PRESET_OPTIONS),
     []
   );
+  const dorRequestedByTypeOptions = useMemo(
+    () => toSelectOptions(DOR_REQUESTED_BY_TYPE_OPTIONS),
+    []
+  );
 
   const selectedDischargeType =
     dischargeTypeSelectOptions.find((o) => o.value === form.dischargeType) ?? null;
   const selectedConditionOnDischarge =
     conditionOnDischargeOptions.find((o) => o.value === form.conditionOnDischarge) ??
     null;
+  const selectedDorRequestedByType =
+    dorRequestedByTypeOptions.find((o) => o.value === form.dorRequestedByType) ?? null;
   const followUpIsSpecificDate = isFollowUpSpecificDate(form.followUp);
   const showFollowUpDatePicker = followUpDateMode || followUpIsSpecificDate;
   const selectedFollowUp =
@@ -163,6 +173,89 @@ const IpdDischargeSummaryForm = ({
         ? o.value === FOLLOW_UP_SPECIFIC_DATE_VALUE
         : o.value === form.followUp
     ) ?? null;
+
+  const adviceOnDischargeOptions = useMemo(
+    () => [
+      {
+        value: "take_medicines",
+        label: "1. Take medicines as prescribed, do not skip doses",
+        text: "1. Take medicines as prescribed, do not skip doses",
+      },
+      {
+        value: "low_salt_low_fat_diet",
+        label: "2. Follow low-salt, low-fat diet",
+        text: "2. Follow low-salt, low-fat diet",
+      },
+      {
+        value: "avoid_heavy_exertion",
+        label: "3. Avoid heavy exertion / lifting for [X] weeks",
+        text: "3. Avoid heavy exertion / lifting for [X] weeks",
+      },
+      {
+        value: "keep_wound_clean_dry",
+        label: "4. Keep the wound clean and dry, review for dressing",
+        text: "4. Keep the wound clean and dry, review for dressing",
+      },
+      {
+        value: "drink_fluids",
+        label: "5. Drink plenty of fluids",
+        text: "5. Drink plenty of fluids",
+      },
+      {
+        value: "monitor_bp",
+        label: "6. Monitor blood pressure daily",
+        text: "6. Monitor blood pressure daily",
+      },
+      {
+        value: "monitor_blood_sugar",
+        label: "7. Monitor blood sugar daily",
+        text: "7. Monitor blood sugar daily",
+      },
+      {
+        value: "complete_antibiotics",
+        label: "8. Complete the full course of antibiotics",
+        text: "8. Complete the full course of antibiotics",
+      },
+      {
+        value: "report_red_flags",
+        label: "9. Report immediately if fever, breathlessness, or swelling occurs",
+        text: "9. Report immediately if fever, breathlessness, or swelling occurs",
+      },
+      {
+        value: "rest_avoid_strenuous",
+        label: "10. Adequate rest, avoid strenuous activity",
+        text: "10. Adequate rest, avoid strenuous activity",
+      },
+      {
+        value: "other",
+        label: "11. Other",
+        text: "__ADVICE_OTHER__",
+      },
+    ],
+    []
+  );
+
+  const medicineInstructionOptions = useMemo(
+    () => [
+      { value: "before_food", label: "1. Before food", text: "1. Before food" },
+      { value: "after_food", label: "2. After food", text: "2. After food" },
+      { value: "empty_stomach", label: "3. Empty stomach", text: "3. Empty stomach" },
+      { value: "with_milk", label: "4. With milk", text: "4. With milk" },
+      { value: "sos", label: "5. SOS (as needed)", text: "5. SOS (as needed)" },
+      {
+        value: "avoid_alcohol",
+        label: "6. Avoid alcohol with this medicine",
+        text: "6. Avoid alcohol with this medicine",
+      },
+      {
+        value: "do_not_skip_doses",
+        label: "7. Do not skip doses",
+        text: "7. Do not skip doses",
+      },
+      { value: "other", label: "8. Other ", text: "__INSTRUCTION_OTHER__" },
+    ],
+    []
+  );
 
   const updateMedicineField = (
     index: number,
@@ -289,23 +382,6 @@ const IpdDischargeSummaryForm = ({
     value: IDischargeSummaryFormState[K]
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const addFinalDiagnosis = () => {
-    setForm((prev) => ({
-      ...prev,
-      finalDiagnosis: [...prev.finalDiagnosis, { icdCode: "", diagnosisName: "" }],
-    }));
-  };
-
-  const removeFinalDiagnosis = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      finalDiagnosis:
-        prev.finalDiagnosis.length > 1
-          ? prev.finalDiagnosis.filter((_, i) => i !== index)
-          : [{ icdCode: "", diagnosisName: "" }],
-    }));
   };
 
   const addMedicine = () => {
@@ -468,21 +544,41 @@ const IpdDischargeSummaryForm = ({
 
                     {form.dischargeType === "DOR" ? (
                       <div className="row g-2">
-                        <div className="col-12 col-md-6">
-                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-dor-requested-by">
+                        <div className="col-12 col-md-4">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-dor-requested-by-type">
                             Requested By<span className="text-danger">*</span>
                           </label>
+                          <CommonSelect
+                            instanceId="ipd-dor-requested-by-type"
+                            options={dorRequestedByTypeOptions}
+                            value={selectedDorRequestedByType}
+                            onChange={(opt) =>
+                              updateField(
+                                "dorRequestedByType",
+                                (opt?.value as (typeof form.dorRequestedByType)) ?? ""
+                              )
+                            }
+                            placeholder="Select type"
+                            className="w-100"
+                            disabled={isDischarged || savingDraft}
+                          />
+                        </div>
+                        <div className="col-12 col-md-4">
+                          <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-dor-requested-by-name">
+                            Name<span className="text-danger">*</span>
+                          </label>
                           <input
-                            id="ipd-dor-requested-by"
+                            id="ipd-dor-requested-by-name"
                             type="text"
                             className="form-control form-control-sm"
                             style={PAIRED_INPUT_STYLE}
-                            placeholder="e.g. Ramesh Kumar (Patient son)"
-                            value={form.dorRequestedBy}
-                            onChange={(e) => updateField("dorRequestedBy", e.target.value)}
+                            placeholder="Enter name"
+                            value={form.dorRequestedByName}
+                            onChange={(e) => updateField("dorRequestedByName", e.target.value)}
+                            disabled={isDischarged || savingDraft}
                           />
                         </div>
-                        <div className="col-12 col-md-6">
+                        <div className="col-12 col-md-4">
                           <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-dor-reason">
                             DOR Reason<span className="text-danger">*</span>
                           </label>
@@ -494,6 +590,7 @@ const IpdDischargeSummaryForm = ({
                             placeholder="e.g. Family requested discharge to continue treatment at home."
                             value={form.dorReason}
                             onChange={(e) => updateField("dorReason", e.target.value)}
+                            disabled={isDischarged || savingDraft}
                           />
                         </div>
                       </div>
@@ -585,69 +682,26 @@ const IpdDischargeSummaryForm = ({
                   <label className={LABEL_CLASS} htmlFor="ipd-provisional-diagnosis">
                     Provisional Diagnosis
                   </label>
-                  <input
+                  <IcdDiagnosisMultiSelect
                     id="ipd-provisional-diagnosis"
-                    type="text"
-                    className="form-control"
                     value={form.provisionalDiagnosis}
-                    onChange={(e) => updateField("provisionalDiagnosis", e.target.value)}
+                    onChange={(next) => updateField("provisionalDiagnosis", next)}
+                    placeholder="Search provisional diagnosis..."
+                    disabled={loading || savingDraft}
                   />
                 </div>
 
                 <div className="mb-3">
-                  <div className="d-flex align-items-center justify-content-between mb-1">
-                    <label className={`${LABEL_CLASS} mb-0`}>Final Diagnosis</label>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-primary py-0 px-2"
-                      onClick={addFinalDiagnosis}
-                    >
-                      <i className="ti ti-plus me-1" />
-                      Add
-                    </button>
-                  </div>
-                  {form.finalDiagnosis.map((row, index) => (
-                    <div className="row g-2 mb-2 align-items-end" key={`diag-${index}`}>
-                      {/* <div className="col-4 col-sm-3">
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="ICD code"
-                          value={row.icdCode}
-                          onChange={(e) => {
-                            const next = [...form.finalDiagnosis];
-                            next[index] = { ...next[index], icdCode: e.target.value };
-                            updateField("finalDiagnosis", next);
-                          }}
-                          aria-label={`ICD code ${index + 1}`}
-                        />
-                      </div> */}
-                      <div className="col">
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="Diagnosis name"
-                          value={row.diagnosisName}
-                          onChange={(e) => {
-                            const next = [...form.finalDiagnosis];
-                            next[index] = { ...next[index], diagnosisName: e.target.value };
-                            updateField("finalDiagnosis", next);
-                          }}
-                          aria-label={`Diagnosis name ${index + 1}`}
-                        />
-                      </div>
-                      <div className="col-auto">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => removeFinalDiagnosis(index)}
-                          aria-label="Remove diagnosis row"
-                        >
-                          <i className="ti ti-trash" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  <label className={LABEL_CLASS} htmlFor="ipd-final-diagnosis">
+                    Final Diagnosis
+                  </label>
+                  <IcdDiagnosisMultiSelect
+                    id="ipd-final-diagnosis"
+                    value={form.finalDiagnosis}
+                    onChange={(next) => updateField("finalDiagnosis", next)}
+                    placeholder="Search final diagnosis..."
+                    disabled={loading || savingDraft}
+                  />
                 </div>
 
                 <div className="row g-2 mb-3">
@@ -677,6 +731,71 @@ const IpdDischargeSummaryForm = ({
                       onChange={(e) => updateField("treatmentGiven", e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className={LABEL_CLASS}>Vitals at Discharge</label>
+                  <div className="row g-2">
+                    <div className="col-12 col-sm-6 col-lg-3">
+                      <input
+                        id="ipd-discharge-bp"
+                        type="text"
+                        className="form-control text-dark"
+                        style={PAIRED_INPUT_STYLE}
+                        placeholder="BP (e.g. 120/80 mmHg)"
+                        value={form.dischargeBp ?? ""}
+                        onChange={(e) => updateField("dischargeBp", e.target.value)}
+                      />
+                    </div>
+                    <div className="col-12 col-sm-6 col-lg-3">
+                      <input
+                        id="ipd-discharge-pulse"
+                        type="text"
+                        className="form-control text-dark"
+                        style={PAIRED_INPUT_STYLE}
+                        placeholder="Pulse (bpm)"
+                        value={form.dischargePulse ?? ""}
+                        onChange={(e) => updateField("dischargePulse", e.target.value)}
+                      />
+                    </div>
+                    <div className="col-12 col-sm-6 col-lg-3">
+                      <input
+                        id="ipd-discharge-temp"
+                        type="text"
+                        className="form-control text-dark"
+                        style={PAIRED_INPUT_STYLE}
+                        placeholder="Temp (F/C)"
+                        value={form.dischargeTemp ?? ""}
+                        onChange={(e) => updateField("dischargeTemp", e.target.value)}
+                      />
+                    </div>
+                    <div className="col-12 col-sm-6 col-lg-3">
+                      <input
+                        id="ipd-discharge-spo2"
+                        type="text"
+                        className="form-control text-dark"
+                        style={PAIRED_INPUT_STYLE}
+                        placeholder="SpO2 (%)"
+                        value={form.dischargeSpO2 ?? ""}
+                        onChange={(e) => updateField("dischargeSpO2", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className={LABEL_CLASS} htmlFor="ipd-allergies">
+                    Allergies
+                  </label>
+                  <textarea
+                    id="ipd-allergies"
+                    className="form-control"
+                    rows={1}
+                    style={COMPACT_TEXTAREA_STYLE}
+                    placeholder="Enter known allergies"
+                    value={form.allergies ?? ""}
+                    onChange={(e) => updateField("allergies", e.target.value)}
+                  />
                 </div>
 
                 <div className="mb-3">
@@ -714,16 +833,14 @@ const IpdDischargeSummaryForm = ({
                     <div className="border rounded p-2 mb-2 bg-light" key={`med-${index}`}>
                       <div className="row g-2 align-items-center">
                         <div className="col-12 col-md-5">
-                          <input
-                            type="text"
-                            className="form-control text-dark"
-                            style={PAIRED_INPUT_STYLE}
-                            placeholder="Medicine name"
+                          <MedicineNameSelect
+                            id={`ipd-med-name-${index}`}
                             value={med.medicineName}
-                            onChange={(e) =>
-                              updateMedicineField(index, { medicineName: e.target.value })
+                            onChange={(next) =>
+                              updateMedicineField(index, { medicineName: next })
                             }
-                            aria-label={`Medicine name ${index + 1}`}
+                            placeholder="Search medicine..."
+                            disabled={isDischarged || savingDraft}
                           />
                         </div>
                         <div className="col-6 col-md-3">
@@ -800,29 +917,31 @@ const IpdDischargeSummaryForm = ({
                               />
                             </div>
                             <div className="col-12 col-sm-7 col-md-9">
-                              <input
-                                type="text"
-                                className="form-control text-dark"
-                                style={PAIRED_INPUT_STYLE}
-                                placeholder="Instructions (optional)"
+                              <MultiSelectWithOther
+                                id={`ipd-med-instructions-${index}`}
                                 value={med.instructions ?? ""}
-                                onChange={(e) =>
-                                  updateMedicineField(index, { instructions: e.target.value })
+                                onChange={(next) =>
+                                  updateMedicineField(index, { instructions: next })
                                 }
+                                disabled={isDischarged || savingDraft}
+                                placeholder="Select instructions"
+                                options={medicineInstructionOptions}
+                                otherValue="other"
                               />
                             </div>
                           </>
                         ) : (
                           <div className="col-12">
-                            <input
-                              type="text"
-                              className="form-control text-dark"
-                              style={PAIRED_INPUT_STYLE}
-                              placeholder="Instructions (optional)"
+                            <MultiSelectWithOther
+                              id={`ipd-med-instructions-${index}`}
                               value={med.instructions ?? ""}
-                              onChange={(e) =>
-                                updateMedicineField(index, { instructions: e.target.value })
+                              onChange={(next) =>
+                                updateMedicineField(index, { instructions: next })
                               }
+                              disabled={isDischarged || savingDraft}
+                              placeholder="Select instructions"
+                              options={medicineInstructionOptions}
+                              otherValue="other"
                             />
                           </div>
                         )}
@@ -837,14 +956,14 @@ const IpdDischargeSummaryForm = ({
                     <label className={LABEL_CLASS} htmlFor="ipd-advice-on-discharge">
                       Advice on Discharge
                     </label>
-                    <textarea
+                    <MultiSelectWithOther
                       id="ipd-advice-on-discharge"
-                      className="form-control"
-                      rows={1}
-                      style={COMPACT_TEXTAREA_STYLE}
-                      placeholder="Enter advice for the patient on discharge"
                       value={form.adviceOnDischarge}
-                      onChange={(e) => updateField("adviceOnDischarge", e.target.value)}
+                      onChange={(next) => updateField("adviceOnDischarge", next)}
+                      disabled={isDischarged || savingDraft}
+                      placeholder="Select advice items"
+                      options={adviceOnDischargeOptions}
+                      otherValue="other"
                     />
                   </div>
                   <div className="col-12 col-md-6">
