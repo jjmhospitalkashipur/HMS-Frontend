@@ -6,12 +6,12 @@ import Link from "next/link";
 import { all_routes } from "../../../../../routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
-import dayjs from "dayjs";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import PrintReceipt from "../printReceipt";
 import type { IReceiptData, IReceiptTransaction } from "../printReceipt";
 import AddHealthRecordForm from "@/components/pages/clinic-modules/health-records/AddHealthRecordForm";
 import HealthRecordsList from "@/components/pages/clinic-modules/health-records/HealthRecordsList";
+import dayjs from "dayjs";
 
 interface IVisit {
   _id: string;
@@ -37,6 +37,7 @@ interface IVisit {
   transactions?: ITransaction[];
   amountPaid?: number;
   paymentStatus?: string;
+  abhaLinked?: boolean;
 }
 
 interface IPatient {
@@ -51,6 +52,7 @@ interface IPatient {
   gender?: string;
   bloodGroup?: string;
   address?: string;
+  abhaLinked?: boolean;
 }
 
 interface IDoctor {
@@ -124,6 +126,7 @@ const AppointmentDetailsComponent = () => {
         setVisit({
           ...visitData,
           receiptId: visitData?.receiptId ?? responseReceiptId,
+          abhaLinked: visitData?.patient?.abhaLinked === true || visitData?.abhaLinked === true,
         });
       } else {
         setError("Appointment not found");
@@ -691,6 +694,7 @@ const AppointmentDetailsComponent = () => {
           sourceType="Visit"
           sourceId={visit?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
+          abhaLinked={Boolean(visit?.abhaLinked)}
           onEdit={(fhirId) => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);

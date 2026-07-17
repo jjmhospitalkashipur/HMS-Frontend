@@ -107,6 +107,7 @@ export interface IIpdApiRecord {
     ward?: { _id?: string; name?: string; chargePerDay?: number };
   };
   transactions?: IIpdTransaction[];
+  abhaLinked?: boolean;
 }
 
 const asIpdApiRecord = (value: object): IIpdApiRecord => value as unknown as IIpdApiRecord;
@@ -300,5 +301,6 @@ export const mapIpdApiToAppointmentDetail = (
     bedCharge: raw.bedCharge,
     nursingCharge: raw.nursingCharge,
     transactions: raw.transactions,
+    abhaLinked: (raw.patient as { abhaLinked?: boolean } | undefined)?.abhaLinked === true,
   };
 };

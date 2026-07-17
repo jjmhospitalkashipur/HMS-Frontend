@@ -132,19 +132,21 @@ const PatientsComponent = () => {
       dataIndex: "name",
       sorter: false,
       showSorterTooltip: false,
+      width: 240,
       render: (text: any, record: IPatient) => {
         const ageStr = formatAgeForListing(record.age, record.months, record.days);
         const g = record.gender?.trim();
         const ageGenderLine =
           ageStr && g ? `${ageStr}, ${g}` : ageStr ? ageStr : g || "";
         const company = record.companyName?.trim();
+        const displayName = record.title ? `${record.title} ${record.name}` : record.name;
         return (
-          <div className="text-dark">
-            <div className="fw-semibold">
-              {record.title ? `${record.title} ${record.name}` : record.name}
+          <div className="text-dark" style={{ maxWidth: 240 }}>
+            <div className="fw-semibold text-wrap" title={displayName}>
+              {displayName}
             </div>
             {ageGenderLine ? (
-              <div className="fs-13 text-muted">{ageGenderLine}</div>
+              <div className="fs-13 text-muted text-truncate">{ageGenderLine}</div>
             ) : null}
             {company ? (
               <div className="mt-1">
@@ -169,14 +171,25 @@ const PatientsComponent = () => {
       dataIndex: "address",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any) => <span className="text-dark">{text}</span>,
+      width: 380,
+      ellipsis: true,
+      render: (text: any) => (
+        <span className="text-dark d-inline-block text-truncate" style={{ maxWidth: 380 }} title={text || ""}>
+          {text || "-"}
+        </span>
+      ),
     },
     {
       title: "Email",
       dataIndex: "email",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: any) => <span className="text-dark">{text}</span>,
+      width: 220,
+      render: (text: any) => (
+        <span className="text-dark d-inline-block text-truncate" style={{ maxWidth: 220 }} title={text || ""}>
+          {text || "-"}
+        </span>
+      ),
     },
     {
       title: "Joined Date",

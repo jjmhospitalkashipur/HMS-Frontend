@@ -250,6 +250,24 @@ export const deleteFhirHealthRecord = async (fhirRecordId: string): Promise<void
   }
 };
 
+export const linkFhirHealthRecords = async (fhirIds: string[]): Promise<void> => {
+  if (!API_BASE_URL) throw new Error("API configuration error");
+  const ids = fhirIds.map((id) => id.trim()).filter(Boolean);
+  if (ids.length === 0) throw new Error("Select at least one health record to link");
+
+  try {
+    const res = await axios.post(`${API_BASE_URL}/hospital/abdm/fhir/link`, {
+      fhirIds: ids,
+    });
+    const code = res.data?.code;
+    if (code != null && code !== 200 && code !== 201) {
+      throw new Error(res.data?.message ?? "Failed to link health records");
+    }
+  } catch (err) {
+    throw new Error(getAxiosMessage(err, "Failed to link health records"));
+  }
+};
+
 export const uploadFhirAttachment = async (
   file: File,
   folder = "fhir_attachments"

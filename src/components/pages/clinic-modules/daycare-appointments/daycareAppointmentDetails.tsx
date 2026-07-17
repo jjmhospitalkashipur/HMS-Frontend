@@ -58,6 +58,9 @@ const DaycareAppointmentDetailsComponent = () => {
         let next: IDaycareAppointmentDetail = {
           ...(data as IDaycareAppointmentDetail),
           receiptId: (data as IDaycareAppointmentDetail)?.receiptId ?? responseReceiptId,
+          abhaLinked:
+            (data as { patient?: { abhaLinked?: boolean } })?.patient?.abhaLinked === true ||
+            (data as IDaycareAppointmentDetail)?.abhaLinked === true,
         };
         next = await enrichDaycareDoctorForReceipt(next);
         setDaycare(next);
@@ -559,6 +562,7 @@ const DaycareAppointmentDetailsComponent = () => {
           sourceType="Daycare"
           sourceId={daycare?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
+          abhaLinked={Boolean(daycare?.abhaLinked)}
           onEdit={(fhirId) => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);

@@ -52,6 +52,7 @@ export interface IIpdPatient {
   gender?: string;
   bloodGroup?: string;
   address?: string;
+  abhaLinked?: boolean;
 }
 
 export interface IIpdDoctor {
@@ -212,6 +213,7 @@ export interface IIpdAppointmentDetail {
     totalCharge?: number;
   };
   transactions?: IIpdTransaction[];
+  abhaLinked?: boolean;
 }
 
 export const resolveIpdGrossTotal = (ipd: IIpdAppointmentDetail): number => {

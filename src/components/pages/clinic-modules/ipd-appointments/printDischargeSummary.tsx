@@ -200,32 +200,58 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
               body {
                 margin: 0;
                 padding: 2px 14px;
-                font-family: Tahoma, Arial, sans-serif;
+                font-family: Tahoma, Arial, Helvetica, sans-serif;
                 font-size: 16px;
-                color: #000;
+                color: #1a1a1a;
                 background: #fff;
                 line-height: 1.4;
               }
               .receipt-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 0 60px; background: #fff; }
-              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; gap: 12px; }
+              .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                border-bottom: 2.5px solid #1a337e;
+                gap: 12px;
+              }
               .header-left { display: flex; align-items: center; gap: 10px; }
-              .header-center { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 54px; }
-              .header-center .receipt-title { transform: translateX(18px); }
               .logo-img { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
-              .header-info h2 { font-size: 20px; font-weight: bold; margin: 0 0 2px 0; color: #000; }
-              .header-info .certification { font-size: 12px; color: #000; margin-top: 2px; }
+              .header-info h2 {
+                font-family: "Times New Roman", Times, Georgia, serif;
+                font-size: 22px;
+                font-weight: bold;
+                margin: 0 0 2px 0;
+                color: #1a337e;
+              }
+              .header-info .certification {
+                display: inline-block;
+                font-size: 10px;
+                font-weight: 600;
+                color: #1a337e;
+                margin-top: 4px;
+                padding: 2px 6px;
+                border: 1px solid #1a337e;
+                border-radius: 3px;
+                letter-spacing: 0.02em;
+                text-transform: uppercase;
+              }
               .header-right { text-align: right; }
-              .header-right .address { font-size: 14px; color: #000; margin-bottom: 4px; line-height: 1.4; }
-              .header-right .contact { font-size: 14px; color: #000; line-height: 1.6; }
+              .header-right .address { font-size: 12px; color: #555; margin-bottom: 4px; line-height: 1.4; }
+              .header-right .contact { font-size: 12px; color: #555; line-height: 1.6; }
               .receipt-title {
                 text-align: center;
+                font-family: "Times New Roman", Times, Georgia, serif;
                 font-size: 20px;
                 font-weight: bold;
-                letter-spacing: 0.04em;
-                color: #000;
+                letter-spacing: 0.06em;
+                color: #1a337e;
+                text-transform: uppercase;
+                margin: 8px 0 4px;
               }
-              .content-box { border: none; padding: 8px 12px 0 12px; margin-bottom: 12px; }
-              .patient-details-box { margin-bottom: 10px; padding-bottom: 8px; }
+              .content-box { border: none; padding: 4px 12px 0 12px; margin-bottom: 12px; }
+              .patient-details-box { margin-bottom: 10px; padding-bottom: 4px; }
               .admission-discharge-dates-row {
                 display: flex;
                 flex-wrap: wrap;
@@ -233,48 +259,109 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 gap: 8px 24px;
                 font-size: 14px;
                 font-weight: 600;
+                color: #1a337e;
                 margin-bottom: 12px;
               }
               .patient-info-table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
-              .patient-info-table td { border: 1px solid #000; padding: 4px 8px; vertical-align: middle; }
-              .info-label-cell { background-color: #f8f9fa; font-weight: 600; white-space: nowrap; width: 18%; }
+              .patient-info-table td { border: 1px solid #c5cdd8; padding: 5px 8px; vertical-align: middle; }
+              .info-label-cell {
+                background-color: #e8eef6;
+                font-weight: 600;
+                color: #1a1a1a;
+                white-space: nowrap;
+                width: 18%;
+              }
               .info-value-cell { background-color: #ffffff; font-weight: 500; width: 40%; }
               .info-value-cell-narrow { width: 24%; }
-              .section { margin-bottom: 12px; }
-              .section-title {
-                font-size: 14px;
-                font-weight: bold;
-                border-bottom: 1px solid #000;
-                padding-bottom: 3px;
-                margin-bottom: 5px;
-              }
+              .highlight-value { color: #6a1b9a; font-weight: 700; }
+              .section { margin-bottom: 14px; }
+              .section-title,
               .discharge-type-heading {
-                font-size: 14px;
+                font-size: 11px;
                 font-weight: bold;
-                margin-bottom: 5px;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+                color: #fff;
+                background-color: #1a337e;
+                padding: 5px 8px;
+                margin-bottom: 0;
+                border: none;
+                line-height: 1.3;
               }
               .section-body {
                 font-size: 15px;
                 font-weight: 500;
                 white-space: pre-wrap;
                 word-break: break-word;
+                border: 1px solid #c5cdd8;
+                border-top: none;
+                padding: 10px 12px;
+                background: #fff;
               }
-              .data-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 4px; }
-              .data-table th, .data-table td { border: 1px solid #000; padding: 4px 8px; text-align: left; vertical-align: top; }
-              .data-table th { background-color: #f8f9fa; font-weight: 600; }
-              .footer { margin-top: 10px; display: flex; justify-content: space-between; font-size: 11px; color: #000; }
+              .section-table-wrap {
+                border: 1px solid #c5cdd8;
+                border-top: none;
+                padding: 0;
+                background: #fff;
+                overflow: hidden;
+              }
+              .section-table-wrap .data-table { margin-top: 0; }
+              .section-table-wrap .data-table th:first-child,
+              .section-table-wrap .data-table td:first-child { border-left: none; }
+              .section-table-wrap .data-table th:last-child,
+              .section-table-wrap .data-table td:last-child { border-right: none; }
+              .section-table-wrap .data-table tr:first-child th,
+              .section-table-wrap .data-table tr:first-child td { border-top: none; }
+              .section-table-wrap .data-table tr:last-child td,
+              .section-table-wrap .data-table tr:last-child th { border-bottom: none; }
+              .data-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 0; }
+              .data-table th, .data-table td {
+                border: 1px solid #c5cdd8;
+                padding: 5px 8px;
+                text-align: left;
+                vertical-align: top;
+              }
+              .data-table th {
+                background-color: #e8eef6;
+                font-weight: 600;
+                color: #1a1a1a;
+              }
+              .footer {
+                margin-top: 14px;
+                padding-top: 10px;
+                border-top: 2px solid #1a337e;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                font-size: 11px;
+                color: #555;
+              }
+              .footer-thanks {
+                font-family: "Times New Roman", Times, Georgia, serif;
+                font-style: italic;
+                font-size: 13px;
+                color: #1a337e;
+                text-align: center;
+                margin-top: 12px;
+              }
               .signature-block { min-width: 180px; text-align: center; }
               .signature-line {
-                border-top: 1px solid #000;
+                border-top: 1px solid #1a337e;
                 margin-top: 50px;
                 padding-top: 4px;
                 font-size: 11px;
                 font-weight: 600;
                 text-align: center;
+                color: #1a337e;
               }
               @media print {
                 @page { margin: 8mm; size: A4; }
-                body { padding: 0; background: white !important; }
+                body { padding: 0; background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .section-title,
+                .discharge-type-heading { background-color: #1a337e !important; color: #fff !important; }
+                .info-label-cell,
+                .data-table th { background-color: #e8eef6 !important; }
+                .highlight-value { color: #6a1b9a !important; }
               }
             </style>
           </head>
@@ -406,9 +493,6 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
               <div className="certification">ISO 9001:2000 Certified</div>
             </div>
           </div>
-          <div className="header-center">
-            <div className="receipt-title">Discharge Summary</div>
-          </div>
           <div className="header-right">
             <div className="address">
               Jaspur Rd, opposite Anaj Mandi, Sarverkhera,
@@ -418,6 +502,8 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
             <div className="contact">Phone: +91 9634844075</div>
           </div>
         </div>
+
+        <div className="receipt-title">Discharge Summary</div>
 
         <div className="content-box">
           <div className="patient-details-box">
@@ -459,22 +545,24 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           {showDischargeTypeSection ? (
             <div className="section">
               <div className="discharge-type-heading">Discharge Reason</div>
-              <table className="data-table">
-                <tbody>
-                  {dischargeTypeLabel ? (
-                    <tr>
-                      <th style={{ width: "32%" }}>Discharge Type</th>
-                      <td>{dischargeTypeLabel}</td>
-                    </tr>
-                  ) : null}
-                  {dischargeTypeFields.map((field) => (
-                    <tr key={field.label}>
-                      <th style={{ width: "32%" }}>{field.label}</th>
-                      <td>{field.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="section-table-wrap">
+                <table className="data-table">
+                  <tbody>
+                    {dischargeTypeLabel ? (
+                      <tr>
+                        <th style={{ width: "32%" }}>Discharge Type</th>
+                        <td className="highlight-value">{dischargeTypeLabel}</td>
+                      </tr>
+                    ) : null}
+                    {dischargeTypeFields.map((field) => (
+                      <tr key={field.label}>
+                        <th style={{ width: "32%" }}>{field.label}</th>
+                        <td>{field.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
@@ -491,24 +579,26 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           hasText(summaryData.dischargeSpO2) ? (
             <div className="section">
               <div className="section-title">Vitals at Discharge</div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>BP</th>
-                    <th>Pulse</th>
-                    <th>Temp</th>
-                    <th>SpO2</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{summaryData.dischargeBp?.trim() ?? "—"}</td>
-                    <td>{summaryData.dischargePulse?.trim() ?? "—"}</td>
-                    <td>{summaryData.dischargeTemp?.trim() ?? "—"}</td>
-                    <td>{summaryData.dischargeSpO2?.trim() ?? "—"}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="section-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>BP</th>
+                      <th>Pulse</th>
+                      <th>Temp</th>
+                      <th>SpO2</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>{summaryData.dischargeBp?.trim() ?? "—"}</td>
+                      <td>{summaryData.dischargePulse?.trim() ?? "—"}</td>
+                      <td>{summaryData.dischargeTemp?.trim() ?? "—"}</td>
+                      <td>{summaryData.dischargeSpO2?.trim() ?? "—"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
@@ -529,42 +619,46 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           {provisionalDiagnosis.length > 0 ? (
             <div className="section">
               <div className="section-title">Provisional Diagnosis</div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Diagnosis</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {provisionalDiagnosis.map((row, index) => (
-                    <tr key={`prov-diag-${index}`}>
-                      <td>{row.diagnosisName.trim()}</td>
+              <div className="section-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Diagnosis</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {provisionalDiagnosis.map((row, index) => (
+                      <tr key={`prov-diag-${index}`}>
+                        <td>{row.diagnosisName.trim()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
           {finalDiagnosis.length > 0 ? (
             <div className="section">
               <div className="section-title">Final Diagnosis</div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    {/* <th style={{ width: "25%" }}>ICD Code</th> */}
-                    <th>Diagnosis</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {finalDiagnosis.map((row, index) => (
-                    <tr key={`diag-${index}`}>
-                      {/* <td>{row.icdCode.trim()}</td> */}
-                      <td>{row.diagnosisName.trim()}</td>
+              <div className="section-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      {/* <th style={{ width: "25%" }}>ICD Code</th> */}
+                      <th>Diagnosis</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {finalDiagnosis.map((row, index) => (
+                      <tr key={`diag-${index}`}>
+                        {/* <td>{row.icdCode.trim()}</td> */}
+                        <td>{row.diagnosisName.trim()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
@@ -585,26 +679,28 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           {medicines.length > 0 ? (
             <div className="section">
               <div className="section-title">Medicines on Discharge</div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Medicine</th>
-                    <th style={{ width: "18%" }}>Dosage</th>
-                    <th style={{ width: "18%" }}>Duration</th>
-                    <th style={{ width: "24%" }}>Instructions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {medicines.map((med, index) => (
-                    <tr key={`med-${index}`}>
-                      <td>{med.medicineName.trim()}</td>
-                      <td>{med.dosage?.trim() ?? ""}</td>
-                      <td>{med.duration?.trim() ?? ""}</td>
-                      <td>{med.instructions?.trim() ?? ""}</td>
+              <div className="section-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Medicine</th>
+                      <th style={{ width: "18%" }}>Dosage</th>
+                      <th style={{ width: "18%" }}>Duration</th>
+                      <th style={{ width: "24%" }}>Instructions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {medicines.map((med, index) => (
+                      <tr key={`med-${index}`}>
+                        <td>{med.medicineName.trim()}</td>
+                        <td>{med.dosage?.trim() ?? ""}</td>
+                        <td>{med.duration?.trim() ?? ""}</td>
+                        <td>{med.instructions?.trim() ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
@@ -628,6 +724,9 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
           <div className="signature-block">
             <div className="signature-line">Signature</div>
           </div>
+        </div>
+        <div className="footer-thanks">
+          Thank you for choosing JJM Hospital. We wish you a speedy recovery.
         </div>
       </div>
     </div>

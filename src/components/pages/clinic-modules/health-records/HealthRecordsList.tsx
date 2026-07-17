@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 // import ImageWithBasePath from "@/core/imageWithBasePath";
 import {
   // deleteFhirHealthRecord,
   getFhirHiTypeLabel,
+  linkFhirHealthRecords,
   listFhirHealthRecords,
 } from "@/core/api/fhirHealthRecordApi";
 import type {
@@ -18,6 +19,8 @@ interface IProps {
   sourceId: string;
   refreshKey?: number;
   onEdit?: (fhirRecordId: string) => void;
+  /** When false, linking is blocked (patient/visit not ABHA-linked). */
+  abhaLinked?: boolean;
 }
 
 const resolveRecordId = (record: IFhirHealthRecordListItem): string =>
@@ -40,6 +43,29 @@ const resolveStatus = (record: IFhirHealthRecordListItem): string => {
 
 const isFinalStatus = (status: string): boolean => status.toLowerCase().includes("final");
 
+const isRecordDraft = (record: IFhirHealthRecordListItem): boolean => {
+  const raw = (record.metadata?.status || record.status || "").trim().toLowerCase();
+  if (raw === "draft") return true;
+  if (raw.includes("final")) return false;
+  if (raw.includes("draft")) return true;
+  if (record.finalizedAt) return false;
+  return false;
+};
+
+const isAlreadyLinkedToAbdm = (record: IFhirHealthRecordListItem): boolean =>
+  record.linkedToAbdm === true;
+
+const canSelectRecordForLink = (
+  record: IFhirHealthRecordListItem,
+  abhaLinked: boolean
+): boolean => {
+  const recordId = resolveRecordId(record);
+  if (!recordId || !abhaLinked) return false;
+  if (isRecordDraft(record)) return false;
+  if (isAlreadyLinkedToAbdm(record)) return false;
+  return true;
+};
+
 const statusBadgeClass = (status: string): string => {
   const normalized = status.toLowerCase();
   if (normalized.includes("final")) return "badge bg-success-transparent text-success";
@@ -47,12 +73,22 @@ const statusBadgeClass = (status: string): string => {
   return "badge bg-light text-dark border";
 };
 
-const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IProps) => {
+const HealthRecordsList = ({
+  sourceType,
+  sourceId,
+  refreshKey = 0,
+  onEdit,
+  abhaLinked = false,
+}: IProps) => {
   const [records, setRecords] = useState<IFhirHealthRecordListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState("");
+  const [linkSuccess, setLinkSuccess] = useState("");
   // const [deleteTarget, setDeleteTarget] = useState<IFhirHealthRecordListItem | null>(null);
   // const [deleting, setDeleting] = useState(false);
   // const [deleteError, setDeleteError] = useState("");
@@ -63,6 +99,7 @@ const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IPr
       if (!sourceId?.trim()) {
         setRecords([]);
         setTotal(0);
+        setSelectedIds([]);
         return;
       }
 
@@ -73,9 +110,11 @@ const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IPr
         setRecords(result.records);
         setTotal(result.total);
         setPage(result.page);
+        setSelectedIds([]);
       } catch (err) {
         setRecords([]);
         setTotal(0);
+        setSelectedIds([]);
         setError(err instanceof Error ? err.message : "Failed to load health records");
       } finally {
         setLoading(false);
@@ -88,6 +127,61 @@ const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IPr
     setPage(1);
     void fetchRecords(1);
   }, [fetchRecords, refreshKey]);
+
+  const selectableIds = useMemo(
+    () =>
+      records
+        .filter((record) => canSelectRecordForLink(record, abhaLinked))
+        .map((record) => resolveRecordId(record))
+        .filter((id): id is string => Boolean(id)),
+    [records, abhaLinked]
+  );
+
+  useEffect(() => {
+    if (abhaLinked) return;
+    setSelectedIds([]);
+  }, [abhaLinked]);
+
+  const allSelectableSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+
+  const handleToggleSelectAll = () => {
+    if (allSelectableSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !selectableIds.includes(id)));
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...selectableIds])));
+  };
+
+  const handleToggleRow = (recordId: string, checked: boolean) => {
+    if (!recordId) return;
+    setSelectedIds((prev) => {
+      if (checked) {
+        if (prev.includes(recordId)) return prev;
+        return [...prev, recordId];
+      }
+      return prev.filter((id) => id !== recordId);
+    });
+  };
+
+  const handleLinkSelected = async () => {
+    if (selectedIds.length === 0 || linking) return;
+    setLinking(true);
+    setLinkError("");
+    setLinkSuccess("");
+    try {
+      await linkFhirHealthRecords(selectedIds);
+      setLinkSuccess(
+        `Linked ${selectedIds.length} health record${selectedIds.length === 1 ? "" : "s"} successfully.`
+      );
+      setSelectedIds([]);
+      await fetchRecords(page);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "Failed to link health records");
+    } finally {
+      setLinking(false);
+    }
+  };
 
   /*
   const handleCloseDeleteModal = () => {
@@ -131,12 +225,55 @@ const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IPr
   return (
     <div className="card mt-3 mb-0">
       <div className="card-body p-3">
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h6 className="fw-bold text-primary mb-0">Health Records</h6>
+        <div className="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <h6 className="fw-bold text-primary mb-0">Health Records</h6>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary"
+              disabled={!abhaLinked || selectedIds.length === 0 || linking}
+              title={
+                !abhaLinked
+                  ? "ABHA must be linked before linking health records"
+                  : selectedIds.length === 0
+                    ? "Select at least one record"
+                    : "Link selected health records"
+              }
+              onClick={() => void handleLinkSelected()}
+              aria-label="Link selected health records"
+            >
+              {linking ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                  />
+                  Linking…
+                </>
+              ) : (
+                <>
+                  <i className="ti ti-link me-1" />
+                  Link{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+                </>
+              )}
+            </button>
+          </div>
           {total > 0 ? (
             <span className="text-muted fs-13">{total} record{total === 1 ? "" : "s"}</span>
           ) : null}
         </div>
+
+        {linkError ? (
+          <div className="alert alert-danger py-2" role="alert">
+            {linkError}
+          </div>
+        ) : null}
+        {linkSuccess ? (
+          <div className="alert alert-success py-2" role="alert">
+            {linkSuccess}
+          </div>
+        ) : null}
 
         {loading ? (
           <div className="d-flex justify-content-center py-4">
@@ -165,6 +302,17 @@ const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IPr
               <table className="table table-hover mb-0">
                 <thead>
                   <tr>
+                    <th className="border-0 fs-13 fw-medium align-middle" style={{ width: "48px" }}>
+                      <input
+                        type="checkbox"
+                        className="form-check-input m-0 border border-2 border-secondary"
+                        style={{ width: "1.15rem", height: "1.15rem", cursor: selectableIds.length === 0 || linking ? "not-allowed" : "pointer" }}
+                        checked={allSelectableSelected}
+                        disabled={selectableIds.length === 0 || linking}
+                        onChange={handleToggleSelectAll}
+                        aria-label="Select all linkable health records"
+                      />
+                    </th>
                     <th className="border-0 fs-13 fw-medium">Type</th>
                     <th className="border-0 fs-13 fw-medium">Date</th>
                     <th className="border-0 fs-13 fw-medium">Status</th>
@@ -179,13 +327,42 @@ const HealthRecordsList = ({ sourceType, sourceId, refreshKey = 0, onEdit }: IPr
                     const status = resolveStatus(record);
                     const recordId = resolveRecordId(record);
                     const isFinal = isFinalStatus(status);
+                    const isDraft = isRecordDraft(record);
+                    const alreadyLinked = isAlreadyLinkedToAbdm(record);
+                    const canSelect = canSelectRecordForLink(record, abhaLinked);
                     const canEdit = Boolean(recordId) && !isFinal;
                     // const canDelete = Boolean(recordId) && !isFinal;
                     const typeLabel = getFhirHiTypeLabel(
                       typeof record.hiType === "string" ? record.hiType : undefined
                     );
+                    const checkboxTitle = !abhaLinked
+                      ? "ABHA must be linked before selecting records"
+                      : isDraft
+                        ? "Draft records cannot be linked"
+                        : alreadyLinked
+                          ? "Record is already linked to ABDM"
+                          : "Select record";
                     return (
                       <tr key={id}>
+                        <td className="align-middle">
+                          <input
+                            type="checkbox"
+                            className={`form-check-input m-0 border border-2 ${
+                              canSelect ? "border-primary" : "border-secondary"
+                            }`}
+                            style={{
+                              width: "1.15rem",
+                              height: "1.15rem",
+                              opacity: canSelect ? 1 : 0.45,
+                              cursor: !canSelect || linking ? "not-allowed" : "pointer",
+                            }}
+                            checked={Boolean(recordId) && selectedIds.includes(recordId)}
+                            disabled={!canSelect || linking}
+                            title={checkboxTitle}
+                            onChange={(e) => handleToggleRow(recordId, e.target.checked)}
+                            aria-label={`Select ${typeLabel}`}
+                          />
+                        </td>
                         <td className="fs-14 text-dark fw-medium">{typeLabel}</td>
                         <td className="fs-14 text-dark">{resolveRecordDate(record)}</td>
                         <td className="fs-14">

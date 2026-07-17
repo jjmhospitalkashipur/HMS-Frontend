@@ -113,6 +113,7 @@ export interface IDaycareAppointmentDetail {
   doctor?: IDaycareDoctor;
   patient?: IDaycarePatient;
   transactions?: IDaycareTransaction[];
+  abhaLinked?: boolean;
 }
 
 export const buildDaycareReceiptData = (

@@ -105,3 +105,57 @@ export const linkAbhaSingle = async (
     ],
   });
 };
+
+export interface IGenerateLinkTokenParams {
+  patientId: string;
+  abhaAddress: string;
+  abhaNumber: string;
+  name: string;
+  gender: string;
+  yearOfBirth: number | string;
+}
+
+export const validateLinkTokenFields = (params: {
+  patientId: string;
+  abhaAddress: string;
+  abhaNumber: string;
+  name: string;
+  gender: string;
+  yearOfBirth: number | string;
+}): string | null => {
+  if (!params.patientId.trim()) return "Patient ID is required.";
+  if (!params.abhaAddress.trim()) return "Please enter ABHA address.";
+  if (!params.abhaNumber.trim()) return "Please enter ABHA number.";
+  if (!params.name.trim()) return "Please enter patient name.";
+  if (!params.gender.trim()) return "Please select gender.";
+  const yob = Number(params.yearOfBirth);
+  if (!Number.isFinite(yob) || yob < 1900 || yob > new Date().getFullYear()) {
+    return "Please enter a valid year of birth.";
+  }
+  return null;
+};
+
+export const generateLinkToken = async (
+  apiBaseUrl: string,
+  params: IGenerateLinkTokenParams
+): Promise<unknown> => {
+  const response = await axios.post(`${apiBaseUrl}/hospital/abdm/m2/link-token/generate`, {
+    patientId: params.patientId.trim(),
+    abhaAddress: params.abhaAddress.trim(),
+    abhaNumber: params.abhaNumber.trim(),
+    name: params.name.trim(),
+    gender: params.gender.trim(),
+    yearOfBirth: Number(params.yearOfBirth),
+  });
+  return response.data;
+};
+
+export const getLinkTokenStatus = async (
+  apiBaseUrl: string,
+  patientId: string
+): Promise<unknown> => {
+  const response = await axios.get(`${apiBaseUrl}/hospital/abdm/m2/link-token/status`, {
+    params: { patientId: patientId.trim() },
+  });
+  return response.data;
+};

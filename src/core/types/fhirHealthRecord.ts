@@ -250,6 +250,7 @@ export interface IFhirHealthRecordListItem {
   createdAt?: string;
   updatedAt?: string;
   finalizedAt?: string;
+  linkedToAbdm?: boolean;
   metadata?: {
     status?: string;
     date?: string;

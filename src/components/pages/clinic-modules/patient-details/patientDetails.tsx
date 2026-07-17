@@ -5,6 +5,7 @@ import { all_routes } from "../../../../routes/all_routes";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
+import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
@@ -13,6 +14,7 @@ import dayjs from "dayjs";
 import { formatInstantInIST } from "@/core/utils/dayjsIST";
 import { Marital_Status } from "@/core/common/selectOption";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
+import { getLinkTokenStatus } from "@/core/utils/abhaLinkApi";
 
 interface IPathlabCase {
   _id: string;
@@ -70,6 +72,8 @@ interface IPatient {
   isMRPatient?: boolean;
   companyName?: string;
   division?: string;
+  abhaAddress?: string;
+  abhaNumber?: string;
 }
 
 interface IVisitDoctorEmbed {
@@ -221,14 +225,35 @@ const PatientDetailsComponent = () => {
   type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
+  const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
+  const [hasValidLinkToken, setHasValidLinkToken] = useState(false);
 
   useEffect(() => {
     if (patientId) {
       fetchPatientDetails();
       fetchAppointments();
+      fetchLinkTokenStatus(patientId);
       fetchedTabsRef.current.add("appointments");
+    } else {
+      setHasValidLinkToken(false);
     }
   }, [patientId]);
+
+  const fetchLinkTokenStatus = async (id: string) => {
+    if (!API_BASE_URL || !id?.trim()) {
+      setHasValidLinkToken(false);
+      return;
+    }
+    try {
+      const response = await getLinkTokenStatus(API_BASE_URL, id);
+      const hasValidToken = Boolean(
+        (response as { data?: { hasValidToken?: boolean } } | null)?.data?.hasValidToken
+      );
+      setHasValidLinkToken(hasValidToken);
+    } catch {
+      setHasValidLinkToken(false);
+    }
+  };
 
   const handleTabChange = useCallback((tab: TabKey) => {
     setActiveTab(tab);
@@ -748,101 +773,90 @@ const PatientDetailsComponent = () => {
           {/* page header end */}
           {/* card start */}
           <div className="card">
-            <div className="row align-items-end">
-              <div className="col-xl-9 col-lg-8">
-                <div className="d-sm-flex align-items-center p-3">
-                  {patient?.imageS3Url ? (
-                    <div className="flex-shrink-0 me-3 mb-3 mb-sm-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={patient.imageS3Url}
-                        alt={`${patient.title ?? ""} ${patient.name ?? "Patient"}`.trim()}
-                        className="object-fit-cover border rounded-0"
-                        style={{ width: "72px", height: "72px" }}
-                      />
-                    </div>
-                  ) : null}
-                  <div>
-                    <p className="text-dark mb-1">{loading ? "Loading..." : patient?.mrd || "N/A"}</p>
-                    <h5 className="mb-1 d-flex align-items-center flex-wrap gap-2">
-                      <Link href="#" className="fw-bold text-dark">
-                        {loading ? "Loading..." : patient ? `${patient.title} ${patient.name}` : "Patient not found"}
-                      </Link>
-                      {!loading && patient?.isMRPatient ? (
-                        <span className="badge badge-soft-primary border border-primary text-primary fs-12 fw-semibold px-2 py-1 rounded-2">
-                          MR
-                        </span>
-                      ) : null}
-                    </h5>
-                    {!loading &&
-                    patient?.isMRPatient &&
-                    (patient.companyName?.trim() || patient.division?.trim()) ? (
-                      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        {patient.companyName?.trim() ? (
-                          <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
-                            {patient.companyName.trim()}
-                          </span>
-                        ) : null}
-                        {patient.division?.trim() ? (
-                          <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
-                            Division · {patient.division.trim()}
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {patient?.address && <p className="mb-3 text-dark">{patient.address}</p>}
-                    <div className="d-flex align-items-center flex-wrap">
-                      <p className="mb-0 d-inline-flex align-items-center">
-                        <i className="ti ti-phone me-1 text-dark" />
-                        <span className="text-dark">Phone :</span>
-                        <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
-                      </p>
-                    </div>
-                  </div>
+            <div className="d-sm-flex align-items-start p-3">
+              {patient?.imageS3Url ? (
+                <div className="flex-shrink-0 me-3 mb-3 mb-sm-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={patient.imageS3Url}
+                    alt={`${patient.title ?? ""} ${patient.name ?? "Patient"}`.trim()}
+                    className="object-fit-cover border rounded-0"
+                    style={{ width: "72px", height: "72px" }}
+                  />
                 </div>
-              </div>
-              <div className="col-xl-3 col-lg-4">
-                <div className="p-3 text-lg-end">
-                  {/* <div className="mb-4">
-                    <Link
-                      href="#"
-                      className="btn btn-outline-white shadow-sm rounded-circle d-inline-flex align-items-center p-2 fs-14 me-2"
-                    >
-                      <i className="ti ti-phone" />
-                    </Link>
-                    <Link
-                      href="#"
-                      className="btn btn-outline-white shadow-sm rounded-circle d-inline-flex align-items-center p-2 fs-14 me-2"
-                    >
-                      <i className="ti ti-message-circle" />
-                    </Link>
-                    <Link
-                      href="#"
-                      className="btn btn-outline-white shadow-sm rounded-circle d-inline-flex align-items-center p-2 fs-14"
-                    >
-                      <i className="ti ti-video" />
-                    </Link> 
-                   </div> */}
-                <div className="d-flex justify-content-lg-end align-items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary"
-                    onClick={handleCreateCase}
-                    disabled={loading || !patient}
-                    aria-label="Create Pathlab Case"
-                  >
-                    <i className="ti ti-plus me-1" />
-                    Create Case
-                  </button>
-
-                  <Link
-                    href={`${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}`}
-                    className="btn btn-primary"
-                  >
-                    <i className="ti ti-droplet me-1" />
-                    Dialysis
+              ) : null}
+              <div className="flex-grow-1 w-100">
+                <p className="text-dark mb-1">{loading ? "Loading..." : patient?.mrd || "N/A"}</p>
+                <h5 className="mb-1 d-flex align-items-center flex-wrap gap-2">
+                  <Link href="#" className="fw-bold text-dark">
+                    {loading ? "Loading..." : patient ? `${patient.title} ${patient.name}` : "Patient not found"}
                   </Link>
-                </div>
+                  {!loading && patient?.isMRPatient ? (
+                    <span className="badge badge-soft-primary border border-primary text-primary fs-12 fw-semibold px-2 py-1 rounded-2">
+                      MR
+                    </span>
+                  ) : null}
+                  {!loading && hasValidLinkToken ? (
+                    <span className="badge badge-soft-success border border-success text-success fs-12 fw-semibold px-2 py-1 rounded-2">
+                      ABHA Linked
+                    </span>
+                  ) : null}
+                </h5>
+                {!loading &&
+                patient?.isMRPatient &&
+                (patient.companyName?.trim() || patient.division?.trim()) ? (
+                  <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    {patient.companyName?.trim() ? (
+                      <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
+                        {patient.companyName.trim()}
+                      </span>
+                    ) : null}
+                    {patient.division?.trim() ? (
+                      <span className="badge badge-soft-secondary border border-secondary text-secondary fs-12 fw-medium px-2 py-1 rounded-2">
+                        Division · {patient.division.trim()}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {patient?.address && <p className="mb-3 text-dark">{patient.address}</p>}
+                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <p className="mb-0 d-inline-flex align-items-center">
+                    <i className="ti ti-phone me-1 text-dark" />
+                    <span className="text-dark">Phone :</span>
+                    <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
+                  </p>
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary text-nowrap"
+                      onClick={() => setLinkTokenModalOpen(true)}
+                      disabled={loading || !patient || hasValidLinkToken}
+                      aria-label="Generate Linking Token"
+                      title={hasValidLinkToken ? "ABHA is already linked" : undefined}
+                    >
+                      <i className="ti ti-link me-1" />
+                      Linking Token
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary text-nowrap"
+                      onClick={handleCreateCase}
+                      disabled={loading || !patient}
+                      aria-label="Create Pathlab Case"
+                    >
+                      <i className="ti ti-plus me-1" />
+                      Create Case
+                    </button>
+
+                    <Link
+                      href={`${all_routes.dialysisAppointment}?patientId=${patientId ?? ""}`}
+                      className="btn btn-primary text-nowrap"
+                    >
+                      <i className="ti ti-droplet me-1" />
+                      Dialysis
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2434,6 +2448,12 @@ const PatientDetailsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
+      <GenerateLinkTokenModal
+        open={linkTokenModalOpen}
+        onClose={() => setLinkTokenModalOpen(false)}
+        patient={patient}
+        onTokenReady={() => setHasValidLinkToken(true)}
+      />
     </>
   );
 };
