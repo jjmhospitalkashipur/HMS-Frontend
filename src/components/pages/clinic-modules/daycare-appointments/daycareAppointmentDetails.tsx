@@ -217,7 +217,7 @@ const DaycareAppointmentDetailsComponent = () => {
           </h6>
           
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <button
+            {/* <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
               onClick={() => {
@@ -228,7 +228,7 @@ const DaycareAppointmentDetailsComponent = () => {
             >
               <i className="ti ti-file-plus me-1" />
               Add Record
-            </button>
+            </button> */}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -558,7 +558,7 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        <HealthRecordsList
+        {/* <HealthRecordsList
           sourceType="Daycare"
           sourceId={daycare?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
@@ -567,7 +567,7 @@ const DaycareAppointmentDetailsComponent = () => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);
           }}
-        />
+        /> */}
       </div>
       {/* Print Receipt */}
       {showPrintReceipt && daycare && (
@@ -715,7 +715,7 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </>
       )}
-      <AddHealthRecordForm
+      {/* <AddHealthRecordForm
         sourceType="Daycare"
         sourceId={daycare?._id ?? ""}
         authorId={daycare?.doctorId ?? daycare?.doctor?._id}
@@ -726,7 +726,7 @@ const DaycareAppointmentDetailsComponent = () => {
           setEditingRecordId(null);
         }}
         onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
-      />
+      /> */}
     </div>
   );
 };

@@ -376,7 +376,7 @@ const AppointmentDetailsComponent = () => {
               <i className="ti ti-bed me-1" />
               Convert to IPD
             </button>
-            <button
+            {/* <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
               onClick={() => {
@@ -387,7 +387,7 @@ const AppointmentDetailsComponent = () => {
             >
               <i className="ti ti-file-plus me-1" />
               Add Record
-            </button>
+            </button> */}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -690,7 +690,7 @@ const AppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        <HealthRecordsList
+        {/* <HealthRecordsList
           sourceType="Visit"
           sourceId={visit?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
@@ -699,7 +699,7 @@ const AppointmentDetailsComponent = () => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);
           }}
-        />
+        /> */}
 
         {showPrintReceipt && visit && (() => {
           const visitCharge: IReceiptTransaction = {
@@ -875,7 +875,7 @@ const AppointmentDetailsComponent = () => {
             </div>
           </>
         )}
-        <AddHealthRecordForm
+        {/* <AddHealthRecordForm
           sourceType="Visit"
           sourceId={visit?._id ?? ""}
           authorId={visit?.doctorId ?? visit?.doctor?._id}
@@ -886,7 +886,7 @@ const AppointmentDetailsComponent = () => {
             setEditingRecordId(null);
           }}
           onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
-        />
+        /> */}
       </div>
     </div>
   );

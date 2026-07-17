@@ -826,7 +826,7 @@ const PatientDetailsComponent = () => {
                     <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
                   </p>
                   <div className="d-flex align-items-center gap-2 flex-wrap">
-                    <button
+                    {/* <button
                       type="button"
                       className="btn btn-outline-primary text-nowrap"
                       onClick={() => setLinkTokenModalOpen(true)}
@@ -836,7 +836,7 @@ const PatientDetailsComponent = () => {
                     >
                       <i className="ti ti-link me-1" />
                       Linking Token
-                    </button>
+                    </button> */}
 
                     <button
                       type="button"
@@ -2448,12 +2448,12 @@ const PatientDetailsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
-      <GenerateLinkTokenModal
+      {/* <GenerateLinkTokenModal
         open={linkTokenModalOpen}
         onClose={() => setLinkTokenModalOpen(false)}
         patient={patient}
         onTokenReady={() => setHasValidLinkToken(true)}
-      />
+      /> */}
     </>
   );
 };
