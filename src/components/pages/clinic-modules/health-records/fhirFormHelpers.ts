@@ -231,7 +231,13 @@ export const getEmptyFormDataForHiType = (hiType: TFhirHiType): Record<string, u
 };
 
 const coerceStringArray = (val: unknown): string[] => {
-  if (Array.isArray(val)) return val.map(String);
+  if (Array.isArray(val)) {
+    return val
+      .filter((item): item is string | number => ["string", "number"].includes(typeof item))
+      .map(String)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
   if (typeof val === "string" && val.trim()) return [val];
   return [];
 };
@@ -257,7 +263,7 @@ export const mergePrefillIntoFormData = (
   }
 
   const arrayFields: Partial<Record<TFhirHiType, string[]>> = {
-    DischargeSummary: ["allergies", "proceduresPerformed", "adviceOnDischarge"],
+    DischargeSummary: ["allergies", "adviceOnDischarge"],
     OPConsultation: ["allergies", "advice"],
     Prescription: ["advice"],
     DiagnosticReport: ["recommendations"],
@@ -265,8 +271,13 @@ export const mergePrefillIntoFormData = (
   };
 
   arrayFields[hiType]?.forEach((key) => {
-    if (prefill[key] != null) merged[key] = coerceStringArray(prefill[key]);
+    if (prefill[key] == null) return;
+    merged[key] = coerceStringArray(prefill[key]);
   });
+
+  if (hiType === "DischargeSummary") {
+    merged.proceduresPerformed = [];
+  }
 
   if (prefill.patientAge != null) merged.patientAge = coerceNumberOrEmpty(prefill.patientAge);
   if (prefill.validityDays != null) merged.validityDays = coerceNumberOrEmpty(prefill.validityDays);
@@ -308,6 +319,10 @@ export const serializeFormDataForApi = (
   if (data.patientAge === "") delete data.patientAge;
   if (data.validityDays === "") delete data.validityDays;
   if (data.doseNumber === "") delete data.doseNumber;
+
+  if (hiType === "DischargeSummary") {
+    data.proceduresPerformed = [];
+  }
 
   if (hiType === "WellnessRecord" && data.vitalSigns && typeof data.vitalSigns === "object") {
     const vs = { ...(data.vitalSigns as Record<string, unknown>) };

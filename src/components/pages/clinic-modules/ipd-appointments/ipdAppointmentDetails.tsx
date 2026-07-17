@@ -366,7 +366,7 @@ const IpdAppointmentDetailsComponent = () => {
           </h6>
 
           <div className="d-flex flex-wrap align-items-center gap-2">
-            {/* <button
+            <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
               onClick={() => {
@@ -377,7 +377,7 @@ const IpdAppointmentDetailsComponent = () => {
             >
               <i className="ti ti-file-plus me-1" />
               Add Record
-            </button> */}
+            </button>
             <button
               type="button"
               className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
@@ -781,7 +781,7 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        {/* <HealthRecordsList
+        <HealthRecordsList
           sourceType="IPD"
           sourceId={ipd?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
@@ -790,7 +790,7 @@ const IpdAppointmentDetailsComponent = () => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);
           }}
-        /> */}
+        />
       </div>
 
       <IpdDischargeSummaryForm
@@ -1016,7 +1016,7 @@ const IpdAppointmentDetailsComponent = () => {
           </div>
         </>
       ) : null}
-      {/* <AddHealthRecordForm
+      <AddHealthRecordForm
         sourceType="IPD"
         sourceId={ipd?._id ?? ""}
         authorId={ipd?.doctorId ?? doctor?._id}
@@ -1027,7 +1027,7 @@ const IpdAppointmentDetailsComponent = () => {
           setEditingRecordId(null);
         }}
         onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
-      /> */}
+      />
     </div>
   );
 };
