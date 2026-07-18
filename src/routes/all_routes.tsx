@@ -112,6 +112,7 @@ export const all_routes = {
   patientsGrid: "/patients-grid",
   editPatient: "/edit-patient",
   patientDetails: "/patient-details",
+  patientHealthHistory: "/patient-health-history",
   createPatient: "/create-patient",
   appointments: "/appointments",
   newAppointment: "/new-appointment",

@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
+import ConsentInitModal from "./ConsentInitModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
@@ -15,6 +16,12 @@ import { formatInstantInIST } from "@/core/utils/dayjsIST";
 import { Marital_Status } from "@/core/common/selectOption";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import { getLinkTokenStatus } from "@/core/utils/abhaLinkApi";
+import {
+  getConsentStatus,
+  getConsentStatusBadgeClass,
+  isConsentGranted,
+  type IConsentListItem,
+} from "@/core/api/abdmConsentApi";
 
 interface IPathlabCase {
   _id: string;
@@ -222,22 +229,37 @@ const PatientDetailsComponent = () => {
   const [patientIpds, setPatientIpds] = useState<IPatientIpdRow[]>([]);
   const [patientIpdsLoading, setPatientIpdsLoading] = useState<boolean>(false);
 
-  type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases";
+  type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases" | "consents";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
   const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
+  const [consentInitModalOpen, setConsentInitModalOpen] = useState(false);
   const [hasValidLinkToken, setHasValidLinkToken] = useState(false);
+  const [consentStatus, setConsentStatus] = useState<string | null>(null);
+  const [consents, setConsents] = useState<IConsentListItem[]>([]);
+
+  const grantedConsents = consents.filter((item) => isConsentGranted(item.status));
+  const showConsentsTab = grantedConsents.length > 0 || isConsentGranted(consentStatus);
 
   useEffect(() => {
     if (patientId) {
       fetchPatientDetails();
       fetchAppointments();
       fetchLinkTokenStatus(patientId);
+      fetchConsentStatus(patientId);
       fetchedTabsRef.current.add("appointments");
     } else {
       setHasValidLinkToken(false);
+      setConsentStatus(null);
+      setConsents([]);
     }
   }, [patientId]);
+
+  useEffect(() => {
+    if (!showConsentsTab && activeTab === "consents") {
+      setActiveTab("appointments");
+    }
+  }, [showConsentsTab, activeTab]);
 
   const fetchLinkTokenStatus = async (id: string) => {
     if (!API_BASE_URL || !id?.trim()) {
@@ -252,6 +274,22 @@ const PatientDetailsComponent = () => {
       setHasValidLinkToken(hasValidToken);
     } catch {
       setHasValidLinkToken(false);
+    }
+  };
+
+  const fetchConsentStatus = async (id: string) => {
+    if (!id?.trim()) {
+      setConsentStatus(null);
+      setConsents([]);
+      return;
+    }
+    try {
+      const result = await getConsentStatus(id);
+      setConsentStatus(result.status);
+      setConsents(result.consents);
+    } catch {
+      setConsentStatus(null);
+      setConsents([]);
     }
   };
 
@@ -274,6 +312,8 @@ const PatientDetailsComponent = () => {
         fetchDialysisSessions(1);
         break;
       case "pathlab-cases":
+        break;
+      case "consents":
         break;
     }
   }, [patientId]);
@@ -801,6 +841,14 @@ const PatientDetailsComponent = () => {
                       ABHA Linked
                     </span>
                   ) : null}
+                  {!loading && consentStatus ? (
+                    <span
+                      className={`badge border fs-12 fw-semibold px-2 py-1 rounded-2 ${getConsentStatusBadgeClass(consentStatus)}`}
+                      title="ABDM Consent Status"
+                    >
+                      Consent · {consentStatus}
+                    </span>
+                  ) : null}
                 </h5>
                 {!loading &&
                 patient?.isMRPatient &&
@@ -837,6 +885,50 @@ const PatientDetailsComponent = () => {
                       <i className="ti ti-link me-1" />
                       Linking Token
                     </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary text-nowrap"
+                      onClick={() => setConsentInitModalOpen(true)}
+                      disabled={loading || !patient}
+                      aria-label="Initiate ABDM Consent"
+                    >
+                      <i className="ti ti-file-check me-1" />
+                      Consent
+                    </button>
+
+                    <Link
+                      href={(() => {
+                        const params = new URLSearchParams({
+                          patientId: patientId ?? patient?._id ?? "",
+                        });
+                        const fromDates = grantedConsents
+                          .map((item) => item.dateRangeFrom)
+                          .filter((value): value is string => Boolean(value));
+                        const toDates = grantedConsents
+                          .map((item) => item.dateRangeTo)
+                          .filter((value): value is string => Boolean(value));
+                        if (fromDates.length) {
+                          params.set("dateRangeFrom", fromDates.sort()[0]);
+                        }
+                        if (toDates.length) {
+                          params.set(
+                            "dateRangeTo",
+                            toDates.sort()[toDates.length - 1]
+                          );
+                        }
+                        return `${all_routes.patientHealthHistory}?${params.toString()}`;
+                      })()}
+                      className={`btn btn-outline-primary text-nowrap${loading || !patient ? " disabled" : ""}`}
+                      aria-label="Open patient health history"
+                      aria-disabled={loading || !patient}
+                      onClick={(e) => {
+                        if (loading || !patient) e.preventDefault();
+                      }}
+                    >
+                      <i className="ti ti-history me-1" />
+                      History
+                    </Link>
 
                     <button
                       type="button"
@@ -1110,7 +1202,10 @@ const PatientDetailsComponent = () => {
                 { key: "transactions", label: "Transactions" },
                 { key: "dialysis", label: "Dialysis" },
                 { key: "pathlab-cases", label: "Pathlab Cases" },
-              ] as const
+                ...(showConsentsTab
+                  ? ([{ key: "consents", label: "Consents" }] as const)
+                  : []),
+              ] as ReadonlyArray<{ key: TabKey; label: string }>
             ).map(({ key, label }) => (
               <li key={key} className="nav-item">
                 <button
@@ -2428,6 +2523,86 @@ const PatientDetailsComponent = () => {
                 )}
               </div>
             </div>
+            {showConsentsTab ? (
+              <div className={`tab-pane${activeTab === "consents" ? " show active" : ""}`} id="consents">
+                <div className="table-responsive">
+                  {!grantedConsents.length ? (
+                    <p className="text-muted mb-0">No granted consents found.</p>
+                  ) : (
+                    <table className="table table-nowrap table-hover">
+                      <thead className="thead-light">
+                        <tr>
+                          <th>Status</th>
+                          <th>Purpose</th>
+                          <th>Requester</th>
+                          <th>HI Types</th>
+                          <th>Date Range</th>
+                          <th>Data Erase At</th>
+                          <th>Granted At</th>
+                          <th>Care Contexts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grantedConsents.map((consent) => {
+                          const rowKey =
+                            consent.consentId ||
+                            consent.consentRequestId ||
+                            consent.outboundRequestId ||
+                            `${consent.status}-${consent.grantedAt}`;
+                          return (
+                            <tr key={rowKey}>
+                              <td>
+                                <span
+                                  className={`badge border fs-12 fw-semibold px-2 py-1 rounded-2 ${getConsentStatusBadgeClass(consent.status)}`}
+                                >
+                                  {consent.status ?? "—"}
+                                </span>
+                              </td>
+                              <td className="text-dark">{consent.purpose ?? "—"}</td>
+                              <td className="text-dark">
+                                {consent.requesterName ?? consent.hipName ?? "—"}
+                              </td>
+                              <td>
+                                <div className="d-flex flex-wrap gap-1" style={{ maxWidth: "280px" }}>
+                                  {consent.hiTypes.length ? (
+                                    consent.hiTypes.map((hiType) => (
+                                      <span
+                                        key={`${rowKey}-${hiType}`}
+                                        className="badge badge-soft-primary border border-primary text-primary fs-11 fw-medium px-2 py-1 rounded-2"
+                                      >
+                                        {hiType}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-muted">—</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-dark">
+                                {consent.dateRangeFrom || consent.dateRangeTo
+                                  ? `${consent.dateRangeFrom ? dayjs(consent.dateRangeFrom).format("DD MMM YYYY") : "—"} – ${consent.dateRangeTo ? dayjs(consent.dateRangeTo).format("DD MMM YYYY") : "—"}`
+                                  : "—"}
+                              </td>
+                              <td className="text-dark">
+                                {consent.dataEraseAt
+                                  ? dayjs(consent.dataEraseAt).format("DD MMM YYYY")
+                                  : "—"}
+                              </td>
+                              <td className="text-dark">
+                                {consent.grantedAt
+                                  ? dayjs(consent.grantedAt).format("DD MMM YYYY, HH:mm")
+                                  : "—"}
+                              </td>
+                              <td className="text-dark">{consent.careContexts.length || 0}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
           {/* tab content end */}
         </div>
@@ -2453,6 +2628,15 @@ const PatientDetailsComponent = () => {
         onClose={() => setLinkTokenModalOpen(false)}
         patient={patient}
         onTokenReady={() => setHasValidLinkToken(true)}
+      /> 
+      <ConsentInitModal
+        open={consentInitModalOpen}
+        onClose={() => setConsentInitModalOpen(false)}
+        patientId={patient?._id ?? patientId}
+        onSuccess={() => {
+          const id = patient?._id ?? patientId;
+          if (id) fetchConsentStatus(id);
+        }}
       />
     </>
   );
