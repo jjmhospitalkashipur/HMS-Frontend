@@ -81,16 +81,16 @@ const readStringArray = (value: unknown): string[] => {
 
 const readCareContexts = (value: unknown): IConsentCareContext[] => {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      const row = asObject(item);
-      if (!row) return null;
-      return {
-        patientReference: readOptionalString(row.patientReference) ?? undefined,
-        careContextReference: readOptionalString(row.careContextReference) ?? undefined,
-      };
-    })
-    .filter((item): item is IConsentCareContext => Boolean(item));
+  const contexts: IConsentCareContext[] = [];
+  for (const item of value) {
+    const row = asObject(item);
+    if (!row) continue;
+    contexts.push({
+      patientReference: readOptionalString(row.patientReference) ?? undefined,
+      careContextReference: readOptionalString(row.careContextReference) ?? undefined,
+    });
+  }
+  return contexts;
 };
 
 const mapConsentItem = (value: unknown): IConsentListItem | null => {
