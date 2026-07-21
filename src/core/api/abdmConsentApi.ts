@@ -2,8 +2,31 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import type { TFhirHiType } from "@/core/types/fhirHealthRecord";
 
+export type TConsentPurpose =
+  | "CAREMGT"
+  | "BTG"
+  | "PUBHLTH"
+  | "HPAYMT"
+  | "DSRCH"
+  | "PATRQ";
+
+export interface IConsentPurposeOption {
+  value: TConsentPurpose;
+  label: string;
+}
+
+export const CONSENT_PURPOSE_OPTIONS: IConsentPurposeOption[] = [
+  { value: "CAREMGT", label: "Care Management" },
+  { value: "BTG", label: "Break the Glass" },
+  { value: "PUBHLTH", label: "Public Health" },
+  { value: "HPAYMT", label: "Healthcare Payment" },
+  { value: "DSRCH", label: "Disease Specific Healthcare Research" },
+  { value: "PATRQ", label: "Self Requested" },
+];
+
 export interface IConsentInitParams {
   patientId: string;
+  purposeCode: TConsentPurpose;
   dateRangeFrom: string;
   dateRangeTo: string;
   dataEraseAt: string;
@@ -194,6 +217,7 @@ export const isConsentGranted = (status: string | null | undefined): boolean =>
 
 export const validateConsentInitFields = (params: IConsentInitParams): string | null => {
   if (!params.patientId?.trim()) return "Patient ID is required.";
+  if (!params.purposeCode?.trim()) return "Please select a purpose.";
   if (!params.dateRangeFrom?.trim()) return "Please select date range from.";
   if (!params.dateRangeTo?.trim()) return "Please select date range to.";
   if (!params.dataEraseAt?.trim()) return "Please select data erase date.";
@@ -219,6 +243,7 @@ export const initConsent = async (params: IConsentInitParams): Promise<unknown> 
   try {
     const res = await axios.post(`${API_BASE_URL}/hospital/abdm/m3/consent/init`, {
       patientId: params.patientId.trim(),
+      purposeCode: params.purposeCode,
       dateRangeFrom: params.dateRangeFrom,
       dateRangeTo: params.dateRangeTo,
       dataEraseAt: params.dataEraseAt,

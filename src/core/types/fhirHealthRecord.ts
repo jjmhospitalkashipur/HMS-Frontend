@@ -36,6 +36,7 @@ export interface IFhirMedicationItem {
   duration: string;
   route: string;
   timing?: string;
+  instructions?: string;
   quantity?: number;
 }
 
@@ -43,11 +44,23 @@ export interface IFhirInvestigationItem {
   testName: string;
   result: string;
   date: string;
+  notes?: string;
+}
+
+export interface IFhirProcedureItem {
+  procedureName: string;
+  date: string;
+  notes?: string;
 }
 
 export interface IFhirInvestigationAdvisedItem {
   testName: string;
   notes: string;
+}
+
+export interface IFhirWomenHealth {
+  menstrualCycle: string;
+  pregnancyStatus: string;
 }
 
 export interface IFhirTestResultItem {
@@ -101,14 +114,18 @@ export interface IFhirDischargeSummaryData {
   familyHistory: string;
   physicalExamination: string;
   allergies: string[];
-  provisionalDiagnosis: string;
+  provisionalDiagnosis: IFhirDiagnosisItem[];
   finalDiagnosis: IFhirDiagnosisItem[];
   clinicalSummary: string;
   courseInHospital: string;
   treatmentGiven: string;
   conditionOnDischarge: string;
   investigations: IFhirInvestigationItem[];
-  proceduresPerformed: string[];
+  dischargeBp: string;
+  dischargePulse: string;
+  dischargeSpO2: string;
+  dischargeTemp: string;
+  proceduresPerformed: IFhirProcedureItem[];
   medicinesOnDischarge: IFhirMedicationItem[];
   adviceOnDischarge: string[];
   followUpDate: string;
@@ -130,7 +147,7 @@ export interface IFhirOPConsultationData {
   familyHistory: string;
   physicalExamination: string;
   allergies: string[];
-  provisionalDiagnosis: string;
+  provisionalDiagnosis: IFhirDiagnosisItem[];
   finalDiagnosis: IFhirDiagnosisItem[];
   investigationsAdvised: IFhirInvestigationAdvisedItem[];
   medications: IFhirMedicationItem[];
@@ -216,6 +233,7 @@ export interface IFhirWellnessRecordData {
   smokingStatus: string;
   alcoholConsumption: string;
   exerciseFrequency: string;
+  womenHealth: IFhirWomenHealth;
   healthStatus: string;
   recommendations: string[];
   observations: string;

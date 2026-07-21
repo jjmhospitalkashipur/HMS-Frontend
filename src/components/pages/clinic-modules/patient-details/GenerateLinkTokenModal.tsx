@@ -6,8 +6,6 @@ import { API_BASE_URL } from "@/environment";
 import {
   generateLinkToken,
   getLinkTokenStatus,
-  mapGenderToAbdm,
-  resolveYearOfBirth,
   validateLinkTokenFields,
 } from "@/core/utils/abhaLinkApi";
 
@@ -33,6 +31,16 @@ const GENDER_OPTIONS = [
   { value: "F", label: "Female (F)" },
   { value: "O", label: "Others (O)" },
 ];
+
+const ABHA_ADDRESS_SUFFIX = "@sbx";
+
+const normalizeAbhaAddressLocalPart = (value: string): string =>
+  value.replace(/@.*$/i, "").replace(/\s/g, "");
+
+const formatAbhaAddress = (localPart: string): string => {
+  const trimmed = normalizeAbhaAddressLocalPart(localPart);
+  return trimmed ? `${trimmed}${ABHA_ADDRESS_SUFFIX}` : "";
+};
 
 const LINK_STATUS_POLL_ATTEMPTS = 5;
 const LINK_STATUS_POLL_INTERVAL_MS = 2500;
@@ -95,18 +103,18 @@ const GenerateLinkTokenModal = ({
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !patient) return;
+    if (!open) return;
 
-    setAbhaAddress(patient.abhaAddress?.trim() ?? "");
-    setAbhaNumber(patient.abhaNumber?.trim() ?? "");
-    setName(patient.name?.trim() ?? "");
-    setGender(mapGenderToAbdm(patient.gender));
-    setYearOfBirth(resolveYearOfBirth(patient.dob, patient.age));
+    setAbhaAddress("");
+    setAbhaNumber("");
+    setName("");
+    setGender("");
+    setYearOfBirth("");
     setSubmitting(false);
     setCheckingStatus(false);
     setError(null);
     setSuccess(null);
-  }, [open, patient]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -119,9 +127,9 @@ const GenerateLinkTokenModal = ({
 
     const validationError = validateLinkTokenFields({
       patientId,
-      abhaAddress,
+      abhaAddress: formatAbhaAddress(abhaAddress),
       abhaNumber,
-      name,
+      name: name.trim().toUpperCase(),
       gender,
       yearOfBirth,
     });
@@ -138,9 +146,9 @@ const GenerateLinkTokenModal = ({
       setSubmitting(true);
       await generateLinkToken(API_BASE_URL, {
         patientId,
-        abhaAddress,
+        abhaAddress: formatAbhaAddress(abhaAddress),
         abhaNumber,
-        name,
+        name: name.trim().toUpperCase(),
         gender,
         yearOfBirth,
       });
@@ -243,16 +251,28 @@ const GenerateLinkTokenModal = ({
                     <label className="form-label fw-medium fs-14" htmlFor="link-token-abha-address">
                       ABHA Address <span className="text-danger">*</span>
                     </label>
-                    <input
-                      id="link-token-abha-address"
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. name@sbx"
-                      value={abhaAddress}
-                      onChange={(e) => setAbhaAddress(e.target.value)}
-                      disabled={submitting}
-                      required
-                    />
+                    <div className="input-group">
+                      <input
+                        id="link-token-abha-address"
+                        type="text"
+                        className="form-control"
+                        placeholder="name"
+                        value={abhaAddress}
+                        onChange={(e) =>
+                          setAbhaAddress(normalizeAbhaAddressLocalPart(e.target.value))
+                        }
+                        disabled={submitting}
+                        required
+                        autoComplete="off"
+                        aria-describedby="link-token-abha-address-suffix"
+                      />
+                      <span
+                        id="link-token-abha-address-suffix"
+                        className="input-group-text text-muted"
+                      >
+                        {ABHA_ADDRESS_SUFFIX}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="col-12 col-md-6">
@@ -281,7 +301,7 @@ const GenerateLinkTokenModal = ({
                       className="form-control"
                       placeholder="Patient name"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => setName(e.target.value.toUpperCase())}
                       disabled={submitting}
                       required
                     />

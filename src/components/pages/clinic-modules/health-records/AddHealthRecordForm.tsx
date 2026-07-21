@@ -16,17 +16,25 @@ import {
   type IFhirAttachment,
   type IFhirDiagnosisItem,
   type IFhirHealthRecordListItem,
+  type IFhirInvestigationAdvisedItem,
+  type IFhirInvestigationItem,
   type IFhirMedicationItem,
+  type IFhirProcedureItem,
   type IFhirTestResultItem,
   type IFhirVitalSigns,
+  type IFhirWomenHealth,
   type TFhirHiType,
   type TFhirSourceType,
 } from "@/core/types/fhirHealthRecord";
 import {
   LABEL_CLASS,
   dateTimeLocalToIso,
+  emptyInvestigation,
+  emptyInvestigationAdvised,
   emptyMedication,
+  emptyProcedure,
   emptyTestResult,
+  extractPrefillMetadata,
   getEmptyFormDataForHiType,
   mergePrefillIntoFormData,
   serializeFormDataForApi,
@@ -263,6 +271,8 @@ const AddHealthRecordForm = ({
       try {
         const prefill = await fetchFhirPrefill(sourceType, sourceId, nextHiType);
         setFormData(mergePrefillIntoFormData(nextHiType, empty, prefill));
+        const meta = extractPrefillMetadata(prefill);
+        if (meta?.date) setRecordDate(meta.date);
       } catch {
         setFormData(empty);
         setFeedback({ type: "danger", text: "Could not load prefill data. You can fill the form manually." });
@@ -459,12 +469,15 @@ const AddHealthRecordForm = ({
     </>
   );
 
-  const renderDiagnosisList = (key: "finalDiagnosis") => {
+  const renderDiagnosisList = (
+    key: "finalDiagnosis" | "provisionalDiagnosis",
+    label: string
+  ) => {
     const rows = (formData[key] as IFhirDiagnosisItem[] | undefined) ?? [];
     return (
       <div className="col-12 mb-3">
         <div className="d-flex justify-content-between align-items-center mb-2">
-          <label className={LABEL_CLASS}>Final Diagnosis</label>
+          <label className={LABEL_CLASS}>{label}</label>
           <button
             type="button"
             className="btn btn-sm btn-outline-primary"
@@ -478,7 +491,7 @@ const AddHealthRecordForm = ({
           </button>
         </div>
         {rows.map((row, index) => (
-          <div className="row g-2 mb-2 align-items-end" key={`diag-${index}`}>
+          <div className="row g-2 mb-2 align-items-end" key={`${key}-${index}`}>
             <div className="col-4 col-sm-3">
               <input
                 type="text"
@@ -542,24 +555,32 @@ const AddHealthRecordForm = ({
         {rows.map((med, index) => (
           <div className="border rounded p-2 mb-2 bg-light" key={`med-${index}`}>
             <div className="row g-2">
-              {(["medicineName", "dosage", "frequency", "duration", "route", "timing"] as const).map(
-                (field) => (
-                  <div className="col-6 col-md-4 col-lg-2" key={field}>
-                    <input
-                      type="text"
-                      className={INPUT_CLASS}
-                      placeholder={field.replace(/([A-Z])/g, " $1").trim()}
-                      value={med[field] ?? ""}
-                      onChange={(e) => {
-                        const next = [...rows];
-                        next[index] = { ...next[index], [field]: e.target.value };
-                        updateField(key, next);
-                      }}
-                      disabled={loadingPrefill || saving}
-                    />
-                  </div>
-                )
-              )}
+              {(
+                [
+                  "medicineName",
+                  "dosage",
+                  "frequency",
+                  "duration",
+                  "route",
+                  "timing",
+                  "instructions",
+                ] as const
+              ).map((field) => (
+                <div className="col-6 col-md-4 col-lg-2" key={field}>
+                  <input
+                    type="text"
+                    className={INPUT_CLASS}
+                    placeholder={field.replace(/([A-Z])/g, " $1").trim()}
+                    value={med[field] ?? ""}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[index] = { ...next[index], [field]: e.target.value };
+                      updateField(key, next);
+                    }}
+                    disabled={loadingPrefill || saving}
+                  />
+                </div>
+              ))}
               {key === "medications" ? (
                 <div className="col-6 col-md-2">
                   <input
@@ -596,6 +617,251 @@ const AddHealthRecordForm = ({
     );
   };
 
+  const renderInvestigationsList = () => {
+    const rows = (formData.investigations as IFhirInvestigationItem[] | undefined) ?? [];
+    return (
+      <div className="col-12 mb-3">
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <label className={LABEL_CLASS}>Investigations</label>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={() => updateField("investigations", [...rows, emptyInvestigation()])}
+            disabled={loadingPrefill || saving}
+          >
+            <i className="ti ti-plus me-1" />
+            Add
+          </button>
+        </div>
+        {rows.map((row, index) => (
+          <div className="border rounded p-2 mb-2 bg-light" key={`inv-${index}`}>
+            <div className="row g-2">
+              <div className="col-6 col-md-3">
+                <input
+                  type="text"
+                  className={INPUT_CLASS}
+                  placeholder="Test name"
+                  value={row.testName}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], testName: e.target.value };
+                    updateField("investigations", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-6 col-md-3">
+                <input
+                  type="text"
+                  className={INPUT_CLASS}
+                  placeholder="Result"
+                  value={row.result}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], result: e.target.value };
+                    updateField("investigations", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-6 col-md-3">
+                <input
+                  type="datetime-local"
+                  className={INPUT_CLASS}
+                  aria-label="Investigation date"
+                  value={toDateTimeLocalValue(row.date)}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], date: e.target.value };
+                    updateField("investigations", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-6 col-md-2">
+                <input
+                  type="text"
+                  className={INPUT_CLASS}
+                  placeholder="Notes"
+                  value={row.notes ?? ""}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], notes: e.target.value };
+                    updateField("investigations", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-auto ms-auto">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => updateField("investigations", rows.filter((_, i) => i !== index))}
+                  disabled={loadingPrefill || saving}
+                >
+                  <i className="ti ti-trash" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderProceduresList = () => {
+    const rows = (formData.proceduresPerformed as IFhirProcedureItem[] | undefined) ?? [];
+    return (
+      <div className="col-12 mb-3">
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <label className={LABEL_CLASS}>Procedures Performed</label>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={() => updateField("proceduresPerformed", [...rows, emptyProcedure()])}
+            disabled={loadingPrefill || saving}
+          >
+            <i className="ti ti-plus me-1" />
+            Add
+          </button>
+        </div>
+        {rows.map((row, index) => (
+          <div className="border rounded p-2 mb-2 bg-light" key={`proc-${index}`}>
+            <div className="row g-2">
+              <div className="col-6 col-md-4">
+                <input
+                  type="text"
+                  className={INPUT_CLASS}
+                  placeholder="Procedure name"
+                  value={row.procedureName}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], procedureName: e.target.value };
+                    updateField("proceduresPerformed", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-6 col-md-3">
+                <input
+                  type="datetime-local"
+                  className={INPUT_CLASS}
+                  aria-label="Procedure date"
+                  value={toDateTimeLocalValue(row.date)}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], date: e.target.value };
+                    updateField("proceduresPerformed", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-6 col-md-4">
+                <input
+                  type="text"
+                  className={INPUT_CLASS}
+                  placeholder="Notes"
+                  value={row.notes ?? ""}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[index] = { ...next[index], notes: e.target.value };
+                    updateField("proceduresPerformed", next);
+                  }}
+                  disabled={loadingPrefill || saving}
+                />
+              </div>
+              <div className="col-auto ms-auto">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() =>
+                    updateField(
+                      "proceduresPerformed",
+                      rows.filter((_, i) => i !== index)
+                    )
+                  }
+                  disabled={loadingPrefill || saving}
+                >
+                  <i className="ti ti-trash" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderInvestigationsAdvisedList = () => {
+    const rows =
+      (formData.investigationsAdvised as IFhirInvestigationAdvisedItem[] | undefined) ?? [];
+    return (
+      <div className="col-12 mb-3">
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <label className={LABEL_CLASS}>Investigations Advised</label>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={() =>
+              updateField("investigationsAdvised", [...rows, emptyInvestigationAdvised()])
+            }
+            disabled={loadingPrefill || saving}
+          >
+            <i className="ti ti-plus me-1" />
+            Add
+          </button>
+        </div>
+        {rows.map((row, index) => (
+          <div className="row g-2 mb-2 align-items-end" key={`inv-adv-${index}`}>
+            <div className="col-12 col-sm-4">
+              <input
+                type="text"
+                className={INPUT_CLASS}
+                placeholder="Test name"
+                value={row.testName}
+                onChange={(e) => {
+                  const next = [...rows];
+                  next[index] = { ...next[index], testName: e.target.value };
+                  updateField("investigationsAdvised", next);
+                }}
+                disabled={loadingPrefill || saving}
+              />
+            </div>
+            <div className="col">
+              <input
+                type="text"
+                className={INPUT_CLASS}
+                placeholder="Notes"
+                value={row.notes}
+                onChange={(e) => {
+                  const next = [...rows];
+                  next[index] = { ...next[index], notes: e.target.value };
+                  updateField("investigationsAdvised", next);
+                }}
+                disabled={loadingPrefill || saving}
+              />
+            </div>
+            <div className="col-auto">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger"
+                onClick={() =>
+                  updateField(
+                    "investigationsAdvised",
+                    rows.filter((_, i) => i !== index)
+                  )
+                }
+                disabled={loadingPrefill || saving}
+              >
+                <i className="ti ti-trash" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderHiTypeFields = () => {
     switch (hiType) {
       case "DischargeSummary":
@@ -612,7 +878,6 @@ const AddHealthRecordForm = ({
             <TextField id="fhir-discharge" label="Discharge Date" type="datetime-local" value={toDateTimeLocalValue(String(formData.dischargeDate ?? ""))} onChange={(v) => updateField("dischargeDate", v)} disabled={loadingPrefill || saving} col="date" />
             <TextField id="fhir-followup" label="Follow Up Date" type="datetime-local" value={toDateTimeLocalValue(String(formData.followUpDate ?? ""))} onChange={(v) => updateField("followUpDate", v)} disabled={loadingPrefill || saving} col="date" />
             <TextField id="fhir-condition" label="Condition on Discharge" value={String(formData.conditionOnDischarge ?? "")} onChange={(v) => updateField("conditionOnDischarge", v)} disabled={loadingPrefill || saving} col="third" />
-            <TextField id="fhir-provisional" label="Provisional Diagnosis" value={String(formData.provisionalDiagnosis ?? "")} onChange={(v) => updateField("provisionalDiagnosis", v)} disabled={loadingPrefill || saving} col="third" />
             <TextField id="fhir-chief" label="Chief Complaints" rows={1} value={String(formData.chiefComplaints ?? "")} onChange={(v) => updateField("chiefComplaints", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-illness" label="Present Illness History" rows={1} value={String(formData.presentIllnessHistory ?? "")} onChange={(v) => updateField("presentIllnessHistory", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-past" label="Past Medical History" rows={1} value={String(formData.pastMedicalHistory ?? "")} onChange={(v) => updateField("pastMedicalHistory", v)} disabled={loadingPrefill || saving} />
@@ -621,10 +886,17 @@ const AddHealthRecordForm = ({
             <div className="col-12">
               <StringListField label="Allergies" values={(formData.allergies as string[]) ?? []} onChange={(v) => updateField("allergies", v)} disabled={loadingPrefill || saving} />
             </div>
-            {renderDiagnosisList("finalDiagnosis")}
+            {renderDiagnosisList("provisionalDiagnosis", "Provisional Diagnosis")}
+            {renderDiagnosisList("finalDiagnosis", "Final Diagnosis")}
             <TextField id="fhir-clinical" label="Clinical Summary" rows={1} value={String(formData.clinicalSummary ?? "")} onChange={(v) => updateField("clinicalSummary", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-course" label="Course in Hospital" rows={1} value={String(formData.courseInHospital ?? "")} onChange={(v) => updateField("courseInHospital", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-treatment" label="Treatment Given" rows={1} value={String(formData.treatmentGiven ?? "")} onChange={(v) => updateField("treatmentGiven", v)} disabled={loadingPrefill || saving} />
+            {renderInvestigationsList()}
+            <TextField id="fhir-discharge-bp" label="Discharge BP" value={String(formData.dischargeBp ?? "")} onChange={(v) => updateField("dischargeBp", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-discharge-pulse" label="Discharge Pulse" value={String(formData.dischargePulse ?? "")} onChange={(v) => updateField("dischargePulse", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-discharge-spo2" label="Discharge SpO2" value={String(formData.dischargeSpO2 ?? "")} onChange={(v) => updateField("dischargeSpO2", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-discharge-temp" label="Discharge Temp" value={String(formData.dischargeTemp ?? "")} onChange={(v) => updateField("dischargeTemp", v)} disabled={loadingPrefill || saving} col="quarter" />
+            {renderProceduresList()}
             {renderMedicationList("medicinesOnDischarge", "Medicines on Discharge")}
             <div className="col-12">
               <StringListField label="Advice on Discharge" values={(formData.adviceOnDischarge as string[]) ?? []} onChange={(v) => updateField("adviceOnDischarge", v)} disabled={loadingPrefill || saving} />
@@ -642,7 +914,6 @@ const AddHealthRecordForm = ({
             <TextField id="fhir-visit-date" label="Visit Date" type="datetime-local" value={toDateTimeLocalValue(String(formData.visitDate ?? ""))} onChange={(v) => updateField("visitDate", v)} disabled={loadingPrefill || saving} col="date" />
             <TextField id="fhir-followup" label="Follow Up Date" type="datetime-local" value={toDateTimeLocalValue(String(formData.followUpDate ?? ""))} onChange={(v) => updateField("followUpDate", v)} disabled={loadingPrefill || saving} col="date" />
             <TextField id="fhir-doctor" label="Attending Doctor" value={String(formData.attendingDoctorName ?? "")} onChange={(v) => updateField("attendingDoctorName", v)} disabled={loadingPrefill || saving} col="half" />
-            <TextField id="fhir-provisional" label="Provisional Diagnosis" value={String(formData.provisionalDiagnosis ?? "")} onChange={(v) => updateField("provisionalDiagnosis", v)} disabled={loadingPrefill || saving} col="half" />
             <TextField id="fhir-chief" label="Chief Complaints" rows={1} value={String(formData.chiefComplaints ?? "")} onChange={(v) => updateField("chiefComplaints", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-illness" label="Present Illness History" rows={1} value={String(formData.presentIllnessHistory ?? "")} onChange={(v) => updateField("presentIllnessHistory", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-past" label="Past History" rows={1} value={String(formData.pastHistory ?? "")} onChange={(v) => updateField("pastHistory", v)} disabled={loadingPrefill || saving} />
@@ -651,7 +922,9 @@ const AddHealthRecordForm = ({
             <div className="col-12">
               <StringListField label="Allergies" values={(formData.allergies as string[]) ?? []} onChange={(v) => updateField("allergies", v)} disabled={loadingPrefill || saving} />
             </div>
-            {renderDiagnosisList("finalDiagnosis")}
+            {renderDiagnosisList("provisionalDiagnosis", "Provisional Diagnosis")}
+            {renderDiagnosisList("finalDiagnosis", "Final Diagnosis")}
+            {renderInvestigationsAdvisedList()}
             {renderMedicationList("medications", "Medications")}
             <div className="col-12">
               <StringListField label="Advice" values={(formData.advice as string[]) ?? []} onChange={(v) => updateField("advice", v)} disabled={loadingPrefill || saving} />
@@ -837,6 +1110,34 @@ const AddHealthRecordForm = ({
             <TextField id="fhir-alcohol" label="Alcohol" value={String(formData.alcoholConsumption ?? "")} onChange={(v) => updateField("alcoholConsumption", v)} disabled={loadingPrefill || saving} col="quarter" />
             <TextField id="fhir-exercise" label="Exercise Frequency" value={String(formData.exerciseFrequency ?? "")} onChange={(v) => updateField("exerciseFrequency", v)} disabled={loadingPrefill || saving} col="quarter" />
             <TextField id="fhir-health-status" label="Health Status" value={String(formData.healthStatus ?? "")} onChange={(v) => updateField("healthStatus", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField
+              id="fhir-menstrual"
+              label="Menstrual Cycle"
+              value={String((formData.womenHealth as IFhirWomenHealth | undefined)?.menstrualCycle ?? "")}
+              onChange={(v) =>
+                updateField("womenHealth", {
+                  menstrualCycle: v,
+                  pregnancyStatus:
+                    (formData.womenHealth as IFhirWomenHealth | undefined)?.pregnancyStatus ?? "",
+                })
+              }
+              disabled={loadingPrefill || saving}
+              col="half"
+            />
+            <TextField
+              id="fhir-pregnancy"
+              label="Pregnancy Status"
+              value={String((formData.womenHealth as IFhirWomenHealth | undefined)?.pregnancyStatus ?? "")}
+              onChange={(v) =>
+                updateField("womenHealth", {
+                  menstrualCycle:
+                    (formData.womenHealth as IFhirWomenHealth | undefined)?.menstrualCycle ?? "",
+                  pregnancyStatus: v,
+                })
+              }
+              disabled={loadingPrefill || saving}
+              col="half"
+            />
             <TextField id="fhir-general-exam" label="General Examination" rows={1} value={String(formData.generalExamination ?? "")} onChange={(v) => updateField("generalExamination", v)} disabled={loadingPrefill || saving} />
             <TextField id="fhir-systemic" label="Systemic Examination" rows={1} value={String(formData.systemicExamination ?? "")} onChange={(v) => updateField("systemicExamination", v)} disabled={loadingPrefill || saving} />
             <div className="col-12">

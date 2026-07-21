@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import {
+  CONSENT_PURPOSE_OPTIONS,
   initConsent,
   validateConsentInitFields,
+  type TConsentPurpose,
 } from "@/core/api/abdmConsentApi";
 import {
   FHIR_HI_TYPE_OPTIONS,
@@ -54,6 +57,7 @@ const ConsentInitModal = ({
   patientId,
   onSuccess,
 }: IConsentInitModalProps) => {
+  const [purposeCode, setPurposeCode] = useState<TConsentPurpose | "">("");
   const [dateRangeFrom, setDateRangeFrom] = useState(getDefaultDateRangeFrom);
   const [dateRangeTo, setDateRangeTo] = useState(getDefaultDateRangeTo);
   const [dataEraseAt, setDataEraseAt] = useState(getDefaultDataEraseAt);
@@ -63,9 +67,24 @@ const ConsentInitModal = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const purposeOptions: Option[] = useMemo(
+    () =>
+      CONSENT_PURPOSE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    []
+  );
+
+  const selectedPurpose = useMemo(
+    () => purposeOptions.find((option) => option.value === purposeCode) ?? null,
+    [purposeCode, purposeOptions]
+  );
+
   useEffect(() => {
     if (!open) return;
 
+    setPurposeCode("");
     setDateRangeFrom(getDefaultDateRangeFrom());
     setDateRangeTo(getDefaultDateRangeTo());
     setDataEraseAt(getDefaultDataEraseAt());
@@ -94,6 +113,10 @@ const ConsentInitModal = ({
     setHiTypes([]);
   };
 
+  const handlePurposeChange = (option: Option | null) => {
+    setPurposeCode((option?.value ?? "") as TConsentPurpose | "");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -101,6 +124,7 @@ const ConsentInitModal = ({
 
     const payload = {
       patientId: resolvedPatientId,
+      purposeCode: purposeCode as TConsentPurpose,
       dateRangeFrom: toIsoStartOfDay(dateRangeFrom),
       dateRangeTo: toIsoEndOfDay(dateRangeTo),
       dataEraseAt: toIsoEndOfDay(dataEraseAt),
@@ -170,6 +194,37 @@ const ConsentInitModal = ({
                 ) : null}
 
                 <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-medium fs-14" htmlFor="consent-purpose">
+                      Purpose <span className="text-danger">*</span>
+                    </label>
+                    <CommonSelect
+                      instanceId="consent-purpose"
+                      options={purposeOptions}
+                      value={selectedPurpose}
+                      onChange={handlePurposeChange}
+                      placeholder="Select purpose"
+                      className="w-100"
+                      disabled={submitting}
+                    />
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-medium fs-14" htmlFor="consent-requester-name">
+                      Requester Name <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      id="consent-requester-name"
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter requester name"
+                      value={requesterName}
+                      onChange={(e) => setRequesterName(e.target.value)}
+                      disabled={submitting}
+                      required
+                    />
+                  </div>
+
                   <div className="col-12 col-md-4">
                     <label className="form-label fw-medium fs-14" htmlFor="consent-date-from">
                       Date Range From <span className="text-danger">*</span>
@@ -262,22 +317,6 @@ const ConsentInitModal = ({
                         );
                       })}
                     </div>
-                  </div>
-
-                  <div className="col-12">
-                    <label className="form-label fw-medium fs-14" htmlFor="consent-requester-name">
-                      Requester Name <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      id="consent-requester-name"
-                      type="text"
-                      className="form-control"
-                      placeholder="Enter requester name"
-                      value={requesterName}
-                      onChange={(e) => setRequesterName(e.target.value)}
-                      disabled={submitting}
-                      required
-                    />
                   </div>
                 </div>
               </div>
