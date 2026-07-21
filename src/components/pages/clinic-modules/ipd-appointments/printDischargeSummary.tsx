@@ -85,9 +85,10 @@ export const buildPrintDischargeSummaryData = (
   const summary = normalizeDischargeSummaryFromApi(dischargeSummaryRaw);
   if (!summary) return null;
 
-  const adviceLines = summary.adviceOnDischarge?.trim()
-    ? [summary.adviceOnDischarge.trim()]
-    : [];
+  const adviceLines = summary.adviceOnDischarge
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
   return {
     visitId: ipd.ipdId,

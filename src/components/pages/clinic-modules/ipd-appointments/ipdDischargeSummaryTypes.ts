@@ -484,9 +484,10 @@ export const buildDischargeSummaryPayload = (
         ...(m.instructions?.trim() ? { instructions: m.instructions.trim() } : {}),
       }))
       .filter((m) => m.medicineName),
-    adviceOnDischarge: form.adviceOnDischarge.trim()
-      ? [form.adviceOnDischarge.trim()]
-      : [],
+    adviceOnDischarge: form.adviceOnDischarge
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean),
     followUp: normalizeFollowUpDate(form.followUp),
   };
 

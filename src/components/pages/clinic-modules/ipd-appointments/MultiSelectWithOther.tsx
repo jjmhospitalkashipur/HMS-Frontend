@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Select from "react-select";
-import type { InputActionMeta, SingleValue } from "react-select";
+import type { InputActionMeta, MultiValue } from "react-select";
 
 export interface IMultiSelectWithOtherOption {
   value: string;
@@ -22,6 +22,15 @@ interface IMultiSelectWithOtherProps {
   otherValue: string;
 }
 
+const splitValueLines = (value: string): string[] =>
+  value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+const joinValueLines = (lines: string[]): string =>
+  lines.map((line) => line.trim()).filter(Boolean).join("\n");
+
 const MultiSelectWithOther = ({
   id,
   value,
@@ -32,67 +41,92 @@ const MultiSelectWithOther = ({
   otherValue,
 }: IMultiSelectWithOtherProps) => {
   const otherOption = useMemo(
-    () => options.find((o) => o.value === otherValue),
+    () => options.find((o) => o.value === otherValue) ?? null,
+    [options, otherValue]
+  );
+
+  const presetOptions = useMemo(
+    () => options.filter((o) => o.value !== otherValue),
     [options, otherValue]
   );
 
   const optionByText = useMemo(() => {
     const map = new Map<string, IMultiSelectWithOtherOption>();
-    options.forEach((o) => map.set(o.text, o));
+    presetOptions.forEach((o) => map.set(o.text, o));
     return map;
-  }, [options]);
+  }, [presetOptions]);
 
   const [otherText, setOtherText] = useState("");
   const [otherSelected, setOtherSelected] = useState(false);
-  const normalizedValue = (value ?? "").trim();
-  const selectedOption = useMemo(() => {
-    if (!normalizedValue) return null;
-    const matched = optionByText.get(normalizedValue);
-    if (matched && matched.value !== otherValue) return matched;
-    return otherSelected ? otherOption ?? null : null;
-  }, [normalizedValue, optionByText, otherOption, otherSelected, otherValue]);
-
-  useEffect(() => {
-    if (!normalizedValue) {
-      setOtherSelected(false);
-      setOtherText("");
-      return;
-    }
-    const matched = optionByText.get(normalizedValue);
-    if (matched && matched.value !== otherValue) {
-      setOtherSelected(false);
-      setOtherText("");
-      return;
-    }
-    if (matched && matched.value === otherValue) {
-      setOtherSelected(true);
-      setOtherText("");
-      return;
-    }
-    setOtherSelected(true);
-    setOtherText(normalizedValue);
-  }, [normalizedValue, optionByText, otherValue]);
-
   const [inputValue, setInputValue] = useState("");
 
-  const handleChange = useCallback(
-    (selected: SingleValue<IMultiSelectWithOtherOption>) => {
-      if (!selected) {
-        setOtherSelected(false);
-        setOtherText("");
-        onChange("");
+  const selectedOptions = useMemo(() => {
+    const lines = splitValueLines(value);
+    const matched: IMultiSelectWithOtherOption[] = [];
+    let hasCustom = false;
+
+    lines.forEach((line) => {
+      const option = optionByText.get(line);
+      if (option) {
+        matched.push(option);
         return;
       }
-      if (selected.value === otherValue) {
-        setOtherSelected(true);
-        onChange(selected.text);
-        return;
-      }
+      hasCustom = true;
+    });
+
+    if ((otherSelected || hasCustom) && otherOption) {
+      matched.push(otherOption);
+    }
+
+    return matched;
+  }, [optionByText, otherOption, otherSelected, value]);
+
+  useEffect(() => {
+    const lines = splitValueLines(value);
+    if (!lines.length) {
       setOtherSelected(false);
       setOtherText("");
-      onChange(selected.text);
+      return;
+    }
+
+    const unmatched = lines.filter((line) => !optionByText.has(line));
+    if (!unmatched.length) {
+      setOtherSelected(false);
+      setOtherText("");
+      return;
+    }
+
+    setOtherSelected(true);
+    setOtherText(unmatched.join("\n"));
+  }, [optionByText, value]);
+
+  const emitChange = useCallback(
+    (selected: IMultiSelectWithOtherOption[], nextOtherText: string, nextOtherSelected: boolean) => {
+      const lines = selected
+        .filter((option) => option.value !== otherValue)
+        .map((option) => option.text);
+      if (nextOtherSelected) {
+        const custom = nextOtherText.trim();
+        if (custom) lines.push(custom);
+      }
+      onChange(joinValueLines(lines));
     },
-    [onChange, otherText, otherValue]
+    [onChange, otherValue]
+  );
+
+  const handleChange = useCallback(
+    (selected: MultiValue<IMultiSelectWithOtherOption>) => {
+      const next = [...selected];
+      const hasOther = next.some((option) => option.value === otherValue);
+      setOtherSelected(hasOther);
+      if (!hasOther) {
+        setOtherText("");
+        emitChange(next, "", false);
+        return;
+      }
+      emitChange(next, otherText, true);
+    },
+    [emitChange, otherText, otherValue]
   );
 
   const handleInputChange = useCallback((newValue: string, actionMeta: InputActionMeta) => {
@@ -104,12 +138,10 @@ const MultiSelectWithOther = ({
     (next: string) => {
       setOtherText(next);
       if (!otherSelected) return;
-      onChange(next.trim());
+      emitChange(selectedOptions, next, true);
     },
-    [onChange, otherSelected]
+    [emitChange, otherSelected, selectedOptions]
   );
-
-  const isOtherSelectedInUi = otherSelected;
 
   const reactSelectStyles = useMemo(
     () => ({
@@ -137,26 +169,28 @@ const MultiSelectWithOther = ({
 
   return (
     <div className="row g-2 align-items-start">
-      <div className={isOtherSelectedInUi ? "col-12 col-md-7" : "col-12"}>
-        <Select<IMultiSelectWithOtherOption, false>
+      <div className={otherSelected ? "col-12 col-md-7" : "col-12"}>
+        <Select<IMultiSelectWithOtherOption, true>
           inputId={id}
           instanceId={id}
+          isMulti
           isSearchable
           isClearable
           isDisabled={disabled}
           options={options}
-          value={selectedOption}
+          value={selectedOptions}
           onChange={handleChange}
           onInputChange={handleInputChange}
           placeholder={placeholder}
           styles={reactSelectStyles}
           menuPortalTarget={typeof window !== "undefined" ? document.body : null}
           menuPosition="fixed"
+          closeMenuOnSelect={false}
           noOptionsMessage={() => (inputValue.trim() ? "No matches" : "Type to search")}
         />
       </div>
 
-      {isOtherSelectedInUi ? (
+      {otherSelected ? (
         <div className="col-12 col-md-5">
           <input
             type="text"
@@ -174,4 +208,3 @@ const MultiSelectWithOther = ({
 };
 
 export default MultiSelectWithOther;
-
