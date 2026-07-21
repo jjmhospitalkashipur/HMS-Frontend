@@ -41,15 +41,18 @@ const toDateInputValue = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const getDefaultDateRangeFrom = (): string => "2023-01-01";
+const getTodayDateInputValue = (): string => toDateInputValue(new Date());
 
-const getDefaultDateRangeTo = (): string => toDateInputValue(new Date());
+const getDefaultDateRangeFrom = (): string => "2023-01-01";
 
 const getDefaultDataEraseAt = (): string => {
   const date = new Date();
   date.setUTCMonth(date.getUTCMonth() + 1);
   return toDateInputValue(date);
 };
+
+const getAllHiTypes = (): TFhirHiType[] =>
+  FHIR_HI_TYPE_OPTIONS.map((option) => option.value);
 
 const ConsentInitModal = ({
   open,
@@ -59,9 +62,9 @@ const ConsentInitModal = ({
 }: IConsentInitModalProps) => {
   const [purposeCode, setPurposeCode] = useState<TConsentPurpose | "">("");
   const [dateRangeFrom, setDateRangeFrom] = useState(getDefaultDateRangeFrom);
-  const [dateRangeTo, setDateRangeTo] = useState(getDefaultDateRangeTo);
+  const [dateRangeTo, setDateRangeTo] = useState(getTodayDateInputValue);
   const [dataEraseAt, setDataEraseAt] = useState(getDefaultDataEraseAt);
-  const [hiTypes, setHiTypes] = useState<TFhirHiType[]>([]);
+  const [hiTypes, setHiTypes] = useState<TFhirHiType[]>(getAllHiTypes);
   const [requesterName, setRequesterName] = useState(DEFAULT_REQUESTER_NAME);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,9 +89,9 @@ const ConsentInitModal = ({
 
     setPurposeCode("");
     setDateRangeFrom(getDefaultDateRangeFrom());
-    setDateRangeTo(getDefaultDateRangeTo());
+    setDateRangeTo(getTodayDateInputValue());
     setDataEraseAt(getDefaultDataEraseAt());
-    setHiTypes([]);
+    setHiTypes(getAllHiTypes());
     setRequesterName(DEFAULT_REQUESTER_NAME);
     setSubmitting(false);
     setError(null);
@@ -98,6 +101,7 @@ const ConsentInitModal = ({
   if (!open) return null;
 
   const resolvedPatientId = patientId?.trim() ?? "";
+  const maxDateRangeTo = getTodayDateInputValue();
 
   const handleToggleHiType = (value: TFhirHiType) => {
     setHiTypes((prev) =>
@@ -250,6 +254,8 @@ const ConsentInitModal = ({
                       className="form-control"
                       value={dateRangeTo}
                       onChange={(e) => setDateRangeTo(e.target.value)}
+                      min={dateRangeFrom || undefined}
+                      max={maxDateRangeTo}
                       disabled={submitting}
                       required
                     />
