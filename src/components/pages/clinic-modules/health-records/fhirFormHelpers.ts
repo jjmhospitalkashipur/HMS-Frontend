@@ -313,6 +313,13 @@ const coerceMedicationList = (val: unknown): IFhirMedicationItem[] => {
   return val.map((item) => {
     if (!item || typeof item !== "object") return emptyMedication();
     const med = item as Partial<IFhirMedicationItem>;
+    const quantityRaw = (item as Record<string, unknown>).quantity;
+    const quantity =
+      quantityRaw === "" || quantityRaw == null
+        ? undefined
+        : Number.isFinite(Number(quantityRaw))
+          ? Number(quantityRaw)
+          : undefined;
     return {
       medicineName: String(med.medicineName ?? ""),
       dosage: String(med.dosage ?? ""),
@@ -321,12 +328,7 @@ const coerceMedicationList = (val: unknown): IFhirMedicationItem[] => {
       route: String(med.route ?? "") || "Oral",
       timing: String(med.timing ?? ""),
       instructions: String(med.instructions ?? ""),
-      quantity:
-        med.quantity === "" || med.quantity == null
-          ? undefined
-          : Number.isFinite(Number(med.quantity))
-            ? Number(med.quantity)
-            : undefined,
+      quantity,
     };
   });
 };
