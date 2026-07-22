@@ -5,7 +5,6 @@ import { all_routes } from "../../../../routes/all_routes";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
-import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
 import ConsentInitModal from "./ConsentInitModal";
 import UnlinkAbhaConfirmModal from "./UnlinkAbhaConfirmModal";
 import Link from "next/link";
@@ -232,7 +231,6 @@ const PatientDetailsComponent = () => {
   type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases" | "consents";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
-  const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
   const [consentInitModalOpen, setConsentInitModalOpen] = useState(false);
   const [unlinkAbhaModalOpen, setUnlinkAbhaModalOpen] = useState(false);
   const [hasValidLinkToken, setHasValidLinkToken] = useState(false);
@@ -866,54 +864,44 @@ const PatientDetailsComponent = () => {
                     <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
                   </p>
                   <div className="d-flex align-items-center gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary text-nowrap"
-                      onClick={() => setLinkTokenModalOpen(true)}
-                      disabled={loading || !patient || hasValidLinkToken}
-                      aria-label="Generate Linking Token"
-                      title={hasValidLinkToken ? "ABHA is already linked" : undefined}
-                    >
-                      <i className="ti ti-link me-1" />
-                      Linking Token
-                    </button>
-
                     {hasValidLinkToken ? (
-                      <button
-                        type="button"
-                        className="btn btn-outline-danger text-nowrap"
-                        onClick={() => setUnlinkAbhaModalOpen(true)}
-                        disabled={loading || !patient}
-                        aria-label="Unlink ABHA"
-                      >
-                        <i className="ti ti-unlink me-1" />
-                        Unlink ABHA
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger text-nowrap"
+                          onClick={() => setUnlinkAbhaModalOpen(true)}
+                          disabled={loading || !patient}
+                          aria-label="Unlink ABHA"
+                        >
+                          <i className="ti ti-unlink me-1" />
+                          Unlink ABHA
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary text-nowrap"
+                          onClick={() => setConsentInitModalOpen(true)}
+                          disabled={loading || !patient}
+                          aria-label="Initiate ABDM Consent"
+                        >
+                          <i className="ti ti-file-check me-1" />
+                          Consent
+                        </button>
+
+                        <Link
+                          href={`${all_routes.patientHealthHistory}?patientId=${encodeURIComponent(patientId ?? patient?._id ?? "")}`}
+                          className={`btn btn-outline-primary text-nowrap${loading || !patient ? " disabled" : ""}`}
+                          aria-label="Open patient health history"
+                          aria-disabled={loading || !patient}
+                          onClick={(e) => {
+                            if (loading || !patient) e.preventDefault();
+                          }}
+                        >
+                          <i className="ti ti-history me-1" />
+                          History
+                        </Link>
+                      </>
                     ) : null}
-
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary text-nowrap"
-                      onClick={() => setConsentInitModalOpen(true)}
-                      disabled={loading || !patient}
-                      aria-label="Initiate ABDM Consent"
-                    >
-                      <i className="ti ti-file-check me-1" />
-                      Consent
-                    </button>
-
-                    <Link
-                      href={`${all_routes.patientHealthHistory}?patientId=${encodeURIComponent(patientId ?? patient?._id ?? "")}`}
-                      className={`btn btn-outline-primary text-nowrap${loading || !patient ? " disabled" : ""}`}
-                      aria-label="Open patient health history"
-                      aria-disabled={loading || !patient}
-                      onClick={(e) => {
-                        if (loading || !patient) e.preventDefault();
-                      }}
-                    >
-                      <i className="ti ti-history me-1" />
-                      History
-                    </Link>
 
                     <button
                       type="button"
@@ -2608,12 +2596,6 @@ const PatientDetailsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
-      <GenerateLinkTokenModal
-        open={linkTokenModalOpen}
-        onClose={() => setLinkTokenModalOpen(false)}
-        patient={patient}
-        onTokenReady={() => setHasValidLinkToken(true)}
-      />
       <UnlinkAbhaConfirmModal
         open={unlinkAbhaModalOpen}
         onClose={() => setUnlinkAbhaModalOpen(false)}
