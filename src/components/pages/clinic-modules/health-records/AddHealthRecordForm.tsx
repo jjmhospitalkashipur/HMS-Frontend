@@ -361,6 +361,7 @@ const AddHealthRecordForm = ({
       if (id) setFhirRecordId(id);
       setFeedback({ type: "success", text: "Draft saved successfully." });
       onSaved?.();
+      setTimeout(() => onClose(), 800);
       return id || fhirRecordId || null;
     } catch (err) {
       setFeedback({
@@ -1152,9 +1153,6 @@ const AddHealthRecordForm = ({
     }
   };
 
-  const supportsAttachments =
-    hiType === "DischargeSummary" || hiType === "HealthDocumentRecord";
-
   if (!open) return null;
 
   return (
@@ -1225,45 +1223,43 @@ const AddHealthRecordForm = ({
             <div className="row g-2">{renderHiTypeFields()}</div>
           )}
 
-          {supportsAttachments ? (
-            <div className="mt-3 border-top pt-3">
-              <label className={LABEL_CLASS}>Attachments</label>
-              <div className="d-flex flex-wrap gap-2 mb-2">
-                {attachments.map((att, index) => (
-                  <span
-                    key={`${att.s3Key}-${index}`}
-                    className="badge bg-light text-dark border d-inline-flex align-items-center gap-1"
+          <div className="mt-3 border-top pt-3">
+            <label className={LABEL_CLASS}>Attachments</label>
+            <div className="d-flex flex-wrap gap-2 mb-2">
+              {attachments.map((att, index) => (
+                <span
+                  key={`${att.s3Key}-${index}`}
+                  className="badge bg-light text-dark border d-inline-flex align-items-center gap-1"
+                >
+                  {att.title}
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm p-0 text-danger"
+                    onClick={() =>
+                      setAttachments((prev) => prev.filter((_, i) => i !== index))
+                    }
+                    disabled={saving || uploading}
+                    aria-label={`Remove ${att.title}`}
                   >
-                    {att.title}
-                    <button
-                      type="button"
-                      className="btn btn-link btn-sm p-0 text-danger"
-                      onClick={() =>
-                        setAttachments((prev) => prev.filter((_, i) => i !== index))
-                      }
-                      disabled={saving || uploading}
-                      aria-label={`Remove ${att.title}`}
-                    >
-                      <i className="ti ti-x" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="file"
-                className="form-control text-dark fs-14"
-                accept=".pdf,image/*"
-                disabled={saving || uploading}
-                onChange={(e) => {
-                  void handleAttachmentUpload(e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-              {uploading ? (
-                <small className="text-muted d-block mt-1">Uploading…</small>
-              ) : null}
+                    <i className="ti ti-x" />
+                  </button>
+                </span>
+              ))}
             </div>
-          ) : null}
+            <input
+              type="file"
+              className="form-control text-dark fs-14"
+              accept=".pdf,image/*"
+              disabled={saving || uploading}
+              onChange={(e) => {
+                void handleAttachmentUpload(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            {uploading ? (
+              <small className="text-muted d-block mt-1">Uploading…</small>
+            ) : null}
+          </div>
         </div>
 
         <div className="offcanvas-footer border-top d-flex flex-wrap justify-content-end gap-2 p-3 flex-shrink-0">
