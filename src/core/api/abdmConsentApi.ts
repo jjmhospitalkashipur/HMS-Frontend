@@ -40,6 +40,7 @@ export interface IConsentCareContext {
 }
 
 export interface IConsentListItem {
+  _id: string | null;
   consentId: string | null;
   consentRequestId: string | null;
   outboundRequestId: string | null;
@@ -127,6 +128,7 @@ const mapConsentItem = (value: unknown): IConsentListItem | null => {
   const dateRange = asObject(permission?.dateRange);
 
   return {
+    _id: readOptionalString(consent._id),
     consentId:
       readOptionalString(consent.consentId) ||
       readOptionalString(detail?.consentId) ||
@@ -186,6 +188,7 @@ export const extractConsents = (payload: unknown): IConsentListItem[] => {
   const seen = new Set<string>();
   return mapped.filter((item) => {
     const key =
+      item._id ||
       item.consentId ||
       item.consentRequestId ||
       item.outboundRequestId ||
@@ -264,7 +267,12 @@ export const getConsentStatus = async (patientId: string): Promise<IConsentStatu
 
   try {
     const res = await axios.get(`${API_BASE_URL}/hospital/abdm/m3/consent`, {
-      params: { patientId: patientId.trim() },
+      params: {
+        patientId: patientId.trim(),
+        purpose: "M3",
+        page: 1,
+        limit: 20,
+      },
     });
     const payload = res.data;
     const data = asObject(asObject(payload)?.data) ?? asObject(payload);

@@ -695,6 +695,7 @@ const AppointmentDetailsComponent = () => {
           sourceId={visit?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
           abhaLinked={Boolean(visit?.abhaLinked)}
+          patientPhone={patient?.phone}
           onEdit={(fhirId) => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);

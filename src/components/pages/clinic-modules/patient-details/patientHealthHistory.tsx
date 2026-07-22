@@ -5,6 +5,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import { all_routes } from "@/routes/all_routes";
+import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
+import {
+  getConsentStatus,
+  isConsentGranted,
+  type IConsentListItem,
+} from "@/core/api/abdmConsentApi";
 import {
   streamHealthData,
   type IHealthHistoryItem,
@@ -12,43 +18,29 @@ import {
 } from "@/core/api/abdmHealthDataStreamApi";
 import HealthHistoryDetailModal from "./HealthHistoryDetailModal";
 
-const toDateInputValue = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const getConsentRecordId = (consent: IConsentListItem): string | null =>
+  consent._id?.trim() || null;
 
-const toDateInputFromIso = (iso: string | null): string => {
-  if (!iso?.trim()) return "";
-  const date = dayjs(iso);
-  return date.isValid() ? date.format("YYYY-MM-DD") : "";
-};
+const formatConsentOptionLabel = (consent: IConsentListItem): string => {
+  const purpose = consent.purpose || consent.purposeCode || "Consent";
+  const status = consent.status?.trim() || "Unknown";
+  const dateRange =
+    consent.dateRangeFrom || consent.dateRangeTo
+      ? `${consent.dateRangeFrom ? dayjs(consent.dateRangeFrom).format("DD MMM YYYY") : "—"} – ${consent.dateRangeTo ? dayjs(consent.dateRangeTo).format("DD MMM YYYY") : "—"}`
+      : null;
+  const requester = consent.requesterName?.trim() || null;
 
-const toIsoStartOfDay = (dateStr: string): string => {
-  if (!dateStr) return "";
-  const date = new Date(`${dateStr}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
-};
-
-const toIsoEndOfDay = (dateStr: string): string => {
-  if (!dateStr) return "";
-  const date = new Date(`${dateStr}T23:59:59.999Z`);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+  return [purpose, status, dateRange, requester].filter(Boolean).join(" · ");
 };
 
 const PatientHealthHistoryComponent = () => {
   const searchParams = useSearchParams();
   const patientId = searchParams.get("patientId")?.trim() ?? "";
-  const defaultFromParam = searchParams.get("dateRangeFrom")?.trim() ?? "";
-  const defaultToParam = searchParams.get("dateRangeTo")?.trim() ?? "";
 
-  const [dateRangeFrom, setDateRangeFrom] = useState(
-    () => toDateInputFromIso(defaultFromParam) || "2023-01-01"
-  );
-  const [dateRangeTo, setDateRangeTo] = useState(
-    () => toDateInputFromIso(defaultToParam) || toDateInputValue(new Date())
-  );
+  const [consents, setConsents] = useState<IConsentListItem[]>([]);
+  const [consentsLoading, setConsentsLoading] = useState(false);
+  const [consentsError, setConsentsError] = useState<string | null>(null);
+  const [selectedConsentRecordId, setSelectedConsentRecordId] = useState("");
   const [items, setItems] = useState<IHealthHistoryItem[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<THealthStreamConnectionStatus>("idle");
@@ -59,6 +51,38 @@ const PatientHealthHistoryComponent = () => {
 
   const isStreaming =
     connectionStatus === "connecting" || connectionStatus === "streaming";
+
+  const grantedConsents = useMemo(
+    () => consents.filter((item) => isConsentGranted(item.status)),
+    [consents]
+  );
+
+  const consentOptions = useMemo(
+    () =>
+      grantedConsents
+        .map((consent) => ({
+          consent,
+          value: getConsentRecordId(consent),
+        }))
+        .filter((option): option is { consent: IConsentListItem; value: string } =>
+          Boolean(option.value)
+        ),
+    [grantedConsents]
+  );
+
+  const consentSelectOptions = useMemo<Option[]>(
+    () =>
+      consentOptions.map(({ consent, value }) => ({
+        value,
+        label: formatConsentOptionLabel(consent),
+      })),
+    [consentOptions]
+  );
+
+  const selectedConsentOption = useMemo(
+    () => consentSelectOptions.find((option) => option.value === selectedConsentRecordId) ?? null,
+    [consentSelectOptions, selectedConsentRecordId]
+  );
 
   const statusLabel = useMemo(() => {
     switch (connectionStatus) {
@@ -89,113 +113,136 @@ const PatientHealthHistoryComponent = () => {
     }
   }, [items.length]);
 
-  const handleFetchHistory = useCallback(async () => {
-    if (!patientId) {
-      setError("Patient ID is missing.");
-      setConnectionStatus("error");
-      return;
-    }
-    if (!dateRangeFrom || !dateRangeTo) {
-      setError("Please select both date range from and to.");
-      setConnectionStatus("error");
-      return;
-    }
-
-    // Prefer exact consent ISO defaults when the selected calendar day is unchanged.
-    const fromIso =
-      defaultFromParam && toDateInputFromIso(defaultFromParam) === dateRangeFrom
-        ? defaultFromParam
-        : toIsoStartOfDay(dateRangeFrom);
-    const toIso =
-      defaultToParam && toDateInputFromIso(defaultToParam) === dateRangeTo
-        ? defaultToParam
-        : toIsoEndOfDay(dateRangeTo);
-
-    if (!fromIso || !toIso) {
-      setError("Please select a valid date range.");
-      setConnectionStatus("error");
-      return;
-    }
-    if (new Date(fromIso) > new Date(toIso)) {
-      setError("Date range from must be before date range to.");
-      setConnectionStatus("error");
-      return;
-    }
-
+  useEffect(() => {
     abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
     setItems([]);
     setError(null);
     setStreamInfo(null);
-    setConnectionStatus("connecting");
+    setConnectionStatus("idle");
+    setSelectedConsentRecordId("");
 
-    try {
-      await streamHealthData(
-        {
-          patientId,
-          dateRangeFrom: fromIso,
-          dateRangeTo: toIso,
-        },
-        {
-          signal: controller.signal,
-          onStatus: (status, message) => {
-            if (!controller.signal.aborted) {
-              setConnectionStatus(status);
-              if (message?.trim() && status !== "streaming") {
-                setStreamInfo(message.trim());
-              } else if (message?.trim() && status === "streaming") {
+    if (!patientId) {
+      setConsents([]);
+      setConsentsError("Patient ID is missing.");
+      return;
+    }
+
+    let cancelled = false;
+    const fetchConsents = async () => {
+      setConsentsLoading(true);
+      setConsentsError(null);
+      try {
+        const result = await getConsentStatus(patientId);
+        if (cancelled) return;
+        setConsents(result.consents ?? []);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setConsents([]);
+        setConsentsError(
+          err instanceof Error ? err.message : "Failed to fetch consents."
+        );
+      } finally {
+        if (!cancelled) setConsentsLoading(false);
+      }
+    };
+
+    void fetchConsents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId]);
+
+  const handleFetchHistory = useCallback(
+    async (consentRecordIdOverride?: string) => {
+      const consentRecordId = (consentRecordIdOverride ?? selectedConsentRecordId)?.trim();
+
+      if (!patientId) {
+        setError("Patient ID is missing.");
+        setConnectionStatus("error");
+        return;
+      }
+      if (!consentRecordId) {
+        setError("Please select a consent.");
+        setConnectionStatus("error");
+        return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setItems([]);
+      setError(null);
+      setStreamInfo(null);
+      setConnectionStatus("connecting");
+
+      try {
+        await streamHealthData(
+          {
+            patientId,
+            consentId: consentRecordId,
+          },
+          {
+            signal: controller.signal,
+            onStatus: (status, message) => {
+              if (!controller.signal.aborted) {
+                setConnectionStatus(status);
+                if (message?.trim() && status !== "streaming") {
+                  setStreamInfo(message.trim());
+                } else if (message?.trim() && status === "streaming") {
+                  setStreamInfo((prev) =>
+                    prev?.startsWith("Received ") ? prev : message.trim()
+                  );
+                }
+                if (status === "error" && message?.trim()) {
+                  setError(message.trim());
+                }
+              }
+            },
+            onInfo: (message) => {
+              if (!controller.signal.aborted && message?.trim()) {
                 setStreamInfo((prev) =>
                   prev?.startsWith("Received ") ? prev : message.trim()
                 );
               }
-              if (status === "error" && message?.trim()) {
-                setError(message.trim());
-              }
-            }
-          },
-          onInfo: (message) => {
-            if (!controller.signal.aborted && message?.trim()) {
-              setStreamInfo((prev) =>
-                prev?.startsWith("Received ") ? prev : message.trim()
-              );
-            }
-          },
-          onItems: (incoming) => {
-            if (controller.signal.aborted) return;
-            setItems((prev) => {
-              const existingIds = new Set(prev.map((item) => item.id));
-              const toAdd = incoming.filter(
-                (item) => Boolean(item?.id) && !existingIds.has(item.id)
-              );
-              if (!toAdd.length) return prev;
-              return [...prev, ...toAdd];
-            });
-          },
-        }
-      );
-    } catch (err: unknown) {
-      if (controller.signal.aborted) return;
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setConnectionStatus("error");
-      setError(err instanceof Error ? err.message : "Failed to stream health history.");
-    }
-  }, [
-    patientId,
-    dateRangeFrom,
-    dateRangeTo,
-    defaultFromParam,
-    defaultToParam,
-  ]);
+            },
+            onItems: (incoming) => {
+              if (controller.signal.aborted) return;
+              setItems((prev) => {
+                const existingIds = new Set(prev.map((item) => item.id));
+                const toAdd = incoming.filter(
+                  (item) => Boolean(item?.id) && !existingIds.has(item.id)
+                );
+                if (!toAdd.length) return prev;
+                return [...prev, ...toAdd];
+              });
+            },
+          }
+        );
+      } catch (err: unknown) {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setConnectionStatus("error");
+        setError(err instanceof Error ? err.message : "Failed to stream health history.");
+      }
+    },
+    [patientId, selectedConsentRecordId]
+  );
 
-  // Auto-fetch on page load / browser refresh / patient change.
-  useEffect(() => {
-    if (!patientId || !dateRangeFrom || !dateRangeTo) return;
-    void handleFetchHistory();
-    // Only re-run when patient changes; date changes use Refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
-  }, [patientId]);
+  const handleConsentChange = (option: Option | null) => {
+    const value = option?.value?.trim() ?? "";
+
+    abortRef.current?.abort();
+    setItems([]);
+    setError(null);
+    setStreamInfo(null);
+    setConnectionStatus("idle");
+    setSelectedConsentRecordId(value);
+
+    if (!value) return;
+    void handleFetchHistory(value);
+  };
 
   const handleOpenDetails = (item: IHealthHistoryItem) => {
     setSelectedItem(item);
@@ -204,6 +251,12 @@ const PatientHealthHistoryComponent = () => {
   const handleCloseDetails = () => {
     setSelectedItem(null);
   };
+
+  const consentPlaceholder = consentsLoading
+    ? "Loading consents..."
+    : consentSelectOptions.length
+      ? "Select consent"
+      : "No granted consents found";
 
   return (
     <>
@@ -223,7 +276,7 @@ const PatientHealthHistoryComponent = () => {
                 <h4 className="fw-bold mb-1">Patient Health History</h4>
                 <p className="text-muted mb-0">
                   ABDM health data for this patient
-                  {patientId ? ` — loads automatically` : ""}.
+                  {patientId ? " — select a consent to load records" : ""}.
                 </p>
               </div>
               <span
@@ -245,32 +298,19 @@ const PatientHealthHistoryComponent = () => {
           <div className="card shadow-sm mb-3">
             <div className="card-body py-3">
               <div className="row g-2 align-items-end">
-                <div className="col-12 col-md-4">
-                  <label className="form-label fw-medium fs-14" htmlFor="history-date-from">
-                    Date Range From <span className="text-danger">*</span>
+                <div className="col-12 col-md-8">
+                  <label className="form-label fw-medium fs-14" htmlFor="history-consent-select">
+                    Consent <span className="text-danger">*</span>
                   </label>
-                  <input
-                    id="history-date-from"
-                    type="date"
-                    className="form-control"
-                    value={dateRangeFrom}
-                    onChange={(e) => setDateRangeFrom(e.target.value)}
-                    disabled={isStreaming}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label fw-medium fs-14" htmlFor="history-date-to">
-                    Date Range To <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    id="history-date-to"
-                    type="date"
-                    className="form-control"
-                    value={dateRangeTo}
-                    onChange={(e) => setDateRangeTo(e.target.value)}
-                    disabled={isStreaming}
-                    required
+                  <CommonSelect
+                    instanceId="history-consent-select"
+                    className="w-100"
+                    options={consentSelectOptions}
+                    value={selectedConsentOption}
+                    onChange={handleConsentChange}
+                    placeholder={consentPlaceholder}
+                    disabled={isStreaming || consentsLoading || !consentSelectOptions.length}
+                    isLoading={consentsLoading}
                   />
                 </div>
                 <div className="col-12 col-md-4">
@@ -282,8 +322,8 @@ const PatientHealthHistoryComponent = () => {
                     <button
                       type="button"
                       className="btn btn-outline-primary text-nowrap"
-                      onClick={handleFetchHistory}
-                      disabled={isStreaming || !patientId}
+                      onClick={() => void handleFetchHistory()}
+                      disabled={isStreaming || !patientId || !selectedConsentRecordId}
                       aria-label="Refresh health history"
                     >
                       <i className="ti ti-refresh me-1" />
@@ -294,6 +334,12 @@ const PatientHealthHistoryComponent = () => {
               </div>
             </div>
           </div>
+
+          {consentsError ? (
+            <div className="alert alert-danger py-2" role="alert">
+              {consentsError}
+            </div>
+          ) : null}
 
           {streamInfo ? (
             <div className="alert alert-info py-2" role="status">
@@ -312,9 +358,11 @@ const PatientHealthHistoryComponent = () => {
               <p className="text-muted mb-0">
                 {isStreaming
                   ? streamInfo || "Waiting for health history records..."
-                  : connectionStatus === "idle"
-                    ? "Loading health history..."
-                    : "No health history records found."}
+                  : consentsLoading
+                    ? "Loading consents..."
+                    : connectionStatus === "idle"
+                      ? "Select a granted consent to load health history."
+                      : "No health history records found."}
               </p>
             ) : (
               <table className="table table-nowrap table-hover">

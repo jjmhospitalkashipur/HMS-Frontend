@@ -88,6 +88,10 @@ export interface IFhirAttachment {
   s3Key: string;
   title: string;
   contentType: string;
+  url?: string;
+  signedUrl?: string;
+  originalUrl?: string;
+  data?: string;
 }
 
 export interface IFhirHealthRecordMetadata {
@@ -269,6 +273,7 @@ export interface IFhirHealthRecordListItem {
   updatedAt?: string;
   finalizedAt?: string;
   linkedToAbdm?: boolean;
+  fhirBundle?: Record<string, unknown>;
   metadata?: {
     status?: string;
     date?: string;

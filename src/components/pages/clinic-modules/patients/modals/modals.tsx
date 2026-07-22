@@ -15,7 +15,6 @@ import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import {
-  formatPatientPhoneForApi,
   validateIndianMobilePhone,
 } from "@/core/utils/formatPatientPhoneForApi";
 import { useRouter } from "next/navigation";
@@ -23,6 +22,11 @@ import dayjs from "dayjs";
 import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
+import {
+  buildPatientEditSnapshot,
+  buildPatientUpdatePayload,
+  type IPatientEditSnapshot,
+} from "@/core/utils/buildPatientUpdatePayload";
 
 const Modals = () => {
   const router = useRouter();
@@ -70,6 +74,7 @@ const Modals = () => {
   const [ayushmanFile, setAyushmanFile] = useState<File | null>(null);
   const [ayushmanCardS3Url, setAyushmanCardS3Url] = useState<string>("");
   const [existingAadharS3Url, setExistingAadharS3Url] = useState<string>("");
+  const [originalSnapshot, setOriginalSnapshot] = useState<IPatientEditSnapshot | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Reset form function
@@ -99,7 +104,51 @@ const Modals = () => {
     setAyushmanFile(null);
     setAyushmanCardS3Url("");
     setExistingAadharS3Url("");
+    setOriginalSnapshot(null);
   };
+
+  const buildSnapshotFromCurrentForm = useCallback(
+    (dobValue: string): IPatientEditSnapshot =>
+      buildPatientEditSnapshot({
+        title,
+        name,
+        phone,
+        email,
+        dob: dobValue,
+        ageYears,
+        ageMonths,
+        ageDays,
+        gender,
+        bloodGroup,
+        address,
+        companyName,
+        division,
+        aadharNumber,
+        ayushmanCardNo,
+        maritalStatus,
+        occupation,
+        drugSensitivity,
+      }),
+    [
+      title,
+      name,
+      phone,
+      email,
+      ageYears,
+      ageMonths,
+      ageDays,
+      gender,
+      bloodGroup,
+      address,
+      companyName,
+      division,
+      aadharNumber,
+      ayushmanCardNo,
+      maritalStatus,
+      occupation,
+      drugSensitivity,
+    ]
+  );
 
   const fetchPatientData = useCallback(async (id: string) => {
     try {
@@ -113,13 +162,49 @@ const Modals = () => {
 
       if (response.data?.code === 200 && response.data?.data?.patient) {
         const patient = response.data.data.patient;
+        const resolvedTitle = Title.find(t => t.value === patient.title) || Title[0] || null;
+        const resolvedGender = Gender.find(g => g.value === patient.gender) || Gender[0] || null;
+        const resolvedBloodGroup =
+          Blood_Group.find(bg => bg.value === patient.bloodGroup) || Blood_Group[0] || null;
+        const maritalStatusValue = getPatientMaritalStatus(patient);
+        const resolvedMaritalStatus = maritalStatusValue
+          ? Marital_Status.find((m) => m.value === maritalStatusValue) ?? Marital_Status[0] ?? null
+          : Marital_Status[0] ?? null;
+        const resolvedDob = patient.dob ? dayjs(patient.dob).format("YYYY-MM-DD") : "";
+
+        let resolvedAgeYears = "";
+        let resolvedAgeMonths = "";
+        let resolvedAgeDays = "";
+
+        if (patient.age != null) {
+          resolvedAgeYears = patient.age.toString();
+          if (patient.months != null) {
+            resolvedAgeMonths = String(patient.months);
+          }
+          if (patient.days != null) {
+            resolvedAgeDays = String(patient.days);
+          }
+        } else if (patient.dob) {
+          const birthDate = dayjs(patient.dob);
+          const today = dayjs();
+          const years = today.diff(birthDate, "year");
+          const months = today.diff(birthDate.add(years, "year"), "month");
+          const days = today.diff(
+            birthDate.add(years, "year").add(months, "month"),
+            "day"
+          );
+          resolvedAgeYears = years.toString();
+          resolvedAgeMonths = months.toString();
+          resolvedAgeDays = days.toString();
+        }
+
         setPhone(normalizePhoneForInput(patient.phone));
-        setTitle(Title.find(t => t.value === patient.title) || Title[0] || null);
+        setTitle(resolvedTitle);
         setName(patient.name || "");
-        setGender(Gender.find(g => g.value === patient.gender) || Gender[0] || null);
+        setGender(resolvedGender);
         setEmail(patient.email || "");
         setDob(patient.dob ? dayjs(patient.dob) : undefined);
-        setBloodGroup(Blood_Group.find(bg => bg.value === patient.bloodGroup) || Blood_Group[0] || null);
+        setBloodGroup(resolvedBloodGroup);
         setAddress(patient.address || "");
         setCompanyName(patient.companyName ?? "");
         setDivision(patient.division ?? "");
@@ -130,37 +215,37 @@ const Modals = () => {
         setImageS3Url(patient.imageS3Url ?? "");
         setAyushmanCardS3Url(patient.ayushmanCardS3Url ?? "");
         setExistingAadharS3Url(patient.aadharS3Url ?? "");
-        const maritalStatusValue = getPatientMaritalStatus(patient);
-        setMaritalStatus(
-          maritalStatusValue
-            ? Marital_Status.find((m) => m.value === maritalStatusValue) ?? Marital_Status[0] ?? null
-            : Marital_Status[0] ?? null
-        );
+        setMaritalStatus(resolvedMaritalStatus);
         setProfilePhotoFile(null);
         setAyushmanFile(null);
         setAadharFile(null);
         setDocFile(null);
+        setAgeYears(resolvedAgeYears);
+        setAgeMonths(resolvedAgeMonths);
+        setAgeDays(resolvedAgeDays);
 
-        // Set age from patient.age or calculate from dob
-        if (patient.age != null) {
-          setAgeYears(patient.age.toString());
-          if (patient.months != null) {
-            setAgeMonths(String(patient.months));
-          }
-          if (patient.days != null) {
-            setAgeDays(String(patient.days));
-          }
-        } else if (patient.dob) {
-          const birthDate = dayjs(patient.dob);
-          const today = dayjs();
-          let years = today.diff(birthDate, 'year');
-          let months = today.diff(birthDate.add(years, 'year'), 'month');
-          let days = today.diff(birthDate.add(years, 'year').add(months, 'month'), 'day');
-          setAgeYears(years.toString());
-          setAgeMonths(months.toString());
-          setAgeDays(days.toString());
-        }
-
+        setOriginalSnapshot(
+          buildPatientEditSnapshot({
+            title: resolvedTitle,
+            name: patient.name || "",
+            phone: normalizePhoneForInput(patient.phone),
+            email: patient.email || "",
+            dob: resolvedDob,
+            ageYears: resolvedAgeYears,
+            ageMonths: resolvedAgeMonths,
+            ageDays: resolvedAgeDays,
+            gender: resolvedGender,
+            bloodGroup: resolvedBloodGroup,
+            address: patient.address || "",
+            companyName: patient.companyName ?? "",
+            division: patient.division ?? "",
+            aadharNumber: patient.aadharNo || "",
+            ayushmanCardNo: patient.ayushmanCardNo || "",
+            maritalStatus: resolvedMaritalStatus,
+            occupation: patient.occupation ?? "",
+            drugSensitivity: patient.drugSensitivity ?? "",
+          })
+        );
       }
     } catch (error: any) {
       console.error("Error fetching patient data:", error);
@@ -234,30 +319,6 @@ const Modals = () => {
     }
   };
 
-  const calculateAge = (): number => {
-    if (ageYears) {
-      return parseInt(ageYears, 10);
-    }
-    if (dob) {
-      const birthDate = dayjs.isDayjs(dob) ? dob.toDate() : new Date(dob);
-      const today = new Date();
-      let years = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        years--;
-      }
-      return years;
-    }
-    return 0;
-  };
-
-  const parseAgeComponent = (value: string): number => {
-    const trimmed = value.trim();
-    if (trimmed === "") return 0;
-    const n = parseInt(trimmed, 10);
-    return Number.isNaN(n) ? 0 : Math.max(0, n);
-  };
-
   const formatDob = (): string => {
     if (!dob) return "";
     if (dayjs.isDayjs(dob)) {
@@ -286,6 +347,11 @@ const Modals = () => {
       return;
     }
 
+    if (!originalSnapshot) {
+      alert("Patient data is still loading. Please try again.");
+      return;
+    }
+
     const phoneValidation = validateIndianMobilePhone(phone);
     if (!phoneValidation.valid) {
       alert(phoneValidation.message);
@@ -300,45 +366,40 @@ const Modals = () => {
 
       setLoading(true);
 
-      let uploadedAadharUrl = existingAadharS3Url;
-      let uploadedAyushmanUrl = ayushmanCardS3Url;
-      let uploadedImageUrl = imageS3Url;
+      const currentSnapshot = buildSnapshotFromCurrentForm(formatDob());
+      const uploads: {
+        aadharS3Url?: string;
+        ayushmanCardS3Url?: string;
+        imageS3Url?: string;
+        otherDocsS3Urls?: string[];
+      } = {};
 
       if (aadharFile) {
-        uploadedAadharUrl = await uploadFileToS3(aadharFile, "ipd_aadhar_docs");
+        uploads.aadharS3Url = await uploadFileToS3(aadharFile, "ipd_aadhar_docs");
       }
       if (ayushmanFile) {
-        uploadedAyushmanUrl = await uploadFileToS3(ayushmanFile, "ipd_ayushman_docs");
+        uploads.ayushmanCardS3Url = await uploadFileToS3(ayushmanFile, "ipd_ayushman_docs");
       }
       if (profilePhotoFile) {
-        uploadedImageUrl = await uploadFileToS3(profilePhotoFile, "ipd_patient_photos");
+        uploads.imageS3Url = await uploadFileToS3(profilePhotoFile, "ipd_patient_photos");
+      }
+      if (docFile) {
+        const uploadedOtherDoc = await uploadFileToS3(docFile, "ipd_other_docs");
+        if (uploadedOtherDoc) {
+          uploads.otherDocsS3Urls = [uploadedOtherDoc];
+        }
       }
 
-      const patientData = {
-        title: title?.value || "",
-        name: name,
-        phone: formatPatientPhoneForApi(phone),
-        email: email || undefined,
-        dob: formatDob() || undefined,
-        age: calculateAge(),
-        months: parseAgeComponent(ageMonths),
-        days: parseAgeComponent(ageDays),
-        gender: gender?.value || "",
-        bloodGroup: bloodGroup?.value && bloodGroup.value !== "Select" ? bloodGroup.value : undefined,
-        address: address,
-        companyName: companyName.trim() || undefined,
-        division: division.trim() || undefined,
-        aadharNo: aadharNumber || undefined,
-        aadharS3Url: uploadedAadharUrl || undefined,
-        ayushmanCardNo: ayushmanCardNo || undefined,
-        ayushmanCardS3Url: uploadedAyushmanUrl || undefined,
-        imageS3Url: uploadedImageUrl || undefined,
-        ...(maritalStatus?.value && maritalStatus.value !== "Select"
-          ? { maritalStatus: maritalStatus.value }
-          : {}),
-        ...(occupation.trim() ? { occupation: occupation.trim() } : {}),
-        ...(drugSensitivity.trim() ? { drugSensitivity: drugSensitivity.trim() } : {}),
-      };
+      const patientData = buildPatientUpdatePayload(
+        originalSnapshot,
+        currentSnapshot,
+        uploads
+      );
+
+      if (Object.keys(patientData).length === 0) {
+        alert("No changes to save.");
+        return;
+      }
 
       const response = await axios.patch(`${API_BASE_URL}/hospital/patients/${patientId}`, patientData);
       const isSuccess = response.status >= 200 && response.status < 300;

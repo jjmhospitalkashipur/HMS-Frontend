@@ -306,3 +306,75 @@ const extractS3KeyFromUrl = (url: string): string => {
     return url.split("?")[0];
   }
 };
+
+const triggerBlobDownload = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+const resolveDownloadFilename = (
+  contentDisposition: string | undefined,
+  fhirRecordId: string,
+  contentType: string
+): string => {
+  const match =
+    contentDisposition?.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i) ??
+    contentDisposition?.match(/filename="([^"]+)"/i);
+  const fromHeader = match?.[1]?.trim();
+  if (fromHeader) return decodeURIComponent(fromHeader);
+
+  const lowerType = contentType.toLowerCase();
+  if (lowerType.includes("pdf")) return `health-record-${fhirRecordId}.pdf`;
+  if (lowerType.includes("json")) return `health-record-${fhirRecordId}.json`;
+  return `health-record-${fhirRecordId}.bundle`;
+};
+
+export const downloadFhirHealthRecord = async (fhirRecordId: string): Promise<void> => {
+  if (!API_BASE_URL) throw new Error("API configuration error");
+  if (!fhirRecordId?.trim()) throw new Error("Health record id is required");
+
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/hospital/abdm/fhir/health-information/${fhirRecordId.trim()}/download`,
+      { responseType: "blob" }
+    );
+    const blob = response.data as Blob;
+    const contentType = String(response.headers["content-type"] ?? "");
+
+    if (contentType.includes("application/json")) {
+      const text = await blob.text();
+      let message = "Failed to download health record";
+      try {
+        const parsed = JSON.parse(text) as { message?: string };
+        if (parsed?.message?.trim()) message = parsed.message.trim();
+      } catch {
+        // keep default message
+      }
+      throw new Error(message);
+    }
+
+    const filename = resolveDownloadFilename(
+      response.headers["content-disposition"] as string | undefined,
+      fhirRecordId.trim(),
+      contentType
+    );
+    triggerBlobDownload(blob, filename);
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const parsed = JSON.parse(text) as { message?: string };
+        throw new Error(parsed?.message ?? "Failed to download health record");
+      } catch {
+        throw new Error("Failed to download health record");
+      }
+    }
+    throw new Error(getAxiosMessage(err, "Failed to download health record"));
+  }
+};

@@ -18,6 +18,7 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import GenerateAbhaQrModal from "./GenerateAbhaQrModal";
 
 interface IOverviewMetric {
   total: number;
@@ -84,6 +85,7 @@ interface IDaycareStatsPeriodData {
 const DashboardComponent = () => {
   const [overview, setOverview] = useState<IDashboardOverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
+  const [abhaQrModalOpen, setAbhaQrModalOpen] = useState(false);
 
   const [sColChart] = useState<any>({
     chart: {
@@ -403,7 +405,14 @@ const DashboardComponent = () => {
                 <i className="ti ti-list me-1" />
                 Queue
               </Link>
-              
+              <button
+                type="button"
+                className="btn btn-outline-primary d-inline-flex align-items-center"
+                onClick={() => setAbhaQrModalOpen(true)}
+              >
+                <i className="ti ti-qrcode me-1" />
+                Generate ABHA QR
+              </button>
             </div>
           </div>
           {/* End Page Header */}
@@ -774,6 +783,10 @@ const DashboardComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
+      <GenerateAbhaQrModal
+        open={abhaQrModalOpen}
+        onClose={() => setAbhaQrModalOpen(false)}
+      />
     </>
   );
 };

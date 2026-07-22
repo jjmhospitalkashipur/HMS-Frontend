@@ -563,6 +563,7 @@ const DaycareAppointmentDetailsComponent = () => {
           sourceId={daycare?._id ?? ""}
           refreshKey={healthRecordsRefreshKey}
           abhaLinked={Boolean(daycare?.abhaLinked)}
+          patientPhone={daycare?.patient?.phone}
           onEdit={(fhirId) => {
             setEditingRecordId(fhirId);
             setShowAddRecord(true);

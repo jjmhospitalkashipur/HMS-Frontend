@@ -7,6 +7,7 @@ import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
 import ConsentInitModal from "./ConsentInitModal";
+import UnlinkAbhaConfirmModal from "./UnlinkAbhaConfirmModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
@@ -19,7 +20,6 @@ import { getLinkTokenStatus } from "@/core/utils/abhaLinkApi";
 import {
   getConsentStatus,
   getConsentStatusBadgeClass,
-  isConsentGranted,
   type IConsentListItem,
 } from "@/core/api/abdmConsentApi";
 
@@ -234,12 +234,12 @@ const PatientDetailsComponent = () => {
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
   const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
   const [consentInitModalOpen, setConsentInitModalOpen] = useState(false);
+  const [unlinkAbhaModalOpen, setUnlinkAbhaModalOpen] = useState(false);
   const [hasValidLinkToken, setHasValidLinkToken] = useState(false);
   const [consentStatus, setConsentStatus] = useState<string | null>(null);
   const [consents, setConsents] = useState<IConsentListItem[]>([]);
 
-  const grantedConsents = consents.filter((item) => isConsentGranted(item.status));
-  const showConsentsTab = grantedConsents.length > 0 || isConsentGranted(consentStatus);
+  const showConsentsTab = consents.length > 0 || Boolean(consentStatus?.trim());
 
   useEffect(() => {
     if (patientId) {
@@ -841,14 +841,6 @@ const PatientDetailsComponent = () => {
                       ABHA Linked
                     </span>
                   ) : null}
-                  {!loading && consentStatus ? (
-                    <span
-                      className={`badge border fs-12 fw-semibold px-2 py-1 rounded-2 ${getConsentStatusBadgeClass(consentStatus)}`}
-                      title="ABDM Consent Status"
-                    >
-                      Consent · {consentStatus}
-                    </span>
-                  ) : null}
                 </h5>
                 {!loading &&
                 patient?.isMRPatient &&
@@ -886,6 +878,19 @@ const PatientDetailsComponent = () => {
                       Linking Token
                     </button>
 
+                    {hasValidLinkToken ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger text-nowrap"
+                        onClick={() => setUnlinkAbhaModalOpen(true)}
+                        disabled={loading || !patient}
+                        aria-label="Unlink ABHA"
+                      >
+                        <i className="ti ti-unlink me-1" />
+                        Unlink ABHA
+                      </button>
+                    ) : null}
+
                     <button
                       type="button"
                       className="btn btn-outline-primary text-nowrap"
@@ -898,27 +903,7 @@ const PatientDetailsComponent = () => {
                     </button>
 
                     <Link
-                      href={(() => {
-                        const params = new URLSearchParams({
-                          patientId: patientId ?? patient?._id ?? "",
-                        });
-                        const fromDates = grantedConsents
-                          .map((item) => item.dateRangeFrom)
-                          .filter((value): value is string => Boolean(value));
-                        const toDates = grantedConsents
-                          .map((item) => item.dateRangeTo)
-                          .filter((value): value is string => Boolean(value));
-                        if (fromDates.length) {
-                          params.set("dateRangeFrom", fromDates.sort()[0]);
-                        }
-                        if (toDates.length) {
-                          params.set(
-                            "dateRangeTo",
-                            toDates.sort()[toDates.length - 1]
-                          );
-                        }
-                        return `${all_routes.patientHealthHistory}?${params.toString()}`;
-                      })()}
+                      href={`${all_routes.patientHealthHistory}?patientId=${encodeURIComponent(patientId ?? patient?._id ?? "")}`}
                       className={`btn btn-outline-primary text-nowrap${loading || !patient ? " disabled" : ""}`}
                       aria-label="Open patient health history"
                       aria-disabled={loading || !patient}
@@ -2526,8 +2511,8 @@ const PatientDetailsComponent = () => {
             {showConsentsTab ? (
               <div className={`tab-pane${activeTab === "consents" ? " show active" : ""}`} id="consents">
                 <div className="table-responsive">
-                  {!grantedConsents.length ? (
-                    <p className="text-muted mb-0">No granted consents found.</p>
+                  {!consents.length ? (
+                    <p className="text-muted mb-0">No consents found.</p>
                   ) : (
                     <table className="table table-nowrap table-hover">
                       <thead className="thead-light">
@@ -2543,7 +2528,7 @@ const PatientDetailsComponent = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {grantedConsents.map((consent) => {
+                        {consents.map((consent) => {
                           const rowKey =
                             consent.consentId ||
                             consent.consentRequestId ||
@@ -2628,7 +2613,14 @@ const PatientDetailsComponent = () => {
         onClose={() => setLinkTokenModalOpen(false)}
         patient={patient}
         onTokenReady={() => setHasValidLinkToken(true)}
-      /> 
+      />
+      <UnlinkAbhaConfirmModal
+        open={unlinkAbhaModalOpen}
+        onClose={() => setUnlinkAbhaModalOpen(false)}
+        patientId={patient?._id ?? patientId}
+        patientName={patient ? `${patient.title ?? ""} ${patient.name ?? ""}`.trim() : undefined}
+        onUnlinked={() => setHasValidLinkToken(false)}
+      />
       <ConsentInitModal
         open={consentInitModalOpen}
         onClose={() => setConsentInitModalOpen(false)}

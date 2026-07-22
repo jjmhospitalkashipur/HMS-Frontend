@@ -9,6 +9,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import Modals from "./modals/modals";
+import SearchPatientByAbhaModal from "./SearchPatientByAbhaModal";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
@@ -48,6 +49,7 @@ const PatientsComponent = () => {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [abhaSearchOpen, setAbhaSearchOpen] = useState(false);
 
   const syncFiltersFromApplied = useCallback(() => {
     setDateFrom(appliedDateFrom ? dayjs(appliedDateFrom) : null);
@@ -303,6 +305,14 @@ const PatientsComponent = () => {
                   <i className="ti ti-layout-grid fs-14 text-body" />
                 </Link>
               </div> */}
+              <button
+                type="button"
+                className="btn btn-outline-primary ms-2 fs-13 btn-md d-inline-flex align-items-center"
+                onClick={() => setAbhaSearchOpen(true)}
+              >
+                <i className="ti ti-search me-1" />
+                Search by ABHA
+              </button>
               <Link
                 href={all_routes.createPatient}
                 className="btn btn-primary ms-2 fs-13 btn-md"
@@ -448,6 +458,10 @@ const PatientsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
+      <SearchPatientByAbhaModal
+        open={abhaSearchOpen}
+        onClose={() => setAbhaSearchOpen(false)}
+      />
     </>
   );
 };

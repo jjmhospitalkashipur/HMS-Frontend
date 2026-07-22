@@ -2,8 +2,7 @@ import { API_BASE_URL } from "@/environment";
 
 export interface IHealthDataStreamParams {
   patientId: string;
-  dateRangeFrom: string;
-  dateRangeTo: string;
+  consentId: string;
 }
 
 export interface IHealthHistoryItem {
@@ -136,13 +135,11 @@ export const mapRecordEventToHistoryItem = (
 export const buildHealthDataStreamUrl = (params: IHealthDataStreamParams): string => {
   if (!API_BASE_URL) throw new Error("API base URL is not configured.");
   if (!params.patientId?.trim()) throw new Error("Patient ID is required.");
-  if (!params.dateRangeFrom?.trim()) throw new Error("Date range from is required.");
-  if (!params.dateRangeTo?.trim()) throw new Error("Date range to is required.");
+  if (!params.consentId?.trim()) throw new Error("Consent ID is required.");
 
   const query = [
     `patientId=${encodeURIComponent(params.patientId.trim())}`,
-    `dateRangeFrom=${params.dateRangeFrom.trim()}`,
-    `dateRangeTo=${params.dateRangeTo.trim()}`,
+    `consentId=${encodeURIComponent(params.consentId.trim())}`,
   ].join("&");
 
   return `${API_BASE_URL.replace(/\/$/, "")}/hospital/abdm/m3/health-data/stream?${query}`;

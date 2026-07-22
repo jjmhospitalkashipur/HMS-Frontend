@@ -34,6 +34,14 @@ const toIsoEndOfDay = (dateStr: string): string => {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 };
 
+const toIsoDateRangeTo = (dateStr: string): string => {
+  if (!dateStr) return "";
+  if (dateStr === getTodayDateInputValue()) {
+    return new Date().toISOString();
+  }
+  return toIsoEndOfDay(dateStr);
+};
+
 const toDateInputValue = (date: Date): string => {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -68,7 +76,6 @@ const ConsentInitModal = ({
   const [requesterName, setRequesterName] = useState(DEFAULT_REQUESTER_NAME);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const purposeOptions: Option[] = useMemo(
     () =>
@@ -95,7 +102,6 @@ const ConsentInitModal = ({
     setRequesterName(DEFAULT_REQUESTER_NAME);
     setSubmitting(false);
     setError(null);
-    setSuccess(null);
   }, [open, patientId]);
 
   if (!open) return null;
@@ -124,13 +130,12 @@ const ConsentInitModal = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
 
     const payload = {
       patientId: resolvedPatientId,
       purposeCode: purposeCode as TConsentPurpose,
       dateRangeFrom: toIsoStartOfDay(dateRangeFrom),
-      dateRangeTo: toIsoEndOfDay(dateRangeTo),
+      dateRangeTo: toIsoDateRangeTo(dateRangeTo),
       dataEraseAt: toIsoEndOfDay(dataEraseAt),
       hiTypes,
       requesterName,
@@ -145,8 +150,8 @@ const ConsentInitModal = ({
     try {
       setSubmitting(true);
       await initConsent(payload);
-      setSuccess("Consent request initiated successfully.");
       onSuccess?.();
+      onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to initiate consent request.");
     } finally {
@@ -189,11 +194,6 @@ const ConsentInitModal = ({
                 {error ? (
                   <div className="alert alert-danger py-2" role="alert">
                     {error}
-                  </div>
-                ) : null}
-                {success ? (
-                  <div className="alert alert-success py-2" role="alert">
-                    {success}
                   </div>
                 ) : null}
 

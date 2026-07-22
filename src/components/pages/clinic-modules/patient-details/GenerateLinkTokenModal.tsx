@@ -144,6 +144,10 @@ const GenerateLinkTokenModal = ({
 
     try {
       setSubmitting(true);
+      setCheckingStatus(true);
+      setSuccess("Generating link token…");
+
+      // 200 or 202 both mean we should start status polling immediately.
       await generateLinkToken(API_BASE_URL, {
         patientId,
         abhaAddress: formatAbhaAddress(abhaAddress),
@@ -152,13 +156,14 @@ const GenerateLinkTokenModal = ({
         gender,
         yearOfBirth,
       });
-      setSuccess("Link token generated. Checking linking status...");
-      setCheckingStatus(true);
+
+      setSuccess("Link token request accepted. Checking linking status…");
 
       let latestStatusResponse: unknown = null;
       let statusPollingError: unknown = null;
       let tokenReady = false;
 
+      // Poll immediately (no delay on first attempt), then retry.
       for (let attempt = 0; attempt < LINK_STATUS_POLL_ATTEMPTS; attempt += 1) {
         if (attempt > 0) {
           await wait(LINK_STATUS_POLL_INTERVAL_MS);
@@ -178,14 +183,6 @@ const GenerateLinkTokenModal = ({
       }
 
       setCheckingStatus(false);
-      const statusMessage = getStatusMessage(latestStatusResponse);
-      setSuccess(
-        tokenReady
-          ? "Link token generated successfully. Valid token is ready."
-          : statusMessage
-            ? `Link token generated successfully. Status: ${statusMessage}`
-            : "Link token generated successfully. Status check completed."
-      );
 
       if (!tokenReady && statusPollingError) {
         setError(
@@ -194,10 +191,13 @@ const GenerateLinkTokenModal = ({
             "Token generated, but the linking status could not be retrieved."
           )
         );
+        setSubmitting(false);
+        return;
       }
+
+      onClose();
     } catch (err: unknown) {
       setError(getRequestErrorMessage(err, "Failed to generate link token."));
-    } finally {
       setCheckingStatus(false);
       setSubmitting(false);
     }

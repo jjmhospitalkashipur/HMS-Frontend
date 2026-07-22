@@ -138,16 +138,23 @@ export const validateLinkTokenFields = (params: {
 export const generateLinkToken = async (
   apiBaseUrl: string,
   params: IGenerateLinkTokenParams
-): Promise<unknown> => {
-  const response = await axios.post(`${apiBaseUrl}/hospital/abdm/m2/link-token/generate`, {
-    patientId: params.patientId.trim(),
-    abhaAddress: params.abhaAddress.trim(),
-    abhaNumber: params.abhaNumber.trim(),
-    name: params.name.trim(),
-    gender: params.gender.trim(),
-    yearOfBirth: Number(params.yearOfBirth),
-  });
-  return response.data;
+): Promise<{ status: number; data: unknown }> => {
+  const response = await axios.post(
+    `${apiBaseUrl}/hospital/abdm/m2/link-token/generate`,
+    {
+      patientId: params.patientId.trim(),
+      abhaAddress: params.abhaAddress.trim(),
+      abhaNumber: params.abhaNumber.trim(),
+      name: params.name.trim(),
+      gender: params.gender.trim(),
+      yearOfBirth: Number(params.yearOfBirth),
+    },
+    {
+      // 202 Accepted means generation is in progress — still a success for polling.
+      validateStatus: (status) => status === 200 || status === 202,
+    }
+  );
+  return { status: response.status, data: response.data };
 };
 
 export const getLinkTokenStatus = async (
@@ -158,4 +165,31 @@ export const getLinkTokenStatus = async (
     params: { patientId: patientId.trim() },
   });
   return response.data;
+};
+
+export const unlinkAbha = async (apiBaseUrl: string, patientId: string): Promise<unknown> => {
+  const trimmed = patientId.trim();
+  if (!trimmed) throw new Error("Patient ID is required.");
+
+  try {
+    const response = await axios.delete(`${apiBaseUrl}/hospital/abdm/m2/unlink`, {
+      params: { patientId: trimmed },
+    });
+    const code = response.data?.code;
+    if (code != null && code !== 200 && code !== 201) {
+      throw new Error(response.data?.message ?? "Failed to unlink ABHA.");
+    }
+    return response.data?.data ?? response.data;
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      const data = err.response?.data as { message?: unknown; error?: unknown } | undefined;
+      if (typeof data?.message === "string" && data.message.trim()) {
+        throw new Error(data.message);
+      }
+      if (typeof data?.error === "string" && data.error.trim()) {
+        throw new Error(data.error);
+      }
+    }
+    throw new Error(err instanceof Error ? err.message : "Failed to unlink ABHA.");
+  }
 };
