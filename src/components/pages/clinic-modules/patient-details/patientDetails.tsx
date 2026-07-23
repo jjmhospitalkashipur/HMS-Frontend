@@ -15,7 +15,6 @@ import dayjs from "dayjs";
 import { formatInstantInIST } from "@/core/utils/dayjsIST";
 import { Marital_Status } from "@/core/common/selectOption";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
-import { getLinkTokenStatus } from "@/core/utils/abhaLinkApi";
 import {
   getConsentStatus,
   getConsentStatusBadgeClass,
@@ -80,6 +79,7 @@ interface IPatient {
   division?: string;
   abhaAddress?: string;
   abhaNumber?: string;
+  abhaLinked?: boolean;
 }
 
 interface IVisitDoctorEmbed {
@@ -199,7 +199,10 @@ const extractPatientIpdsFromResponse = (
 const PatientDetailsComponent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const patientId = searchParams.get("id");
+  const patientId =
+    searchParams.get("id")?.trim() ||
+    searchParams.get("patientId")?.trim() ||
+    null;
   const [patient, setPatient] = useState<IPatient | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [appointments, setAppointments] = useState<IAppointment[]>([]);
@@ -233,7 +236,6 @@ const PatientDetailsComponent = () => {
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
   const [consentInitModalOpen, setConsentInitModalOpen] = useState(false);
   const [unlinkAbhaModalOpen, setUnlinkAbhaModalOpen] = useState(false);
-  const [hasValidLinkToken, setHasValidLinkToken] = useState(false);
   const [consentStatus, setConsentStatus] = useState<string | null>(null);
   const [consents, setConsents] = useState<IConsentListItem[]>([]);
 
@@ -241,13 +243,14 @@ const PatientDetailsComponent = () => {
 
   useEffect(() => {
     if (patientId) {
+      fetchedTabsRef.current = new Set();
       fetchPatientDetails();
       fetchAppointments();
-      fetchLinkTokenStatus(patientId);
       fetchConsentStatus(patientId);
       fetchedTabsRef.current.add("appointments");
     } else {
-      setHasValidLinkToken(false);
+      setLoading(false);
+      setPatient(null);
       setConsentStatus(null);
       setConsents([]);
     }
@@ -258,22 +261,6 @@ const PatientDetailsComponent = () => {
       setActiveTab("appointments");
     }
   }, [showConsentsTab, activeTab]);
-
-  const fetchLinkTokenStatus = async (id: string) => {
-    if (!API_BASE_URL || !id?.trim()) {
-      setHasValidLinkToken(false);
-      return;
-    }
-    try {
-      const response = await getLinkTokenStatus(API_BASE_URL, id);
-      const hasValidToken = Boolean(
-        (response as { data?: { hasValidToken?: boolean } } | null)?.data?.hasValidToken
-      );
-      setHasValidLinkToken(hasValidToken);
-    } catch {
-      setHasValidLinkToken(false);
-    }
-  };
 
   const fetchConsentStatus = async (id: string) => {
     if (!id?.trim()) {
@@ -834,7 +821,7 @@ const PatientDetailsComponent = () => {
                       MR
                     </span>
                   ) : null}
-                  {!loading && hasValidLinkToken ? (
+                  {!loading && patient?.abhaLinked ? (
                     <span className="badge badge-soft-success border border-success text-success fs-12 fw-semibold px-2 py-1 rounded-2">
                       ABHA Linked
                     </span>
@@ -864,7 +851,7 @@ const PatientDetailsComponent = () => {
                     <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
                   </p>
                   <div className="d-flex align-items-center gap-2 flex-wrap">
-                    {hasValidLinkToken ? (
+                    {patient?.abhaLinked ? (
                       <>
                         <button
                           type="button"
@@ -2601,7 +2588,9 @@ const PatientDetailsComponent = () => {
         onClose={() => setUnlinkAbhaModalOpen(false)}
         patientId={patient?._id ?? patientId}
         patientName={patient ? `${patient.title ?? ""} ${patient.name ?? ""}`.trim() : undefined}
-        onUnlinked={() => setHasValidLinkToken(false)}
+        onUnlinked={() =>
+          setPatient((prev) => (prev ? { ...prev, abhaLinked: false } : prev))
+        }
       />
       <ConsentInitModal
         open={consentInitModalOpen}

@@ -449,9 +449,6 @@ const buildDataUrl = (contentType: string, base64Data: string): string => {
 const isImageContentType = (contentType: string): boolean =>
   contentType.toLowerCase().startsWith("image/");
 
-const isPdfContentType = (contentType: string): boolean =>
-  contentType.toLowerCase().includes("pdf");
-
 const getAttachmentFilename = (title: string, contentType: string): string => {
   const lowerType = contentType.toLowerCase();
   const extension = lowerType.includes("pdf")
@@ -572,11 +569,10 @@ interface IAttachmentPreviewProps {
 }
 
 const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
-  const href = attachment.dataUrl ?? attachment.externalUrl;
-  if (!href) return null;
+  const hasContent = Boolean(attachment.dataUrl ?? attachment.externalUrl);
+  if (!hasContent) return null;
 
   const isImage = isImageContentType(attachment.contentType);
-  const isPdf = isPdfContentType(attachment.contentType);
   const downloadName = getAttachmentFilename(attachment.title, attachment.contentType);
 
   return (
@@ -597,17 +593,8 @@ const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
         </div>
       ) : null}
 
-      <div className="d-flex gap-2 flex-wrap">
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-sm btn-outline-primary"
-        >
-          <i className={`ti ${isPdf ? "ti-file-type-pdf" : "ti-external-link"} me-1`} />
-          {isPdf ? "View PDF" : "Open"}
-        </a>
-        {attachment.dataUrl ? (
+      {attachment.dataUrl ? (
+        <div className="d-flex gap-2 flex-wrap">
           <a
             href={attachment.dataUrl}
             download={downloadName}
@@ -616,8 +603,8 @@ const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
             <i className="ti ti-download me-1" />
             Download
           </a>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 };

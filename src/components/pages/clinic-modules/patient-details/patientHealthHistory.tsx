@@ -264,7 +264,7 @@ const PatientHealthHistoryComponent = () => {
         <div className="content">
           <div className="mb-3">
             <Link
-              href={`${all_routes.patientDetails}?patientId=${encodeURIComponent(patientId)}`}
+              href={`${all_routes.patientDetails}?id=${encodeURIComponent(patientId)}`}
               className="btn btn-light mb-2"
               aria-label="Back to patient details"
             >
