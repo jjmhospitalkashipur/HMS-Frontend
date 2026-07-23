@@ -624,13 +624,17 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th style={{ width: "8%" }}>Sr.</th>
                       <th>Diagnosis</th>
+                      <th style={{ width: "14%" }}>ICD Code</th>
                     </tr>
                   </thead>
                   <tbody>
                     {provisionalDiagnosis.map((row, index) => (
                       <tr key={`prov-diag-${index}`}>
+                        <td>{index + 1}</td>
                         <td>{row.diagnosisName.trim()}</td>
+                        <td>{row.icdCode.trim()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -646,15 +650,17 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                 <table className="data-table">
                   <thead>
                     <tr>
-                      {/* <th style={{ width: "25%" }}>ICD Code</th> */}
+                      <th style={{ width: "8%" }}>Sr.</th>
                       <th>Diagnosis</th>
+                      <th style={{ width: "14%" }}>ICD Code</th>
                     </tr>
                   </thead>
                   <tbody>
                     {finalDiagnosis.map((row, index) => (
                       <tr key={`diag-${index}`}>
-                        {/* <td>{row.icdCode.trim()}</td> */}
+                        <td>{index + 1}</td>
                         <td>{row.diagnosisName.trim()}</td>
+                        <td>{row.icdCode.trim()}</td>
                       </tr>
                     ))}
                   </tbody>
