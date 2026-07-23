@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import Select, { type InputActionMeta } from "react-select";
+import Select, {
+  components,
+  type InputActionMeta,
+  type MenuProps,
+  type MultiValue,
+} from "react-select";
 import { searchIcdDiagnoses } from "@/core/api/icdApi";
 import type { IFinalDiagnosisRow } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 
@@ -18,6 +23,11 @@ interface IIcdDiagnosisMultiSelectProps {
   id?: string;
   placeholder?: string;
   disabled?: boolean;
+}
+
+interface ISelectExtraProps {
+  createInputValue?: string;
+  onCreateDiagnosis?: (name: string) => void;
 }
 
 const toOptionValue = (row: IFinalDiagnosisRow): string =>
@@ -40,6 +50,47 @@ const toOption = (row: IFinalDiagnosisRow): IIcdDiagnosisOption => {
   };
 };
 
+const CreateDiagnosisMenu = (props: MenuProps<IIcdDiagnosisOption, true>) => {
+  const { children, selectProps } = props;
+  const extra = selectProps as typeof selectProps & ISelectExtraProps;
+  const createInputValue = (extra.createInputValue ?? "").trim();
+  const onCreateDiagnosis = extra.onCreateDiagnosis;
+
+  return (
+    <components.Menu {...props}>
+      {children}
+      {createInputValue && onCreateDiagnosis ? (
+        <div
+          className="px-3 py-2 text-dark"
+          style={{
+            backgroundColor: "#ececec",
+            borderTop: "1px solid #e0e0e0",
+            fontSize: "0.875rem",
+            lineHeight: 1.4,
+            position: "sticky",
+            bottom: 0,
+            zIndex: 2,
+          }}
+        >
+          Cannot Find {createInputValue} ,{" "}
+          <button
+            type="button"
+            className="btn btn-link p-0 align-baseline text-decoration-none"
+            style={{ color: "#0d6efd", fontSize: "inherit", lineHeight: "inherit" }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCreateDiagnosis(createInputValue);
+            }}
+          >
+            Create One
+          </button>
+        </div>
+      ) : null}
+    </components.Menu>
+  );
+};
+
 const IcdDiagnosisMultiSelect = ({
   value,
   onChange,
@@ -52,6 +103,7 @@ const IcdDiagnosisMultiSelect = ({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchOptions, setSearchOptions] = useState<IIcdDiagnosisOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [inputValue, setInputValue] = useState("");
 
   const selectedOptions = useMemo(
     () => value.filter((row) => row.icdCode.trim() || row.diagnosisName.trim()).map(toOption),
@@ -87,24 +139,51 @@ const IcdDiagnosisMultiSelect = ({
   }, []);
 
   const handleInputChange = useCallback(
-    (inputValue: string, actionMeta: InputActionMeta) => {
-      if (actionMeta.action !== "input-change") return;
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
+    (nextInputValue: string, actionMeta: InputActionMeta) => {
+      if (actionMeta.action === "input-change") {
+        setInputValue(nextInputValue);
+        if (debounceRef.current) {
+          clearTimeout(debounceRef.current);
+          debounceRef.current = null;
+        }
+        debounceRef.current = setTimeout(() => {
+          void fetchDiagnoses(nextInputValue);
+        }, 300);
+        return;
       }
-      debounceRef.current = setTimeout(() => {
-        void fetchDiagnoses(inputValue);
-      }, 300);
+      if (actionMeta.action === "menu-close" || actionMeta.action === "set-value") {
+        setInputValue("");
+      }
     },
     [fetchDiagnoses]
   );
 
   const handleChange = useCallback(
-    (options: readonly IIcdDiagnosisOption[]) => {
+    (options: MultiValue<IIcdDiagnosisOption>) => {
       onChange(options.map(fromOptionValue));
     },
     [onChange]
+  );
+
+  const handleCreateDiagnosis = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+
+      const alreadySelected = value.some(
+        (row) => !row.icdCode.trim() && row.diagnosisName.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (alreadySelected) {
+        setInputValue("");
+        setSearchOptions([]);
+        return;
+      }
+
+      onChange([...value, { icdCode: "", diagnosisName: trimmed }]);
+      setInputValue("");
+      setSearchOptions([]);
+    },
+    [onChange, value]
   );
 
   useEffect(
@@ -146,6 +225,8 @@ const IcdDiagnosisMultiSelect = ({
     []
   );
 
+  const selectComponents = useMemo(() => ({ Menu: CreateDiagnosisMenu }), []);
+
   return (
     <div className="common-select-wrapper">
       <Select<IIcdDiagnosisOption, true>
@@ -158,15 +239,22 @@ const IcdDiagnosisMultiSelect = ({
         isLoading={isLoading}
         options={mergedOptions}
         value={selectedOptions}
+        inputValue={inputValue}
         onChange={handleChange}
         onInputChange={handleInputChange}
         placeholder={placeholder}
-        noOptionsMessage={({ inputValue }) =>
-          inputValue.trim() ? "No diagnoses found" : "Type to search ICD diagnoses"
+        noOptionsMessage={({ inputValue: typed }) =>
+          typed.trim() ? "No diagnoses found" : "Type to search ICD diagnoses"
         }
         styles={customStyles}
+        components={selectComponents}
+        closeMenuOnSelect={false}
         menuPortalTarget={typeof window !== "undefined" ? document.body : null}
         menuPosition="fixed"
+        {...({
+          createInputValue: inputValue,
+          onCreateDiagnosis: handleCreateDiagnosis,
+        } as ISelectExtraProps)}
       />
     </div>
   );
