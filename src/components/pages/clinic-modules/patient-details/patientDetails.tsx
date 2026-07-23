@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import ConsentInitModal from "./ConsentInitModal";
+import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
 import UnlinkAbhaConfirmModal from "./UnlinkAbhaConfirmModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -234,6 +235,7 @@ const PatientDetailsComponent = () => {
   type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases" | "consents";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
+  const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
   const [consentInitModalOpen, setConsentInitModalOpen] = useState(false);
   const [unlinkAbhaModalOpen, setUnlinkAbhaModalOpen] = useState(false);
   const [consentStatus, setConsentStatus] = useState<string | null>(null);
@@ -853,6 +855,17 @@ const PatientDetailsComponent = () => {
                   <div className="d-flex align-items-center gap-2 flex-wrap">
                     {patient?.abhaLinked ? (
                       <>
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary text-nowrap"
+                          onClick={() => setLinkTokenModalOpen(true)}
+                          disabled={loading || !patient}
+                          aria-label="Generate Linking Token"
+                        >
+                          <i className="ti ti-link me-1" />
+                          Linking Token
+                        </button>
+
                         <button
                           type="button"
                           className="btn btn-outline-danger text-nowrap"
@@ -2583,6 +2596,14 @@ const PatientDetailsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
+      <GenerateLinkTokenModal
+        open={linkTokenModalOpen}
+        onClose={() => setLinkTokenModalOpen(false)}
+        patient={patient}
+        onTokenReady={() =>
+          setPatient((prev) => (prev ? { ...prev, abhaLinked: true } : prev))
+        }
+      />
       <UnlinkAbhaConfirmModal
         open={unlinkAbhaModalOpen}
         onClose={() => setUnlinkAbhaModalOpen(false)}
