@@ -19,6 +19,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import GenerateAbhaQrModal from "./GenerateAbhaQrModal";
+import AbhaScannedUsersDrawer from "./AbhaScannedUsersDrawer";
 
 interface IOverviewMetric {
   total: number;
@@ -86,6 +87,7 @@ const DashboardComponent = () => {
   const [overview, setOverview] = useState<IDashboardOverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [abhaQrModalOpen, setAbhaQrModalOpen] = useState(false);
+  const [abhaScannedUsersOpen, setAbhaScannedUsersOpen] = useState(false);
 
   const [sColChart] = useState<any>({
     chart: {
@@ -786,6 +788,11 @@ const DashboardComponent = () => {
       <GenerateAbhaQrModal
         open={abhaQrModalOpen}
         onClose={() => setAbhaQrModalOpen(false)}
+        onShowScannedUsers={() => setAbhaScannedUsersOpen(true)}
+      />
+      <AbhaScannedUsersDrawer
+        open={abhaScannedUsersOpen}
+        onClose={() => setAbhaScannedUsersOpen(false)}
       />
     </>
   );
