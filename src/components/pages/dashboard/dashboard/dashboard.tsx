@@ -415,6 +415,14 @@ const DashboardComponent = () => {
                 <i className="ti ti-qrcode me-1" />
                 Generate ABHA QR
               </button>
+              <button
+                type="button"
+                className="btn btn-outline-primary d-inline-flex align-items-center"
+                onClick={() => setAbhaScannedUsersOpen(true)}
+              >
+                <i className="ti ti-users me-1" />
+                Show Scanned Users
+              </button>
             </div>
           </div>
           {/* End Page Header */}
@@ -788,7 +796,6 @@ const DashboardComponent = () => {
       <GenerateAbhaQrModal
         open={abhaQrModalOpen}
         onClose={() => setAbhaQrModalOpen(false)}
-        onShowScannedUsers={() => setAbhaScannedUsersOpen(true)}
       />
       <AbhaScannedUsersDrawer
         open={abhaScannedUsersOpen}

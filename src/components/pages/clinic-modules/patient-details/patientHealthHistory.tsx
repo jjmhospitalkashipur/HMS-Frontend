@@ -7,8 +7,10 @@ import dayjs from "dayjs";
 import { all_routes } from "@/routes/all_routes";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import {
+  getConsentById,
   getConsentStatus,
   isConsentGranted,
+  type IConsentHipOption,
   type IConsentListItem,
 } from "@/core/api/abdmConsentApi";
 import {
@@ -41,6 +43,10 @@ const PatientHealthHistoryComponent = () => {
   const [consentsLoading, setConsentsLoading] = useState(false);
   const [consentsError, setConsentsError] = useState<string | null>(null);
   const [selectedConsentRecordId, setSelectedConsentRecordId] = useState("");
+  const [hipOptions, setHipOptions] = useState<IConsentHipOption[]>([]);
+  const [hipsLoading, setHipsLoading] = useState(false);
+  const [hipsError, setHipsError] = useState<string | null>(null);
+  const [selectedConsentArtifactId, setSelectedConsentArtifactId] = useState("");
   const [items, setItems] = useState<IHealthHistoryItem[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<THealthStreamConnectionStatus>("idle");
@@ -48,6 +54,7 @@ const PatientHealthHistoryComponent = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<IHealthHistoryItem | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const hipFetchAbortRef = useRef<AbortController | null>(null);
 
   const isStreaming =
     connectionStatus === "connecting" || connectionStatus === "streaming";
@@ -84,6 +91,21 @@ const PatientHealthHistoryComponent = () => {
     [consentSelectOptions, selectedConsentRecordId]
   );
 
+  const hipSelectOptions = useMemo<Option[]>(
+    () =>
+      hipOptions.map((hip) => ({
+        value: hip.consentArtifactId,
+        label: hip.hipName,
+      })),
+    [hipOptions]
+  );
+
+  const selectedHipOption = useMemo(
+    () =>
+      hipSelectOptions.find((option) => option.value === selectedConsentArtifactId) ?? null,
+    [hipSelectOptions, selectedConsentArtifactId]
+  );
+
   const statusLabel = useMemo(() => {
     switch (connectionStatus) {
       case "connecting":
@@ -99,9 +121,18 @@ const PatientHealthHistoryComponent = () => {
     }
   }, [connectionStatus]);
 
+  const resetStreamState = () => {
+    abortRef.current?.abort();
+    setItems([]);
+    setError(null);
+    setStreamInfo(null);
+    setConnectionStatus("idle");
+  };
+
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      hipFetchAbortRef.current?.abort();
     };
   }, []);
 
@@ -114,12 +145,12 @@ const PatientHealthHistoryComponent = () => {
   }, [items.length]);
 
   useEffect(() => {
-    abortRef.current?.abort();
-    setItems([]);
-    setError(null);
-    setStreamInfo(null);
-    setConnectionStatus("idle");
+    resetStreamState();
     setSelectedConsentRecordId("");
+    setHipOptions([]);
+    setHipsError(null);
+    setSelectedConsentArtifactId("");
+    setHipsLoading(false);
 
     if (!patientId) {
       setConsents([]);
@@ -154,16 +185,16 @@ const PatientHealthHistoryComponent = () => {
   }, [patientId]);
 
   const handleFetchHistory = useCallback(
-    async (consentRecordIdOverride?: string) => {
-      const consentRecordId = (consentRecordIdOverride ?? selectedConsentRecordId)?.trim();
+    async (consentArtifactIdOverride?: string) => {
+      const consentArtifactId = (consentArtifactIdOverride ?? selectedConsentArtifactId)?.trim();
 
       if (!patientId) {
         setError("Patient ID is missing.");
         setConnectionStatus("error");
         return;
       }
-      if (!consentRecordId) {
-        setError("Please select a consent.");
+      if (!consentArtifactId) {
+        setError("Please select a facility.");
         setConnectionStatus("error");
         return;
       }
@@ -181,7 +212,7 @@ const PatientHealthHistoryComponent = () => {
         await streamHealthData(
           {
             patientId,
-            consentId: consentRecordId,
+            consentArtifactId,
           },
           {
             signal: controller.signal,
@@ -227,18 +258,53 @@ const PatientHealthHistoryComponent = () => {
         setError(err instanceof Error ? err.message : "Failed to stream health history.");
       }
     },
-    [patientId, selectedConsentRecordId]
+    [patientId, selectedConsentArtifactId]
   );
 
   const handleConsentChange = (option: Option | null) => {
     const value = option?.value?.trim() ?? "";
 
-    abortRef.current?.abort();
-    setItems([]);
-    setError(null);
-    setStreamInfo(null);
-    setConnectionStatus("idle");
+    resetStreamState();
+    hipFetchAbortRef.current?.abort();
     setSelectedConsentRecordId(value);
+    setHipOptions([]);
+    setSelectedConsentArtifactId("");
+    setHipsError(null);
+
+    if (!value) {
+      setHipsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    hipFetchAbortRef.current = controller;
+    setHipsLoading(true);
+
+    void (async () => {
+      try {
+        const hips = await getConsentById(value);
+        if (controller.signal.aborted) return;
+        setHipOptions(hips);
+        if (!hips.length) {
+          setHipsError("No facilities found for this consent.");
+        }
+      } catch (err: unknown) {
+        if (controller.signal.aborted) return;
+        setHipOptions([]);
+        setHipsError(
+          err instanceof Error ? err.message : "Failed to fetch facilities."
+        );
+      } finally {
+        if (!controller.signal.aborted) setHipsLoading(false);
+      }
+    })();
+  };
+
+  const handleHipChange = (option: Option | null) => {
+    const value = option?.value?.trim() ?? "";
+
+    resetStreamState();
+    setSelectedConsentArtifactId(value);
 
     if (!value) return;
     void handleFetchHistory(value);
@@ -258,6 +324,14 @@ const PatientHealthHistoryComponent = () => {
       ? "Select consent"
       : "No granted consents found";
 
+  const facilityPlaceholder = !selectedConsentRecordId
+    ? "Select consent first"
+    : hipsLoading
+      ? "Loading facilities..."
+      : hipSelectOptions.length
+        ? "Select facility"
+        : "No facilities found";
+
   return (
     <>
       <div className="page-wrapper">
@@ -276,7 +350,7 @@ const PatientHealthHistoryComponent = () => {
                 <h4 className="fw-bold mb-1">Patient Health History</h4>
                 <p className="text-muted mb-0">
                   ABDM health data for this patient
-                  {patientId ? " — select a consent to load records" : ""}.
+                  {patientId ? " — select a consent and facility to load records" : ""}.
                 </p>
               </div>
               <span
@@ -298,7 +372,7 @@ const PatientHealthHistoryComponent = () => {
           <div className="card shadow-sm mb-3">
             <div className="card-body py-3">
               <div className="row g-2 align-items-end">
-                <div className="col-12 col-md-8">
+                <div className="col-12 col-md-4">
                   <label className="form-label fw-medium fs-14" htmlFor="history-consent-select">
                     Consent <span className="text-danger">*</span>
                   </label>
@@ -314,6 +388,26 @@ const PatientHealthHistoryComponent = () => {
                   />
                 </div>
                 <div className="col-12 col-md-4">
+                  <label className="form-label fw-medium fs-14" htmlFor="history-facility-select">
+                    Facilities <span className="text-danger">*</span>
+                  </label>
+                  <CommonSelect
+                    instanceId="history-facility-select"
+                    className="w-100"
+                    options={hipSelectOptions}
+                    value={selectedHipOption}
+                    onChange={handleHipChange}
+                    placeholder={facilityPlaceholder}
+                    disabled={
+                      isStreaming ||
+                      hipsLoading ||
+                      !selectedConsentRecordId ||
+                      !hipSelectOptions.length
+                    }
+                    isLoading={hipsLoading}
+                  />
+                </div>
+                <div className="col-12 col-md-4">
                   <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                     <div>
                       <span className="text-muted fs-12 d-block">Records</span>
@@ -323,7 +417,7 @@ const PatientHealthHistoryComponent = () => {
                       type="button"
                       className="btn btn-outline-primary text-nowrap"
                       onClick={() => void handleFetchHistory()}
-                      disabled={isStreaming || !patientId || !selectedConsentRecordId}
+                      disabled={isStreaming || !patientId || !selectedConsentArtifactId}
                       aria-label="Refresh health history"
                     >
                       <i className="ti ti-refresh me-1" />
@@ -338,6 +432,12 @@ const PatientHealthHistoryComponent = () => {
           {consentsError ? (
             <div className="alert alert-danger py-2" role="alert">
               {consentsError}
+            </div>
+          ) : null}
+
+          {hipsError ? (
+            <div className="alert alert-danger py-2" role="alert">
+              {hipsError}
             </div>
           ) : null}
 
@@ -360,9 +460,13 @@ const PatientHealthHistoryComponent = () => {
                   ? streamInfo || "Waiting for health history records..."
                   : consentsLoading
                     ? "Loading consents..."
-                    : connectionStatus === "idle"
-                      ? "Select a granted consent to load health history."
-                      : "No health history records found."}
+                    : hipsLoading
+                      ? "Loading facilities..."
+                      : connectionStatus === "idle"
+                        ? selectedConsentRecordId
+                          ? "Select a facility to load health history."
+                          : "Select a granted consent to load health history."
+                        : "No health history records found."}
               </p>
             ) : (
               <table className="table table-nowrap table-hover">

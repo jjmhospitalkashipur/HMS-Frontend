@@ -6,13 +6,11 @@ import { fetchAbhaScanAndShareQr } from "@/core/api/abdmScanAndShareApi";
 interface IGenerateAbhaQrModalProps {
   open: boolean;
   onClose: () => void;
-  onShowScannedUsers: () => void;
 }
 
 const GenerateAbhaQrModal = ({
   open,
   onClose,
-  onShowScannedUsers,
 }: IGenerateAbhaQrModalProps) => {
   const [counterId, setCounterId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -84,12 +82,6 @@ const GenerateAbhaQrModal = ({
   const handleClose = () => {
     if (loading) return;
     onClose();
-  };
-
-  const handleShowScannedUsers = () => {
-    if (loading) return;
-    onClose();
-    onShowScannedUsers();
   };
 
   return (
@@ -165,15 +157,6 @@ const GenerateAbhaQrModal = ({
                 </button>
                 {qrUrl ? (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary"
-                      onClick={handleShowScannedUsers}
-                      disabled={loading}
-                    >
-                      <i className="ti ti-users me-1" />
-                      Show Scanned Users
-                    </button>
                     <button
                       type="button"
                       className="btn btn-outline-primary"

@@ -68,6 +68,12 @@ export interface IConsentStatusResult {
   raw: unknown;
 }
 
+export interface IConsentHipOption {
+  consentArtifactId: string;
+  hipName: string;
+  hipId: string | null;
+}
+
 const getAxiosMessage = (err: unknown, fallback: string): string => {
   if (!axios.isAxiosError(err)) return fallback;
   const data = err.response?.data as { message?: unknown; error?: unknown } | undefined;
@@ -294,6 +300,99 @@ export const getConsentStatus = async (patientId: string): Promise<IConsentStatu
       };
     }
     throw new Error(getAxiosMessage(err, "Failed to fetch consent status."));
+  }
+};
+
+const mapConsentHipOption = (value: unknown): IConsentHipOption | null => {
+  const row = asObject(value);
+  if (!row) return null;
+
+  const detail = asObject(row.consentDetail) ?? asObject(row.consentArtefact) ?? asObject(row.artefact);
+  const hip = asObject(row.hip) ?? asObject(detail?.hip);
+
+  const consentArtifactId =
+    readOptionalString(row.consentArtifactId) ||
+    readOptionalString(row.consentArtefactId) ||
+    readOptionalString(row.artefactId) ||
+    readOptionalString(row.consentId) ||
+    readOptionalString(detail?.consentId) ||
+    null;
+
+  const hipName =
+    readOptionalString(row.hipName) ||
+    readOptionalString(hip?.name) ||
+    readOptionalString(row.name) ||
+    null;
+
+  if (!consentArtifactId || !hipName) return null;
+
+  return {
+    consentArtifactId,
+    hipName,
+    hipId: readOptionalString(hip?.id) || readOptionalString(row.hipId),
+  };
+};
+
+const collectHipCandidateArrays = (payload: unknown): unknown[] => {
+  const root = asObject(payload);
+  if (!root) return [];
+
+  const data = asObject(root.data) ?? root;
+  const candidates: unknown[] = [];
+
+  const arrayKeys = [
+    "consentArtifacts",
+    "consentArtefacts",
+    "artefacts",
+    "artifacts",
+    "hips",
+    "hiuConsents",
+    "consents",
+  ];
+
+  for (const key of arrayKeys) {
+    const value = data[key];
+    if (Array.isArray(value)) candidates.push(...value);
+  }
+
+  if (data.hiuConsent) candidates.push(data.hiuConsent);
+  if (data.consent) candidates.push(data.consent);
+  if (data.consentArtifact) candidates.push(data.consentArtifact);
+  if (data.consentArtefact) candidates.push(data.consentArtefact);
+
+  // Some APIs return the detail object itself with nested hip + consentId
+  if (candidates.length === 0 && (data.hip || data.consentDetail || data.consentArtifactId)) {
+    candidates.push(data);
+  }
+
+  return candidates;
+};
+
+export const extractConsentHipOptions = (payload: unknown): IConsentHipOption[] => {
+  const mapped = collectHipCandidateArrays(payload)
+    .map((item) => mapConsentHipOption(item))
+    .filter((item): item is IConsentHipOption => Boolean(item));
+
+  const seen = new Set<string>();
+  return mapped.filter((item) => {
+    const key = `${item.consentArtifactId}::${item.hipName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+export const getConsentById = async (consentId: string): Promise<IConsentHipOption[]> => {
+  if (!API_BASE_URL) throw new Error("API base URL is not configured.");
+  if (!consentId?.trim()) throw new Error("Consent ID is required.");
+
+  try {
+    const res = await axios.get(
+      `${API_BASE_URL}/hospital/abdm/m3/consent/${encodeURIComponent(consentId.trim())}`
+    );
+    return extractConsentHipOptions(res.data);
+  } catch (err: unknown) {
+    throw new Error(getAxiosMessage(err, "Failed to fetch consent details."));
   }
 };
 

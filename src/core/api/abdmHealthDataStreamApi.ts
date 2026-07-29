@@ -2,7 +2,7 @@ import { API_BASE_URL } from "@/environment";
 
 export interface IHealthDataStreamParams {
   patientId: string;
-  consentId: string;
+  consentArtifactId: string;
 }
 
 export interface IHealthHistoryItem {
@@ -135,11 +135,11 @@ export const mapRecordEventToHistoryItem = (
 export const buildHealthDataStreamUrl = (params: IHealthDataStreamParams): string => {
   if (!API_BASE_URL) throw new Error("API base URL is not configured.");
   if (!params.patientId?.trim()) throw new Error("Patient ID is required.");
-  if (!params.consentId?.trim()) throw new Error("Consent ID is required.");
+  if (!params.consentArtifactId?.trim()) throw new Error("Consent artifact ID is required.");
 
   const query = [
     `patientId=${encodeURIComponent(params.patientId.trim())}`,
-    `consentId=${encodeURIComponent(params.consentId.trim())}`,
+    `consentId=${encodeURIComponent(params.consentArtifactId.trim())}`,
   ].join("&");
 
   return `${API_BASE_URL.replace(/\/$/, "")}/hospital/abdm/m3/health-data/stream?${query}`;
