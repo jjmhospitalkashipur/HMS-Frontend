@@ -50,6 +50,8 @@ export interface IConsentListItem {
   requesterName: string | null;
   hipName: string | null;
   hiTypes: string[];
+  requestedHiTypes: string[];
+  grantedHiTypes: string[];
   dateRangeFrom: string | null;
   dateRangeTo: string | null;
   dataEraseAt: string | null;
@@ -58,7 +60,57 @@ export interface IConsentListItem {
   deniedAt: string | null;
   revokedAt: string | null;
   careContexts: IConsentCareContext[];
+  patientId: string | null;
+  patientName: string | null;
+  abhaAddress: string | null;
+  abhaNumber: string | null;
+  uhid: string | null;
+  patientMobile: string | null;
+  patientDob: string | null;
+  patientAddress: string | null;
+  createdAt: string | null;
 }
+
+export interface IConsentDetailResult {
+  consent: IConsentListItem | null;
+  hips: IConsentHipOption[];
+  raw: unknown;
+}
+
+export interface IConsentPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface IAllConsentsResult {
+  consents: IConsentListItem[];
+  pagination: IConsentPagination;
+  raw: unknown;
+}
+
+export type TConsentStatus =
+  | "REQUESTED"
+  | "GRANTED"
+  | "DENIED"
+  | "REVOKED"
+  | "EXPIRED"
+  | "ERROR";
+
+export type TConsentStatusFilter = TConsentStatus | "ALL";
+
+export const CONSENT_STATUS_FILTERS: { value: TConsentStatusFilter; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "REQUESTED", label: "Requested" },
+  { value: "GRANTED", label: "Granted" },
+  { value: "DENIED", label: "Denied" },
+  { value: "REVOKED", label: "Revoked" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "ERROR", label: "Error" },
+];
 
 export interface IConsentStatusResult {
   status: string | null;
@@ -72,6 +124,8 @@ export interface IConsentHipOption {
   consentArtifactId: string;
   hipName: string;
   hipId: string | null;
+  hiTypes: string[];
+  grantedHiTypes: string[];
 }
 
 const getAxiosMessage = (err: unknown, fallback: string): string => {
@@ -109,6 +163,18 @@ const readStringArray = (value: unknown): string[] => {
     .filter(Boolean);
 };
 
+const buildPatientName = (
+  patient: Record<string, unknown> | null,
+  fallback?: string | null
+): string | null => {
+  if (fallback?.trim()) return fallback.trim();
+  if (!patient) return null;
+  const title = readOptionalString(patient.title);
+  const name = readOptionalString(patient.name);
+  const combined = [title, name].filter(Boolean).join(" ").trim();
+  return combined || readOptionalString(patient.patientName);
+};
+
 const readCareContexts = (value: unknown): IConsentCareContext[] => {
   if (!Array.isArray(value)) return [];
   const contexts: IConsentCareContext[] = [];
@@ -132,6 +198,23 @@ const mapConsentItem = (value: unknown): IConsentListItem | null => {
   const hip = asObject(detail?.hip);
   const permission = asObject(detail?.permission);
   const dateRange = asObject(permission?.dateRange);
+  const patientObj = asObject(consent.patient);
+
+  const requestedHiTypes = readStringArray(consent.requestedHiTypes).length
+    ? readStringArray(consent.requestedHiTypes)
+    : readStringArray(consent.requestHiTypes).length
+      ? readStringArray(consent.requestHiTypes)
+      : readStringArray(consent.hiTypes).length
+        ? readStringArray(consent.hiTypes)
+        : readStringArray(detail?.hiTypes);
+
+  const grantedHiTypes = readStringArray(consent.grantedHiTypes).length
+    ? readStringArray(consent.grantedHiTypes)
+    : readStringArray(consent.grantedTypes).length
+      ? readStringArray(consent.grantedTypes)
+      : readStringArray(detail?.grantedHiTypes).length
+        ? readStringArray(detail?.grantedHiTypes)
+        : readStringArray(permission?.grantedHiTypes);
 
   return {
     _id: readOptionalString(consent._id),
@@ -152,9 +235,9 @@ const mapConsentItem = (value: unknown): IConsentListItem | null => {
       null,
     requesterName: readOptionalString(consent.requesterName),
     hipName: readOptionalString(hip?.name),
-    hiTypes: readStringArray(consent.hiTypes).length
-      ? readStringArray(consent.hiTypes)
-      : readStringArray(detail?.hiTypes),
+    hiTypes: requestedHiTypes,
+    requestedHiTypes,
+    grantedHiTypes,
     dateRangeFrom:
       readOptionalString(consent.dateRangeFrom) ||
       readOptionalString(dateRange?.from) ||
@@ -172,6 +255,48 @@ const mapConsentItem = (value: unknown): IConsentListItem | null => {
     deniedAt: readOptionalString(consent.deniedAt),
     revokedAt: readOptionalString(consent.revokedAt),
     careContexts: readCareContexts(detail?.careContexts),
+    patientId:
+      readOptionalString(consent.hospitalPatientId) ||
+      readOptionalString(consent.patientId) ||
+      readOptionalString(patientObj?._id) ||
+      readOptionalString(patientObj?.id) ||
+      null,
+    patientName: buildPatientName(patientObj, readOptionalString(consent.patientName)),
+    abhaAddress:
+      readOptionalString(consent.abhaAddress) ||
+      readOptionalString(patientObj?.abhaAddress) ||
+      null,
+    abhaNumber:
+      readOptionalString(consent.abhaNumber) ||
+      readOptionalString(patientObj?.abhaNumber) ||
+      null,
+    uhid:
+      readOptionalString(consent.uhid) ||
+      readOptionalString(consent.mrd) ||
+      readOptionalString(patientObj?.mrd) ||
+      readOptionalString(patientObj?.uhid) ||
+      null,
+    patientMobile:
+      readOptionalString(consent.patientMobile) ||
+      readOptionalString(consent.mobile) ||
+      readOptionalString(patientObj?.phone) ||
+      readOptionalString(patientObj?.mobile) ||
+      null,
+    patientDob:
+      readOptionalString(consent.patientDob) ||
+      readOptionalString(consent.dob) ||
+      readOptionalString(patientObj?.dob) ||
+      readOptionalString(patientObj?.dateOfBirth) ||
+      null,
+    patientAddress:
+      readOptionalString(consent.patientAddress) ||
+      readOptionalString(consent.address) ||
+      readOptionalString(patientObj?.address) ||
+      null,
+    createdAt:
+      readOptionalString(consent.createdAt) ||
+      readOptionalString(consent.initiatedAt) ||
+      null,
   };
 };
 
@@ -224,6 +349,60 @@ export const extractConsentStatus = (payload: unknown): string | null => {
 export const isConsentGranted = (status: string | null | undefined): boolean =>
   status?.trim().toUpperCase() === "GRANTED";
 
+export const getConsentRecordId = (consent: IConsentListItem): string | null =>
+  consent._id?.trim() || null;
+
+/** Hospital patient ID used for health-data SSE (`hospitalPatientId` from consent API). */
+export const getConsentStreamPatientId = (consent: IConsentListItem): string | null =>
+  consent.patientId?.trim() || null;
+
+/** Full ABDM HI type catalog — always displayed on consent detail. */
+export const ALL_CONSENT_HI_TYPES = [
+  "Prescription",
+  "DischargeSummary",
+  "OPConsultation",
+  "DiagnosticReport",
+  "WellnessRecord",
+  "ImmunizationRecord",
+  "HealthDocumentRecord",
+] as const;
+
+const normalizeHiTypeKey = (value: string): string => value.trim().toLowerCase();
+
+const isHiTypeInList = (hiType: string, list: string[]): boolean => {
+  const key = normalizeHiTypeKey(hiType);
+  return list.some((item) => normalizeHiTypeKey(item) === key);
+};
+
+export const isHiTypeInApiResponse = (hiType: string, apiHiTypes: string[]): boolean =>
+  isHiTypeInList(hiType, apiHiTypes);
+
+const getApiReturnedHiTypes = (consent: IConsentListItem): string[] => {
+  if (consent.requestedHiTypes?.length) return consent.requestedHiTypes;
+  if (consent.hiTypes?.length) return consent.hiTypes;
+  return [];
+};
+
+export const getConsentHiTypeSummary = (
+  consent: IConsentListItem
+): {
+  displayHiTypes: string[];
+  apiHiTypes: string[];
+  absentHiTypes: string[];
+} => {
+  const catalogHiTypes = [...ALL_CONSENT_HI_TYPES];
+  const apiHiTypes = getApiReturnedHiTypes(consent);
+  const presentHiTypes = catalogHiTypes.filter((hiType) =>
+    isHiTypeInList(hiType, apiHiTypes)
+  );
+  const absentHiTypes = catalogHiTypes.filter(
+    (hiType) => !isHiTypeInList(hiType, apiHiTypes)
+  );
+  const displayHiTypes = [...presentHiTypes, ...absentHiTypes];
+
+  return { displayHiTypes, apiHiTypes, absentHiTypes };
+};
+
 export const validateConsentInitFields = (params: IConsentInitParams): string | null => {
   if (!params.patientId?.trim()) return "Patient ID is required.";
   if (!params.purposeCode?.trim()) return "Please select a purpose.";
@@ -263,6 +442,98 @@ export const initConsent = async (params: IConsentInitParams): Promise<unknown> 
   } catch (err: unknown) {
     throw new Error(getAxiosMessage(err, "Failed to initiate consent request."));
   }
+};
+
+export const getAllConsents = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: TConsentStatusFilter;
+  search?: string;
+}): Promise<IAllConsentsResult> => {
+  if (!API_BASE_URL) throw new Error("API base URL is not configured.");
+
+  const search = params?.search?.trim() ?? "";
+  const status = params?.status;
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+
+  try {
+    const res = await axios.get(`${API_BASE_URL}/hospital/abdm/m3/consent`, {
+      params: {
+        purpose: "M3",
+        page,
+        limit,
+        ...(status && status !== "ALL" ? { status } : {}),
+        ...(search ? { search } : {}),
+      },
+    });
+    const payload = res.data;
+    const consents = extractConsents(payload);
+    const pagination = extractConsentPagination(payload, {
+      page,
+      limit,
+      count: consents.length,
+    });
+
+    return {
+      consents,
+      pagination,
+      raw: payload,
+    };
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      return {
+        consents: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+        raw: err.response?.data ?? null,
+      };
+    }
+    throw new Error(getAxiosMessage(err, "Failed to fetch consents."));
+  }
+};
+
+const readPaginationNumber = (value: unknown, fallback: number): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && !Number.isNaN(Number(value))) {
+    return Number(value);
+  }
+  return fallback;
+};
+
+const extractConsentPagination = (
+  payload: unknown,
+  fallback: { page: number; limit: number; count: number }
+): IConsentPagination => {
+  const root = asObject(payload);
+  const data = asObject(root?.data) ?? root;
+  const pagination = asObject(data?.pagination) ?? asObject(root?.pagination);
+
+  const page = readPaginationNumber(pagination?.page, fallback.page);
+  const limit = readPaginationNumber(pagination?.limit, fallback.limit);
+  const total = readPaginationNumber(
+    pagination?.total ?? data?.total ?? data?.count ?? data?.totalCount,
+    fallback.count
+  );
+  const totalPages = readPaginationNumber(
+    pagination?.totalPages,
+    Math.max(1, Math.ceil(total / Math.max(limit, 1)))
+  );
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages,
+    hasNextPage: Boolean(pagination?.hasNextPage),
+    hasPrevPage: Boolean(pagination?.hasPrevPage),
+  };
 };
 
 export const getConsentStatus = async (patientId: string): Promise<IConsentStatusResult> => {
@@ -326,10 +597,27 @@ const mapConsentHipOption = (value: unknown): IConsentHipOption | null => {
 
   if (!consentArtifactId || !hipName) return null;
 
+  const artefactGrantedHiTypes = readStringArray(row.grantedHiTypes).length
+    ? readStringArray(row.grantedHiTypes)
+    : readStringArray(detail?.grantedHiTypes);
+
+  const artefactHiTypes = readStringArray(row.hiTypes).length
+    ? readStringArray(row.hiTypes)
+    : readStringArray(detail?.hiTypes);
+
+  const grantedHiTypes =
+    artefactGrantedHiTypes.length
+      ? artefactGrantedHiTypes
+      : artefactHiTypes.length === 1
+        ? artefactHiTypes
+        : [];
+
   return {
     consentArtifactId,
     hipName,
     hipId: readOptionalString(hip?.id) || readOptionalString(row.hipId),
+    hiTypes: artefactHiTypes.length ? artefactHiTypes : grantedHiTypes,
+    grantedHiTypes,
   };
 };
 
@@ -382,7 +670,26 @@ export const extractConsentHipOptions = (payload: unknown): IConsentHipOption[] 
   });
 };
 
-export const getConsentById = async (consentId: string): Promise<IConsentHipOption[]> => {
+export const extractConsentDetail = (payload: unknown): IConsentDetailResult => {
+  const root = asObject(payload);
+  const data = asObject(root?.data) ?? root;
+
+  const directConsent =
+    mapConsentItem(data?.hiuConsent) ||
+    mapConsentItem(data?.consent) ||
+    mapConsentItem(data);
+
+  const consent = directConsent ?? extractConsents(payload)[0] ?? null;
+  const hips = extractConsentHipOptions(payload);
+
+  return {
+    consent,
+    hips,
+    raw: payload,
+  };
+};
+
+export const getConsentDetail = async (consentId: string): Promise<IConsentDetailResult> => {
   if (!API_BASE_URL) throw new Error("API base URL is not configured.");
   if (!consentId?.trim()) throw new Error("Consent ID is required.");
 
@@ -390,10 +697,15 @@ export const getConsentById = async (consentId: string): Promise<IConsentHipOpti
     const res = await axios.get(
       `${API_BASE_URL}/hospital/abdm/m3/consent/${encodeURIComponent(consentId.trim())}`
     );
-    return extractConsentHipOptions(res.data);
+    return extractConsentDetail(res.data);
   } catch (err: unknown) {
     throw new Error(getAxiosMessage(err, "Failed to fetch consent details."));
   }
+};
+
+export const getConsentById = async (consentId: string): Promise<IConsentHipOption[]> => {
+  const detail = await getConsentDetail(consentId);
+  return detail.hips;
 };
 
 export const getConsentStatusBadgeClass = (status: string | null): string => {

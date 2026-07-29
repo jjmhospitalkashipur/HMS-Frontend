@@ -97,6 +97,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "ABHA Consent",
+        link: routes.abhaConsent,
+        submenu: false,
+        showSubRoute: false,
+        icon: "file-certificate",
+        base: "AbhaConsent",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Pathlab",
         link: PATHLAB_PORTAL_BASE_URL,
         submenu: false,

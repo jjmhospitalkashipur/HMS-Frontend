@@ -81,7 +81,27 @@ interface IPatient {
   abhaAddress?: string;
   abhaNumber?: string;
   abhaLinked?: boolean;
+  allAbhaAddresses?: string[];
 }
+
+const normalizeAllAbhaAddresses = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const addresses = value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const obj = item as Record<string, unknown>;
+        const address =
+          (typeof obj.abhaAddress === "string" ? obj.abhaAddress : "") ||
+          (typeof obj.address === "string" ? obj.address : "") ||
+          (typeof obj.value === "string" ? obj.value : "");
+        return address.trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+  return [...new Set(addresses)];
+};
 
 interface IVisitDoctorEmbed {
   _id?: string;
@@ -316,7 +336,11 @@ const PatientDetailsComponent = () => {
       const response = await axios.get(`${API_BASE_URL}/hospital/patients/${patientId}`);
       
       if (response.data?.code === 200 && response.data?.data?.patient) {
-        setPatient(response.data.data.patient);
+        const rawPatient = response.data.data.patient;
+        setPatient({
+          ...rawPatient,
+          allAbhaAddresses: normalizeAllAbhaAddresses(rawPatient?.allAbhaAddresses),
+        });
       } else {
         console.error("Failed to fetch patient details:", response.data);
       }
@@ -626,6 +650,13 @@ const PatientDetailsComponent = () => {
     ? Marital_Status.find((m) => m.value === patientMaritalStatusValue)?.label ??
       patientMaritalStatusValue
     : "";
+
+  const patientAbhaAddresses =
+    patient?.allAbhaAddresses?.length
+      ? patient.allAbhaAddresses
+      : patient?.abhaAddress?.trim()
+        ? [patient.abhaAddress.trim()]
+        : [];
 
   const appointmentColumns = [
     {
@@ -1071,6 +1102,50 @@ const PatientDetailsComponent = () => {
                             <p className="mb-0 text-dark">{patient.ayushmanCardNo.trim()}</p>
                           </div>
                         </div>
+                      </div>
+                    ) : null}
+                    {(patient?.abhaNumber?.trim() || patientAbhaAddresses.length > 0) ? (
+                      <div className="col-sm-12 border-top pt-3 mt-2">
+                        <h6 className="fs-14 fw-bold text-dark mb-2">ABHA Details</h6>
+                        {patient?.abhaNumber?.trim() ? (
+                          <div className="d-flex align-items-start mb-3">
+                            <span
+                              className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1"
+                              style={{ width: "32px", height: "32px" }}
+                            >
+                              <i className="ti ti-id fs-14" />
+                            </span>
+                            <div className="flex-grow-1 min-w-0">
+                              <h6 className="fs-13 fw-bold mb-1 text-dark">ABHA Number</h6>
+                              <p className="mb-0 text-dark text-break">{patient.abhaNumber.trim()}</p>
+                            </div>
+                          </div>
+                        ) : null}
+                        {patientAbhaAddresses.length > 0 ? (
+                          <div className="d-flex align-items-start mb-3">
+                            <span
+                              className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1"
+                              style={{ width: "32px", height: "32px" }}
+                            >
+                              <i className="ti ti-at fs-14" />
+                            </span>
+                            <div className="flex-grow-1 min-w-0">
+                              <h6 className="fs-13 fw-bold mb-2 text-dark">
+                                ABHA {patientAbhaAddresses.length > 1 ? "Addresses" : "Address"}
+                              </h6>
+                              <div className="d-flex flex-wrap gap-2">
+                                {patientAbhaAddresses.map((address) => (
+                                  <span
+                                    key={address}
+                                    className="badge badge-soft-success border border-success text-success fs-12 fw-medium px-2 py-1 rounded-2 text-break"
+                                  >
+                                    {address}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     {patient?.emergencyContacts && patient.emergencyContacts.length > 0 && (

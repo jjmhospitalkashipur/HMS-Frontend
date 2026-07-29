@@ -113,6 +113,7 @@ export const all_routes = {
   editPatient: "/edit-patient",
   patientDetails: "/patient-details",
   patientHealthHistory: "/patient-health-history",
+  abhaConsent: "/abha-consent",
   createPatient: "/create-patient",
   appointments: "/appointments",
   newAppointment: "/new-appointment",
