@@ -26,6 +26,7 @@ export const CONSENT_PURPOSE_OPTIONS: IConsentPurposeOption[] = [
 
 export interface IConsentInitParams {
   patientId: string;
+  abhaAddress: string;
   purposeCode: TConsentPurpose;
   dateRangeFrom: string;
   dateRangeTo: string;
@@ -406,6 +407,7 @@ export const getConsentHiTypeSummary = (
 
 export const validateConsentInitFields = (params: IConsentInitParams): string | null => {
   if (!params.patientId?.trim()) return "Patient ID is required.";
+  if (!params.abhaAddress?.trim()) return "Please select an ABHA address.";
   if (!params.purposeCode?.trim()) return "Please select a purpose.";
   if (!params.dateRangeFrom?.trim()) return "Please select date range from.";
   if (!params.dateRangeTo?.trim()) return "Please select date range to.";
@@ -432,6 +434,7 @@ export const initConsent = async (params: IConsentInitParams): Promise<unknown> 
   try {
     const res = await axios.post(`${API_BASE_URL}/hospital/abdm/m3/consent/init`, {
       patientId: params.patientId.trim(),
+      abhaAddress: params.abhaAddress.trim(),
       purposeCode: params.purposeCode,
       dateRangeFrom: params.dateRangeFrom,
       dateRangeTo: params.dateRangeTo,

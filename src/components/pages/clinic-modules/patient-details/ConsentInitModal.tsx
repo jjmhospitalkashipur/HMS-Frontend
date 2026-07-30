@@ -17,6 +17,7 @@ interface IConsentInitModalProps {
   open: boolean;
   onClose: () => void;
   patientId: string | null;
+  abhaAddresses?: string[];
   onSuccess?: () => void;
 }
 
@@ -66,8 +67,10 @@ const ConsentInitModal = ({
   open,
   onClose,
   patientId,
+  abhaAddresses = [],
   onSuccess,
 }: IConsentInitModalProps) => {
+  const [abhaAddress, setAbhaAddress] = useState("");
   const [purposeCode, setPurposeCode] = useState<TConsentPurpose | "">("");
   const [dateRangeFrom, setDateRangeFrom] = useState(getDefaultDateRangeFrom);
   const [dateRangeTo, setDateRangeTo] = useState(getTodayDateInputValue);
@@ -76,6 +79,18 @@ const ConsentInitModal = ({
   const [requesterName, setRequesterName] = useState(DEFAULT_REQUESTER_NAME);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const abhaAddressOptions: Option[] = useMemo(
+    () =>
+      abhaAddresses
+        .map((address) => address?.trim())
+        .filter((address): address is string => Boolean(address))
+        .map((address) => ({
+          value: address,
+          label: address,
+        })),
+    [abhaAddresses]
+  );
 
   const purposeOptions: Option[] = useMemo(
     () =>
@@ -86,6 +101,11 @@ const ConsentInitModal = ({
     []
   );
 
+  const selectedAbhaAddress = useMemo(
+    () => abhaAddressOptions.find((option) => option.value === abhaAddress) ?? null,
+    [abhaAddress, abhaAddressOptions]
+  );
+
   const selectedPurpose = useMemo(
     () => purposeOptions.find((option) => option.value === purposeCode) ?? null,
     [purposeCode, purposeOptions]
@@ -94,6 +114,8 @@ const ConsentInitModal = ({
   useEffect(() => {
     if (!open) return;
 
+    const defaultAbhaAddress = abhaAddressOptions[0]?.value ?? "";
+    setAbhaAddress(defaultAbhaAddress);
     setPurposeCode("");
     setDateRangeFrom(getDefaultDateRangeFrom());
     setDateRangeTo(getTodayDateInputValue());
@@ -102,7 +124,7 @@ const ConsentInitModal = ({
     setRequesterName(DEFAULT_REQUESTER_NAME);
     setSubmitting(false);
     setError(null);
-  }, [open, patientId]);
+  }, [open, patientId, abhaAddressOptions]);
 
   if (!open) return null;
 
@@ -123,6 +145,10 @@ const ConsentInitModal = ({
     setHiTypes([]);
   };
 
+  const handleAbhaAddressChange = (option: Option | null) => {
+    setAbhaAddress(option?.value ?? "");
+  };
+
   const handlePurposeChange = (option: Option | null) => {
     setPurposeCode((option?.value ?? "") as TConsentPurpose | "");
   };
@@ -133,6 +159,7 @@ const ConsentInitModal = ({
 
     const payload = {
       patientId: resolvedPatientId,
+      abhaAddress,
       purposeCode: purposeCode as TConsentPurpose,
       dateRangeFrom: toIsoStartOfDay(dateRangeFrom),
       dateRangeTo: toIsoDateRangeTo(dateRangeTo),
@@ -198,6 +225,25 @@ const ConsentInitModal = ({
                 ) : null}
 
                 <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-medium fs-14" htmlFor="consent-abha-address">
+                      ABHA Address <span className="text-danger">*</span>
+                    </label>
+                    <CommonSelect
+                      instanceId="consent-abha-address"
+                      options={abhaAddressOptions}
+                      value={selectedAbhaAddress}
+                      onChange={handleAbhaAddressChange}
+                      placeholder={
+                        abhaAddressOptions.length
+                          ? "Select ABHA address"
+                          : "No ABHA address available"
+                      }
+                      className="w-100"
+                      disabled={submitting || abhaAddressOptions.length === 0}
+                    />
+                  </div>
+
                   <div className="col-12 col-md-6">
                     <label className="form-label fw-medium fs-14" htmlFor="consent-purpose">
                       Purpose <span className="text-danger">*</span>
@@ -338,7 +384,9 @@ const ConsentInitModal = ({
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={submitting || !resolvedPatientId}
+                  disabled={
+                    submitting || !resolvedPatientId || abhaAddressOptions.length === 0
+                  }
                 >
                   {submitting ? "Initiating..." : "Initiate Consent"}
                 </button>

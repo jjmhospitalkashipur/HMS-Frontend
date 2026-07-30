@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import {
   fetchFhirPrefill,
-  finalizeFhirHealthRecord,
+  // finalizeFhirHealthRecord,
   extractFhirRecordData,
   getFhirHealthRecord,
   saveFhirHealthRecord,
@@ -226,7 +226,8 @@ const AddHealthRecordForm = ({
   const [fhirRecordId, setFhirRecordId] = useState<string>("");
   const [loadingPrefill, setLoadingPrefill] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [finalizing, setFinalizing] = useState(false);
+  // const [finalizing, setFinalizing] = useState(false);
+  const finalizing = false;
   const [uploading, setUploading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "danger"; text: string } | null>(
     null
@@ -376,6 +377,7 @@ const AddHealthRecordForm = ({
     }
   };
 
+  /*
   const handleFinalize = async () => {
     if (!sourceId) return;
     if (!authorId?.trim()) {
@@ -416,6 +418,7 @@ const AddHealthRecordForm = ({
       setFinalizing(false);
     }
   };
+  */
 
   const handleAttachmentUpload = async (file: File | undefined) => {
     if (!file) return;
@@ -1399,12 +1402,13 @@ const AddHealthRecordForm = ({
             {saving && !finalizing ? (
               <>
                 <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
-                Saving draft…
+                Saving…
               </>
             ) : (
-              "Save Draft"
+              "Save"
             )}
           </button>
+          {/* Finalize handled by backend linking flow
           <button
             type="button"
             className="btn btn-primary"
@@ -1420,6 +1424,7 @@ const AddHealthRecordForm = ({
               "Final"
             )}
           </button>
+          */}
         </div>
       </div>
     </>

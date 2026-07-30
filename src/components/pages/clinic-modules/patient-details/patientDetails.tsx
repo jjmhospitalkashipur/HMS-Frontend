@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import ConsentInitModal from "./ConsentInitModal";
-import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
+// import GenerateLinkTokenModal from "./GenerateLinkTokenModal";
 import UnlinkAbhaConfirmModal from "./UnlinkAbhaConfirmModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -255,7 +255,7 @@ const PatientDetailsComponent = () => {
   type TabKey = "appointments" | "ipd" | "transactions" | "dialysis" | "pathlab-cases" | "consents";
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const fetchedTabsRef = useRef<Set<TabKey>>(new Set());
-  const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
+  // const [linkTokenModalOpen, setLinkTokenModalOpen] = useState(false);
   const [consentInitModalOpen, setConsentInitModalOpen] = useState(false);
   const [unlinkAbhaModalOpen, setUnlinkAbhaModalOpen] = useState(false);
   const [consentStatus, setConsentStatus] = useState<string | null>(null);
@@ -886,6 +886,7 @@ const PatientDetailsComponent = () => {
                   <div className="d-flex align-items-center gap-2 flex-wrap">
                     {patient?.abhaLinked ? (
                       <>
+                        {/* Linking handled by backend
                         <button
                           type="button"
                           className="btn btn-outline-primary text-nowrap"
@@ -896,6 +897,7 @@ const PatientDetailsComponent = () => {
                           <i className="ti ti-link me-1" />
                           Linking Token
                         </button>
+                        */}
 
                         <button
                           type="button"
@@ -2671,6 +2673,7 @@ const PatientDetailsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
+      {/* Linking handled by backend
       <GenerateLinkTokenModal
         open={linkTokenModalOpen}
         onClose={() => setLinkTokenModalOpen(false)}
@@ -2679,6 +2682,7 @@ const PatientDetailsComponent = () => {
           setPatient((prev) => (prev ? { ...prev, abhaLinked: true } : prev))
         }
       />
+      */}
       <UnlinkAbhaConfirmModal
         open={unlinkAbhaModalOpen}
         onClose={() => setUnlinkAbhaModalOpen(false)}
@@ -2692,6 +2696,7 @@ const PatientDetailsComponent = () => {
         open={consentInitModalOpen}
         onClose={() => setConsentInitModalOpen(false)}
         patientId={patient?._id ?? patientId}
+        abhaAddresses={patientAbhaAddresses}
         onSuccess={() => {
           const id = patient?._id ?? patientId;
           if (id) fetchConsentStatus(id);

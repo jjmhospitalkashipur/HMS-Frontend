@@ -7,7 +7,7 @@ import {
   // deleteFhirHealthRecord,
   downloadFhirHealthRecord,
   getFhirHiTypeLabel,
-  linkFhirHealthRecords,
+  // linkFhirHealthRecords,
   listFhirHealthRecords,
 } from "@/core/api/fhirHealthRecordApi";
 import {
@@ -49,8 +49,9 @@ const resolveStatus = (record: IFhirHealthRecordListItem): string => {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 };
 
-const isFinalStatus = (status: string): boolean => status.toLowerCase().includes("final");
+// const isFinalStatus = (status: string): boolean => status.toLowerCase().includes("final");
 
+/*
 const isRecordDraft = (record: IFhirHealthRecordListItem): boolean => {
   const raw = (record.metadata?.status || record.status || "").trim().toLowerCase();
   if (raw === "draft") return true;
@@ -73,6 +74,7 @@ const canSelectRecordForLink = (
   if (isAlreadyLinkedToAbdm(record)) return false;
   return true;
 };
+*/
 
 const statusBadgeClass = (status: string): string => {
   const normalized = status.toLowerCase();
@@ -99,10 +101,11 @@ const HealthRecordsList = ({
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [linking, setLinking] = useState(false);
-  const [linkError, setLinkError] = useState("");
-  const [linkSuccess, setLinkSuccess] = useState("");
+  // Linking handled by backend
+  // const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // const [linking, setLinking] = useState(false);
+  // const [linkError, setLinkError] = useState("");
+  // const [linkSuccess, setLinkSuccess] = useState("");
   const [viewRecordId, setViewRecordId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState("");
@@ -124,7 +127,7 @@ const HealthRecordsList = ({
       if (!sourceId?.trim()) {
         setRecords([]);
         setTotal(0);
-        setSelectedIds([]);
+        // setSelectedIds([]);
         return;
       }
 
@@ -135,11 +138,11 @@ const HealthRecordsList = ({
         setRecords(result.records);
         setTotal(result.total);
         setPage(result.page);
-        setSelectedIds([]);
+        // setSelectedIds([]);
       } catch (err) {
         setRecords([]);
         setTotal(0);
-        setSelectedIds([]);
+        // setSelectedIds([]);
         setError(err instanceof Error ? err.message : "Failed to load health records");
       } finally {
         setLoading(false);
@@ -153,6 +156,7 @@ const HealthRecordsList = ({
     void fetchRecords(1);
   }, [fetchRecords, refreshKey]);
 
+  /*
   const selectableIds = useMemo(
     () =>
       records
@@ -207,6 +211,7 @@ const HealthRecordsList = ({
       setLinking(false);
     }
   };
+  */
 
   const handleDownloadRecord = async (recordId: string) => {
     if (!recordId?.trim() || downloadingId) return;
@@ -309,6 +314,7 @@ const HealthRecordsList = ({
                 </>
               )}
             </button>
+            {/* Linking handled by backend
             <button
               type="button"
               className="btn btn-sm btn-outline-primary"
@@ -339,12 +345,14 @@ const HealthRecordsList = ({
                 </>
               )}
             </button>
+            */}
           </div>
           {total > 0 ? (
             <span className="text-muted fs-13">{total} record{total === 1 ? "" : "s"}</span>
           ) : null}
         </div>
 
+        {/* Linking handled by backend
         {linkError ? (
           <div className="alert alert-danger py-2" role="alert">
             {linkError}
@@ -355,6 +363,7 @@ const HealthRecordsList = ({
             {linkSuccess}
           </div>
         ) : null}
+        */}
         {downloadError ? (
           <div className="alert alert-danger py-2" role="alert">
             {downloadError}
@@ -398,6 +407,7 @@ const HealthRecordsList = ({
               <table className="table table-hover mb-0">
                 <thead>
                   <tr>
+                    {/* Linking handled by backend
                     <th className="border-0 fs-13 fw-medium align-middle" style={{ width: "48px" }}>
                       <input
                         type="checkbox"
@@ -409,6 +419,7 @@ const HealthRecordsList = ({
                         aria-label="Select all linkable health records"
                       />
                     </th>
+                    */}
                     <th className="border-0 fs-13 fw-medium">Type</th>
                     <th className="border-0 fs-13 fw-medium">Date</th>
                     <th className="border-0 fs-13 fw-medium">Status</th>
@@ -422,22 +433,22 @@ const HealthRecordsList = ({
                     const id = resolveRecordId(record) || `row-${index}`;
                     const status = resolveStatus(record);
                     const recordId = resolveRecordId(record);
-                    const isFinal = isFinalStatus(status);
-                    const isDraft = isRecordDraft(record);
-                    const alreadyLinked = isAlreadyLinkedToAbdm(record);
-                    const canSelect = canSelectRecordForLink(record, abhaLinked);
-                    const canEdit = Boolean(recordId) && !isFinal;
+                    const canEdit = Boolean(recordId);
+                    // const isFinal = isFinalStatus(status);
+                    // const isDraft = isRecordDraft(record);
+                    // const alreadyLinked = isAlreadyLinkedToAbdm(record);
+                    // const canSelect = canSelectRecordForLink(record, abhaLinked);
                     // const canDelete = Boolean(recordId) && !isFinal;
                     const typeLabel = getFhirHiTypeLabel(
                       typeof record.hiType === "string" ? record.hiType : undefined
                     );
-                    const checkboxTitle = !abhaLinked
-                      ? "ABHA must be linked before selecting records"
-                      : isDraft
-                        ? "Draft records cannot be linked"
-                        : alreadyLinked
-                          ? "Record is already linked to ABDM"
-                          : "Select record";
+                    // const checkboxTitle = !abhaLinked
+                    //   ? "ABHA must be linked before selecting records"
+                    //   : isDraft
+                    //     ? "Draft records cannot be linked"
+                    //     : alreadyLinked
+                    //       ? "Record is already linked to ABDM"
+                    //       : "Select record";
                     const handleOpenView = () => {
                       if (!recordId) return;
                       setViewRecordId(recordId);
@@ -467,6 +478,7 @@ const HealthRecordsList = ({
                         onClick={handleRowClick}
                         onKeyDown={handleRowKeyDown}
                       >
+                        {/* Linking handled by backend
                         <td className={`align-middle ${clickableCellClass}`}>
                           <input
                             type="checkbox"
@@ -486,6 +498,7 @@ const HealthRecordsList = ({
                             aria-label={`Select ${typeLabel}`}
                           />
                         </td>
+                        */}
                         <td className={`fs-14 text-dark fw-medium ${clickableCellClass}`}>{typeLabel}</td>
                         <td className={`fs-14 text-dark ${clickableCellClass}`}>{resolveRecordDate(record)}</td>
                         <td className={`fs-14 ${clickableCellClass}`}>
@@ -497,7 +510,7 @@ const HealthRecordsList = ({
                               type="button"
                               className="btn btn-sm btn-outline-primary"
                               disabled={!canEdit}
-                              title={isFinal ? "Finalized records cannot be edited" : "Edit record"}
+                              title="Edit record"
                               onClick={() => {
                                 if (!recordId || !canEdit) return;
                                 onEdit?.(recordId);
