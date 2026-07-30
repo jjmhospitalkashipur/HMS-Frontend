@@ -5,6 +5,8 @@ import type {
   IFhirDiagnosisItem,
   IFhirHealthDocumentRecordData,
   IFhirImmunizationRecordData,
+  IFhirInvoiceData,
+  IFhirInvoiceLineItem,
   IFhirInvestigationAdvisedItem,
   IFhirInvestigationItem,
   IFhirMedicationItem,
@@ -243,6 +245,42 @@ export const emptyWellnessRecordData = (): IFhirWellnessRecordData => ({
   observations: "",
 });
 
+const emptyInvoiceLineItem = (): IFhirInvoiceLineItem => ({
+  sequence: "",
+  itemName: "",
+  hsnCode: "",
+  itemType: "",
+  quantity: "",
+  unit: "",
+  rate: "",
+  mrp: "",
+  discount: "",
+  cgst: "",
+  sgst: "",
+  total: "",
+  batchNumber: "",
+  expiryDate: "",
+});
+
+export const emptyInvoiceData = (): IFhirInvoiceData => ({
+  patientName: "",
+  patientAge: "",
+  patientGender: "",
+  patientMRD: "",
+  patientPhone: "",
+  patientAddress: "",
+  invoiceNumber: "",
+  invoiceDate: "",
+  invoiceType: "Hospital",
+  billingCode: "00",
+  status: "issued",
+  attendingDoctorName: "",
+  lineItems: [emptyInvoiceLineItem()],
+  totalGross: "",
+  totalNet: "",
+  notes: "",
+});
+
 export const getEmptyFormDataForHiType = (hiType: TFhirHiType): Record<string, unknown> => {
   switch (hiType) {
     case "DischargeSummary":
@@ -259,6 +297,8 @@ export const getEmptyFormDataForHiType = (hiType: TFhirHiType): Record<string, u
       return emptyHealthDocumentRecordData() as unknown as Record<string, unknown>;
     case "WellnessRecord":
       return emptyWellnessRecordData() as unknown as Record<string, unknown>;
+    case "Invoice":
+      return emptyInvoiceData() as unknown as Record<string, unknown>;
     default:
       return {};
   }
@@ -475,6 +515,31 @@ export const mergePrefillIntoFormData = (
     });
   }
 
+  if (hiType === "Invoice" && Array.isArray(prefillFields.lineItems)) {
+    merged.lineItems = (prefillFields.lineItems as unknown[]).map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return { ...emptyInvoiceLineItem(), sequence: index + 1 };
+      }
+      const row = item as Partial<IFhirInvoiceLineItem>;
+      return {
+        sequence: coerceNumberOrEmpty(row.sequence ?? index + 1),
+        itemName: String(row.itemName ?? ""),
+        hsnCode: String(row.hsnCode ?? ""),
+        itemType: String(row.itemType ?? ""),
+        quantity: coerceNumberOrEmpty(row.quantity),
+        unit: String(row.unit ?? ""),
+        rate: coerceNumberOrEmpty(row.rate),
+        mrp: coerceNumberOrEmpty(row.mrp),
+        discount: coerceNumberOrEmpty(row.discount),
+        cgst: coerceNumberOrEmpty(row.cgst),
+        sgst: coerceNumberOrEmpty(row.sgst),
+        total: coerceNumberOrEmpty(row.total),
+        batchNumber: String(row.batchNumber ?? ""),
+        expiryDate: coerceNullishString(row.expiryDate),
+      };
+    });
+  }
+
   const dateFields: Partial<Record<TFhirHiType, string[]>> = {
     DischargeSummary: ["admissionDate", "dischargeDate", "followUpDate"],
     OPConsultation: ["visitDate", "followUpDate"],
@@ -483,6 +548,7 @@ export const mergePrefillIntoFormData = (
     ImmunizationRecord: ["expirationDate", "administeredDate", "nextDueDate"],
     HealthDocumentRecord: ["documentDate"],
     WellnessRecord: ["checkupDate"],
+    Invoice: ["invoiceDate"],
   };
 
   dateFields[hiType]?.forEach((key) => {
@@ -499,6 +565,12 @@ export const mergePrefillIntoFormData = (
   }
   if (prefillFields.doseNumber != null) {
     merged.doseNumber = coerceNumberOrEmpty(prefillFields.doseNumber);
+  }
+  if (prefillFields.totalGross != null) {
+    merged.totalGross = coerceNumberOrEmpty(prefillFields.totalGross);
+  }
+  if (prefillFields.totalNet != null) {
+    merged.totalNet = coerceNumberOrEmpty(prefillFields.totalNet);
   }
 
   return merged;
@@ -519,6 +591,7 @@ export const serializeFormDataForApi = (
     ImmunizationRecord: ["expirationDate", "administeredDate", "nextDueDate"],
     HealthDocumentRecord: ["documentDate"],
     WellnessRecord: ["checkupDate"],
+    Invoice: ["invoiceDate"],
   };
 
   dateFields[hiType]?.forEach((key) => {
@@ -554,9 +627,37 @@ export const serializeFormDataForApi = (
     }));
   }
 
+  if (hiType === "Invoice" && Array.isArray(data.lineItems)) {
+    data.lineItems = (data.lineItems as IFhirInvoiceLineItem[]).map((item, index) => {
+      const line: Record<string, unknown> = {
+        sequence: item.sequence === "" || item.sequence == null ? index + 1 : Number(item.sequence),
+        itemName: item.itemName ?? "",
+        itemType: item.itemType ?? "",
+        quantity: item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity),
+        unit: item.unit ?? "",
+        rate: item.rate === "" || item.rate == null ? 0 : Number(item.rate),
+        total: item.total === "" || item.total == null ? 0 : Number(item.total),
+      };
+      if (item.hsnCode?.trim()) line.hsnCode = item.hsnCode.trim();
+      if (item.mrp !== "" && item.mrp != null) line.mrp = Number(item.mrp);
+      if (item.discount !== "" && item.discount != null) line.discount = Number(item.discount);
+      if (item.cgst !== "" && item.cgst != null) line.cgst = Number(item.cgst);
+      if (item.sgst !== "" && item.sgst != null) line.sgst = Number(item.sgst);
+      if (item.batchNumber?.trim()) line.batchNumber = item.batchNumber.trim();
+      if (item.expiryDate?.trim()) {
+        line.expiryDate = item.expiryDate.includes("T")
+          ? dateTimeLocalToIso(item.expiryDate)
+          : dateInputToIso(item.expiryDate);
+      }
+      return line;
+    });
+  }
+
   if (data.patientAge === "") delete data.patientAge;
   if (data.validityDays === "") delete data.validityDays;
   if (data.doseNumber === "") delete data.doseNumber;
+  if (data.totalGross === "") delete data.totalGross;
+  if (data.totalNet === "") delete data.totalNet;
 
   if (hiType === "DischargeSummary" || hiType === "OPConsultation") {
     data.provisionalDiagnosis = coerceDiagnosisList(data.provisionalDiagnosis);
@@ -577,6 +678,7 @@ export const serializeFormDataForApi = (
 export {
   emptyInvestigation,
   emptyInvestigationAdvised,
+  emptyInvoiceLineItem,
   emptyMedication,
   emptyProcedure,
   emptyTestResult,

@@ -80,6 +80,13 @@ const FIELD_LABELS: Record<string, string> = {
   exerciseFrequency: "Exercise Frequency",
   healthStatus: "Health Status",
   observations: "Observations",
+  invoiceNumber: "Invoice Number",
+  invoiceDate: "Invoice Date",
+  invoiceType: "Invoice Type",
+  billingCode: "Billing Code",
+  status: "Status",
+  totalGross: "Total Gross",
+  totalNet: "Total Net",
 };
 
 const HI_TYPE_FIELD_ORDER: Record<TFhirHiType, string[]> = {
@@ -200,6 +207,23 @@ const HI_TYPE_FIELD_ORDER: Record<TFhirHiType, string[]> = {
     "healthStatus",
     "observations",
   ],
+  Invoice: [
+    "patientName",
+    "patientAge",
+    "patientGender",
+    "patientMRD",
+    "patientPhone",
+    "patientAddress",
+    "invoiceNumber",
+    "invoiceDate",
+    "invoiceType",
+    "billingCode",
+    "status",
+    "attendingDoctorName",
+    "totalGross",
+    "totalNet",
+    "notes",
+  ],
 };
 
 const formatLabel = (key: string): string =>
@@ -304,6 +328,31 @@ const formatTestResultItems = (value: unknown): string[] => {
     .filter((item): item is string => Boolean(item));
 };
 
+const formatInvoiceLineItems = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const name = formatPrimitive(row.itemName);
+      if (!name) return null;
+      const qty = formatPrimitive(row.quantity);
+      const unit = formatPrimitive(row.unit);
+      const rate = formatPrimitive(row.rate);
+      const total = formatPrimitive(row.total);
+      const parts = [
+        name,
+        formatPrimitive(row.itemType),
+        qty && unit ? `${qty} ${unit}` : qty || unit,
+        rate ? `Rate: ${rate}` : null,
+        total ? `Total: ${total}` : null,
+        formatPrimitive(row.batchNumber),
+      ].filter(Boolean);
+      return parts.join(" · ");
+    })
+    .filter((item): item is string => Boolean(item));
+};
+
 const formatVitalSigns = (value: unknown): IFhirViewRow[] => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return [];
   const vitals = value as Record<string, unknown>;
@@ -349,6 +398,7 @@ const LIST_FIELD_CONFIG: Record<string, { label: string; formatter?: (value: unk
   investigationsAdvised: { label: "Investigations Advised", formatter: formatInvestigationItems },
   proceduresPerformed: { label: "Procedures Performed", formatter: formatInvestigationItems },
   testResults: { label: "Test Results", formatter: formatTestResultItems },
+  lineItems: { label: "Line Items", formatter: formatInvoiceLineItems },
 };
 
 export const buildFhirRecordViewSections = (

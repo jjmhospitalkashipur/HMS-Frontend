@@ -89,6 +89,7 @@ const typedDataKeyByHiType: Record<TFhirHiType, keyof IFhirHealthRecordListItem>
   ImmunizationRecord: "immunizationData",
   HealthDocumentRecord: "healthDocumentData",
   WellnessRecord: "wellnessData",
+  Invoice: "invoiceData",
 };
 
 /** Resolves clinical payload from either `data` or hiType-specific fields like `opConsultData`. */

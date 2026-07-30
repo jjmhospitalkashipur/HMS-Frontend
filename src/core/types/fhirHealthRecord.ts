@@ -7,7 +7,8 @@ export type TFhirHiType =
   | "DiagnosticReport"
   | "ImmunizationRecord"
   | "HealthDocumentRecord"
-  | "WellnessRecord";
+  | "WellnessRecord"
+  | "Invoice";
 
 export interface IFhirHiTypeOption {
   value: TFhirHiType;
@@ -22,6 +23,7 @@ export const FHIR_HI_TYPE_OPTIONS: IFhirHiTypeOption[] = [
   { value: "ImmunizationRecord", label: "Immunization Record" },
   { value: "HealthDocumentRecord", label: "Health Document Record" },
   { value: "WellnessRecord", label: "Wellness Record" },
+  { value: "Invoice", label: "Invoice" },
 ];
 
 export interface IFhirDiagnosisItem {
@@ -243,6 +245,42 @@ export interface IFhirWellnessRecordData {
   observations: string;
 }
 
+export interface IFhirInvoiceLineItem {
+  sequence: number | "";
+  itemName: string;
+  hsnCode?: string;
+  itemType: string;
+  quantity: number | "";
+  unit: string;
+  rate: number | "";
+  mrp?: number | "";
+  discount?: number | "";
+  cgst?: number | "";
+  sgst?: number | "";
+  total: number | "";
+  batchNumber?: string;
+  expiryDate?: string;
+}
+
+export interface IFhirInvoiceData {
+  patientName: string;
+  patientAge: number | "";
+  patientGender: string;
+  patientMRD: string;
+  patientPhone: string;
+  patientAddress: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  invoiceType: string;
+  billingCode: string;
+  status: string;
+  attendingDoctorName: string;
+  lineItems: IFhirInvoiceLineItem[];
+  totalGross: number | "";
+  totalNet: number | "";
+  notes: string;
+}
+
 export type TFhirHealthRecordData =
   | IFhirDischargeSummaryData
   | IFhirOPConsultationData
@@ -250,7 +288,8 @@ export type TFhirHealthRecordData =
   | IFhirDiagnosticReportData
   | IFhirImmunizationRecordData
   | IFhirHealthDocumentRecordData
-  | IFhirWellnessRecordData;
+  | IFhirWellnessRecordData
+  | IFhirInvoiceData;
 
 export interface IFhirHealthRecordPayload {
   sourceType: TFhirSourceType;
@@ -289,6 +328,7 @@ export interface IFhirHealthRecordListItem {
   immunizationData?: Record<string, unknown> | null;
   healthDocumentData?: Record<string, unknown> | null;
   wellnessData?: Record<string, unknown> | null;
+  invoiceData?: Record<string, unknown> | null;
   attachments?: IFhirAttachment[];
 }
 

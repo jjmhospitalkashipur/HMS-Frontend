@@ -18,6 +18,7 @@ import {
   type IFhirHealthRecordListItem,
   type IFhirInvestigationAdvisedItem,
   type IFhirInvestigationItem,
+  type IFhirInvoiceLineItem,
   type IFhirMedicationItem,
   type IFhirProcedureItem,
   type IFhirTestResultItem,
@@ -31,6 +32,7 @@ import {
   dateTimeLocalToIso,
   emptyInvestigation,
   emptyInvestigationAdvised,
+  emptyInvoiceLineItem,
   emptyMedication,
   emptyProcedure,
   emptyTestResult,
@@ -1147,6 +1149,123 @@ const AddHealthRecordForm = ({
             <TextField id="fhir-observations" label="Observations" rows={1} value={String(formData.observations ?? "")} onChange={(v) => updateField("observations", v)} disabled={loadingPrefill || saving} />
           </>
         );
+
+      case "Invoice": {
+        const lineItems = (formData.lineItems as IFhirInvoiceLineItem[] | undefined) ?? [];
+        return (
+          <>
+            {renderPatientFields()}
+            <TextField id="fhir-phone" label="Phone" type="tel" value={String(formData.patientPhone ?? "")} onChange={(v) => updateField("patientPhone", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-invoice-type" label="Invoice Type" value={String(formData.invoiceType ?? "")} onChange={(v) => updateField("invoiceType", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-billing-code" label="Billing Code" value={String(formData.billingCode ?? "")} onChange={(v) => updateField("billingCode", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-invoice-status" label="Status" value={String(formData.status ?? "")} onChange={(v) => updateField("status", v)} disabled={loadingPrefill || saving} col="quarter" />
+            <TextField id="fhir-address" label="Patient Address" value={String(formData.patientAddress ?? "")} onChange={(v) => updateField("patientAddress", v)} disabled={loadingPrefill || saving} col="half" />
+            <TextField id="fhir-doctor" label="Attending Doctor" value={String(formData.attendingDoctorName ?? "")} onChange={(v) => updateField("attendingDoctorName", v)} disabled={loadingPrefill || saving} col="half" />
+            <TextField id="fhir-invoice-number" label="Invoice Number" value={String(formData.invoiceNumber ?? "")} onChange={(v) => updateField("invoiceNumber", v)} disabled={loadingPrefill || saving} col="third" />
+            <TextField id="fhir-invoice-date" label="Invoice Date" type="datetime-local" value={toDateTimeLocalValue(String(formData.invoiceDate ?? ""))} onChange={(v) => updateField("invoiceDate", v)} disabled={loadingPrefill || saving} col="date" />
+            <TextField id="fhir-total-gross" label="Total Gross" type="number" value={(formData.totalGross as string | number) ?? ""} onChange={(v) => updateField("totalGross", v === "" ? "" : Number(v))} disabled={loadingPrefill || saving} col="compact" />
+            <TextField id="fhir-total-net" label="Total Net" type="number" value={(formData.totalNet as string | number) ?? ""} onChange={(v) => updateField("totalNet", v === "" ? "" : Number(v))} disabled={loadingPrefill || saving} col="compact" />
+            <div className="col-12 mb-2">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <label className={LABEL_CLASS}>Line Items</label>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={() =>
+                    updateField("lineItems", [
+                      ...lineItems,
+                      { ...emptyInvoiceLineItem(), sequence: lineItems.length + 1 },
+                    ])
+                  }
+                  disabled={loadingPrefill || saving}
+                >
+                  <i className="ti ti-plus me-1" />
+                  Add
+                </button>
+              </div>
+              {lineItems.map((row, index) => (
+                <div className="border rounded p-2 mb-2 bg-light" key={`line-${index}`}>
+                  <div className="row g-2">
+                    {(
+                      [
+                        ["sequence", "Seq", "number"],
+                        ["itemName", "Item Name", "text"],
+                        ["hsnCode", "HSN", "text"],
+                        ["itemType", "Item Type", "text"],
+                        ["quantity", "Qty", "number"],
+                        ["unit", "Unit", "text"],
+                        ["rate", "Rate", "number"],
+                        ["mrp", "MRP", "number"],
+                        ["discount", "Discount", "number"],
+                        ["cgst", "CGST", "number"],
+                        ["sgst", "SGST", "number"],
+                        ["total", "Total", "number"],
+                        ["batchNumber", "Batch", "text"],
+                      ] as const
+                    ).map(([field, placeholder, inputType]) => (
+                      <div className="col-6 col-md-4 col-lg-2" key={field}>
+                        <input
+                          type={inputType}
+                          className={INPUT_CLASS}
+                          placeholder={placeholder}
+                          aria-label={placeholder}
+                          value={row[field] ?? ""}
+                          onChange={(e) => {
+                            const next = [...lineItems];
+                            const raw = e.target.value;
+                            next[index] = {
+                              ...next[index],
+                              [field]:
+                                inputType === "number"
+                                  ? raw === ""
+                                    ? ""
+                                    : Number(raw)
+                                  : raw,
+                            };
+                            updateField("lineItems", next);
+                          }}
+                          disabled={loadingPrefill || saving}
+                        />
+                      </div>
+                    ))}
+                    <div className="col-6 col-md-4 col-lg-2">
+                      <input
+                        type="date"
+                        className={INPUT_CLASS}
+                        placeholder="Expiry"
+                        aria-label="Expiry Date"
+                        value={toDateInputValue(String(row.expiryDate ?? ""))}
+                        onChange={(e) => {
+                          const next = [...lineItems];
+                          next[index] = { ...next[index], expiryDate: e.target.value };
+                          updateField("lineItems", next);
+                        }}
+                        disabled={loadingPrefill || saving}
+                      />
+                    </div>
+                    <div className="col-auto ms-auto">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() =>
+                          updateField(
+                            "lineItems",
+                            lineItems.filter((_, i) => i !== index)
+                          )
+                        }
+                        disabled={loadingPrefill || saving}
+                      >
+                        <i className="ti ti-trash" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <TextField id="fhir-notes" label="Notes" rows={1} value={String(formData.notes ?? "")} onChange={(v) => updateField("notes", v)} disabled={loadingPrefill || saving} />
+          </>
+        );
+      }
 
       default:
         return null;

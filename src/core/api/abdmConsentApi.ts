@@ -365,6 +365,7 @@ export const ALL_CONSENT_HI_TYPES = [
   "WellnessRecord",
   "ImmunizationRecord",
   "HealthDocumentRecord",
+  "Invoice",
 ] as const;
 
 const normalizeHiTypeKey = (value: string): string => value.trim().toLowerCase();
