@@ -329,13 +329,15 @@ const AbhaConsentDetailComponent = () => {
                 />
                 <DetailField
                   label="Granted Date Range"
-                  value={
-                    isConsentGranted(consent.status)
-                      ? formatDateRange(consent.dateRangeFrom, consent.dateRangeTo)
-                      : "—"
-                  }
+                  value={formatDateRange(
+                    consent.grantedDateRangeFrom,
+                    consent.grantedDateRangeTo
+                  )}
                 />
-                <DetailField label="Granted Erase On" value="—" />
+                <DetailField
+                  label="Granted Erase On"
+                  value={formatDateTime(consent.grantedDataEraseAt)}
+                />
               </SummarySection>
             </div>
 

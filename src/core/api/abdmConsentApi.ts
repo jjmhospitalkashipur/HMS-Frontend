@@ -56,6 +56,9 @@ export interface IConsentListItem {
   dateRangeFrom: string | null;
   dateRangeTo: string | null;
   dataEraseAt: string | null;
+  grantedDateRangeFrom: string | null;
+  grantedDateRangeTo: string | null;
+  grantedDataEraseAt: string | null;
   initiatedAt: string | null;
   grantedAt: string | null;
   deniedAt: string | null;
@@ -251,6 +254,9 @@ const mapConsentItem = (value: unknown): IConsentListItem | null => {
       readOptionalString(consent.dataEraseAt) ||
       readOptionalString(permission?.dataEraseAt) ||
       null,
+    grantedDateRangeFrom: readOptionalString(consent.grantedDateRangeFrom),
+    grantedDateRangeTo: readOptionalString(consent.grantedDateRangeTo),
+    grantedDataEraseAt: readOptionalString(consent.grantedDataEraseAt),
     initiatedAt: readOptionalString(consent.initiatedAt),
     grantedAt: readOptionalString(consent.grantedAt),
     deniedAt: readOptionalString(consent.deniedAt),
