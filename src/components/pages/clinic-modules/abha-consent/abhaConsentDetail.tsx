@@ -163,8 +163,8 @@ const HiTypesSection = ({
             !
           </span>
           <span className="fs-13">
-            {absentHiTypes.length} of {displayHiTypes.length} HI type(s) not in API
-            response:{" "}
+            {absentHiTypes.length} of {displayHiTypes.length} requested HI types not
+            granted:{" "}
             <span className="fw-bold">{absentHiTypes.join(", ")}</span>
           </span>
         </div>
