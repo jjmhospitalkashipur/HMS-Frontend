@@ -31,6 +31,10 @@ const splitValueLines = (value: string): string[] =>
 const joinValueLines = (lines: string[]): string =>
   lines.map((line) => line.trim()).filter(Boolean).join("\n");
 
+/** Match legacy "1. Text" lines to option text with or without a serial prefix. */
+const normalizeMatchKey = (text: string): string =>
+  text.replace(/^\d+\.\s*/, "").trim().toLowerCase();
+
 const MultiSelectWithOther = ({
   id,
   value,
@@ -50,9 +54,15 @@ const MultiSelectWithOther = ({
     [options, otherValue]
   );
 
+  const optionOrder = useMemo(() => {
+    const map = new Map<string, number>();
+    options.forEach((o, index) => map.set(o.value, index));
+    return map;
+  }, [options]);
+
   const optionByText = useMemo(() => {
     const map = new Map<string, IMultiSelectWithOtherOption>();
-    presetOptions.forEach((o) => map.set(o.text, o));
+    presetOptions.forEach((o) => map.set(normalizeMatchKey(o.text), o));
     return map;
   }, [presetOptions]);
 
@@ -66,7 +76,7 @@ const MultiSelectWithOther = ({
     let hasCustom = false;
 
     lines.forEach((line) => {
-      const option = optionByText.get(line);
+      const option = optionByText.get(normalizeMatchKey(line));
       if (option) {
         matched.push(option);
         return;
@@ -74,12 +84,16 @@ const MultiSelectWithOther = ({
       hasCustom = true;
     });
 
+    matched.sort(
+      (a, b) => (optionOrder.get(a.value) ?? 0) - (optionOrder.get(b.value) ?? 0)
+    );
+
     if ((otherSelected || hasCustom) && otherOption) {
       matched.push(otherOption);
     }
 
     return matched;
-  }, [optionByText, otherOption, otherSelected, value]);
+  }, [optionByText, optionOrder, otherOption, otherSelected, value]);
 
   useEffect(() => {
     const lines = splitValueLines(value);
@@ -89,7 +103,7 @@ const MultiSelectWithOther = ({
       return;
     }
 
-    const unmatched = lines.filter((line) => !optionByText.has(line));
+    const unmatched = lines.filter((line) => !optionByText.has(normalizeMatchKey(line)));
     if (!unmatched.length) {
       setOtherSelected(false);
       setOtherText("");
@@ -104,6 +118,7 @@ const MultiSelectWithOther = ({
     (selected: IMultiSelectWithOtherOption[], nextOtherText: string, nextOtherSelected: boolean) => {
       const lines = selected
         .filter((option) => option.value !== otherValue)
+        .sort((a, b) => (optionOrder.get(a.value) ?? 0) - (optionOrder.get(b.value) ?? 0))
         .map((option) => option.text);
       if (nextOtherSelected) {
         const custom = nextOtherText.trim();
@@ -111,7 +126,7 @@ const MultiSelectWithOther = ({
       }
       onChange(joinValueLines(lines));
     },
-    [onChange, otherValue]
+    [onChange, optionOrder, otherValue]
   );
 
   const handleChange = useCallback(

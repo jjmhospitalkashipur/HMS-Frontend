@@ -8,6 +8,8 @@ import IcdDiagnosisMultiSelect from "@/components/pages/clinic-modules/ipd-appoi
 import MedicineNameSelect from "@/components/pages/clinic-modules/ipd-appointments/MedicineNameSelect";
 import MultiSelectWithOther from "@/components/pages/clinic-modules/ipd-appointments/MultiSelectWithOther";
 import {
+  ADVICE_ON_DISCHARGE_OTHER_OPTION,
+  ADVICE_ON_DISCHARGE_PRESETS,
   buildCustomDuration,
   buildDischargeSummaryPayload,
   CONDITION_ON_DISCHARGE_OPTIONS,
@@ -175,63 +177,7 @@ const IpdDischargeSummaryForm = ({
     ) ?? null;
 
   const adviceOnDischargeOptions = useMemo(
-    () => [
-      {
-        value: "take_medicines",
-        label: "1. Take medicines as prescribed, do not skip doses",
-        text: "1. Take medicines as prescribed, do not skip doses",
-      },
-      {
-        value: "low_salt_low_fat_diet",
-        label: "2. Follow low-salt, low-fat diet",
-        text: "2. Follow low-salt, low-fat diet",
-      },
-      {
-        value: "avoid_heavy_exertion",
-        label: "3. Avoid heavy exertion / lifting for [X] weeks",
-        text: "3. Avoid heavy exertion / lifting for [X] weeks",
-      },
-      {
-        value: "keep_wound_clean_dry",
-        label: "4. Keep the wound clean and dry, review for dressing",
-        text: "4. Keep the wound clean and dry, review for dressing",
-      },
-      {
-        value: "drink_fluids",
-        label: "5. Drink plenty of fluids",
-        text: "5. Drink plenty of fluids",
-      },
-      {
-        value: "monitor_bp",
-        label: "6. Monitor blood pressure daily",
-        text: "6. Monitor blood pressure daily",
-      },
-      {
-        value: "monitor_blood_sugar",
-        label: "7. Monitor blood sugar daily",
-        text: "7. Monitor blood sugar daily",
-      },
-      {
-        value: "complete_antibiotics",
-        label: "8. Complete the full course of antibiotics",
-        text: "8. Complete the full course of antibiotics",
-      },
-      {
-        value: "report_red_flags",
-        label: "9. Report immediately if fever, breathlessness, or swelling occurs",
-        text: "9. Report immediately if fever, breathlessness, or swelling occurs",
-      },
-      {
-        value: "rest_avoid_strenuous",
-        label: "10. Adequate rest, avoid strenuous activity",
-        text: "10. Adequate rest, avoid strenuous activity",
-      },
-      {
-        value: "other",
-        label: "11. Other",
-        text: "__ADVICE_OTHER__",
-      },
-    ],
+    () => [...ADVICE_ON_DISCHARGE_PRESETS, ADVICE_ON_DISCHARGE_OTHER_OPTION],
     []
   );
 

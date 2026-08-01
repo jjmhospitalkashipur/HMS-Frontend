@@ -11,6 +11,7 @@ import type { IIpdAppointmentDetail } from "@/components/pages/clinic-modules/ap
 import {
   getDischargeTypeLabel,
   formatDorRequestedByDisplay,
+  normalizeAdviceOnDischargeLines,
   normalizeDischargeSummaryFromApi,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDischargeSummaryTypes";
 
@@ -85,10 +86,9 @@ export const buildPrintDischargeSummaryData = (
   const summary = normalizeDischargeSummaryFromApi(dischargeSummaryRaw);
   if (!summary) return null;
 
-  const adviceLines = summary.adviceOnDischarge
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const adviceLines = normalizeAdviceOnDischargeLines(
+    summary.adviceOnDischarge.split("\n").map((line) => line.trim())
+  );
 
   return {
     visitId: ipd.ipdId,
@@ -475,8 +475,9 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
   const provisionalDiagnosis = summaryData.provisionalDiagnosis ?? [];
   const finalDiagnosis = summaryData.finalDiagnosis ?? [];
   const medicines = summaryData.medicinesOnDischarge ?? [];
-  const adviceLines =
-    summaryData.adviceOnDischarge?.map((a) => a.trim()).filter(Boolean) ?? [];
+  const adviceLines = normalizeAdviceOnDischargeLines(
+    summaryData.adviceOnDischarge?.map((a) => a.trim()).filter(Boolean) ?? []
+  ).map((line, index) => `${index + 1}. ${line}`);
 
   const logoUrl =
     typeof window !== "undefined"
@@ -626,7 +627,6 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                     <tr>
                       <th style={{ width: "8%" }}>Sr.</th>
                       <th>Diagnosis</th>
-                      <th style={{ width: "14%" }}>ICD Code</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -634,7 +634,6 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                       <tr key={`prov-diag-${index}`}>
                         <td>{index + 1}</td>
                         <td>{row.diagnosisName.trim()}</td>
-                        <td>{row.icdCode.trim()}</td>
                       </tr>
                     ))}
                   </tbody>

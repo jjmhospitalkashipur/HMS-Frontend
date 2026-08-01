@@ -108,7 +108,9 @@
     }
     .sidebar-menu.sidebar-menu-content {
         margin-top: 0;
-        padding: 0 24px 16px;
+        // Bottom space clears the absolutely positioned profile footer so the
+        // last menu item can be scrolled fully into view.
+        padding: 0 24px 96px;
     }
     .sidebar-inner > .sidebar-footer {
         position: absolute;

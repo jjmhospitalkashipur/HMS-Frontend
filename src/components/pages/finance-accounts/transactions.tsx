@@ -80,14 +80,16 @@ const TransactionsListComponent = () => {
   const [filterVisitType, setFilterVisitType] = useState("");
   const [filterSourceType, setFilterSourceType] = useState<string>("");
   const [filterPaymentMode, setFilterPaymentMode] = useState("");
-  const [filterDate, setFilterDate] = useState<Dayjs | null>(null);
+  const [filterDateFrom, setFilterDateFrom] = useState<Dayjs | null>(null);
+  const [filterDateTo, setFilterDateTo] = useState<Dayjs | null>(null);
 
   const [appliedDoctorId, setAppliedDoctorId] = useState("");
   const [appliedDepartment, setAppliedDepartment] = useState("");
   const [appliedVisitType, setAppliedVisitType] = useState("");
   const [appliedSourceType, setAppliedSourceType] = useState<string>("");
   const [appliedPaymentMode, setAppliedPaymentMode] = useState("");
-  const [appliedDate, setAppliedDate] = useState<string | null>(null);
+  const [appliedDateFrom, setAppliedDateFrom] = useState<string | null>(null);
+  const [appliedDateTo, setAppliedDateTo] = useState<string | null>(null);
 
   const doctorOptions: Option[] = useMemo(
     () => [ALL_OPTION, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
@@ -149,7 +151,8 @@ const TransactionsListComponent = () => {
       if (appliedVisitType) params.visitType = appliedVisitType;
       if (appliedSourceType) params.sourceType = appliedSourceType;
       if (appliedPaymentMode) params.paymentMode = appliedPaymentMode;
-      if (appliedDate) params.date = appliedDate;
+      if (appliedDateFrom) params.dateFrom = appliedDateFrom;
+      if (appliedDateTo) params.dateTo = appliedDateTo;
       return params;
     },
     [
@@ -161,7 +164,8 @@ const TransactionsListComponent = () => {
       appliedVisitType,
       appliedSourceType,
       appliedPaymentMode,
-      appliedDate,
+      appliedDateFrom,
+      appliedDateTo,
     ]
   );
 
@@ -316,14 +320,16 @@ const TransactionsListComponent = () => {
     setFilterVisitType(appliedVisitType);
     setFilterSourceType(appliedSourceType);
     setFilterPaymentMode(appliedPaymentMode);
-    setFilterDate(appliedDate ? dayjs(appliedDate) : null);
+    setFilterDateFrom(appliedDateFrom ? dayjs(appliedDateFrom) : null);
+    setFilterDateTo(appliedDateTo ? dayjs(appliedDateTo) : null);
   }, [
     appliedDoctorId,
     appliedDepartment,
     appliedVisitType,
     appliedSourceType,
     appliedPaymentMode,
-    appliedDate,
+    appliedDateFrom,
+    appliedDateTo,
   ]);
 
   useFilterDropdownSync("filter-dropdown", syncFiltersFromApplied);
@@ -336,7 +342,8 @@ const TransactionsListComponent = () => {
     setAppliedVisitType(filterVisitType);
     setAppliedSourceType(filterSourceType);
     setAppliedPaymentMode(filterPaymentMode);
-    setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
+    setAppliedDateFrom(filterDateFrom ? filterDateFrom.format("YYYY-MM-DD") : null);
+    setAppliedDateTo(filterDateTo ? filterDateTo.format("YYYY-MM-DD") : null);
     closeFilterDropdown("filter-dropdown");
   };
 
@@ -347,13 +354,15 @@ const TransactionsListComponent = () => {
     setFilterVisitType("");
     setFilterSourceType("");
     setFilterPaymentMode("");
-    setFilterDate(null);
+    setFilterDateFrom(null);
+    setFilterDateTo(null);
     setAppliedDoctorId("");
     setAppliedDepartment("");
     setAppliedVisitType("");
     setAppliedSourceType("");
     setAppliedPaymentMode("");
-    setAppliedDate(null);
+    setAppliedDateFrom(null);
+    setAppliedDateTo(null);
     closeFilterDropdown("filter-dropdown");
   };
 
@@ -547,21 +556,34 @@ const TransactionsListComponent = () => {
                         />
                       </div>
                       <div className="mb-3">
-                        <label className="form-label mb-1 text-dark fs-14 fw-medium">Transaction date</label>
-                        <div className="input-icon-end position-relative">
-                          <DatePicker
-                            className="form-control datetimepicker w-100"
-                            format={{ format: "DD-MM-YYYY", type: "mask" }}
-                            getPopupContainer={getModalContainer}
-                            placeholder="DD-MM-YYYY"
-                            suffixIcon={null}
-                            value={filterDate}
-                            onChange={(d) => setFilterDate(d)}
-                            allowClear
-                          />
-                          <span className="input-icon-addon">
-                            <i className="ti ti-calendar" />
-                          </span>
+                        <label className="form-label mb-1 text-dark fs-14 fw-medium">
+                          Transaction date range
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <DatePicker
+                              className="form-control datetimepicker w-100"
+                              format={{ format: "DD-MM-YYYY", type: "mask" }}
+                              getPopupContainer={getModalContainer}
+                              placeholder="From"
+                              suffixIcon={null}
+                              value={filterDateFrom}
+                              onChange={(d) => setFilterDateFrom(d)}
+                              allowClear
+                            />
+                          </div>
+                          <div className="col-6">
+                            <DatePicker
+                              className="form-control datetimepicker w-100"
+                              format={{ format: "DD-MM-YYYY", type: "mask" }}
+                              getPopupContainer={getModalContainer}
+                              placeholder="To"
+                              suffixIcon={null}
+                              value={filterDateTo}
+                              onChange={(d) => setFilterDateTo(d)}
+                              allowClear
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

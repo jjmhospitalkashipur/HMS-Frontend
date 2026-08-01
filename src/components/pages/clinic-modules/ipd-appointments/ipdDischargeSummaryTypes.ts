@@ -1,5 +1,100 @@
 export type TDischargeType = "Normal" | "LAMA" | "DOR" | "Death" | "Refer";
 
+/** Catalog order for advice presets (no serial prefix). Custom lines sort after these. */
+export const ADVICE_ON_DISCHARGE_PRESETS: { value: string; label: string; text: string }[] = [
+  {
+    value: "take_medicines",
+    label: "Take medicines as prescribed, do not skip doses",
+    text: "Take medicines as prescribed, do not skip doses",
+  },
+  {
+    value: "low_salt_low_fat_diet",
+    label: "Follow low-salt, low-fat diet",
+    text: "Follow low-salt, low-fat diet",
+  },
+  {
+    value: "avoid_heavy_exertion",
+    label: "Avoid heavy exertion / lifting for [X] weeks",
+    text: "Avoid heavy exertion / lifting for [X] weeks",
+  },
+  {
+    value: "keep_wound_clean_dry",
+    label: "Keep the wound clean and dry, review for dressing",
+    text: "Keep the wound clean and dry, review for dressing",
+  },
+  {
+    value: "drink_fluids",
+    label: "Drink plenty of fluids",
+    text: "Drink plenty of fluids",
+  },
+  {
+    value: "monitor_bp",
+    label: "Monitor blood pressure daily",
+    text: "Monitor blood pressure daily",
+  },
+  {
+    value: "monitor_blood_sugar",
+    label: "Monitor blood sugar daily",
+    text: "Monitor blood sugar daily",
+  },
+  {
+    value: "complete_antibiotics",
+    label: "Complete the full course of antibiotics",
+    text: "Complete the full course of antibiotics",
+  },
+  {
+    value: "report_red_flags",
+    label: "Report immediately if fever, breathlessness, or swelling occurs",
+    text: "Report immediately if fever, breathlessness, or swelling occurs",
+  },
+  {
+    value: "rest_avoid_strenuous",
+    label: "Adequate rest, avoid strenuous activity",
+    text: "Adequate rest, avoid strenuous activity",
+  },
+];
+
+export const ADVICE_ON_DISCHARGE_OTHER_OPTION = {
+  value: "other",
+  label: "Other",
+  text: "__ADVICE_OTHER__",
+} as const;
+
+/** Strip leading "1. " / "10. " style serials from advice lines (legacy saves). */
+export const stripAdviceSerialPrefix = (line: string): string =>
+  line.replace(/^\d+\.\s*/, "").trim();
+
+/**
+ * Normalize advice lines: strip legacy serials, de-dupe, sort by catalog order,
+ * then append custom lines in original relative order.
+ */
+export const normalizeAdviceOnDischargeLines = (lines: string[]): string[] => {
+  const stripped = lines.map((line) => stripAdviceSerialPrefix(String(line ?? ""))).filter(Boolean);
+  if (!stripped.length) return [];
+
+  const presetOrder = new Map(
+    ADVICE_ON_DISCHARGE_PRESETS.map((preset, index) => [preset.text.toLowerCase(), index])
+  );
+  const seen = new Set<string>();
+  const matched: { text: string; order: number }[] = [];
+  const custom: string[] = [];
+
+  stripped.forEach((line) => {
+    const key = line.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    const order = presetOrder.get(key);
+    if (order == null) {
+      custom.push(line);
+      return;
+    }
+    matched.push({ text: ADVICE_ON_DISCHARGE_PRESETS[order]?.text ?? line, order });
+  });
+
+  matched.sort((a, b) => a.order - b.order);
+  return [...matched.map((m) => m.text), ...custom];
+};
+
 export const DISCHARGE_TYPE_OPTIONS: { value: TDischargeType; label: string }[] = [
   { value: "Normal", label: "Normal" },
   { value: "LAMA", label: "LAMA (Leave Against Medical Advice)" },
@@ -353,10 +448,9 @@ export const normalizeDischargeSummaryFromApi = (
     : [{ medicineName: "", duration: "", dosage: "", instructions: "" }];
 
   const adviceOnDischarge = Array.isArray(nested.adviceOnDischarge)
-    ? (nested.adviceOnDischarge as unknown[])
-        .map((a) => String(a ?? "").trim())
-        .filter(Boolean)
-        .join("\n")
+    ? normalizeAdviceOnDischargeLines(
+        (nested.adviceOnDischarge as unknown[]).map((a) => String(a ?? "").trim())
+      ).join("\n")
     : "";
 
   const dischargeTypeRaw = String(nested.dischargeType ?? "Normal");
@@ -484,10 +578,9 @@ export const buildDischargeSummaryPayload = (
         ...(m.instructions?.trim() ? { instructions: m.instructions.trim() } : {}),
       }))
       .filter((m) => m.medicineName),
-    adviceOnDischarge: form.adviceOnDischarge
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean),
+    adviceOnDischarge: normalizeAdviceOnDischargeLines(
+      form.adviceOnDischarge.split("\n").map((line) => line.trim())
+    ),
     followUp: normalizeFollowUpDate(form.followUp),
   };
 
