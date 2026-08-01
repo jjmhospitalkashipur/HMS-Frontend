@@ -27,6 +27,45 @@ const formatDateRange = (from: string | null, to: string | null): string => {
   return `${formatDate(from)} -> ${formatDate(to)}`;
 };
 
+const isSameCalendarDay = (a: string | null, b: string | null): boolean => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const left = dayjs(a);
+  const right = dayjs(b);
+  if (!left.isValid() || !right.isValid()) return a === b;
+  return left.isSame(right, "day");
+};
+
+const isSameDateTimeMinute = (a: string | null, b: string | null): boolean => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const left = dayjs(a);
+  const right = dayjs(b);
+  if (!left.isValid() || !right.isValid()) return a === b;
+  return left.isSame(right, "minute");
+};
+
+const isGrantedDateRangeDifferent = (
+  requestedFrom: string | null,
+  requestedTo: string | null,
+  grantedFrom: string | null,
+  grantedTo: string | null
+): boolean => {
+  if (!grantedFrom && !grantedTo) return false;
+  return (
+    !isSameCalendarDay(requestedFrom, grantedFrom) ||
+    !isSameCalendarDay(requestedTo, grantedTo)
+  );
+};
+
+const isGrantedEraseDifferent = (
+  requestedEraseAt: string | null,
+  grantedEraseAt: string | null
+): boolean => {
+  if (!grantedEraseAt) return false;
+  return !isSameDateTimeMinute(requestedEraseAt, grantedEraseAt);
+};
+
 const SummarySection = ({
   title,
   icon,
@@ -49,12 +88,26 @@ const SummarySection = ({
   </div>
 );
 
-const DetailField = ({ label, value }: { label: string; value: string }) => (
+const DetailField = ({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) => (
   <div className="row gx-2 align-items-start py-1">
     <div className="col-5 col-sm-5 text-black text-uppercase fs-11 lh-sm pe-1">
       {label}
     </div>
-    <div className="col-7 col-sm-7 text-black fs-13 text-end text-break lh-sm">
+    <div
+      className={`col-7 col-sm-7 fs-13 text-end text-break lh-sm ${
+        highlight ? "fw-semibold" : "text-black"
+      }`}
+      style={highlight ? { color: "#8b4513" } : undefined}
+      title={highlight ? "Differs from requested value" : undefined}
+    >
       {value}
     </div>
   </div>
@@ -333,10 +386,20 @@ const AbhaConsentDetailComponent = () => {
                     consent.grantedDateRangeFrom,
                     consent.grantedDateRangeTo
                   )}
+                  highlight={isGrantedDateRangeDifferent(
+                    consent.dateRangeFrom,
+                    consent.dateRangeTo,
+                    consent.grantedDateRangeFrom,
+                    consent.grantedDateRangeTo
+                  )}
                 />
                 <DetailField
                   label="Granted Erase On"
                   value={formatDateTime(consent.grantedDataEraseAt)}
+                  highlight={isGrantedEraseDifferent(
+                    consent.dataEraseAt,
+                    consent.grantedDataEraseAt
+                  )}
                 />
               </SummarySection>
             </div>
