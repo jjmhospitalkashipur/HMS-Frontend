@@ -13,6 +13,7 @@ interface IMedicineNameSelectProps {
   id?: string;
   value: string;
   onChange: (medicineName: string) => void;
+  medicineType?: string;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -26,6 +27,7 @@ const MedicineNameSelect = ({
   id,
   value,
   onChange,
+  medicineType = "",
   placeholder = "Search medicine...",
   disabled = false,
 }: IMedicineNameSelectProps) => {
@@ -36,6 +38,7 @@ const MedicineNameSelect = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const normalizedValue = (value ?? "").trim();
+  const normalizedType = (medicineType ?? "").trim();
 
   const selectedOption = useMemo(() => {
     if (!normalizedValue) return null;
@@ -57,22 +60,37 @@ const MedicineNameSelect = ({
     return next;
   }, [searchOptions, selectedOption]);
 
-  const fetchMedicines = useCallback(async (term: string) => {
-    const trimmed = term.trim();
-    if (!trimmed) {
+  const fetchMedicines = useCallback(
+    async (term: string, type?: string | null) => {
+      const trimmed = term.trim();
+      const trimmedType = (type ?? "").trim();
+      if (!trimmed && !trimmedType) {
+        setSearchOptions([]);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const results = await searchMedicines({
+          search: trimmed || undefined,
+          type: trimmedType || undefined,
+        });
+        setSearchOptions(results.map((item) => toOption(item.name)));
+      } catch {
+        setSearchOptions([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!normalizedType) {
       setSearchOptions([]);
       return;
     }
-    setIsLoading(true);
-    try {
-      const results = await searchMedicines(trimmed);
-      setSearchOptions(results.map((item) => toOption(item.name)));
-    } catch {
-      setSearchOptions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    void fetchMedicines("", normalizedType);
+  }, [fetchMedicines, normalizedType]);
 
   const handleInputChange = useCallback(
     (inputValue: string, actionMeta: InputActionMeta) => {
@@ -82,11 +100,17 @@ const MedicineNameSelect = ({
         debounceRef.current = null;
       }
       debounceRef.current = setTimeout(() => {
-        void fetchMedicines(inputValue);
+        void fetchMedicines(inputValue, normalizedType);
       }, 300);
     },
-    [fetchMedicines]
+    [fetchMedicines, normalizedType]
   );
+
+  const handleMenuOpen = useCallback(() => {
+    if (searchOptions.length > 0) return;
+    if (!normalizedType && !normalizedValue) return;
+    void fetchMedicines("", normalizedType);
+  }, [fetchMedicines, normalizedType, normalizedValue, searchOptions.length]);
 
   const handleChange = useCallback(
     (option: SingleValue<IMedicineOption>) => {
@@ -144,10 +168,16 @@ const MedicineNameSelect = ({
         value={selectedOption}
         onChange={handleChange}
         onInputChange={handleInputChange}
+        onMenuOpen={handleMenuOpen}
         placeholder={placeholder}
-        noOptionsMessage={({ inputValue }) =>
-          inputValue.trim() ? "No medicines found" : "Type to search medicines"
-        }
+        noOptionsMessage={({ inputValue }) => {
+          if (!normalizedType && !inputValue.trim()) {
+            return "Select type or type to search";
+          }
+          return inputValue.trim() || normalizedType
+            ? "No medicines found"
+            : "Type to search medicines";
+        }}
         styles={customStyles}
         menuPortalTarget={typeof window !== "undefined" ? document.body : null}
         menuPosition="fixed"

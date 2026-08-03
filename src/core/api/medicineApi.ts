@@ -6,6 +6,12 @@ export interface IMedicineItem {
   name: string;
 }
 
+export interface ISearchMedicinesParams {
+  search?: string;
+  type?: string;
+  page?: number;
+}
+
 const asMedicineItem = (value: unknown): IMedicineItem | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
@@ -32,17 +38,72 @@ const extractMedicineArray = (payload: unknown): IMedicineItem[] => {
   return [];
 };
 
+const asMedicineType = (value: unknown): string | null => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const label = String(row.type ?? row.name ?? row.label ?? row.value ?? "").trim();
+  return label || null;
+};
+
+const extractMedicineTypes = (payload: unknown): string[] => {
+  if (Array.isArray(payload)) {
+    return payload
+      .map(asMedicineType)
+      .filter((item): item is string => item != null);
+  }
+  if (!payload || typeof payload !== "object") return [];
+  const data = payload as Record<string, unknown>;
+  const nested = data.types ?? data.items ?? data.records ?? data.results;
+  if (Array.isArray(nested)) {
+    return nested
+      .map(asMedicineType)
+      .filter((item): item is string => item != null);
+  }
+  return [];
+};
+
+export const fetchMedicineTypes = async (): Promise<string[]> => {
+  if (!API_BASE_URL) throw new Error("API configuration error");
+
+  const res = await axios.get(`${API_BASE_URL}/hospital/medicines/types`);
+  const payload = res.data?.data ?? res.data;
+  const types = extractMedicineTypes(payload);
+  const seen = new Set<string>();
+  return types.filter((type) => {
+    const key = type.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const searchMedicines = async (
-  search: string,
-  page = 1,
-  limit = 20
+  searchOrParams: string | ISearchMedicinesParams = "",
+  page = 1
 ): Promise<IMedicineItem[]> => {
   if (!API_BASE_URL) throw new Error("API configuration error");
-  const trimmed = search.trim();
-  if (!trimmed) return [];
+
+  const params: ISearchMedicinesParams =
+    typeof searchOrParams === "string"
+      ? { search: searchOrParams, page }
+      : { page: 1, ...searchOrParams };
+
+  const trimmedSearch = (params.search ?? "").trim();
+  const trimmedType = (params.type ?? "").trim();
+  if (!trimmedSearch && !trimmedType) return [];
+
+  const query: Record<string, string | number> = {
+    page: params.page ?? 1,
+  };
+  if (trimmedSearch) query.search = trimmedSearch;
+  if (trimmedType) query.type = trimmedType;
 
   const res = await axios.get(`${API_BASE_URL}/hospital/medicines`, {
-    params: { search: trimmed, page, limit },
+    params: query,
   });
 
   const payload = res.data?.data ?? res.data;

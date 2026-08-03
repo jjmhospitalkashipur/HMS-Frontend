@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import { fetchMedicineTypes } from "@/core/api/medicineApi";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import IcdDiagnosisMultiSelect from "@/components/pages/clinic-modules/ipd-appointments/IcdDiagnosisMultiSelect";
 import MedicineNameSelect from "@/components/pages/clinic-modules/ipd-appointments/MedicineNameSelect";
@@ -123,6 +124,8 @@ const IpdDischargeSummaryForm = ({
   const [customDurationDraft, setCustomDurationDraft] = useState<
     Record<number, { value: string; unit: TDurationUnit }>
   >({});
+  const [medicineTypeOptions, setMedicineTypeOptions] = useState<Option[]>([]);
+  const [medicineTypesLoading, setMedicineTypesLoading] = useState(false);
   const [followUpDateMode, setFollowUpDateMode] = useState(false);
 
   const isDischarged =
@@ -202,6 +205,27 @@ const IpdDischargeSummaryForm = ({
     ],
     []
   );
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const loadMedicineTypes = async () => {
+      setMedicineTypesLoading(true);
+      try {
+        const types = await fetchMedicineTypes();
+        if (cancelled) return;
+        setMedicineTypeOptions(types.map((type) => ({ value: type, label: type })));
+      } catch {
+        if (!cancelled) setMedicineTypeOptions([]);
+      } finally {
+        if (!cancelled) setMedicineTypesLoading(false);
+      }
+    };
+    void loadMedicineTypes();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const updateMedicineField = (
     index: number,
@@ -335,7 +359,7 @@ const IpdDischargeSummaryForm = ({
       ...prev,
       medicinesOnDischarge: [
         ...prev.medicinesOnDischarge,
-        { medicineName: "", duration: "", dosage: "", instructions: "" },
+        { medicineName: "", type: "", duration: "", dosage: "", instructions: "" },
       ],
     }));
   };
@@ -357,7 +381,7 @@ const IpdDischargeSummaryForm = ({
       medicinesOnDischarge:
         prev.medicinesOnDischarge.length > 1
           ? prev.medicinesOnDischarge.filter((_, i) => i !== index)
-          : [{ medicineName: "", duration: "", dosage: "", instructions: "" }],
+          : [{ medicineName: "", type: "", duration: "", dosage: "", instructions: "" }],
     }));
   };
 
@@ -774,14 +798,35 @@ const IpdDischargeSummaryForm = ({
                       durationUnitOptions.find((o) => o.value === customDraft.unit) ??
                       durationUnitOptions[0] ??
                       null;
+                    const selectedMedicineType =
+                      medicineTypeOptions.find((o) => o.value === (med.type ?? "")) ?? null;
 
                     return (
                     <div className="border rounded p-2 mb-2 bg-light" key={`med-${index}`}>
                       <div className="row g-2 align-items-center">
-                        <div className="col-12 col-md-5">
+                        <div className="col-6 col-md-3">
+                          <CommonSelect
+                            instanceId={`ipd-med-type-${index}`}
+                            options={medicineTypeOptions}
+                            value={selectedMedicineType}
+                            onChange={(opt) => {
+                              const nextType = opt?.value ?? "";
+                              updateMedicineField(index, {
+                                type: nextType,
+                                ...(med.medicineName ? { medicineName: "" } : {}),
+                              });
+                            }}
+                            placeholder="Type"
+                            className="w-100"
+                            disabled={isDischarged || savingDraft}
+                            isLoading={medicineTypesLoading}
+                          />
+                        </div>
+                        <div className="col-6 col-md-3">
                           <MedicineNameSelect
                             id={`ipd-med-name-${index}`}
                             value={med.medicineName}
+                            medicineType={med.type ?? ""}
                             onChange={(next) =>
                               updateMedicineField(index, { medicineName: next })
                             }
@@ -789,7 +834,7 @@ const IpdDischargeSummaryForm = ({
                             disabled={isDischarged || savingDraft}
                           />
                         </div>
-                        <div className="col-6 col-md-3">
+                        <div className="col-6 col-md-2">
                           <CommonSelect
                             instanceId={`ipd-med-duration-${index}`}
                             options={durationPresetOptions}

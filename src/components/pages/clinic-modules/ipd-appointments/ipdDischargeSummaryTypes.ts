@@ -314,6 +314,7 @@ const normalizeDiagnosisList = (value: unknown): IFinalDiagnosisRow[] => {
 
 export interface IMedicineOnDischargeRow {
   medicineName: string;
+  type?: string;
   duration: string;
   dosage: string;
   instructions?: string;
@@ -411,7 +412,7 @@ export const emptyDischargeSummaryForm = (): IDischargeSummaryFormState => ({
   dischargeSpO2: "",
   allergies: "",
   medicinesOnDischarge: [
-    { medicineName: "", duration: "", dosage: "", instructions: "" },
+    { medicineName: "", type: "", duration: "", dosage: "", instructions: "" },
   ],
   adviceOnDischarge: "",
   followUp: "",
@@ -441,11 +442,16 @@ export const normalizeDischargeSummaryFromApi = (
   const medicinesOnDischarge = Array.isArray(nested.medicinesOnDischarge)
     ? (nested.medicinesOnDischarge as IMedicineOnDischargeRow[]).map((m) => ({
         medicineName: String(m?.medicineName ?? ""),
+        type: String(
+          (m as { type?: unknown; medicineType?: unknown })?.type ??
+            (m as { medicineType?: unknown })?.medicineType ??
+            ""
+        ),
         duration: String(m?.duration ?? ""),
         dosage: String(m?.dosage ?? ""),
         instructions: String(m?.instructions ?? ""),
       }))
-    : [{ medicineName: "", duration: "", dosage: "", instructions: "" }];
+    : [{ medicineName: "", type: "", duration: "", dosage: "", instructions: "" }];
 
   const adviceOnDischarge = Array.isArray(nested.adviceOnDischarge)
     ? normalizeAdviceOnDischargeLines(
@@ -489,7 +495,7 @@ export const normalizeDischargeSummaryFromApi = (
     allergies: String(nested.allergies ?? ""),
     medicinesOnDischarge: medicinesOnDischarge.length
       ? medicinesOnDischarge
-      : [{ medicineName: "", duration: "", dosage: "", instructions: "" }],
+      : [{ medicineName: "", type: "", duration: "", dosage: "", instructions: "" }],
     adviceOnDischarge,
     followUp: normalizeFollowUpDate(String(nested.followUp ?? "")),
     lamaReason: String(nested.lamaReason ?? ""),
@@ -573,6 +579,7 @@ export const buildDischargeSummaryPayload = (
     medicinesOnDischarge: form.medicinesOnDischarge
       .map((m) => ({
         medicineName: m.medicineName.trim(),
+        ...(m.type?.trim() ? { type: m.type.trim() } : {}),
         duration: m.duration.trim(),
         dosage: m.dosage.trim(),
         ...(m.instructions?.trim() ? { instructions: m.instructions.trim() } : {}),

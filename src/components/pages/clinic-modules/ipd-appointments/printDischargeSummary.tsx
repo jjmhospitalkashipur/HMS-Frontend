@@ -698,7 +698,10 @@ const PrintDischargeSummary = ({ summaryData, onClose }: IPrintDischargeSummaryP
                   <tbody>
                     {medicines.map((med, index) => (
                       <tr key={`med-${index}`}>
-                        <td>{med.medicineName.trim()}</td>
+                        <td>
+                          {med.medicineName.trim()}
+                          {med.type?.trim() ? `(${med.type.trim()})` : ""}
+                        </td>
                         <td>{med.dosage?.trim() ?? ""}</td>
                         <td>{med.duration?.trim() ?? ""}</td>
                         <td>{med.instructions?.trim() ?? ""}</td>
