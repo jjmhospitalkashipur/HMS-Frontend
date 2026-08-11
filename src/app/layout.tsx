@@ -9,7 +9,7 @@ import "../../src/style/css/feather.css";
 import Providers from "./Providers";
 
 export const metadata = {
-  title: "JJM Hospital",
+  title: "PranaOS",
   description: "Streamline your business with our advanced CRM template...",
   keywords: "Advanced CRM template, customer relationship management...",
   author: "Dreams Technologies",

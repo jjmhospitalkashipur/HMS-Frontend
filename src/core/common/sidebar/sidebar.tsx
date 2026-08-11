@@ -9,7 +9,7 @@ import { all_routes } from "@/routes/all_routes";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import "overlayscrollbars/overlayscrollbars.css";
 import { setExpandMenu, setMobileSidebar } from "@/core/redux/sidebarSlice";
-import Image from "next/image";
+// import Image from "next/image";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { updateTheme } from "@/core/redux/themeSlice";
 import {
@@ -196,13 +196,26 @@ const Sidebar = () => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Start Logo - JJM Hospital + collapse button in same row */}
+        {/* Start Logo - PranaOs + collapse button in same row */}
         <div className="sidebar-logo d-flex align-items-center justify-content-between gap-2">
-          <div className="logo logo-normal d-flex align-items-center gap-2 min-w-0 flex-grow-1 text-decoration-none">
-            <span className="avatar rounded flex-shrink-0 p-1 overflow-hidden bg-white d-flex align-items-center justify-content-center" style={{ width: 52, height: 52 }}>
-              <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
-            </span>
-            <span className="fs-14 fw-semibold text-dark text-truncate">JJM Hospital</span>
+          {/* <span className="avatar rounded flex-shrink-0 p-1 overflow-hidden bg-white d-flex align-items-center justify-content-center" style={{ width: 52, height: 52 }}>
+            <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
+          </span> */}
+          <div className="logo logo-normal min-w-0 flex-grow-1">
+            <div className="pranaos-brand">
+              <span className="pranaos-mark" aria-hidden="true">P</span>
+              <span className="pranaos-text">
+                <span className="pranaos-wordmark">
+                  Prana<span>Os</span>
+                </span>
+                <span className="pranaos-sub">JJM hospital</span>
+              </span>
+            </div>
+          </div>
+          <div className="logo-small">
+            <div className="pranaos-brand">
+              <span className="pranaos-mark" aria-hidden="true">P</span>
+            </div>
           </div>
          
           <button
