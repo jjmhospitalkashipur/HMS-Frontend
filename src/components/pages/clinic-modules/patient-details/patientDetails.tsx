@@ -45,6 +45,13 @@ interface IPatientTransaction {
   updatedAt?: string;
 }
 
+interface IAbhaSpecificDetails {
+  dob?: string;
+  gender?: string;
+  address?: string;
+  aadharNo?: string;
+}
+
 interface IPatient {
   _id: string;
   mrd: string;
@@ -82,6 +89,7 @@ interface IPatient {
   abhaNumber?: string;
   abhaLinked?: boolean;
   allAbhaAddresses?: string[];
+  abhaSpecificDetails?: IAbhaSpecificDetails;
 }
 
 const normalizeAllAbhaAddresses = (value: unknown): string[] => {
@@ -658,6 +666,17 @@ const PatientDetailsComponent = () => {
         ? [patient.abhaAddress.trim()]
         : [];
 
+  const isAbhaLinked = patient?.abhaLinked === true;
+  const abhaSpecific = patient?.abhaSpecificDetails;
+  const displayDob =
+    (isAbhaLinked ? abhaSpecific?.dob?.trim() : "") || patient?.dob || "";
+  const displayGender =
+    (isAbhaLinked ? abhaSpecific?.gender?.trim() : "") || patient?.gender || "";
+  const displayAddress =
+    (isAbhaLinked ? abhaSpecific?.address?.trim() : "") || patient?.address || "";
+  const displayAadharNo =
+    (isAbhaLinked ? abhaSpecific?.aadharNo?.trim() : "") || patient?.aadharNo || "";
+
   const appointmentColumns = [
     {
       title: "Case ID",
@@ -876,7 +895,7 @@ const PatientDetailsComponent = () => {
                     ) : null}
                   </div>
                 ) : null}
-                {patient?.address && <p className="mb-3 text-dark">{patient.address}</p>}
+                {displayAddress ? <p className="mb-3 text-dark">{displayAddress}</p> : null}
                 <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
                   <p className="mb-0 d-inline-flex align-items-center">
                     <i className="ti ti-phone me-1 text-dark" />
@@ -975,11 +994,11 @@ const PatientDetailsComponent = () => {
                     <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
                         <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
-                          <i className={`ti ti-gender-${patient?.gender?.toLowerCase() === 'male' ? 'male' : patient?.gender?.toLowerCase() === 'female' ? 'female' : 'gender-male'} fs-14`} />
+                          <i className={`ti ti-gender-${displayGender?.toLowerCase() === 'male' ? 'male' : displayGender?.toLowerCase() === 'female' ? 'female' : 'gender-male'} fs-14`} />
                         </span>
                         <div className="flex-grow-1">
                           <h6 className="fs-13 fw-bold mb-1 text-dark">Gender</h6>
-                          <p className="mb-0 text-dark">{patient?.gender || "N/A"}</p>
+                          <p className="mb-0 text-dark">{displayGender || "N/A"}</p>
                         </div>
                       </div>
                     </div>
@@ -994,7 +1013,7 @@ const PatientDetailsComponent = () => {
                         </div>
                       </div>
                     </div>
-                    {patient?.dob && (
+                    {displayDob ? (
                       <div className="col-sm-6">
                         <div className="d-flex align-items-center mb-3">
                           <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
@@ -1002,11 +1021,11 @@ const PatientDetailsComponent = () => {
                           </span>
                           <div className="flex-grow-1">
                             <h6 className="fs-13 fw-bold mb-1 text-dark">DOB</h6>
-                            <p className="mb-0 text-dark">{dayjs(patient.dob).format("DD MMM YYYY")}</p>
+                            <p className="mb-0 text-dark">{dayjs(displayDob).format("DD MMM YYYY")}</p>
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                     <div className="col-sm-6">
                       <div className="d-flex align-items-center mb-3">
                         <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
@@ -1028,7 +1047,7 @@ const PatientDetailsComponent = () => {
                         </div>
                       </div>
                     </div>
-                    {patient?.aadharNo && (
+                    {displayAadharNo ? (
                       <div className="col-sm-6">
                         <div className="d-flex align-items-center mb-3">
                           <span className="avatar rounded-circle bg-light text-dark flex-shrink-0 me-1" style={{ width: '32px', height: '32px' }}>
@@ -1036,11 +1055,11 @@ const PatientDetailsComponent = () => {
                           </span>
                           <div className="flex-grow-1">
                             <h6 className="fs-13 fw-bold mb-1 text-dark">Aadhaar Number</h6>
-                            <p className="mb-0 text-dark">{formatAadhar(patient.aadharNo)}</p>
+                            <p className="mb-0 text-dark">{formatAadhar(displayAadharNo)}</p>
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                     {patient?.bloodGroup && (
                       <div className="col-sm-6">
                         <div className="d-flex align-items-center mb-3">
