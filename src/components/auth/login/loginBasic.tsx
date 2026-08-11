@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ImageWithBasePath from "@/core/imageWithBasePath";
+import PranaOsBrand from "@/core/common/pranaos-brand/PranaOsBrand";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
 type PasswordField = "password" | "confirmPassword";
@@ -31,12 +32,13 @@ const LoginBasic = () => {
                   className="d-flex justify-content-center align-items-center"
                 >
                   <div className="d-flex flex-column justify-content-lg-center p-4 p-lg-0 pb-0 flex-fill">
-                    <div className=" mx-auto mb-4 text-center">
-                      <ImageWithBasePath
+                    <div className="mx-auto mb-4 d-flex justify-content-center">
+                      {/* <ImageWithBasePath
                         src="assets/img/logo.svg"
                         className="img-fluid"
                         alt="Logo"
-                      />
+                      /> */}
+                      <PranaOsBrand size="lg" />
                     </div>
                     <div className="card border-1 p-lg-3 shadow-md rounded-3 mb-4">
                       <div className="card-body">

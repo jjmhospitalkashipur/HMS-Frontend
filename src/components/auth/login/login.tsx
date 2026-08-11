@@ -1,7 +1,8 @@
 "use client";
 
 import "@/core/api/axiosAuth";
-import ImageWithBasePath from "@/core/imageWithBasePath";
+// import ImageWithBasePath from "@/core/imageWithBasePath";
+import PranaOsBrand from "@/core/common/pranaos-brand/PranaOsBrand";
 import { getDefaultRouteForRole } from "@/core/auth/roleAccess";
 import {
   isSharedAuthEnabled,
@@ -136,12 +137,13 @@ const LoginComponent = () => {
                   onSubmit={handleSubmit}
                 >
                   <div className="d-flex flex-column justify-content-lg-center p-4 p-lg-0 pb-0 flex-fill">
-                    <div className=" mx-auto mb-4 text-center">
-                      <img
+                    <div className="mx-auto mb-4 d-flex justify-content-center">
+                      {/* <img
                         src="/JJM Logo.png"
                         className="img-fluid"
                         alt="Logo"
-                      />
+                      /> */}
+                      <PranaOsBrand size="lg" />
                     </div>
                     <div className="card border-1 p-lg-3 shadow-md rounded-3 mb-4">
                       <div className="card-body">

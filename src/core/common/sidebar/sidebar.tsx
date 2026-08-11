@@ -18,6 +18,7 @@ import {
   normalizeRole,
 } from "@/core/auth/roleAccess";
 import { isSharedAuthEnabled, postSharedLogout } from "@/core/auth/sharedAuth";
+import PranaOsBrand from "@/core/common/pranaos-brand/PranaOsBrand";
 
 const Sidebar = () => {
   const Location = usePathname();
@@ -202,20 +203,10 @@ const Sidebar = () => {
             <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
           </span> */}
           <div className="logo logo-normal min-w-0 flex-grow-1">
-            <div className="pranaos-brand">
-              <span className="pranaos-mark" aria-hidden="true">P</span>
-              <span className="pranaos-text">
-                <span className="pranaos-wordmark">
-                  Prana<span>Os</span>
-                </span>
-                <span className="pranaos-sub">JJM hospital</span>
-              </span>
-            </div>
+            <PranaOsBrand />
           </div>
           <div className="logo-small">
-            <div className="pranaos-brand">
-              <span className="pranaos-mark" aria-hidden="true">P</span>
-            </div>
+            <PranaOsBrand compact />
           </div>
          
           <button
