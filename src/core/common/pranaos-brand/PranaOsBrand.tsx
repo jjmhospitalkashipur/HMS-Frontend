@@ -1,16 +1,16 @@
 import React from "react";
 
-interface IPranaOsBrandProps {
+interface IPranaOSBrandProps {
   className?: string;
   size?: "default" | "lg";
   compact?: boolean;
 }
 
-const PranaOsBrand = ({
+const PranaOSBrand = ({
   className = "",
   size = "default",
   compact = false,
-}: IPranaOsBrandProps) => {
+}: IPranaOSBrandProps) => {
   const classes = [
     "pranaos-brand",
     size === "lg" ? "pranaos-brand--lg" : "",
@@ -28,7 +28,7 @@ const PranaOsBrand = ({
       {!compact && (
         <span className="pranaos-text">
           <span className="pranaos-wordmark">
-            Prana<span>Os</span>
+            Prana<span>OS</span>
           </span>
           <span className="pranaos-sub">JJM hospital</span>
         </span>
@@ -37,4 +37,4 @@ const PranaOsBrand = ({
   );
 };
 
-export default PranaOsBrand;
+export default PranaOSBrand;

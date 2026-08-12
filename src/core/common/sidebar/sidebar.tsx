@@ -18,7 +18,7 @@ import {
   normalizeRole,
 } from "@/core/auth/roleAccess";
 import { isSharedAuthEnabled, postSharedLogout } from "@/core/auth/sharedAuth";
-import PranaOsBrand from "@/core/common/pranaos-brand/PranaOsBrand";
+import PranaOSBrand from "@/core/common/pranaos-brand/PranaOSBrand";
 
 const Sidebar = () => {
   const Location = usePathname();
@@ -197,16 +197,16 @@ const Sidebar = () => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Start Logo - PranaOs + collapse button in same row */}
+        {/* Start Logo - PranaOS + collapse button in same row */}
         <div className="sidebar-logo d-flex align-items-center justify-content-between gap-2">
           {/* <span className="avatar rounded flex-shrink-0 p-1 overflow-hidden bg-white d-flex align-items-center justify-content-center" style={{ width: 52, height: 52 }}>
             <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
           </span> */}
           <div className="logo logo-normal min-w-0 flex-grow-1">
-            <PranaOsBrand />
+            <PranaOSBrand />
           </div>
           <div className="logo-small">
-            <PranaOsBrand compact />
+            <PranaOSBrand compact />
           </div>
          
           <button

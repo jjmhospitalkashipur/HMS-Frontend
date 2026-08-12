@@ -2,7 +2,7 @@
 
 import "@/core/api/axiosAuth";
 // import ImageWithBasePath from "@/core/imageWithBasePath";
-import PranaOsBrand from "@/core/common/pranaos-brand/PranaOsBrand";
+import PranaOSBrand from "@/core/common/pranaos-brand/PranaOSBrand";
 import { getDefaultRouteForRole } from "@/core/auth/roleAccess";
 import {
   isSharedAuthEnabled,
@@ -143,7 +143,7 @@ const LoginComponent = () => {
                         className="img-fluid"
                         alt="Logo"
                       /> */}
-                      <PranaOsBrand size="lg" />
+                      <PranaOSBrand size="lg" />
                     </div>
                     <div className="card border-1 p-lg-3 shadow-md rounded-3 mb-4">
                       <div className="card-body">

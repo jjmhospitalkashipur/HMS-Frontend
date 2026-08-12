@@ -2,7 +2,7 @@
 "use client"
 
 import ImageWithBasePath from "@/core/imageWithBasePath";
-import PranaOsBrand from "@/core/common/pranaos-brand/PranaOsBrand";
+import PranaOSBrand from "@/core/common/pranaos-brand/PranaOSBrand";
 import { useState } from "react";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
@@ -51,7 +51,7 @@ const LoginIllustration = () => {
                             className="img-fluid"
                             alt="Logo"
                           /> */}
-                          <PranaOsBrand size="lg" />
+                          <PranaOSBrand size="lg" />
                         </div>
                         <div className="card border-1 p-lg-3 shadow-md rounded-3 mb-4">
                           <div className="card-body">
