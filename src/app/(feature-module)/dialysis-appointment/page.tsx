@@ -155,6 +155,7 @@ const DialysisAppointmentContent = () => {
     setVal("general.hourly", gen.hourly);
     setVal("general.fiberVolume", gen.fiberVolume);
     setVal("general.heparinUse", gen.heparinUse);
+    setVal("general.height", gen.height);
     setVal("general.preHdWeightToday", gen.preHdWeightToday);
     setVal("general.lastPostHdWeight", gen.lastPostHdWeight);
     setVal("general.weightGain", gen.weightGain);
@@ -409,6 +410,7 @@ const DialysisAppointmentContent = () => {
       hourly: get("general.hourly"),
       fiberVolume: getNumber("general.fiberVolume"),
       heparinUse: get("general.heparinUse"),
+      height: getNumber("general.height"),
       preHdWeightToday: getNumber("general.preHdWeightToday"),
       lastPostHdWeight: getNumber("general.lastPostHdWeight"),
       weightGain: getNumber("general.weightGain"),
@@ -814,7 +816,15 @@ const DialysisAppointmentContent = () => {
                           />
                         </div>
 
-                        {/* Row 3 – Pre / Post weights + gain */}
+                        {/* Row 3 – Height / Pre / Post weights + gain */}
+                        <div className="col-md-2 col-12 col-sm-6">
+                          <label className="form-label mb-1 fw-medium">Height</label>
+                          <input
+                            name="general.height"
+                            type="text"
+                            className="form-control form-control-sm"
+                          />
+                        </div>
                         <div className="col-md-2 col-12 col-sm-6">
                           <label className="form-label mb-1 fw-medium">Pre HD Weight Today</label>
                           <input
@@ -883,7 +893,7 @@ const DialysisAppointmentContent = () => {
                             className="form-control form-control-sm"
                           />
                         </div>
-                        <div className="col-md-6 offset-1  col-12">
+                        <div className="col-md-6 col-12">
                           <label className="form-label mb-1 fw-medium">Vascular Access</label>
                           <div className="d-flex flex-wrap align-items-center gap-3">
                             <div className="form-check m-0">

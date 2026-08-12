@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import { DatePicker } from "antd";
+import Select, { components, type OptionProps } from "react-select";
 import CommonSelect, { type Option } from "@/core/common/common-select/commonSelect";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
@@ -115,6 +116,22 @@ const getAxiosMessage = (err: unknown, fallback: string) => {
   return typeof data?.message === "string" ? data.message : fallback;
 };
 
+const ProcedureFilterOption = (props: OptionProps<Option, true>) => {
+  const { data, isSelected } = props;
+  return (
+    <components.Option {...props}>
+      <div className="d-flex align-items-center justify-content-between gap-2 w-100">
+        <span>{data?.label ?? "—"}</span>
+        {isSelected ? (
+          <i className="ti ti-check fs-14 flex-shrink-0" aria-hidden />
+        ) : (
+          <span className="flex-shrink-0" style={{ width: 14 }} aria-hidden />
+        )}
+      </div>
+    </components.Option>
+  );
+};
+
 const DaycareAppointmentsComponent = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | "today">("today");
@@ -135,14 +152,19 @@ const DaycareAppointmentsComponent = () => {
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
   const [filterProcedureCategory, setFilterProcedureCategory] = useState<string>("");
+  const [filterProcedureIds, setFilterProcedureIds] = useState<Option[]>([]);
   const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<dayjs.Dayjs | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<dayjs.Dayjs | null>(null);
   const [procedureCategories, setProcedureCategories] = useState<string[]>([]);
   const [procedureCategoriesLoading, setProcedureCategoriesLoading] = useState(false);
+  const [procedureOptions, setProcedureOptions] = useState<Option[]>([]);
+  const [proceduresLoading, setProceduresLoading] = useState(false);
+  const procedureSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
   const [appliedProcedureCategory, setAppliedProcedureCategory] = useState<string>("");
+  const [appliedProcedureIds, setAppliedProcedureIds] = useState<Option[]>([]);
   const [appliedDate, setAppliedDate] = useState<string | null>(null);
   const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
   const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
@@ -159,6 +181,12 @@ const DaycareAppointmentsComponent = () => {
       }
       if (appliedProcedureCategory) {
         params.procedureCategory = appliedProcedureCategory;
+      }
+      const procedureIdValues = appliedProcedureIds
+        .map((opt) => opt?.value)
+        .filter((id): id is string => Boolean(id));
+      if (procedureIdValues.length > 0) {
+        params.procedureIds = procedureIdValues.join(",");
       }
       if (activeTab === "today") {
         params.date = todayISODateInIST();
@@ -184,6 +212,7 @@ const DaycareAppointmentsComponent = () => {
       searchText,
       appliedDoctorId,
       appliedProcedureCategory,
+      appliedProcedureIds,
       appliedDate,
       appliedStartDate,
       appliedEndDate,
@@ -397,6 +426,57 @@ const DaycareAppointmentsComponent = () => {
       });
   }, []);
 
+  const fetchDaycareProcedures = useCallback(async (search = "") => {
+    if (!API_BASE_URL) return;
+    try {
+      setProceduresLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/hospital/procedures`, {
+        params: { search: search || undefined, type: "daycare,both" },
+      });
+      if (res.data?.code === 200 && Array.isArray(res.data?.data?.procedures)) {
+        const list = res.data.data.procedures as Array<{
+          _id: string;
+          procedureName?: string;
+        }>;
+        setProcedureOptions(
+          list.map((p) => ({
+            value: p._id,
+            label: p.procedureName ?? "—",
+          }))
+        );
+      } else {
+        setProcedureOptions([]);
+      }
+    } catch {
+      setProcedureOptions([]);
+    } finally {
+      setProceduresLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchDaycareProcedures();
+    return () => {
+      if (procedureSearchDebounceRef.current) {
+        clearTimeout(procedureSearchDebounceRef.current);
+        procedureSearchDebounceRef.current = null;
+      }
+    };
+  }, [fetchDaycareProcedures]);
+
+  const handleProcedureInputChange = useCallback(
+    (value: string) => {
+      if (procedureSearchDebounceRef.current) {
+        clearTimeout(procedureSearchDebounceRef.current);
+        procedureSearchDebounceRef.current = null;
+      }
+      procedureSearchDebounceRef.current = setTimeout(() => {
+        void fetchDaycareProcedures(value);
+      }, 300);
+    },
+    [fetchDaycareProcedures]
+  );
+
   const doctorOptions: Option[] = useMemo(
     () => [{ value: "", label: "All" }, ...doctors.map((d) => ({ value: d._id, label: d.name }))],
     [doctors]
@@ -410,15 +490,28 @@ const DaycareAppointmentsComponent = () => {
     [procedureCategories]
   );
 
+  const procedureSelectOptions = useMemo(() => {
+    const byValue = new Map<string, Option>();
+    procedureOptions.forEach((opt) => {
+      if (opt?.value) byValue.set(opt.value, opt);
+    });
+    filterProcedureIds.forEach((opt) => {
+      if (opt?.value && !byValue.has(opt.value)) byValue.set(opt.value, opt);
+    });
+    return Array.from(byValue.values());
+  }, [procedureOptions, filterProcedureIds]);
+
   const syncFiltersFromApplied = useCallback(() => {
     setFilterDoctorId(appliedDoctorId);
     setFilterProcedureCategory(appliedProcedureCategory);
+    setFilterProcedureIds(appliedProcedureIds);
     setFilterDate(appliedDate ? dayjs(appliedDate) : null);
     setFilterStartDate(appliedStartDate ? dayjs(appliedStartDate) : null);
     setFilterEndDate(appliedEndDate ? dayjs(appliedEndDate) : null);
   }, [
     appliedDoctorId,
     appliedProcedureCategory,
+    appliedProcedureIds,
     appliedDate,
     appliedStartDate,
     appliedEndDate,
@@ -431,6 +524,7 @@ const DaycareAppointmentsComponent = () => {
     setPage(1);
     setAppliedDoctorId(filterDoctorId);
     setAppliedProcedureCategory(filterProcedureCategory);
+    setAppliedProcedureIds(filterProcedureIds);
     const hasRange = filterStartDate && filterEndDate;
     if (hasRange) {
       setAppliedStartDate(filterStartDate.format("YYYY-MM-DD"));
@@ -448,11 +542,13 @@ const DaycareAppointmentsComponent = () => {
     setPage(1);
     setFilterDoctorId("");
     setFilterProcedureCategory("");
+    setFilterProcedureIds([]);
     setFilterDate(null);
     setFilterStartDate(null);
     setFilterEndDate(null);
     setAppliedDoctorId("");
     setAppliedProcedureCategory("");
+    setAppliedProcedureIds([]);
     setAppliedDate(null);
     setAppliedStartDate(null);
     setAppliedEndDate(null);
@@ -780,6 +876,56 @@ const DaycareAppointmentsComponent = () => {
                             className="w-100"
                             isLoading={procedureCategoriesLoading}
                           />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label mb-1">Procedures</label>
+                          <div
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Select
+                              isMulti
+                              closeMenuOnSelect={false}
+                              blurInputOnSelect={false}
+                              hideSelectedOptions={false}
+                              options={procedureSelectOptions}
+                              value={filterProcedureIds}
+                              onChange={(selected) =>
+                                setFilterProcedureIds((selected as Option[] | null) ?? [])
+                              }
+                              onInputChange={(value, actionMeta) => {
+                                if (actionMeta.action !== "input-change") return;
+                                handleProcedureInputChange(value);
+                              }}
+                              onMenuOpen={() => {
+                                if (!procedureOptions.length) void fetchDaycareProcedures();
+                              }}
+                              isLoading={proceduresLoading}
+                              placeholder="Select procedures"
+                              classNamePrefix="react-select"
+                              className="select w-100"
+                              instanceId="daycare-filter-procedures-select"
+                              components={{ Option: ProcedureFilterOption }}
+                              menuPortalTarget={typeof window !== "undefined" ? document.body : null}
+                              menuPosition="fixed"
+                              styles={{
+                                menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                menu: (base) => ({ ...base, zIndex: 9999 }),
+                                option: (base, state) => ({
+                                  ...base,
+                                  backgroundColor:
+                                    state.isSelected || state.isFocused ? "#2e37a4" : "white",
+                                  color: state.isSelected || state.isFocused ? "#ffffff" : "#333",
+                                  cursor: "pointer",
+                                  ":active": {
+                                    ...base[":active"],
+                                    backgroundColor: "#2e37a4",
+                                    color: "#ffffff",
+                                  },
+                                }),
+                              }}
+                            />
+                          </div>
                         </div>
                         <div className="mb-3">
                           <label className="form-label mb-1">Date (appointment)</label>

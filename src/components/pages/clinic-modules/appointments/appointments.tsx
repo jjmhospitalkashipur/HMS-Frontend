@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { DatePicker } from "antd";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
-import { Visit_Type, Appointment_Type } from "@/core/common/selectOption";
+import { Visit_Type } from "@/core/common/selectOption";
 import { openThermalTokenPrint } from "@/core/utils/thermalTokenPrint";
 import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
@@ -126,7 +126,6 @@ const AppointmentsComponent = () => {
   const [doctors, setDoctors] = useState<IDoctor[]>([]);
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
   const [filterVisitType, setFilterVisitType] = useState<string>("");
-  const [filterAppointmentType, setFilterAppointmentType] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterDate, setFilterDate] = useState<dayjs.Dayjs | null>(null);
   const [createdDateFrom, setCreatedDateFrom] = useState<dayjs.Dayjs | null>(null);
@@ -134,7 +133,6 @@ const AppointmentsComponent = () => {
   // Applied filters (when user clicks Filter) - sent to server
   const [appliedDoctorId, setAppliedDoctorId] = useState<string>("");
   const [appliedVisitType, setAppliedVisitType] = useState<string>("");
-  const [appliedAppointmentType, setAppliedAppointmentType] = useState<string>("");
   const [appliedStatus, setAppliedStatus] = useState<string>("");
   const [appliedDate, setAppliedDate] = useState<string | null>(null);
   const [appliedCreatedFrom, setAppliedCreatedFrom] = useState<string | null>(null);
@@ -161,7 +159,6 @@ const AppointmentsComponent = () => {
       }
       if (appliedStatus) params.status = appliedStatus;
       if (appliedVisitType) params.visitType = appliedVisitType;
-      if (appliedAppointmentType) params.appointmentType = appliedAppointmentType;
       if (appliedDoctorId) params.doctorId = appliedDoctorId;
       const effectiveDate = activeTab === "today" ? dayjs().format("YYYY-MM-DD") : appliedDate;
       if (effectiveDate) params.date = effectiveDate;
@@ -177,7 +174,6 @@ const AppointmentsComponent = () => {
       activeTab,
       appliedStatus,
       appliedVisitType,
-      appliedAppointmentType,
       appliedDoctorId,
       appliedDate,
       appliedCreatedFrom,
@@ -289,7 +285,6 @@ const AppointmentsComponent = () => {
     activeTab,
     appliedDoctorId,
     appliedVisitType,
-    appliedAppointmentType,
     appliedStatus,
     appliedDate,
     appliedCreatedFrom,
@@ -316,15 +311,10 @@ const AppointmentsComponent = () => {
     () => [{ value: "", label: "All" }, ...Visit_Type.filter((v) => v.value !== "Select").map((v) => ({ value: v.value, label: v.label }))],
     []
   );
-  const appointmentTypeOptions: Option[] = useMemo(
-    () => [{ value: "", label: "All" }, ...Appointment_Type.map((a) => ({ value: a.value, label: a.label }))],
-    []
-  );
 
   const syncFiltersFromApplied = useCallback(() => {
     setFilterDoctorId(appliedDoctorId);
     setFilterVisitType(appliedVisitType);
-    setFilterAppointmentType(appliedAppointmentType);
     setFilterStatus(appliedStatus);
     setFilterDate(appliedDate ? dayjs(appliedDate) : null);
     setCreatedDateFrom(appliedCreatedFrom ? dayjs(appliedCreatedFrom) : null);
@@ -332,7 +322,6 @@ const AppointmentsComponent = () => {
   }, [
     appliedDoctorId,
     appliedVisitType,
-    appliedAppointmentType,
     appliedStatus,
     appliedDate,
     appliedCreatedFrom,
@@ -346,7 +335,6 @@ const AppointmentsComponent = () => {
     setPage(1);
     setAppliedDoctorId(filterDoctorId);
     setAppliedVisitType(filterVisitType);
-    setAppliedAppointmentType(filterAppointmentType);
     setAppliedStatus(filterStatus);
     setAppliedDate(filterDate ? filterDate.format("YYYY-MM-DD") : null);
     setAppliedCreatedFrom(createdDateFrom ? createdDateFrom.format("YYYY-MM-DD") : null);
@@ -358,14 +346,12 @@ const AppointmentsComponent = () => {
     setPage(1);
     setFilterDoctorId("");
     setFilterVisitType("");
-    setFilterAppointmentType("");
     setFilterStatus("");
     setFilterDate(null);
     setCreatedDateFrom(null);
     setCreatedDateTo(null);
     setAppliedDoctorId("");
     setAppliedVisitType("");
-    setAppliedAppointmentType("");
     setAppliedStatus("");
     setAppliedDate(null);
     setAppliedCreatedFrom(null);
@@ -960,16 +946,6 @@ const AppointmentsComponent = () => {
                           options={visitTypeOptions}
                           value={visitTypeOptions.find((o) => o.value === filterVisitType) ?? null}
                           onChange={(opt) => setFilterVisitType(opt?.value ?? "")}
-                          placeholder="All"
-                          className="w-100"
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label mb-1">Appointment Type</label>
-                        <CommonSelect
-                          options={appointmentTypeOptions}
-                          value={appointmentTypeOptions.find((o) => o.value === filterAppointmentType) ?? null}
-                          onChange={(opt) => setFilterAppointmentType(opt?.value ?? "")}
                           placeholder="All"
                           className="w-100"
                         />

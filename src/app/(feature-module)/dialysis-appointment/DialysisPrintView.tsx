@@ -56,6 +56,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     hourly: get("general.hourly"),
     fiberVolume: get("general.fiberVolume"),
     heparinUse: get("general.heparinUse"),
+    height: get("general.height"),
     preHdWeight: get("general.preHdWeightToday"),
     lastPostHdWeight: get("general.lastPostHdWeight"),
     weightGain: get("general.weightGain"),
@@ -524,6 +525,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
   )}
 
     ${row(
+    cell("Height", field(v.height, "100px"), "100px"),
     cell("Pre HD Weight Today", field(v.preHdWeight, "110px"), "110px"),
     cell("Last Post HD Weight", field(v.lastPostHdWeight, "110px"), "110px"),
     cell("Weight Gain", field(v.weightGain, "100px"), "100px"),
