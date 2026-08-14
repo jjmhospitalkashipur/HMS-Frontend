@@ -2,6 +2,7 @@
 
 import NotFoundScreen from "@/components/auth/error-modules/NotFoundScreen";
 import { isAuthenticated, isPublicPath } from "@/core/auth/routeGuard";
+import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
 import { isSharedAuthEnabled, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,7 +24,11 @@ const AuthRouteGuard = ({ children }: IAuthRouteGuardProps) => {
         await syncHospitalSessionFromSharedCookie();
       }
       if (cancelled) return;
-      setAuthed(isAuthenticated());
+      const authenticated = isAuthenticated();
+      if (authenticated) {
+        setHmsAuthCookie();
+      }
+      setAuthed(authenticated);
       setChecked(true);
     };
 

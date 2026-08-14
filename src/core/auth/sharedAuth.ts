@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL, SHARED_AUTH_BASE_URL } from "@/environment";
+import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
 
 const DEFAULT_TIMEOUT_MS = 15000;
 const parsedTimeout = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS);
@@ -84,6 +85,7 @@ export const syncHospitalSessionFromSharedCookie = async (): Promise<ISessionSyn
         window.localStorage.setItem("authToken", payload.accessToken);
       }
       window.localStorage.setItem("authUser", JSON.stringify(normalized));
+      setHmsAuthCookie();
       return "restored";
     }
     return "none";
@@ -117,6 +119,7 @@ export const postSharedLogin = async (email: string, password: string): Promise<
       window.localStorage.setItem("authToken", payload.accessToken);
     }
     window.localStorage.setItem("authUser", JSON.stringify(normalized));
+    setHmsAuthCookie();
     return { ok: true, type: payload.type };
   } catch (err: unknown) {
     const ax = err as { response?: { data?: { message?: string } } };

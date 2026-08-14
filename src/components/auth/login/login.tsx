@@ -9,6 +9,7 @@ import {
   postSharedLogin,
   syncHospitalSessionFromSharedCookie,
 } from "@/core/auth/sharedAuth";
+import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
 import { all_routes } from "@/routes/all_routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -108,6 +109,7 @@ const LoginComponent = () => {
         if (user) {
           localStorage.setItem("authUser", JSON.stringify(user));
         }
+        setHmsAuthCookie();
       } catch {
         // ignore storage errors
       }

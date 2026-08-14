@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setMobileSidebar } from "../../redux/sidebarSlice";
 import Link from "next/link";
 import { isSharedAuthEnabled, postSharedLogout, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
+import { clearLocalAuthSession } from "@/core/auth/sessionCookie";
 import { all_routes } from "@/routes/all_routes";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -561,14 +562,7 @@ const Header = () => {
                       if (isSharedAuthEnabled()) {
                         await postSharedLogout();
                       }
-                      try {
-                        if (typeof window !== "undefined") {
-                          window.localStorage.removeItem("authToken");
-                          window.localStorage.removeItem("authUser");
-                        }
-                      } catch {
-                        // ignore storage errors
-                      }
+                      clearLocalAuthSession();
                       router.replace(all_routes.login);
                     }}
                   >

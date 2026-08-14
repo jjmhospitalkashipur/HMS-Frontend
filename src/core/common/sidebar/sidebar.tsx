@@ -18,6 +18,7 @@ import {
   normalizeRole,
 } from "@/core/auth/roleAccess";
 import { isSharedAuthEnabled, postSharedLogout } from "@/core/auth/sharedAuth";
+import { clearLocalAuthSession } from "@/core/auth/sessionCookie";
 import PranaOSBrand from "@/core/common/pranaos-brand/PranaOSBrand";
 
 const Sidebar = () => {
@@ -454,14 +455,7 @@ const Sidebar = () => {
                   if (isSharedAuthEnabled()) {
                     await postSharedLogout();
                   }
-                  try {
-                    if (typeof window !== "undefined") {
-                      window.localStorage.removeItem("authToken");
-                      window.localStorage.removeItem("authUser");
-                    }
-                  } catch {
-                    // ignore storage errors
-                  }
+                  clearLocalAuthSession();
                   navigate.replace(all_routes.login);
                 }}
               >
