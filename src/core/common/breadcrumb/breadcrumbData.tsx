@@ -648,10 +648,6 @@ export const breadcrumbMap: Record<string, any[]> = {
         { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
         { label: 'Testimonials',active: true },
     ],
-    '/faq': [
-        { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
-        { label: 'Faq',active: true },
-    ],
     '/profile': [
         { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
         { label: 'Profile',active: true },
@@ -664,10 +660,6 @@ export const breadcrumbMap: Record<string, any[]> = {
         { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
         { label: 'Gallery',active: true },
     ],
-    '/pricing': [
-        { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
-        { label: 'Pricing',active: true },
-    ],
     '/timeline': [
         { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
         { label: 'Timeline',active: true },
@@ -675,10 +667,6 @@ export const breadcrumbMap: Record<string, any[]> = {
     '/api-keys': [
         { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
         { label: 'API Key',active: true },
-    ],
-    '/privacy-policy': [
-        { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },
-        { label: 'Privacy Policy',active: true },
     ],
     '/terms-condition': [
         { label: 'Home', path: '/',icon: 'isax isax-home-2 me-1', active: false },

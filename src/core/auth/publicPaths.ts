@@ -2,9 +2,6 @@
 export const PUBLIC_PATH_PREFIXES: string[] = [
   "/",
   "/login",
-  "/faq",
-  "/pricing",
-  "/privacy-policy",
   "/error-404",
   "/error-500",
   "/coming-soon",
