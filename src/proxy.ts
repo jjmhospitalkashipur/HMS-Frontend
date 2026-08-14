@@ -3,7 +3,7 @@ import { HMS_AUTH_COOKIE } from "@/core/auth/sessionCookie";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export const middleware = (request: NextRequest) => {
+export const proxy = (request: NextRequest) => {
   const { pathname } = request.nextUrl;
 
   if (isPublicPath(pathname)) {

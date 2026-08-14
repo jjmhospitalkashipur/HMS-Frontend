@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# generated SBOM (recreated in CI via `npm run sbom`)
+inventory/sbom.cdx.json
+
 # vercel
 .vercel
 
