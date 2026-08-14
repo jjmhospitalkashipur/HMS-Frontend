@@ -1,5 +1,6 @@
 "use client";
 
+import AuthRouteGuard from "@/components/auth/AuthRouteGuard";
 import Header from "@/core/common/header/header";
 import Sidebar from "@/core/common/sidebar/sidebar";
 import { all_routes } from "@/routes/all_routes";
@@ -118,7 +119,8 @@ export default function ThemeLayouts({ children }: { children: React.ReactNode }
     }, [pathname]);
     
   return (
-    <div className="main-wrapper">
+    <AuthRouteGuard>
+      <div className="main-wrapper">
       {/* Header commented out - profile name and role shown in sidebar bottom instead */}
       {/* <Header /> */}
       {/* Mobile menu button - only visible when header is hidden */}
@@ -133,6 +135,7 @@ export default function ThemeLayouts({ children }: { children: React.ReactNode }
       </Link>
       <Sidebar />
       {children}
-    </div>
+      </div>
+    </AuthRouteGuard>
   );
 }

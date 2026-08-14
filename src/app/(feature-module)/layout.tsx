@@ -1,5 +1,6 @@
 "use client";
 
+import AuthRouteGuard from "@/components/auth/AuthRouteGuard";
 import FilterDropdownInit from "@/core/common/filter/FilterDropdownInit";
 import Sidebar from "@/core/common/sidebar/sidebar";
 import { canAccessPath, getDefaultRouteForRole, normalizeRole } from "@/core/auth/roleAccess";
@@ -37,10 +38,12 @@ export default function PagesLayout({ children }: { children: React.ReactNode })
   }, [pathname, router]);
 
   return (
-    <div className="main-wrapper">
-      <FilterDropdownInit />
-      <Sidebar />
-      {children}
-    </div>
+    <AuthRouteGuard>
+      <div className="main-wrapper">
+        <FilterDropdownInit />
+        <Sidebar />
+        {children}
+      </div>
+    </AuthRouteGuard>
   );
 }

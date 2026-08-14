@@ -47,4 +47,3 @@ if (typeof window !== "undefined" && !axiosAuthInitialized) {
 }
 
 export {};
-
