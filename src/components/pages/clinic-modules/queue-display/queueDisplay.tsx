@@ -10,8 +10,11 @@ import {
   getDeletedVisitId,
   getSessionSlotBadge,
   parseCurrentSessionSlot,
+  parseQueueSortBy,
   parseSessionSlot,
   shouldShowVisitOnScreen,
+  sortDisplayQueue,
+  type IQueueSortBy,
   type ISessionSlot,
 } from "./sessionQueue";
 
@@ -50,6 +53,7 @@ interface IQueueDisplay {
   emergencyCount?: number;
   regularCount?: number;
   currentTime?: string;
+  queueSortBy: IQueueSortBy;
   queue: IQueuePatient[];
 }
 
@@ -58,14 +62,8 @@ const DEFAULT_DOCTOR_POSTER = "/assets/img/Photo3.jpg";
 const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
   (visit?.visitType ?? "").toLowerCase() === "emergency";
 
-function sortAndComputeQueue(queue: IQueuePatient[]) {
-  const sorted = [...queue].sort((a, b) => {
-    const aEmergency = isEmergencyVisit(a);
-    const bEmergency = isEmergencyVisit(b);
-    if (aEmergency && !bEmergency) return -1;
-    if (!aEmergency && bEmergency) return 1;
-    return (a.tokenNumber ?? 0) - (b.tokenNumber ?? 0);
-  });
+function sortAndComputeQueue(queue: IQueuePatient[], queueSortBy: IQueueSortBy = "token") {
+  const sorted = sortDisplayQueue(queue, queueSortBy);
   const emergencyCount = sorted.filter((v) => isEmergencyVisit(v)).length;
   const totalPatients = sorted.length;
   const regularCount = totalPatients - emergencyCount;
@@ -98,12 +96,13 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   const rawQueue = Array.isArray(data.queue)
     ? (data.queue as Record<string, unknown>[]).map(toQueuePatient)
     : [];
+  const queueSortBy = parseQueueSortBy(data.queueSortBy);
   const {
     queue,
     totalPatients: computedTotal,
     emergencyCount: computedEmergency,
     regularCount: computedRegular,
-  } = sortAndComputeQueue(rawQueue);
+  } = sortAndComputeQueue(rawQueue, queueSortBy);
   const apiTotal = Number(data.totalPatients);
   const apiEmergency = Number(data.emergencyCount);
   const apiRegular = Number(data.regularCount);
@@ -126,6 +125,7 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     emergencyCount: Number.isFinite(apiEmergency) ? apiEmergency : computedEmergency,
     regularCount: Number.isFinite(apiRegular) ? apiRegular : computedRegular,
     currentTime: typeof data.currentTime === "string" ? data.currentTime : undefined,
+    queueSortBy,
     queue,
   };
 }
@@ -277,9 +277,10 @@ const QueueDisplayComponent = () => {
                     (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
                   );
                   if (exists) return prev;
+                  const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
                   const { queue, totalPatients, emergencyCount, regularCount } =
-                    sortAndComputeQueue([...prev.queue, newPatient]);
-                  return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                    sortAndComputeQueue([...prev.queue, newPatient], queueSortBy);
+                  return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
                 });
               }
               break;
@@ -300,14 +301,15 @@ const QueueDisplayComponent = () => {
                 normalized === "no_show";
               setDisplay((prev) => {
                 if (!prev) return prev;
+                const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
                 const nextQueue = shouldRemove
                   ? prev.queue.filter((p) => (p.visitId || p._id) !== visitId)
                   : prev.queue.map((p) =>
                       (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
                     );
                 const { queue, totalPatients, emergencyCount, regularCount } =
-                  sortAndComputeQueue(nextQueue);
-                return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                  sortAndComputeQueue(nextQueue, queueSortBy);
+                return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
               });
               break;
             }
@@ -319,6 +321,7 @@ const QueueDisplayComponent = () => {
               if (!matchId) break;
               setDisplay((prev) => {
                 if (!prev) return prev;
+                const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
                 const idx = prev.queue.findIndex(
                   (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
                 );
@@ -327,8 +330,8 @@ const QueueDisplayComponent = () => {
                     (p) => (p.visitId || p._id) !== matchId && p._id !== (visit._id as string)
                   );
                   const { queue, totalPatients, emergencyCount, regularCount } =
-                    sortAndComputeQueue(nextQueue);
-                  return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                    sortAndComputeQueue(nextQueue, queueSortBy);
+                  return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
                 }
                 const existing = idx >= 0 ? prev.queue[idx] : null;
                 const merged =
@@ -339,8 +342,8 @@ const QueueDisplayComponent = () => {
                 if (idx >= 0) nextQueue[idx] = merged;
                 else nextQueue.push(merged);
                 const { queue, totalPatients, emergencyCount, regularCount } =
-                  sortAndComputeQueue(nextQueue);
-                return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                  sortAndComputeQueue(nextQueue, queueSortBy);
+                return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
               });
               break;
             }
@@ -349,12 +352,13 @@ const QueueDisplayComponent = () => {
               if (!visitId) break;
               setDisplay((prev) => {
                 if (!prev) return prev;
+                const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
                 const nextQueue = prev.queue.filter(
                   (p) => (p.visitId || p._id) !== visitId
                 );
                 const { queue, totalPatients, emergencyCount, regularCount } =
-                  sortAndComputeQueue(nextQueue);
-                return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                  sortAndComputeQueue(nextQueue, queueSortBy);
+                return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
               });
               break;
             }
@@ -365,12 +369,14 @@ const QueueDisplayComponent = () => {
                   if (!prev) return prev;
                   const currentSessionSlot =
                     parseCurrentSessionSlot(data) ?? prev.currentSessionSlot;
+                  const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
                   const { queue: sortedQueue, totalPatients, emergencyCount, regularCount } =
-                    sortAndComputeQueue(rawQ.map(toQueuePatient));
+                    sortAndComputeQueue(rawQ.map(toQueuePatient), queueSortBy);
                   return {
                     ...prev,
                     currentSessionSlot,
                     sessionSlot: currentSessionSlot ?? prev.sessionSlot,
+                    queueSortBy,
                     queue: sortedQueue,
                     totalPatients,
                     emergencyCount,

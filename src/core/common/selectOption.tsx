@@ -570,4 +570,9 @@ export const Sessions = [
   { value: "Night", label: "Night" },
 ];
 
+export const Queue_Sort_By = [
+  { value: "token", label: "Token Number" },
+  { value: "time", label: "Visit Time" },
+];
+
 

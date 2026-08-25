@@ -11,8 +11,11 @@ import {
   getDeletedVisitId,
   getSessionSlotBadge,
   parseCurrentSessionSlot,
+  parseQueueSortBy,
   parseSessionSlot,
   shouldShowVisitOnScreen,
+  sortDisplayQueue,
+  type IQueueSortBy,
   type ISessionSlot,
 } from "./sessionQueue";
 
@@ -41,6 +44,7 @@ interface IQueueDisplay {
   sessionSlot: string;
   date: string;
   totalPatients: number;
+  queueSortBy: IQueueSortBy;
   queue: IQueuePatient[];
 }
 
@@ -62,17 +66,8 @@ interface IPharmaQueueToken {
   };
 }
 
-const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
-  (visit?.visitType ?? "").toLowerCase() === "emergency";
-
-function sortQueue(queue: IQueuePatient[]): IQueuePatient[] {
-  return [...queue].sort((a, b) => {
-    const aEmergency = isEmergencyVisit(a);
-    const bEmergency = isEmergencyVisit(b);
-    if (aEmergency && !bEmergency) return -1;
-    if (!aEmergency && bEmergency) return 1;
-    return (a.tokenNumber ?? 0) - (b.tokenNumber ?? 0);
-  });
+function sortQueue(queue: IQueuePatient[], queueSortBy: IQueueSortBy = "token"): IQueuePatient[] {
+  return sortDisplayQueue(queue, queueSortBy);
 }
 
 function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
@@ -99,7 +94,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   const rawQueue = Array.isArray(data.queue)
     ? (data.queue as Record<string, unknown>[]).map(toQueuePatient)
     : [];
-  const queue = sortQueue(rawQueue);
+  const queueSortBy = parseQueueSortBy(data.queueSortBy);
+  const queue = sortQueue(rawQueue, queueSortBy);
   return {
     doctorId: (data.doctorId as string) ?? "",
     doctorName: (data.doctorName as string) ?? "—",
@@ -108,6 +104,7 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     sessionSlot: parseCurrentSessionSlot(data) ?? "Morning",
     date: (data.date as string) ?? "",
     totalPatients: Number(data.totalPatients) || queue.length,
+    queueSortBy,
     queue,
   };
 }
@@ -347,10 +344,16 @@ const QueueDisplayMultiComponent = () => {
                     (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
                   );
                   if (exists) return prev;
-                  const nextQueue = sortQueue([...current.queue, newPatient]);
+                  const queueSortBy = parseQueueSortBy(data.queueSortBy, current.queueSortBy);
+                  const nextQueue = sortQueue([...current.queue, newPatient], queueSortBy);
                   return {
                     ...prev,
-                    [streamId]: { ...current, queue: nextQueue, totalPatients: nextQueue.length },
+                    [streamId]: {
+                      ...current,
+                      queueSortBy,
+                      queue: nextQueue,
+                      totalPatients: nextQueue.length,
+                    },
                   };
                 });
               }
@@ -374,6 +377,7 @@ const QueueDisplayMultiComponent = () => {
               setDisplays((prev) => {
                 const current = prev[streamId];
                 if (!current) return prev;
+                const queueSortBy = parseQueueSortBy(data.queueSortBy, current.queueSortBy);
                 let nextQueue: IQueuePatient[];
                 if (shouldRemove) {
                   nextQueue = current.queue.filter(
@@ -384,11 +388,12 @@ const QueueDisplayMultiComponent = () => {
                     (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
                   );
                 }
-                const sorted = sortQueue(nextQueue);
+                const sorted = sortQueue(nextQueue, queueSortBy);
                 return {
                   ...prev,
                   [streamId]: {
                     ...current,
+                    queueSortBy,
                     queue: sorted,
                     totalPatients: sorted.length,
                   },
@@ -405,6 +410,7 @@ const QueueDisplayMultiComponent = () => {
               setDisplays((prev) => {
                 const current = prev[streamId];
                 if (!current) return prev;
+                const queueSortBy = parseQueueSortBy(data.queueSortBy, current.queueSortBy);
                 const idx = current.queue.findIndex(
                   (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
                 );
@@ -412,10 +418,15 @@ const QueueDisplayMultiComponent = () => {
                   const nextQueue = current.queue.filter(
                     (p) => (p.visitId || p._id) !== matchId && p._id !== (visit._id as string)
                   );
-                  const sorted = sortQueue(nextQueue);
+                  const sorted = sortQueue(nextQueue, queueSortBy);
                   return {
                     ...prev,
-                    [streamId]: { ...current, queue: sorted, totalPatients: sorted.length },
+                    [streamId]: {
+                      ...current,
+                      queueSortBy,
+                      queue: sorted,
+                      totalPatients: sorted.length,
+                    },
                   };
                 }
                 const existing = idx >= 0 ? current.queue[idx] : null;
@@ -426,10 +437,15 @@ const QueueDisplayMultiComponent = () => {
                 const nextQueue = [...current.queue];
                 if (idx >= 0) nextQueue[idx] = merged;
                 else nextQueue.push(merged);
-                const sorted = sortQueue(nextQueue);
+                const sorted = sortQueue(nextQueue, queueSortBy);
                 return {
                   ...prev,
-                  [streamId]: { ...current, queue: sorted, totalPatients: sorted.length },
+                  [streamId]: {
+                    ...current,
+                    queueSortBy,
+                    queue: sorted,
+                    totalPatients: sorted.length,
+                  },
                 };
               });
               break;
@@ -440,14 +456,16 @@ const QueueDisplayMultiComponent = () => {
               setDisplays((prev) => {
                 const current = prev[streamId];
                 if (!current) return prev;
+                const queueSortBy = parseQueueSortBy(data.queueSortBy, current.queueSortBy);
                 const nextQueue = current.queue.filter(
                   (p) => (p.visitId || p._id) !== visitId
                 );
-                const sorted = sortQueue(nextQueue);
+                const sorted = sortQueue(nextQueue, queueSortBy);
                 return {
                   ...prev,
                   [streamId]: {
                     ...current,
+                    queueSortBy,
                     queue: sorted,
                     totalPatients: sorted.length,
                   },
@@ -463,14 +481,16 @@ const QueueDisplayMultiComponent = () => {
                   if (!current) return prev;
                   const currentSessionSlot =
                     parseCurrentSessionSlot(data) ?? current.currentSessionSlot;
+                  const queueSortBy = parseQueueSortBy(data.queueSortBy, current.queueSortBy);
                   const normalizedQueue = queue.map(toQueuePatient);
-                  const sorted = sortQueue(normalizedQueue);
+                  const sorted = sortQueue(normalizedQueue, queueSortBy);
                   return {
                     ...prev,
                     [streamId]: {
                       ...current,
                       currentSessionSlot,
                       sessionSlot: currentSessionSlot ?? current.sessionSlot,
+                      queueSortBy,
                       queue: sorted,
                       totalPatients: sorted.length,
                     },

@@ -16,6 +16,7 @@ import {
   Recures_Every,
   Session,
   Sessions,
+  Queue_Sort_By,
 } from "@/core/common/selectOption";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { DatePicker } from "antd";
@@ -529,6 +530,7 @@ const Modals = () => {
   const [photoRemoved, setPhotoRemoved] = useState(false);
   const [posterRemoved, setPosterRemoved] = useState(false);
   const [sessions, setSessions] = useState<Option[]>([]);
+  const [queueSortBy, setQueueSortBy] = useState<Option | null>(Queue_Sort_By[0] || null);
   const [loading, setLoading] = useState<boolean>(false);
   const [visitTypes, setVisitTypes] = useState([
     { type: "OPD", charge: "" },
@@ -564,6 +566,7 @@ const Modals = () => {
     setPhotoRemoved(false);
     setPosterRemoved(false);
     setSessions([]);
+    setQueueSortBy(Queue_Sort_By[0] || null);
     setVisitTypes([
       { type: "OPD", charge: "" },
       { type: "Emergency", charge: "" },
@@ -599,6 +602,9 @@ const Modals = () => {
         setMedicalLicenseNo(doctor.medicalLicenseNo || "");
         setOpdNumber(doctor.opdNumber || "");
         setMaxAppointmentsPerSlot(doctor.maxAppointmentsPerSlot?.toString() || "");
+        setQueueSortBy(
+          Queue_Sort_By.find((option) => option.value === doctor.queueSortBy) || Queue_Sort_By[0] || null
+        );
         setAddress(doctor.address || "");
         const imageUrl = doctor.imageUrl ?? "";
         const posterUrl = doctor.posterUrl ?? "";
@@ -872,6 +878,7 @@ const Modals = () => {
         visitTypes: visitTypesData,
         sessions: sessionsData.length > 0 ? sessionsData : undefined,
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || undefined,
+        queueSortBy: queueSortBy?.value === "time" ? "time" : "token",
       };
 
       if (photoFile) {
@@ -1612,6 +1619,17 @@ const Modals = () => {
                       className="select"
                       value={department}
                       onChange={setDepartment}
+                    />
+                  </div>
+                </div>
+                <div className="col-lg-3">
+                  <div className="mb-3">
+                    <label className="form-label">Queue Sort By</label>
+                    <CommonSelect
+                      options={Queue_Sort_By}
+                      className="select"
+                      value={queueSortBy}
+                      onChange={setQueueSortBy}
                     />
                   </div>
                 </div>

@@ -9,6 +9,7 @@ import {
   Gender,
   Visit_Type,
   Sessions,
+  Queue_Sort_By,
 } from "@/core/common/selectOption";
 import CommonSelect, { Option } from "@/core/common/common-select/commonSelect";
 import { useState } from "react";
@@ -51,6 +52,7 @@ const AddDoctorComponent = () => {
   // const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [sessions, setSessions] = useState<Option[]>([]);
+  const [queueSortBy, setQueueSortBy] = useState<Option | null>(Queue_Sort_By[0] || null);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Visit types state
@@ -176,6 +178,7 @@ const AddDoctorComponent = () => {
         visitTypes: visitTypesData,
         sessions: sessionsData.length > 0 ? sessionsData : ["Morning", "Afternoon", "Evening"],
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || 4,
+        queueSortBy: queueSortBy?.value === "time" ? "time" : "token",
       };
       // if (uploadedImageUrl) doctorData.imageUrl = uploadedImageUrl;
       if (uploadedPosterUrl) doctorData.posterUrl = uploadedPosterUrl;
@@ -381,7 +384,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">Medical License No</label>
                             <input
@@ -414,7 +417,7 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                         </div>
-                        <div className="col-lg-3">
+                        <div className="col-lg-2">
                           <div className="mb-3">
                             <label className="form-label">
                               Sessions <span className="text-danger">*</span>
@@ -428,6 +431,17 @@ const AddDoctorComponent = () => {
                               className="select"
                               placeholder="Select sessions"
                               instanceId="add-doctor-sessions-select"
+                            />
+                          </div>
+                        </div>
+                        <div className="col-lg-2">
+                          <div className="mb-3">
+                            <label className="form-label">Queue Sort By</label>
+                            <CommonSelect
+                              options={Queue_Sort_By}
+                              className="select"
+                              value={queueSortBy}
+                              onChange={setQueueSortBy}
                             />
                           </div>
                         </div>
