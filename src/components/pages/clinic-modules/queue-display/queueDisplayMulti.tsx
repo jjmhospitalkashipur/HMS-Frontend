@@ -7,6 +7,14 @@ import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { Maximize, Minimize, Clock } from "tabler-icons-react";
 import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
+import {
+  getDeletedVisitId,
+  getSessionSlotBadge,
+  parseCurrentSessionSlot,
+  parseSessionSlot,
+  shouldShowVisitOnScreen,
+  type ISessionSlot,
+} from "./sessionQueue";
 
 interface IQueuePatient {
   _id: string;
@@ -15,6 +23,7 @@ interface IQueuePatient {
   visitType?: string;
   visitTime?: string;
   tokenNumber: number;
+  sessionSlot: ISessionSlot;
   status: string;
   patient: {
     mrd: string;
@@ -28,6 +37,7 @@ interface IQueueDisplay {
   doctorId: string;
   doctorName: string;
   opdNumber?: string;
+  currentSessionSlot: ISessionSlot;
   sessionSlot: string;
   date: string;
   totalPatients: number;
@@ -74,6 +84,7 @@ function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
     visitType: visit.visitType as string | undefined,
     visitTime: visit.visitTime as string | undefined,
     tokenNumber: Number(visit.tokenNumber) ?? 0,
+    sessionSlot: parseSessionSlot(visit.sessionSlot),
     status: (visit.status as string) ?? "Scheduled",
     patient: {
       mrd: (patient.mrd as string) ?? "—",
@@ -93,7 +104,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     doctorId: (data.doctorId as string) ?? "",
     doctorName: (data.doctorName as string) ?? "—",
     opdNumber: (data.opdNumber as string) ?? "",
-    sessionSlot: (data.sessionSlot as string) ?? "Morning",
+    currentSessionSlot: parseCurrentSessionSlot(data),
+    sessionSlot: parseCurrentSessionSlot(data) ?? "Morning",
     date: (data.date as string) ?? "",
     totalPatients: Number(data.totalPatients) || queue.length,
     queue,
@@ -328,6 +340,9 @@ const QueueDisplayMultiComponent = () => {
                   const current = prev[streamId];
                   if (!current) return prev;
                   const newPatient = toQueuePatient(visit);
+                  if (!shouldShowVisitOnScreen(newPatient.sessionSlot, current.currentSessionSlot)) {
+                    return prev;
+                  }
                   const exists = current.queue.some(
                     (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
                   );
@@ -393,6 +408,16 @@ const QueueDisplayMultiComponent = () => {
                 const idx = current.queue.findIndex(
                   (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
                 );
+                if (!shouldShowVisitOnScreen(updated.sessionSlot, current.currentSessionSlot)) {
+                  const nextQueue = current.queue.filter(
+                    (p) => (p.visitId || p._id) !== matchId && p._id !== (visit._id as string)
+                  );
+                  const sorted = sortQueue(nextQueue);
+                  return {
+                    ...prev,
+                    [streamId]: { ...current, queue: sorted, totalPatients: sorted.length },
+                  };
+                }
                 const existing = idx >= 0 ? current.queue[idx] : null;
                 const merged =
                   existing && !(visit.patient as Record<string, unknown>)
@@ -410,7 +435,7 @@ const QueueDisplayMultiComponent = () => {
               break;
             }
             case "visit-deleted": {
-              const visitId = data.visitId as string;
+              const visitId = getDeletedVisitId(data);
               if (!visitId) break;
               setDisplays((prev) => {
                 const current = prev[streamId];
@@ -436,12 +461,16 @@ const QueueDisplayMultiComponent = () => {
                 setDisplays((prev) => {
                   const current = prev[streamId];
                   if (!current) return prev;
+                  const currentSessionSlot =
+                    parseCurrentSessionSlot(data) ?? current.currentSessionSlot;
                   const normalizedQueue = queue.map(toQueuePatient);
                   const sorted = sortQueue(normalizedQueue);
                   return {
                     ...prev,
                     [streamId]: {
                       ...current,
+                      currentSessionSlot,
+                      sessionSlot: currentSessionSlot ?? current.sessionSlot,
                       queue: sorted,
                       totalPatients: sorted.length,
                     },
@@ -533,6 +562,7 @@ const QueueDisplayMultiComponent = () => {
     const nextMrd = nextVisit?.patient?.mrd ?? null;
     const nextStatus = nextVisit?.status ?? null;
     const nextVisitType = nextVisit?.visitType ?? null;
+    const nextSessionBadge = nextVisit ? getSessionSlotBadge(nextVisit.sessionSlot) : null;
 
     const opdLabel = formatOpdLabel(display?.opdNumber);
 
@@ -547,6 +577,7 @@ const QueueDisplayMultiComponent = () => {
       nextMrd,
       nextStatus,
       nextVisitType,
+      nextSessionBadge,
     };
   });
 
@@ -736,6 +767,14 @@ const QueueDisplayMultiComponent = () => {
                               }}
                             >
                               {doc.nextToken ?? "—"}
+                              {doc.nextSessionBadge ? (
+                                <span
+                                  className="ms-2 fw-medium"
+                                  style={{ fontSize: "0.42em", letterSpacing: "0.02em", opacity: 0.92 }}
+                                >
+                                  {doc.nextSessionBadge}
+                                </span>
+                              ) : null}
                             </td>
                             <td
                               className={`text-center ${statusDisplay.textClass}`}

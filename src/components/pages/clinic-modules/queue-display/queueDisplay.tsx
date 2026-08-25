@@ -6,6 +6,14 @@ import Image from "next/image";
 import { API_BASE_URL } from "@/environment";
 import { Maximize, Minimize, Ambulance, Clock } from "tabler-icons-react";
 import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
+import {
+  getDeletedVisitId,
+  getSessionSlotBadge,
+  parseCurrentSessionSlot,
+  parseSessionSlot,
+  shouldShowVisitOnScreen,
+  type ISessionSlot,
+} from "./sessionQueue";
 
 interface IQueuePatient {
   _id: string;
@@ -14,6 +22,7 @@ interface IQueuePatient {
   visitType?: string;
   visitTime?: string;
   tokenNumber: number;
+  sessionSlot: ISessionSlot;
   status: string;
   patient: {
     mrd: string;
@@ -34,6 +43,7 @@ interface IQueueDisplay {
   opdNumber?: string | null;
   posterUrl?: string | null;
   shift?: string | null;
+  currentSessionSlot: ISessionSlot;
   sessionSlot: string;
   date: string;
   totalPatients: number;
@@ -72,6 +82,7 @@ function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
     visitType: visit.visitType as string | undefined,
     visitTime: visit.visitTime as string | undefined,
     tokenNumber: Number(visit.tokenNumber) ?? 0,
+    sessionSlot: parseSessionSlot(visit.sessionSlot),
     status: (visit.status as string) ?? "Scheduled",
     patient: {
       mrd: (patient.mrd as string) ?? "—",
@@ -108,7 +119,8 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     opdNumber: (data.opdNumber as string) ?? null,
     posterUrl: typeof data.posterUrl === "string" ? data.posterUrl : null,
     shift: (data.shift as string) ?? null,
-    sessionSlot: (data.sessionSlot as string) ?? "Morning",
+    currentSessionSlot: parseCurrentSessionSlot(data),
+    sessionSlot: parseCurrentSessionSlot(data) ?? "Morning",
     date: (data.date as string) ?? "",
     totalPatients: Number.isFinite(apiTotal) ? apiTotal : computedTotal,
     emergencyCount: Number.isFinite(apiEmergency) ? apiEmergency : computedEmergency,
@@ -258,6 +270,9 @@ const QueueDisplayComponent = () => {
                 setDisplay((prev) => {
                   if (!prev) return prev;
                   const newPatient = toQueuePatient(visit);
+                  if (!shouldShowVisitOnScreen(newPatient.sessionSlot, prev.currentSessionSlot)) {
+                    return prev;
+                  }
                   const exists = prev.queue.some(
                     (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
                   );
@@ -307,6 +322,14 @@ const QueueDisplayComponent = () => {
                 const idx = prev.queue.findIndex(
                   (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
                 );
+                if (!shouldShowVisitOnScreen(updated.sessionSlot, prev.currentSessionSlot)) {
+                  const nextQueue = prev.queue.filter(
+                    (p) => (p.visitId || p._id) !== matchId && p._id !== (visit._id as string)
+                  );
+                  const { queue, totalPatients, emergencyCount, regularCount } =
+                    sortAndComputeQueue(nextQueue);
+                  return { ...prev, queue, totalPatients, emergencyCount, regularCount };
+                }
                 const existing = idx >= 0 ? prev.queue[idx] : null;
                 const merged =
                   existing && !(visit.patient as Record<string, unknown>)
@@ -322,7 +345,7 @@ const QueueDisplayComponent = () => {
               break;
             }
             case "visit-deleted": {
-              const visitId = data.visitId as string;
+              const visitId = getDeletedVisitId(data);
               if (!visitId) break;
               setDisplay((prev) => {
                 if (!prev) return prev;
@@ -340,9 +363,19 @@ const QueueDisplayComponent = () => {
               if (Array.isArray(rawQ)) {
                 setDisplay((prev) => {
                   if (!prev) return prev;
+                  const currentSessionSlot =
+                    parseCurrentSessionSlot(data) ?? prev.currentSessionSlot;
                   const { queue: sortedQueue, totalPatients, emergencyCount, regularCount } =
                     sortAndComputeQueue(rawQ.map(toQueuePatient));
-                  return { ...prev, queue: sortedQueue, totalPatients, emergencyCount, regularCount };
+                  return {
+                    ...prev,
+                    currentSessionSlot,
+                    sessionSlot: currentSessionSlot ?? prev.sessionSlot,
+                    queue: sortedQueue,
+                    totalPatients,
+                    emergencyCount,
+                    regularCount,
+                  };
                 });
               }
               break;
@@ -650,7 +683,10 @@ const QueueDisplayComponent = () => {
                   Timings
                 </p>
                 <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
-                  {display?.shift || display?.sessionSlot || "N/A"}
+                  {display?.shift || "N/A"}
+                </p>
+                <p className="mb-0 text-muted fw-medium" style={{ fontSize: "clamp(0.7rem, 0.9vw, 1.02rem)" }}>
+                  Session: {display?.currentSessionSlot || "All Day"}
                 </p>
               </div>
             </div>
@@ -709,6 +745,12 @@ const QueueDisplayComponent = () => {
                           fontSize: "clamp(1rem, 1.8vw, 5.5rem)"
                         }}>
                           {tokenLabel}
+                          <span
+                            className="ms-2 fw-medium"
+                            style={{ fontSize: "0.42em", letterSpacing: "0.02em", opacity: 0.92 }}
+                          >
+                            {getSessionSlotBadge(entry.sessionSlot)}
+                          </span>
                         </td>
                         <td className={`align-middle text-center ${statusDisplay.textClass}`} style={{
                           ...statusDisplay.rowStyle,
