@@ -39,6 +39,12 @@ import {
 } from "@/core/utils/formatPatientPhoneForApi";
 import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
 import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
+import DialysisSlotsField, {
+  type IDialysisSlotForm,
+  getDialysisSlotsValidationMessage,
+  mapDialysisSlotsFromApi,
+  mapDialysisSlotsToApi,
+} from "@/components/pages/clinic-modules/doctors/dialysisSlotsField";
 
 interface ISlot {
   session: string;
@@ -531,6 +537,7 @@ const Modals = () => {
   const [posterRemoved, setPosterRemoved] = useState(false);
   const [sessions, setSessions] = useState<Option[]>([]);
   const [queueSortBy, setQueueSortBy] = useState<Option | null>(Queue_Sort_By[0] || null);
+  const [dialysisSlots, setDialysisSlots] = useState<IDialysisSlotForm[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [visitTypes, setVisitTypes] = useState([
     { type: "OPD", charge: "" },
@@ -567,6 +574,7 @@ const Modals = () => {
     setPosterRemoved(false);
     setSessions([]);
     setQueueSortBy(Queue_Sort_By[0] || null);
+    setDialysisSlots([]);
     setVisitTypes([
       { type: "OPD", charge: "" },
       { type: "Emergency", charge: "" },
@@ -656,6 +664,8 @@ const Modals = () => {
           });
           setVisitTypes(mappedVisitTypes);
         }
+
+        setDialysisSlots(mapDialysisSlotsFromApi(doctor.dialysisSlots));
       }
     } catch (error: any) {
       console.error("Error fetching doctor data:", error);
@@ -837,6 +847,12 @@ const Modals = () => {
       return;
     }
 
+    const dialysisSlotsError = getDialysisSlotsValidationMessage(dialysisSlots);
+    if (dialysisSlotsError) {
+      alert(dialysisSlotsError);
+      return;
+    }
+
     try {
       if (!API_BASE_URL) {
         console.error("API_BASE_URL is undefined. Check .env.local file.");
@@ -879,6 +895,7 @@ const Modals = () => {
         sessions: sessionsData.length > 0 ? sessionsData : undefined,
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || undefined,
         queueSortBy: queueSortBy?.value === "time" ? "time" : "token",
+        dialysisSlots: mapDialysisSlotsToApi(dialysisSlots),
       };
 
       if (photoFile) {
@@ -1795,6 +1812,10 @@ const Modals = () => {
                       />
                     </div>
                   </div>
+                  <DialysisSlotsField
+                    slots={dialysisSlots}
+                    onChange={setDialysisSlots}
+                  />
                 </div>
               </div>
             </div>

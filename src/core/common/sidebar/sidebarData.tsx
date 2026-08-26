@@ -77,6 +77,16 @@ export const SidebarData = [
         dot: true,
       },
       {
+        label: "Dialysis Calendar",
+        link: routes.dialysisCalendar,
+        submenu: false,
+        showSubRoute: false,
+        icon: "calendar-event",
+        base: "DialysisCalendar",
+        materialicons: "start",
+        dot: true,
+      },
+      {
         label: "Xrays",
         link: routes.xrays,
         submenu: false,

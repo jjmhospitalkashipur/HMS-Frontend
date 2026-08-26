@@ -435,3 +435,15 @@ th.fc-day-header {
         border-color: $border-color;
     }
 }
+
+.dialysis-dashboard-calendar {
+    .fc-event {
+        font-size: 12px;
+        padding: 1px 4px;
+        cursor: pointer;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1rem;
+    }
+}

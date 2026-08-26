@@ -21,7 +21,15 @@ interface IDoctor {
 }
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
+import { DatePicker } from "antd";
 import IndianPhoneSearchInput from "@/core/common/indianPhoneInput/IndianPhoneSearchInput";
+import {
+  buildDaycareProceduresPayload,
+  fetchDoctorDialysisSlots,
+  isDialysisProcedureName,
+  toDialysisSlotSelectOptions,
+  type IDoctorDialysisSlot,
+} from "@/components/pages/clinic-modules/daycare-appointments/daycareDialysisSlots";
 
 const BED_CHARGES_OPTIONS: Option[] = [
   { value: "none", label: "None" },
@@ -37,6 +45,8 @@ interface IDaycareProcedure {
   procedureId: string;
   procedureName?: string;
   price?: number;
+  slotId?: string;
+  sessionDate?: string;
 }
 
 interface IDaycarePatient {
@@ -112,8 +122,14 @@ const EditDaycareAppointmentComponent = () => {
   const [proceduresOptions, setProceduresOptions] = useState<Option[]>([]);
   const [procedurePriceById, setProcedurePriceById] = useState<Record<string, number>>({});
   const [proceduresLoading, setProceduresLoading] = useState(false);
-  const [addedProcedures, setAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  const [addedProcedures, setAddedProcedures] = useState<
+    Array<{ id: string; name: string; price: number; isDialysis?: boolean }>
+  >([]);
   const [addProcedureSelect, setAddProcedureSelect] = useState<Option | null>(null);
+  const [procedureIsDialysisById, setProcedureIsDialysisById] = useState<Record<string, boolean>>({});
+  const [dialysisSlots, setDialysisSlots] = useState<IDoctorDialysisSlot[]>([]);
+  const [dialysisSlot, setDialysisSlot] = useState<Option | null>(null);
+  const [dialysisSlotsLoading, setDialysisSlotsLoading] = useState(false);
 
   const [paymentMode, setPaymentMode] = useState<string>("Cash");
   const [amountReceived, setAmountReceived] = useState<number>(0);
@@ -176,16 +192,19 @@ const EditDaycareAppointmentComponent = () => {
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
       setProceduresOptions(
-        arr.map((p: { _id: string; procedureName?: string; price?: number; basePrice?: number }) => ({
+        arr.map((p: { _id: string; procedureName?: string; category?: string; price?: number; basePrice?: number }) => ({
           value: p._id,
           label: p.procedureName ?? "—",
         }))
       );
       const priceMap: Record<string, number> = {};
-      arr.forEach((p: { _id: string; price?: number; basePrice?: number }) => {
+      const dialysisMap: Record<string, boolean> = {};
+      arr.forEach((p: { _id: string; procedureName?: string; category?: string; price?: number; basePrice?: number }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
+        dialysisMap[p._id] = isDialysisProcedureName(p.procedureName, p.category);
       });
       setProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
+      setProcedureIsDialysisById((prev) => ({ ...prev, ...dialysisMap }));
     } catch {
       setProceduresOptions([]);
       setProcedurePriceById({});
@@ -266,11 +285,22 @@ const EditDaycareAppointmentComponent = () => {
         setDoctorVisitCharges(data.doctorVisitCharges ? "Yes" : "No");
 
         const procs = (data.procedures ?? []).map((p) => ({
-          id: p.procedureId ?? (p as any)._id,
+          id: p.procedureId ?? (p as { _id?: string })._id,
           name: p.procedureName ?? "—",
           price: p.price ?? 0,
+          isDialysis:
+            isDialysisProcedureName(p.procedureName) ||
+            Boolean((p as { slotId?: string }).slotId),
         }));
         setAddedProcedures(procs);
+        const existingSlotId = (data.procedures ?? []).find(
+          (p) => (p as { slotId?: string }).slotId
+        ) as { slotId?: string } | undefined;
+        if (existingSlotId?.slotId) {
+          setDialysisSlot({ value: existingSlotId.slotId, label: "Selected slot" });
+        } else {
+          setDialysisSlot(null);
+        }
         setDiscount(data.discount ?? 0);
         setDiscountFromApi(data.discount ?? 0);
         setAppointmentDate(
@@ -331,6 +361,39 @@ const EditDaycareAppointmentComponent = () => {
     }
   }, [selectedDoctor?.value, doctors, daycareDoctorCharge]);
 
+  useEffect(() => {
+    const doctorId = selectedDoctor?.value;
+    if (!doctorId) {
+      setDialysisSlots([]);
+      setDialysisSlotsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const loadSlots = async () => {
+      setDialysisSlotsLoading(true);
+      try {
+        const slots = await fetchDoctorDialysisSlots(doctorId);
+        if (cancelled) return;
+        setDialysisSlots(slots);
+        setDialysisSlot((prev) => {
+          if (!prev?.value) return prev;
+          const match = slots.find((slot) => slot._id === prev.value);
+          if (!match) return prev;
+          const options = toDialysisSlotSelectOptions([match]);
+          return options[0] ?? prev;
+        });
+      } catch {
+        if (!cancelled) setDialysisSlots([]);
+      } finally {
+        if (!cancelled) setDialysisSlotsLoading(false);
+      }
+    };
+    void loadSlots();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDoctor?.value]);
+
   const handleProcedureInputChange = useCallback(
     (value: string) => {
       if (procedureSearchDebounceRef.current) {
@@ -347,9 +410,12 @@ const EditDaycareAppointmentComponent = () => {
   const handleAddProcedure = (option: Option | null) => {
     if (!option?.value || procedurePriceById[option.value] == null) return;
     const price = procedurePriceById[option.value] ?? 0;
+    const isDialysis =
+      procedureIsDialysisById[option.value] === true ||
+      isDialysisProcedureName(option.label);
     setAddedProcedures((prev) => {
       if (prev.some((p) => p.id === option.value)) return prev;
-      return [...prev, { id: option.value, name: option.label, price }];
+      return [...prev, { id: option.value, name: option.label, price, isDialysis }];
     });
     setAddProcedureSelect(null);
   };
@@ -382,6 +448,19 @@ const EditDaycareAppointmentComponent = () => {
       .map((p) => p.id)
       .filter((pid) => Boolean(pid) && procedurePriceById[pid] != null);
     const uniqueProcedureIds = Array.from(new Set(procedureIds));
+    const hasDialysisProcedure = addedProcedures.some(
+      (proc) => proc.isDialysis || isDialysisProcedureName(proc.name)
+    );
+    if (hasDialysisProcedure) {
+      if (!dialysisSlot?.value) {
+        setError("Please select a dialysis slot for the dialysis procedure.");
+        return;
+      }
+      if (!appointmentDate) {
+        setError("Please select an appointment date for the dialysis procedure.");
+        return;
+      }
+    }
     const discountNum = Number(discount) || 0;
 
     setSubmitLoading(true);
@@ -395,10 +474,18 @@ const EditDaycareAppointmentComponent = () => {
         ...(patientId && { patientId }),
         doctorId: selectedDoctor.value,
         ...daycareChargesFields,
-        procedureIds: uniqueProcedureIds,
+        ...(hasDialysisProcedure
+          ? {
+              appointmentDate,
+              procedures: buildDaycareProceduresPayload(
+                addedProcedures,
+                dialysisSlot?.value,
+                appointmentDate
+              ),
+            }
+          : { procedureIds: uniqueProcedureIds }),
         doctorVisitCharges: doctorVisitCharges === "Yes",
         discount: discountNum,
-        appointmentDate: appointmentDate || undefined,
         ...(discountNum > 0 && discountPwd !== undefined && discountPwd !== "" && { discountPassword: discountPwd }),
       };
       const res = await axios.put(
@@ -777,6 +864,56 @@ const EditDaycareAppointmentComponent = () => {
                             isLoading={doctorSearchLoading}
                             placeholder="Search doctor..."
                           />
+                        </div>
+                        {selectedDoctor ? (
+                          <div className="mb-3">
+                            <label className="form-label mb-1 fw-medium">
+                              Dialysis Slot
+                              {addedProcedures.some(
+                                (proc) => proc.isDialysis || isDialysisProcedureName(proc.name)
+                              ) ? (
+                                <span className="text-danger ms-1">*</span>
+                              ) : null}
+                            </label>
+                            <CommonSelect
+                              options={toDialysisSlotSelectOptions(dialysisSlots)}
+                              value={dialysisSlot}
+                              onChange={setDialysisSlot}
+                              isLoading={dialysisSlotsLoading}
+                              placeholder={
+                                dialysisSlotsLoading
+                                  ? "Loading slots..."
+                                  : dialysisSlots.length === 0
+                                    ? "No dialysis slots"
+                                    : "Select slot..."
+                              }
+                            />
+                          </div>
+                        ) : null}
+                        <div className="mb-3">
+                          <label className="form-label mb-1 fw-medium">
+                            Appointment Date
+                            {addedProcedures.some(
+                              (proc) => proc.isDialysis || isDialysisProcedureName(proc.name)
+                            ) ? (
+                              <span className="text-danger ms-1">*</span>
+                            ) : null}
+                          </label>
+                          <div className="input-icon-end position-relative">
+                            <DatePicker
+                              className="form-control datetimepicker"
+                              format={{ format: "DD-MM-YYYY", type: "mask" }}
+                              placeholder="DD-MM-YYYY"
+                              suffixIcon={null}
+                              value={appointmentDate ? dayjs(appointmentDate) : null}
+                              onChange={(date) =>
+                                setAppointmentDate(date ? date.format("YYYY-MM-DD") : "")
+                              }
+                            />
+                            <span className="input-icon-addon">
+                              <i className="ti ti-calendar" />
+                            </span>
+                          </div>
                         </div>
                         <div className="mb-3">
                           <div className="d-flex align-items-end gap-2 flex-wrap">

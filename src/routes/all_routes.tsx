@@ -129,6 +129,7 @@ export const all_routes = {
   editIpdAppointment: "/edit-ipd-appointment",
   ipdAppointmentDetails: "/ipd-appointment-details",
   dialysis: "/dialysis",
+  dialysisCalendar: "/dialysis-calendar",
   xrays: "/xrays",
   xrayDetails: "/xray-details",
   xrayTokenQueue: "/xq",

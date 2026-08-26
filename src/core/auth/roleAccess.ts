@@ -47,9 +47,11 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.ipdAppointments,
     all_routes.ipdAppointmentDetails,
     all_routes.editIpdAppointment,
+    all_routes.dialysisCalendar,
   ],
   DIALYSIS: [
     all_routes.dialysis,
+    all_routes.dialysisCalendar,
     all_routes.dialysisAppointment,
     all_routes.patients,
     all_routes.patientsGrid,
@@ -71,6 +73,7 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.ipdAppointments,
     all_routes.ipdAppointmentDetails,
     all_routes.editIpdAppointment,
+    all_routes.dialysisCalendar,
   ],
   RECEPTIONIST2: [
     all_routes.patients,

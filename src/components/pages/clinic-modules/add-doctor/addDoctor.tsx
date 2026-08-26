@@ -26,6 +26,11 @@ import {
   validateIndianMobilePhone,
 } from "@/core/utils/formatPatientPhoneForApi";
 import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
+import DialysisSlotsField, {
+  type IDialysisSlotForm,
+  getDialysisSlotsValidationMessage,
+  mapDialysisSlotsToApi,
+} from "@/components/pages/clinic-modules/doctors/dialysisSlotsField";
 
 const AddDoctorComponent = () => {
   const router = useRouter();
@@ -53,6 +58,7 @@ const AddDoctorComponent = () => {
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [sessions, setSessions] = useState<Option[]>([]);
   const [queueSortBy, setQueueSortBy] = useState<Option | null>(Queue_Sort_By[0] || null);
+  const [dialysisSlots, setDialysisSlots] = useState<IDialysisSlotForm[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Visit types state
@@ -126,6 +132,11 @@ const AddDoctorComponent = () => {
       alert("Please enter Charges for at least one Visit type.");
       return;
     }
+    const dialysisSlotsError = getDialysisSlotsValidationMessage(dialysisSlots);
+    if (dialysisSlotsError) {
+      alert(dialysisSlotsError);
+      return;
+    }
 
     try {
       if (!API_BASE_URL) {
@@ -180,6 +191,10 @@ const AddDoctorComponent = () => {
         maxAppointmentsPerSlot: parseInt(maxAppointmentsPerSlot) || 4,
         queueSortBy: queueSortBy?.value === "time" ? "time" : "token",
       };
+      const dialysisSlotsData = mapDialysisSlotsToApi(dialysisSlots);
+      if (dialysisSlotsData.length > 0) {
+        doctorData.dialysisSlots = dialysisSlotsData;
+      }
       // if (uploadedImageUrl) doctorData.imageUrl = uploadedImageUrl;
       if (uploadedPosterUrl) doctorData.posterUrl = uploadedPosterUrl;
       if (formattedDob) doctorData.dob = formattedDob;
@@ -553,6 +568,10 @@ const AddDoctorComponent = () => {
                               </div>
                             </div>
                           </div>
+                          <DialysisSlotsField
+                            slots={dialysisSlots}
+                            onChange={setDialysisSlots}
+                          />
                         </div>
                       </div>
                     </div>

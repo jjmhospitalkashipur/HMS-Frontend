@@ -11,8 +11,6 @@ import CircleChart from "../chats/circleChart";
 import RevenueChart from "../chats/revenueChart";
 import VisitRevenueChart from "../chats/visitRevenueChart";
 import DaycareRevenueChart from "../chats/daycareRevenueChart";
-import { Calendar, type CalendarProps } from "antd";
-import type { Dayjs } from "dayjs";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
@@ -135,10 +133,6 @@ const DashboardComponent = () => {
       data: [40, 15, 60, 15, 90, 20, 70], // y-values
     },
   ];
-
-  const onPanelChange = (value: Dayjs, mode: CalendarProps<Dayjs>["mode"]) => {
-    console.log(value.format("YYYY-MM-DD"), mode);
-  };
 
   const [recentAppointments, setRecentAppointments] = useState<
     {

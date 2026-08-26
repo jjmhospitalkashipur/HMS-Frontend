@@ -45,6 +45,13 @@ import {
   type IIpdDoctorVisitRow,
 } from "@/components/pages/clinic-modules/ipd-appointments/ipdDoctorVisitRows";
 import IpdFormStepIndicator from "@/components/pages/clinic-modules/ipd-appointments/IpdFormStepIndicator";
+import {
+  buildDaycareProceduresPayload,
+  fetchDoctorDialysisSlots,
+  isDialysisProcedureName,
+  toDialysisSlotSelectOptions,
+  type IDoctorDialysisSlot,
+} from "@/components/pages/clinic-modules/daycare-appointments/daycareDialysisSlots";
 import IpdAdmissionSummarySidebar, {
   resolveIpdBedSummary,
   type IIpdSummaryBed,
@@ -280,8 +287,16 @@ const NewAppointmentComponent = () => {
   const [daycareBedChargesHours, setDaycareBedChargesHours] = useState<number>(1);
   const [daycareCustomRate, setDaycareCustomRate] = useState<number>(0);
   const [daycareDoctorVisitCharges, setDaycareDoctorVisitCharges] = useState<"Yes" | "No">("No");
-  const [daycareAddedProcedures, setDaycareAddedProcedures] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  const [daycareAddedProcedures, setDaycareAddedProcedures] = useState<
+    Array<{ id: string; name: string; price: number; isDialysis?: boolean }>
+  >([]);
   const [daycareAddProcedureSelect, setDaycareAddProcedureSelect] = useState<Option | null>(null);
+  const [daycareDialysisSlots, setDaycareDialysisSlots] = useState<IDoctorDialysisSlot[]>([]);
+  const [daycareDialysisSlot, setDaycareDialysisSlot] = useState<Option | null>(null);
+  const [daycareDialysisSlotsLoading, setDaycareDialysisSlotsLoading] = useState(false);
+  const [daycareProcedureIsDialysisById, setDaycareProcedureIsDialysisById] = useState<
+    Record<string, boolean>
+  >({});
   const daycareBedChargesOptions: Option[] = [
     { value: "none", label: "None" },
     { value: "private", label: "Private (200/hr)" },
@@ -652,20 +667,32 @@ const NewAppointmentComponent = () => {
     // Only allow procedures coming from fetched list (prevents dummy/wrong ids)
     if (daycareProcedurePriceById[option.value] == null) return;
     const price = daycareProcedurePriceById[option.value] ?? 0;
+    const isDialysis =
+      daycareProcedureIsDialysisById[option.value] === true ||
+      isDialysisProcedureName(option.label);
     setDaycareAddedProcedures((prev) => {
       if (prev.some((p) => p.id === option.value)) return prev;
-      return [...prev, { id: option.value, name: option.label, price }];
+      return [...prev, { id: option.value, name: option.label, price, isDialysis }];
     });
     setDaycareAddProcedureSelect(null);
-  }, [daycareProcedurePriceById]);
+  }, [daycareProcedureIsDialysisById, daycareProcedurePriceById]);
   const handleDaycareRemoveProcedure = useCallback((id: string) => {
     setDaycareAddedProcedures((prev) => prev.filter((p) => p.id !== id));
   }, []);
   const handleDaycareDoctorChange = useCallback((option: Option | null) => {
     setDaycareSelectedDoctor(option);
     setDaycareSessionSlot(null);
+    setDaycareDialysisSlot(null);
+    setDaycareDialysisSlots([]);
     setDaycareTotal(0);
   }, []);
+  const daycareHasDialysisProcedure = daycareAddedProcedures.some(
+    (proc) => proc.isDialysis || isDialysisProcedureName(proc.name)
+  );
+  const daycareDialysisSlotOptions = useMemo(
+    () => toDialysisSlotSelectOptions(daycareDialysisSlots),
+    [daycareDialysisSlots]
+  );
 
   const updateDaycareTotalFromDoctorCharge = useCallback(() => {
     if (!daycareSelectedDoctor?.value) {
@@ -694,6 +721,33 @@ const NewAppointmentComponent = () => {
     updateDaycareTotalFromDoctorCharge();
   }, [updateDaycareTotalFromDoctorCharge]);
 
+  useEffect(() => {
+    const doctorId = daycareSelectedDoctor?.value;
+    if (!doctorId) {
+      setDaycareDialysisSlots([]);
+      setDaycareDialysisSlot(null);
+      setDaycareDialysisSlotsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const loadSlots = async () => {
+      setDaycareDialysisSlotsLoading(true);
+      try {
+        const slots = await fetchDoctorDialysisSlots(doctorId);
+        if (cancelled) return;
+        setDaycareDialysisSlots(slots);
+      } catch {
+        if (!cancelled) setDaycareDialysisSlots([]);
+      } finally {
+        if (!cancelled) setDaycareDialysisSlotsLoading(false);
+      }
+    };
+    void loadSlots();
+    return () => {
+      cancelled = true;
+    };
+  }, [daycareSelectedDoctor?.value]);
+
   // Fetch procedures for Daycare (used for procedureIds)
   const fetchDaycareProcedures = useCallback(async (search = "") => {
     if (!API_BASE_URL) return;
@@ -706,6 +760,7 @@ const NewAppointmentComponent = () => {
         const list = res.data.data.procedures as Array<{
           _id: string;
           procedureName?: string;
+          category?: string;
           price?: number;
           basePrice?: number;
         }>;
@@ -716,10 +771,13 @@ const NewAppointmentComponent = () => {
           }))
         );
         const priceMap: Record<string, number> = {};
+        const dialysisMap: Record<string, boolean> = {};
         list.forEach((p) => {
           priceMap[p._id] = (p.price ?? p.basePrice ?? 0) as number;
+          dialysisMap[p._id] = isDialysisProcedureName(p.procedureName, p.category);
         });
         setDaycareProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
+        setDaycareProcedureIsDialysisById((prev) => ({ ...prev, ...dialysisMap }));
       } else {
         setDaycareProceduresOptions([]);
       }
@@ -1179,6 +1237,17 @@ const NewAppointmentComponent = () => {
       setDaycareError(daycareAbhaValidationError);
       return;
     }
+    const appointmentDate = formatDaycareVisitDate();
+    if (daycareHasDialysisProcedure) {
+      if (!daycareDialysisSlot?.value) {
+        setDaycareError("Please select a dialysis slot for the dialysis procedure.");
+        return;
+      }
+      if (!appointmentDate) {
+        setDaycareError("Please select an appointment date for the dialysis procedure.");
+        return;
+      }
+    }
     setDaycareLoading(true);
     try {
       const bedChargesTypeLabel = daycareBedChargesType?.label?.split("(")[0]?.trim() ?? "";
@@ -1203,7 +1272,18 @@ const NewAppointmentComponent = () => {
         )
       );
       const doctorVisitCharges = daycareDoctorVisitCharges === "Yes";
-      const appointmentDate = formatDaycareVisitDate() || undefined;
+      const dialysisProcedurePayload = daycareHasDialysisProcedure
+        ? {
+            appointmentDate,
+            procedures: buildDaycareProceduresPayload(
+              daycareAddedProcedures,
+              daycareDialysisSlot?.value,
+              appointmentDate
+            ),
+          }
+        : {
+            procedureIds,
+          };
 
       const addDaycareTransactionIfAmountReceived = async (visitId: string) => {
         const amount = Number(daycareAmountReceived) || 0;
@@ -1232,9 +1312,8 @@ const NewAppointmentComponent = () => {
             patientId: daycareSelectedPatient._id,
             doctorId: daycareSelectedDoctor.value,
             ...daycareChargesFields,
-            procedureIds,
+            ...dialysisProcedurePayload,
             doctorVisitCharges,
-            appointmentDate,
             ...daycareBasePayload,
           }
         );
@@ -1270,9 +1349,8 @@ const NewAppointmentComponent = () => {
             patient: patientPayload,
             doctorId: daycareSelectedDoctor.value,
             ...daycareChargesFields,
-            procedureIds,
+            ...dialysisProcedurePayload,
             doctorVisitCharges,
-            appointmentDate,
             ...daycareBasePayload,
           }
         );
@@ -3592,6 +3670,58 @@ const NewAppointmentComponent = () => {
                                     </div>
                                   </div>
                                 </div>
+                                {daycareSelectedDoctor ? (
+                                  <div className="mb-3">
+                                    <div className="d-flex align-items-end gap-2 flex-wrap">
+                                      <div style={{ width: "62%", minWidth: 0 }}>
+                                        <label className="form-label mb-1 fw-medium d-block">
+                                          Dialysis Slot
+                                          {daycareHasDialysisProcedure ? (
+                                            <span className="text-danger ms-1">*</span>
+                                          ) : null}
+                                        </label>
+                                        <CommonSelect
+                                          options={daycareDialysisSlotOptions}
+                                          value={daycareDialysisSlot}
+                                          onChange={setDaycareDialysisSlot}
+                                          isLoading={daycareDialysisSlotsLoading}
+                                          placeholder={
+                                            daycareDialysisSlotsLoading
+                                              ? "Loading slots..."
+                                              : daycareDialysisSlotOptions.length === 0
+                                                ? "No dialysis slots"
+                                                : "Select slot..."
+                                          }
+                                        />
+                                      </div>
+                                      <div style={{ width: "35%", minWidth: 0 }}>
+                                        <label className="form-label mb-1 fw-medium d-block">
+                                          Appointment Date
+                                          {daycareHasDialysisProcedure ? (
+                                            <span className="text-danger ms-1">*</span>
+                                          ) : null}
+                                        </label>
+                                        <div className="input-icon-end position-relative">
+                                          <DatePicker
+                                            className="form-control datetimepicker"
+                                            format={{
+                                              format: "DD-MM-YYYY",
+                                              type: "mask",
+                                            }}
+                                            getPopupContainer={getModalContainer}
+                                            placeholder="DD-MM-YYYY"
+                                            suffixIcon={null}
+                                            value={daycareVisitDate}
+                                            onChange={setDaycareVisitDate}
+                                          />
+                                          <span className="input-icon-addon">
+                                            <i className="ti ti-calendar" />
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null}
                                 {/* Daycare Charges Type + Hours, same widths */}
                                 <div className="mb-3">
                                   <div className="d-flex align-items-end gap-2 flex-wrap">
