@@ -273,6 +273,22 @@ const readDosageInstructions = (resource: Record<string, unknown>): string[] => 
     .filter((value): value is string => Boolean(value));
 };
 
+const indexResource = (
+  map: Map<string, Record<string, unknown>>,
+  resource: Record<string, unknown>,
+  fullUrl?: string | null
+) => {
+  const id = readString(resource.id);
+  const resourceType = readString(resource.resourceType);
+
+  if (fullUrl) map.set(fullUrl, resource);
+  if (id) {
+    map.set(id, resource);
+    map.set(`urn:uuid:${id}`, resource);
+    if (resourceType) map.set(`${resourceType}/${id}`, resource);
+  }
+};
+
 const buildResourceMap = (
   bundle: Record<string, unknown> | null
 ): Map<string, Record<string, unknown>> => {
@@ -284,13 +300,21 @@ const buildResourceMap = (
     const resource = asObject(entry?.resource);
     if (!resource) continue;
 
-    const fullUrl = readString(entry?.fullUrl);
-    const id = readString(resource.id);
-    const resourceType = readString(resource.resourceType);
+    indexResource(map, resource, readString(entry?.fullUrl));
 
-    if (fullUrl) map.set(fullUrl, resource);
-    if (id && resourceType) map.set(`${resourceType}/${id}`, resource);
-    if (id) map.set(id, resource);
+    if (Array.isArray(resource.contained)) {
+      for (const containedItem of resource.contained) {
+        const contained = asObject(containedItem);
+        if (contained) indexResource(map, contained);
+      }
+    }
+
+    if (readString(resource.resourceType) === "Bundle") {
+      const nested = buildResourceMap(resource);
+      nested.forEach((nestedResource, key) => {
+        if (!map.has(key)) map.set(key, nestedResource);
+      });
+    }
   }
 
   return map;
@@ -347,13 +371,31 @@ const summarizeResource = (resource: Record<string, unknown> | null): string | n
   );
 };
 
-const getResources = (item: Record<string, unknown>): Record<string, unknown>[] => {
-  const fhirBundle = asObject(item.fhirBundle);
-  if (!fhirBundle || !Array.isArray(fhirBundle.entry)) return [];
-  return fhirBundle.entry
-    .map((entryItem) => asObject(asObject(entryItem)?.resource))
-    .filter((resource): resource is Record<string, unknown> => Boolean(resource));
+const collectBundleResources = (
+  bundle: Record<string, unknown> | null
+): Record<string, unknown>[] => {
+  if (!bundle || !Array.isArray(bundle.entry)) return [];
+
+  const resources: Record<string, unknown>[] = [];
+  for (const entryItem of bundle.entry) {
+    const resource = asObject(asObject(entryItem)?.resource);
+    if (!resource) continue;
+    resources.push(resource);
+    if (readString(resource.resourceType) === "Bundle") {
+      resources.push(...collectBundleResources(resource));
+    }
+    if (Array.isArray(resource.contained)) {
+      for (const containedItem of resource.contained) {
+        const contained = asObject(containedItem);
+        if (contained) resources.push(contained);
+      }
+    }
+  }
+  return resources;
 };
+
+const getResources = (item: Record<string, unknown>): Record<string, unknown>[] =>
+  collectBundleResources(asObject(item.fhirBundle));
 
 const findByType = (
   resources: Record<string, unknown>[],
@@ -449,6 +491,41 @@ const buildDataUrl = (contentType: string, base64Data: string): string => {
 const isImageContentType = (contentType: string): boolean =>
   contentType.toLowerCase().startsWith("image/");
 
+const isPdfContentType = (contentType: string): boolean =>
+  contentType.toLowerCase().includes("pdf");
+
+const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value);
+
+const lookupResource = (
+  reference: string,
+  resourceMap: Map<string, Record<string, unknown>>
+): Record<string, unknown> | null => {
+  const trimmed = reference.trim();
+  if (!trimmed) return null;
+
+  const candidates = [trimmed];
+  if (trimmed.startsWith("urn:uuid:")) {
+    const id = trimmed.slice("urn:uuid:".length);
+    candidates.push(id, `Binary/${id}`, `DocumentReference/${id}`);
+  } else if (trimmed.includes("/")) {
+    const id = trimmed.split("/").pop();
+    if (id) candidates.push(id, `urn:uuid:${id}`);
+  } else {
+    candidates.push(`urn:uuid:${trimmed}`, `Binary/${trimmed}`);
+  }
+
+  for (const key of candidates) {
+    const resource = resourceMap.get(key);
+    if (resource) return resource;
+  }
+  return null;
+};
+
+const readBinaryData = (resource: Record<string, unknown> | null): string | null => {
+  if (!resource) return null;
+  return readString(resource.data) || readString(resource.content);
+};
+
 const getAttachmentFilename = (title: string, contentType: string): string => {
   const lowerType = contentType.toLowerCase();
   const extension = lowerType.includes("pdf")
@@ -474,15 +551,33 @@ const mapAttachmentObject = (
   attachment: Record<string, unknown> | null,
   fallbackTitle: string,
   index: number,
-  idPrefix: string
+  idPrefix: string,
+  resourceMap?: Map<string, Record<string, unknown>>
 ): IHealthHistoryAttachment | null => {
   if (!attachment) return null;
 
-  const contentType = readString(attachment.contentType) || "application/octet-stream";
-  const base64Data = readString(attachment.data);
-  const externalUrl = readString(attachment.url);
+  let contentType = readString(attachment.contentType) || "application/octet-stream";
+  let base64Data = readString(attachment.data);
+  const referencedUrl = readString(attachment.url);
   const title =
     readString(attachment.title) || fallbackTitle || `Attachment ${index + 1}`;
+
+  if (!base64Data && referencedUrl && resourceMap) {
+    const referenced = lookupResource(referencedUrl, resourceMap);
+    if (referenced) {
+      const binaryData = readBinaryData(referenced);
+      if (binaryData) {
+        base64Data = binaryData;
+        contentType =
+          readString(referenced.contentType) ||
+          readString(asObject(referenced.content)?.contentType) ||
+          contentType;
+      }
+    }
+  }
+
+  const externalUrl =
+    referencedUrl && isHttpUrl(referencedUrl) ? referencedUrl : null;
 
   if (!base64Data && !externalUrl) return null;
 
@@ -495,53 +590,114 @@ const mapAttachmentObject = (
   };
 };
 
+const pushIfAttachment = (
+  list: IHealthHistoryAttachment[],
+  attachment: IHealthHistoryAttachment | null
+) => {
+  if (attachment) list.push(attachment);
+};
+
 const extractAttachmentsFromResources = (
-  resources: Record<string, unknown>[]
+  resources: Record<string, unknown>[],
+  resourceMap: Map<string, Record<string, unknown>>
 ): IHealthHistoryAttachment[] => {
   const attachments: IHealthHistoryAttachment[] = [];
+  const referencedBinaryIds = new Set<string>();
 
   for (const resource of resources) {
     const resourceType = readString(resource.resourceType);
     const resourceId = readString(resource.id) || resourceType || "attachment";
 
     if (resourceType === "DocumentReference" && Array.isArray(resource.content)) {
-      const docTitle = readCodeableText(resource.type) || "Document";
+      const docTitle =
+        readString(resource.description) ||
+        readCodeableText(resource.type) ||
+        "Prescription";
       resource.content.forEach((contentItem, index) => {
-        const attachment = mapAttachmentObject(
-          asObject(asObject(contentItem)?.attachment),
-          docTitle,
-          index,
-          resourceId
+        const attachmentObj = asObject(asObject(contentItem)?.attachment);
+        const referencedUrl = readString(attachmentObj?.url);
+        if (referencedUrl) {
+          const referenced = lookupResource(referencedUrl, resourceMap);
+          const referencedId = readString(referenced?.id);
+          if (referencedId) referencedBinaryIds.add(referencedId);
+        }
+        pushIfAttachment(
+          attachments,
+          mapAttachmentObject(attachmentObj, docTitle, index, resourceId, resourceMap)
         );
-        if (attachment) attachments.push(attachment);
       });
       continue;
     }
 
-    if (resourceType === "DiagnosticReport" && Array.isArray(resource.presentedForm)) {
+    if (resourceType === "DiagnosticReport") {
       const reportTitle = readCodeableText(resource.code) || "Diagnostic Report";
-      resource.presentedForm.forEach((formItem, index) => {
-        const attachment = mapAttachmentObject(
-          asObject(formItem),
-          reportTitle,
-          index,
-          resourceId
-        );
-        if (attachment) attachments.push(attachment);
-      });
+      if (Array.isArray(resource.presentedForm)) {
+        resource.presentedForm.forEach((formItem, index) => {
+          pushIfAttachment(
+            attachments,
+            mapAttachmentObject(
+              asObject(formItem),
+              reportTitle,
+              index,
+              resourceId,
+              resourceMap
+            )
+          );
+        });
+      }
       continue;
     }
 
     if (resourceType === "Media") {
-      const mediaTitle = readCodeableText(resource.type) || "Media";
-      const attachment = mapAttachmentObject(
-        asObject(resource.content),
-        mediaTitle,
-        0,
-        resourceId
+      pushIfAttachment(
+        attachments,
+        mapAttachmentObject(
+          asObject(resource.content),
+          readCodeableText(resource.type) || "Media",
+          0,
+          resourceId,
+          resourceMap
+        )
       );
-      if (attachment) attachments.push(attachment);
+      continue;
     }
+
+    if (resourceType === "Observation") {
+      pushIfAttachment(
+        attachments,
+        mapAttachmentObject(
+          asObject(resource.valueAttachment),
+          readCodeableText(resource.code) || "Observation",
+          0,
+          resourceId,
+          resourceMap
+        )
+      );
+    }
+  }
+
+  for (const resource of resources) {
+    if (readString(resource.resourceType) !== "Binary") continue;
+    const resourceId = readString(resource.id);
+    if (resourceId && referencedBinaryIds.has(resourceId)) continue;
+
+    const binaryData = readBinaryData(resource);
+    if (!binaryData) continue;
+
+    const contentType = readString(resource.contentType) || "application/octet-stream";
+    const isDocument =
+      isPdfContentType(contentType) ||
+      isImageContentType(contentType) ||
+      contentType.toLowerCase() === "application/octet-stream";
+    if (!isDocument) continue;
+
+    attachments.push({
+      id: `binary-${resourceId || attachments.length}`,
+      title: isPdfContentType(contentType) ? "Prescription PDF" : "Attachment",
+      contentType,
+      dataUrl: buildDataUrl(contentType, binaryData),
+      externalUrl: null,
+    });
   }
 
   return attachments;
@@ -569,10 +725,11 @@ interface IAttachmentPreviewProps {
 }
 
 const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
-  const hasContent = Boolean(attachment.dataUrl ?? attachment.externalUrl);
-  if (!hasContent) return null;
+  const href = attachment.dataUrl ?? attachment.externalUrl;
+  if (!href) return null;
 
   const isImage = isImageContentType(attachment.contentType);
+  const isPdf = isPdfContentType(attachment.contentType);
   const downloadName = getAttachmentFilename(attachment.title, attachment.contentType);
 
   return (
@@ -582,10 +739,10 @@ const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
         <span className="badge bg-light text-dark text-uppercase">{attachment.contentType}</span>
       </div>
 
-      {isImage && attachment.dataUrl ? (
+      {isImage ? (
         <div className="bg-light rounded border p-2 mb-2 text-center">
           <img
-            src={attachment.dataUrl}
+            src={href}
             alt={attachment.title}
             className="img-fluid rounded w-100 h-auto"
             style={{ maxHeight: "min(400px, 60vh)", objectFit: "contain" }}
@@ -593,8 +750,28 @@ const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
         </div>
       ) : null}
 
-      {attachment.dataUrl ? (
-        <div className="d-flex gap-2 flex-wrap">
+      {isPdf ? (
+        <div className="bg-light rounded border mb-2 overflow-hidden">
+          <iframe
+            src={href}
+            title={attachment.title}
+            className="w-100 border-0"
+            style={{ minHeight: "min(480px, 60vh)" }}
+          />
+        </div>
+      ) : null}
+
+      <div className="d-flex gap-2 flex-wrap">
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-sm btn-outline-primary"
+        >
+          <i className={`ti ${isPdf ? "ti-file-type-pdf" : "ti-external-link"} me-1`} />
+          {isPdf ? "View PDF" : "Open"}
+        </a>
+        {attachment.dataUrl ? (
           <a
             href={attachment.dataUrl}
             download={downloadName}
@@ -603,8 +780,8 @@ const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
             <i className="ti ti-download me-1" />
             Download
           </a>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 };
@@ -629,9 +806,12 @@ const HealthHistoryDetailModal = ({
     [item]
   );
 
+  const fhirBundle = asObject(item?.fhirBundle);
+  const resourceMap = useMemo(() => buildResourceMap(fhirBundle), [fhirBundle]);
+
   const attachments = useMemo(() => {
     if (!item) return [];
-    const fromResources = extractAttachmentsFromResources(resources);
+    const fromResources = extractAttachmentsFromResources(resources, resourceMap);
     const fromRoot = extractRootAttachments(item);
     const seen = new Set<string>();
     return [...fromResources, ...fromRoot].filter((attachment) => {
@@ -640,12 +820,9 @@ const HealthHistoryDetailModal = ({
       seen.add(key);
       return true;
     });
-  }, [item, resources]);
+  }, [item, resources, resourceMap]);
 
   if (!open || !item) return null;
-
-  const fhirBundle = asObject(item.fhirBundle);
-  const resourceMap = buildResourceMap(fhirBundle);
   const composition = findByType(resources, "Composition");
   const patient = findByType(resources, "Patient");
   const practitioner = findByType(resources, "Practitioner");
