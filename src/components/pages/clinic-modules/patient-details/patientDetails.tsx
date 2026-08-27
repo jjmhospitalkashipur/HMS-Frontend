@@ -14,6 +14,7 @@ import axios from "axios";
 import { API_BASE_URL, PATHLAB_PORTAL_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import { formatInstantInIST } from "@/core/utils/dayjsIST";
+import { formatDialysisSessionDate } from "@/components/pages/clinic-modules/dialysis/resolveDialysisSessionDate";
 import { Marital_Status } from "@/core/common/selectOption";
 import { getPatientMaritalStatus } from "@/core/utils/patientMaritalStatus";
 import {
@@ -152,6 +153,7 @@ interface IDialysisSession {
   sessionId: string;
   patientId: string;
   status?: string;
+  sessionDate?: string;
   createdAt?: string;
   updatedAt?: string;
   generalInformation?: {
@@ -2474,9 +2476,10 @@ const PatientDetailsComponent = () => {
                             </span>
                           </td>
                           <td className="text-dark">
-                            {session.createdAt
-                              ? dayjs(session.createdAt).format("DD MMM YYYY, HH:mm")
-                              : "—"}
+                            {formatDialysisSessionDate(
+                              session,
+                              session.sessionDate?.trim() ? "DD MMM YYYY" : "DD MMM YYYY, HH:mm"
+                            ) || "—"}
                           </td>
                           <td className="text-dark">
                             {session.generalInformation?.actualWeightLoss ?? "—"}

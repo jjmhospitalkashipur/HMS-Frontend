@@ -24,6 +24,7 @@ import {
   buildDialysisSessionReceiptData,
   type IDialysisSessionReceiptInput,
 } from "@/components/pages/clinic-modules/dialysis/buildDialysisSessionReceiptData";
+import { formatDialysisSessionDate } from "@/components/pages/clinic-modules/dialysis/resolveDialysisSessionDate";
 
 interface IDialysisAppointmentSummary {
   daycareId?: string;
@@ -48,6 +49,7 @@ interface IDialysisSessionRow {
   daycareAppointmentId?: string | null;
   ipdId?: string | null;
   status?: string;
+  sessionDate?: string;
   createdAt?: string;
   dialysisSessionSource?: string;
   patient?: {
@@ -537,8 +539,12 @@ const DialysisComponent = () => {
                     .filter(Boolean)
                     .join(", "),
                   phone: session.patient?.phone ?? "-",
-                  date: session.createdAt ? dayjs(session.createdAt).format("DD MMM YYYY") : "-",
-                  time: session.createdAt ? dayjs(session.createdAt).format("hh:mm A") : "",
+                  date: formatDialysisSessionDate(session, "DD MMM YYYY") || "-",
+                  time: session.sessionDate?.trim()
+                    ? ""
+                    : session.createdAt
+                      ? dayjs(session.createdAt).format("hh:mm A")
+                      : "",
                   totalAmount,
                   paymentStatus,
                   status: session.status ?? "-",

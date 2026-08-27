@@ -20,7 +20,7 @@ export function openDialysisPrintWindow(form: HTMLFormElement) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date());
-  const createdAtRaw = get("meta.createdAt");
+  const createdAtRaw = get("meta.sessionDate") || get("meta.createdAt");
   const printDateIst = (() => {
     if (!createdAtRaw) return todayIst;
     const parsed = new Date(createdAtRaw);

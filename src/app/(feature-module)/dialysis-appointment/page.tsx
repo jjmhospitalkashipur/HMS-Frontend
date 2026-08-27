@@ -29,6 +29,7 @@ type IDialysisSessionRecord = {
   _id?: string;
   sessionId?: string;
   daycareAppointmentId?: string;
+  sessionDate?: string;
   createdAt?: string;
   patient?: { mrd?: string; name?: string; age?: number; gender?: string };
   generalInformation?: Record<string, unknown>;
@@ -143,6 +144,7 @@ const DialysisAppointmentContent = () => {
     setVal("patient.name", pat.name);
     setVal("patient.age", pat.age);
     setVal("patient.gender", pat.gender);
+    setVal("meta.sessionDate", session.sessionDate);
     setVal("meta.createdAt", session.createdAt);
 
     const gen = session.generalInformation ?? {};
@@ -687,6 +689,7 @@ const DialysisAppointmentContent = () => {
                   <input type="hidden" name="patient.name" />
                   <input type="hidden" name="patient.age" />
                   <input type="hidden" name="patient.gender" />
+                  <input type="hidden" name="meta.sessionDate" />
                   <input type="hidden" name="meta.createdAt" />
 
                   {/* General Information */}

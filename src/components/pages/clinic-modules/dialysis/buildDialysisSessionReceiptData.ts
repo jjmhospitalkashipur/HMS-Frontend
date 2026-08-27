@@ -1,4 +1,5 @@
 import type { IReceiptData, IReceiptTransaction } from "@/components/pages/clinic-modules/appointments/printReceipt";
+import { resolveDialysisSessionDate } from "@/components/pages/clinic-modules/dialysis/resolveDialysisSessionDate";
 
 interface IDialysisReceiptPatient {
   name?: string;
@@ -35,6 +36,7 @@ interface IDialysisReceiptAppointmentSummary {
 export interface IDialysisSessionReceiptInput {
   _id: string;
   sessionId?: string;
+  sessionDate?: string;
   createdAt?: string;
   dialysisSessionSource?: string;
   patient?: IDialysisReceiptPatient;
@@ -93,8 +95,8 @@ export const buildDialysisSessionReceiptData = (
   const procedureName =
     session.procedure?.procedureName?.trim() || "Dialysis Procedure";
   const visitDate =
+    resolveDialysisSessionDate(session) ||
     (isIpd ? appointment?.admissionDate : appointment?.appointmentDate) ||
-    session.createdAt ||
     undefined;
 
   const charges: IReceiptTransaction[] =
