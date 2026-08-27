@@ -761,27 +761,16 @@ const AttachmentPreview = ({ attachment }: IAttachmentPreviewProps) => {
         </div>
       ) : null}
 
-      <div className="d-flex gap-2 flex-wrap">
+      {attachment.dataUrl ? (
         <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-sm btn-outline-primary"
+          href={attachment.dataUrl}
+          download={downloadName}
+          className="btn btn-sm btn-outline-secondary"
         >
-          <i className={`ti ${isPdf ? "ti-file-type-pdf" : "ti-external-link"} me-1`} />
-          {isPdf ? "View PDF" : "Open"}
+          <i className="ti ti-download me-1" />
+          Download
         </a>
-        {attachment.dataUrl ? (
-          <a
-            href={attachment.dataUrl}
-            download={downloadName}
-            className="btn btn-sm btn-outline-secondary"
-          >
-            <i className="ti ti-download me-1" />
-            Download
-          </a>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 };
