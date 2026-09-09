@@ -16,6 +16,7 @@ interface IProcedureDetail {
   status?: string;
   type?: string;
   isPackage?: boolean;
+  isDialysis?: boolean;
   price?: number;
   description?: string;
 }
@@ -172,6 +173,10 @@ const ProcedureDetailsContent = () => {
                   <div className="col-md-6 col-lg-4 mb-3">
                     <label className="form-label text-muted small mb-1">Package</label>
                     <p className="mb-0 fw-medium">{formatBoolean(procedure.isPackage)}</p>
+                  </div>
+                  <div className="col-md-6 col-lg-4 mb-3">
+                    <label className="form-label text-muted small mb-1">Dialysis</label>
+                    <p className="mb-0 fw-medium">{formatBoolean(procedure.isDialysis)}</p>
                   </div>
                   <div className="col-md-6 col-lg-4 mb-3">
                     <label className="form-label text-muted small mb-1">Price</label>

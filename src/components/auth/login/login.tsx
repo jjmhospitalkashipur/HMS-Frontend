@@ -38,10 +38,15 @@ const LoginComponent = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!isSharedAuthEnabled()) return;
-      const sync = await syncHospitalSessionFromSharedCookie();
-      if (cancelled) return;
-      if (sync !== "restored") return;
+      if (isSharedAuthEnabled()) {
+        const sync = await syncHospitalSessionFromSharedCookie();
+        if (cancelled) return;
+        if (sync !== "restored") return;
+      } else if (!localStorage.getItem("authToken")) {
+        return;
+      }
+
+      setHmsAuthCookie();
       try {
         const raw = localStorage.getItem("authUser");
         const user = raw ? JSON.parse(raw) : null;

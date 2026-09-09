@@ -47,6 +47,7 @@ interface IDaycareProcedure {
   price?: number;
   slotId?: string;
   sessionDate?: string;
+  isDialysis?: boolean;
 }
 
 interface IDaycarePatient {
@@ -192,16 +193,17 @@ const EditDaycareAppointmentComponent = () => {
       const list = res.data?.data?.procedures ?? res.data?.data ?? [];
       const arr = Array.isArray(list) ? list : [];
       setProceduresOptions(
-        arr.map((p: { _id: string; procedureName?: string; category?: string; price?: number; basePrice?: number }) => ({
+        arr.map((p: { _id: string; procedureName?: string; category?: string; price?: number; basePrice?: number; isDialysis?: boolean }) => ({
           value: p._id,
           label: p.procedureName ?? "—",
         }))
       );
       const priceMap: Record<string, number> = {};
       const dialysisMap: Record<string, boolean> = {};
-      arr.forEach((p: { _id: string; procedureName?: string; category?: string; price?: number; basePrice?: number }) => {
+      arr.forEach((p: { _id: string; procedureName?: string; category?: string; price?: number; basePrice?: number; isDialysis?: boolean }) => {
         priceMap[p._id] = p.price ?? p.basePrice ?? 0;
-        dialysisMap[p._id] = isDialysisProcedureName(p.procedureName, p.category);
+        dialysisMap[p._id] =
+          p.isDialysis === true || isDialysisProcedureName(p.procedureName, p.category);
       });
       setProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
       setProcedureIsDialysisById((prev) => ({ ...prev, ...dialysisMap }));
@@ -289,8 +291,9 @@ const EditDaycareAppointmentComponent = () => {
           name: p.procedureName ?? "—",
           price: p.price ?? 0,
           isDialysis:
+            Boolean(p.isDialysis) ||
             isDialysisProcedureName(p.procedureName) ||
-            Boolean((p as { slotId?: string }).slotId),
+            Boolean(p.slotId),
         }));
         setAddedProcedures(procs);
         const existingSlotId = (data.procedures ?? []).find(

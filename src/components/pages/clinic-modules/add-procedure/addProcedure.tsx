@@ -47,6 +47,7 @@ const AddProcedureComponent = () => {
   const [isPackage, setIsPackage] = useState(false);
   const [isXray, setIsXray] = useState(false);
   const [isUltrasound, setIsUltrasound] = useState(false);
+  const [isDialysis, setIsDialysis] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -80,6 +81,7 @@ const AddProcedureComponent = () => {
         isPackage,
         isXray,
         isUltrasound: isXray ? isUltrasound : false,
+        isDialysis,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -245,6 +247,32 @@ const AddProcedureComponent = () => {
                                 />
                                 <span className="form-check-label ms-1">
                                   {isXray ? "Yes" : "No"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 88, maxWidth: 110 }}>
+                          <div className="mb-3">
+                            <label className="form-label" htmlFor="add-procedure-is-dialysis">
+                              Dialysis
+                            </label>
+                            <div
+                              className="d-flex align-items-center"
+                              style={{ minHeight: 38 }}
+                            >
+                              <div className="form-check form-switch mb-0">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  role="switch"
+                                  id="add-procedure-is-dialysis"
+                                  checked={isDialysis}
+                                  onChange={(e) => setIsDialysis(e.target.checked)}
+                                  aria-label="Mark as dialysis"
+                                />
+                                <span className="form-check-label ms-1">
+                                  {isDialysis ? "Yes" : "No"}
                                 </span>
                               </div>
                             </div>

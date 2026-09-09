@@ -1,6 +1,7 @@
 "use client";
 
 import { isSharedAuthEnabled, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
+import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
 import { all_routes } from "@/routes/all_routes";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -23,6 +24,8 @@ export default function HomePage() {
         router.replace(all_routes.login);
         return;
       }
+
+      setHmsAuthCookie();
 
       let role = "";
       try {

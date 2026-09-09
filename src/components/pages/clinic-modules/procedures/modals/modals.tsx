@@ -63,6 +63,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
   const [isPackage, setIsPackage] = useState(false);
   const [isXray, setIsXray] = useState(false);
   const [isUltrasound, setIsUltrasound] = useState(false);
+  const [isDialysis, setIsDialysis] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editFetchLoading, setEditFetchLoading] = useState(false);
   const [editError, setEditError] = useState("");
@@ -78,6 +79,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
     setIsPackage(false);
     setIsXray(false);
     setIsUltrasound(false);
+    setIsDialysis(false);
     setProcedureId(null);
     setEditError("");
   }, []);
@@ -111,6 +113,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
       setIsPackage(Boolean(data.isPackage));
       setIsXray(Boolean(data.isXray));
       setIsUltrasound(Boolean(data.isUltrasound));
+      setIsDialysis(Boolean(data.isDialysis));
     } catch {
       setEditError("Failed to load procedure.");
     } finally {
@@ -160,6 +163,7 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
         isPackage,
         isXray,
         isUltrasound: isXray ? isUltrasound : false,
+        isDialysis,
         metaData: "",
         description: description.trim() || undefined,
       };
@@ -396,6 +400,32 @@ const Modals = ({ onDeleteConfirm, deleteLoading, onEditSuccess }: IModalsProps)
                             />
                             <span className="form-check-label ms-1">
                               {isXray ? "Yes" : "No"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3 col-lg-1" style={{ minWidth: 88, maxWidth: 110 }}>
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium" htmlFor="edit-procedure-is-dialysis">
+                          Dialysis
+                        </label>
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ minHeight: 38 }}
+                        >
+                          <div className="form-check form-switch mb-0">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              role="switch"
+                              id="edit-procedure-is-dialysis"
+                              checked={isDialysis}
+                              onChange={(e) => setIsDialysis(e.target.checked)}
+                              aria-label="Mark as dialysis"
+                            />
+                            <span className="form-check-label ms-1">
+                              {isDialysis ? "Yes" : "No"}
                             </span>
                           </div>
                         </div>

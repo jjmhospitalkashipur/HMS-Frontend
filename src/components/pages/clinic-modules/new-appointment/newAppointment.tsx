@@ -763,6 +763,7 @@ const NewAppointmentComponent = () => {
           category?: string;
           price?: number;
           basePrice?: number;
+          isDialysis?: boolean;
         }>;
         setDaycareProceduresOptions(
           list.map((p) => ({
@@ -774,7 +775,8 @@ const NewAppointmentComponent = () => {
         const dialysisMap: Record<string, boolean> = {};
         list.forEach((p) => {
           priceMap[p._id] = (p.price ?? p.basePrice ?? 0) as number;
-          dialysisMap[p._id] = isDialysisProcedureName(p.procedureName, p.category);
+          dialysisMap[p._id] =
+            p.isDialysis === true || isDialysisProcedureName(p.procedureName, p.category);
         });
         setDaycareProcedurePriceById((prev) => ({ ...prev, ...priceMap }));
         setDaycareProcedureIsDialysisById((prev) => ({ ...prev, ...dialysisMap }));

@@ -12,10 +12,10 @@ export const proxy = (request: NextRequest) => {
 
   const authed = request.cookies.get(HMS_AUTH_COOKIE)?.value === "1";
   if (!authed) {
-    return new NextResponse("Not Found", {
-      status: 404,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
