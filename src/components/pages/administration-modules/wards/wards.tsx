@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Datatable from "@/core/common/dataTable";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
-import { normalizeRole } from "@/core/auth/roleAccess";
+import { isAdminRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 
@@ -42,7 +42,7 @@ const WardsListComponent = () => {
       const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
       if (!raw) return false;
       const parsed = JSON.parse(raw) as { role?: string } | null;
-      return normalizeRole(parsed?.role) === "ADMIN";
+      return isAdminRole(parsed?.role);
     } catch {
       return false;
     }

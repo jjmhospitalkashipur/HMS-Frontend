@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Datatable from "@/core/common/dataTable";
 import SearchInput from "@/core/common/dataTable/dataTableSearch";
 import { all_routes } from "@/routes/all_routes";
-import { normalizeRole } from "@/core/auth/roleAccess";
+import { isAdminRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
@@ -166,7 +166,7 @@ const IpdAppointmentsComponent = () => {
       const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
       if (!raw) return false;
       const parsed = JSON.parse(raw) as { role?: string } | null;
-      return normalizeRole(parsed?.role) === "ADMIN";
+      return isAdminRole(parsed?.role);
     } catch {
       return false;
     }

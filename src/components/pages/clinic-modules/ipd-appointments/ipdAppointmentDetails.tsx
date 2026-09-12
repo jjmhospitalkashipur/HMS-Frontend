@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { all_routes } from "@/routes/all_routes";
-import { normalizeRole } from "@/core/auth/roleAccess";
+import { isAdminRole } from "@/core/auth/roleAccess";
 import axios from "axios";
 import { API_BASE_URL, PATHLAB_PORTAL_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
@@ -88,7 +88,7 @@ const IpdAppointmentDetailsComponent = () => {
       const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
       if (!raw) return false;
       const parsed = JSON.parse(raw) as { role?: string } | null;
-      return normalizeRole(parsed?.role) === "ADMIN";
+      return isAdminRole(parsed?.role);
     } catch {
       return false;
     }

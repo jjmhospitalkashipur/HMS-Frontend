@@ -3,6 +3,12 @@ import { all_routes } from "@/routes/all_routes";
 export const normalizeRole = (role: string | undefined | null): string =>
   (role ?? "").trim().toUpperCase();
 
+/** ADMIN and ABDM_ADMIN share the same full-access permissions. */
+export const isAdminRole = (role: string | undefined | null): boolean => {
+  const r = normalizeRole(role);
+  return r === "ADMIN" || r === "ABDM_ADMIN";
+};
+
 /** Path matches if equal or nested (e.g. /appointment-details/1). */
 export const matchesPathPrefix = (pathname: string, prefix: string): boolean => {
   if (!pathname || !prefix) return false;
@@ -23,7 +29,7 @@ const COMMON_AUTH_PATH_PREFIXES: string[] = [
 ];
 
 /**
- * Role → allowed app path prefixes. ADMIN: implicit full access.
+ * Role → allowed app path prefixes. ADMIN / ABDM_ADMIN: implicit full access.
  * Detail/edit routes are covered by their parent prefix.
  */
 const ROLE_PATH_PREFIXES: Record<string, string[]> = {
@@ -112,7 +118,7 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
 
 export const canAccessPath = (role: string, pathname: string): boolean => {
   const r = normalizeRole(role);
-  if (r === "ADMIN") return true;
+  if (isAdminRole(r)) return true;
   if (COMMON_AUTH_PATH_PREFIXES.some((p) => matchesPathPrefix(pathname, p))) {
     return true;
   }
@@ -125,6 +131,7 @@ export const getDefaultRouteForRole = (role: string): string => {
   const r = normalizeRole(role);
   switch (r) {
     case "ADMIN":
+    case "ABDM_ADMIN":
       return all_routes.dashboard;
     case "RECEPTIONIST":
       return all_routes.newAppointment;
@@ -145,10 +152,10 @@ export const getDefaultRouteForRole = (role: string): string => {
   }
 };
 
-/** Sidebar single-item link: external URLs only for ADMIN; paths use canAccessPath. */
+/** Sidebar single-item link: external URLs only for admin-equivalent roles; paths use canAccessPath. */
 export const isSidebarItemLinkAllowed = (role: string, link: string | undefined): boolean => {
   const r = normalizeRole(role);
-  if (r === "ADMIN") return true;
+  if (isAdminRole(r)) return true;
   if (!link || link === "#" || link === "index") return true;
   if (link.startsWith("http")) return false;
   return canAccessPath(r, link);
@@ -156,7 +163,7 @@ export const isSidebarItemLinkAllowed = (role: string, link: string | undefined)
 
 export const canShowNewAppointmentSidebarCta = (role: string): boolean => {
   const r = normalizeRole(role);
-  return r === "ADMIN" || r === "RECEPTIONIST";
+  return isAdminRole(r) || r === "RECEPTIONIST";
 };
 
 /** Drop sidebar entries the role cannot access; recurse into nested submenuItems. */

@@ -15,6 +15,7 @@ import { updateTheme } from "@/core/redux/themeSlice";
 import {
   canShowNewAppointmentSidebarCta,
   filterSidebarSubmenuItems,
+  isAdminRole,
   normalizeRole,
 } from "@/core/auth/roleAccess";
 import { isSharedAuthEnabled, postSharedLogout } from "@/core/auth/sharedAuth";
@@ -243,7 +244,7 @@ const Sidebar = () => {
                   const isAdministrationSection = mainLabel?.tittle === "Administration";
                   const role = normalizeRole(sidebarUserRoleRaw);
                   const canViewAdministrationSection =
-                    role === "ADMIN" || role === "ACCOUNTANT";
+                    isAdminRole(role) || role === "ACCOUNTANT";
                   if (isAdministrationSection && !canViewAdministrationSection) {
                     return null;
                   }
