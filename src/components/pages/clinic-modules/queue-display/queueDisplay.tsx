@@ -17,6 +17,9 @@ import {
   type IQueueSortBy,
   type ISessionSlot,
 } from "./sessionQueue";
+import { mapDoctorToJjmDepartment } from "./mapDoctorToJjmDepartment";
+
+const VIEW_ROTATE_MS = 10000;
 
 interface IQueuePatient {
   _id: string;
@@ -211,6 +214,7 @@ const QueueDisplayComponent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [now, setNow] = useState<Date>(new Date());
+  const [activeView, setActiveView] = useState<"queue" | "services">("queue");
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
@@ -235,6 +239,23 @@ const QueueDisplayComponent = () => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const jjmDepartmentKey = mapDoctorToJjmDepartment(
+    display?.department,
+    display?.specialization,
+    display?.designation
+  );
+
+  useEffect(() => {
+    if (!jjmDepartmentKey) {
+      setActiveView("queue");
+      return;
+    }
+    const timer = setInterval(() => {
+      setActiveView((prev) => (prev === "queue" ? "services" : "queue"));
+    }, VIEW_ROTATE_MS);
+    return () => clearInterval(timer);
+  }, [jjmDepartmentKey]);
 
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
@@ -487,8 +508,39 @@ const QueueDisplayComponent = () => {
   const totalBasis = Math.max(display?.totalPatients ?? 0, queue.length);
   const additionalWaiting = Math.max(0, totalBasis - visibleQueue.length);
 
+  const showServicesView = Boolean(jjmDepartmentKey) && activeView === "services";
+
   return (
-    <div ref={containerRef} className="min-vh-100 w-100 d-flex flex-column bg-white position-relative">
+    <div
+      ref={containerRef}
+      className="min-vh-100 w-100 d-flex flex-column bg-white position-relative"
+      style={{ overflow: showServicesView ? "hidden" : undefined }}
+    >
+      {jjmDepartmentKey ? (
+        <iframe
+          title="Department scope of services"
+            src={`/jjm-signage/index.html?embed=1&dept=${encodeURIComponent(jjmDepartmentKey)}&v=8`}
+          className="border-0"
+          style={{
+            position: "fixed",
+            inset: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 40,
+            background: "#f1f5f9",
+            display: showServicesView ? "block" : "none",
+            pointerEvents: showServicesView ? "auto" : "none",
+          }}
+        />
+      ) : null}
+      <div
+        className="flex-grow-1 w-100 d-flex flex-column bg-white"
+        aria-hidden={showServicesView}
+        style={{
+          display: showServicesView ? "none" : "flex",
+          minHeight: "100vh",
+        }}
+      >
       {/* Fullscreen toggle - top right */}
       <button
         type="button"
@@ -865,6 +917,7 @@ const QueueDisplayComponent = () => {
           }
         }
       `}</style>
+      </div>
     </div>
   );
 };
