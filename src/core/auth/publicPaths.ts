@@ -10,6 +10,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   "/xq",
   "/qd",
   "/qd-all",
+  "/jjm-signage",
 ];
 
 export const matchesPathPrefix = (pathname: string, prefix: string): boolean => {

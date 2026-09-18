@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type SyntheticEvent } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { API_BASE_URL } from "@/environment";
@@ -215,9 +215,13 @@ const QueueDisplayComponent = () => {
   const [error, setError] = useState("");
   const [now, setNow] = useState<Date>(new Date());
   const [activeView, setActiveView] = useState<"queue" | "services">("queue");
+  const [servicesFrameReady, setServicesFrameReady] = useState(false);
+  const servicesFrameReadyRef = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
+
+  servicesFrameReadyRef.current = servicesFrameReady;
 
   const toggleFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -252,10 +256,21 @@ const QueueDisplayComponent = () => {
       return;
     }
     const timer = setInterval(() => {
-      setActiveView((prev) => (prev === "queue" ? "services" : "queue"));
+      setActiveView((prev) => {
+        if (!servicesFrameReadyRef.current) return "queue";
+        return prev === "queue" ? "services" : "queue";
+      });
     }, VIEW_ROTATE_MS);
     return () => clearInterval(timer);
   }, [jjmDepartmentKey]);
+
+  const handleServicesFrameLoad = (event: SyntheticEvent<HTMLIFrameElement>) => {
+    const doc = event.currentTarget.contentDocument;
+    const isSignage = Boolean(doc?.getElementById("deptSelect") || doc?.getElementById("screenCanvas"));
+    servicesFrameReadyRef.current = isSignage;
+    setServicesFrameReady(isSignage);
+    if (!isSignage) setActiveView("queue");
+  };
 
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
@@ -508,7 +523,8 @@ const QueueDisplayComponent = () => {
   const totalBasis = Math.max(display?.totalPatients ?? 0, queue.length);
   const additionalWaiting = Math.max(0, totalBasis - visibleQueue.length);
 
-  const showServicesView = Boolean(jjmDepartmentKey) && activeView === "services";
+  const showServicesView =
+    Boolean(jjmDepartmentKey) && servicesFrameReady && activeView === "services";
 
   return (
     <div
@@ -519,7 +535,8 @@ const QueueDisplayComponent = () => {
       {jjmDepartmentKey ? (
         <iframe
           title="Department scope of services"
-            src={`/jjm-signage/index.html?embed=1&dept=${encodeURIComponent(jjmDepartmentKey)}&v=8`}
+            src={`/jjm-signage/index.html?embed=1&dept=${encodeURIComponent(jjmDepartmentKey)}&v=9`}
+          onLoad={handleServicesFrameLoad}
           className="border-0"
           style={{
             position: "fixed",
