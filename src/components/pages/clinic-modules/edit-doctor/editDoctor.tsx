@@ -242,7 +242,7 @@ const EditDoctorComponent = () => {
                                 <CommonSelect
                                   options={Department}
                                   className="select"
-                                  defaultValue={Department[0]}
+                                  placeholder="Search department"
                                 />
                               </div>
                             </div>

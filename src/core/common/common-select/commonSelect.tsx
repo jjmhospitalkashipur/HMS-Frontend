@@ -20,8 +20,10 @@ export interface SelectProps {
   onInputChange?: (newValue: string, actionMeta: InputActionMeta) => void;
   /** For async search: called when dropdown menu opens */
   onMenuOpen?: () => void;
+  onMenuClose?: () => void;
   /** Show loading indicator while options are being fetched */
   isLoading?: boolean;
+  isSearchable?: boolean;
   /** Custom renderer for option labels in menu and selected value */
   formatOptionLabel?: (option: Option, meta: FormatOptionLabelMeta<Option>) => React.ReactNode;
 }
@@ -37,12 +39,16 @@ const CommonSelect: React.FC<SelectProps> = ({
   placeholder,
   onInputChange,
   onMenuOpen,
+  onMenuClose,
   isLoading = false,
+  isSearchable = true,
   formatOptionLabel,
 }) => {
   const [selectedOption, setSelectedOption] = useState<Option | undefined>(value || defaultValue);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const reactId = useId();
   const stableInstanceId = instanceId || `common-select-${reactId}`;
+  const showInlineSearch = isSearchable && options.length > 8;
 
   const customStyles = useMemo(() => ({
     option: (base: any, state: any) => ({
@@ -65,6 +71,12 @@ const CommonSelect: React.FC<SelectProps> = ({
     menu: (base: any) => ({
       ...base,
       zIndex: 9999,
+    }),
+    input: (base: any) => ({
+      ...base,
+      opacity: 1,
+      margin: 0,
+      padding: 0,
     }),
   }), []);
 
@@ -94,15 +106,37 @@ const CommonSelect: React.FC<SelectProps> = ({
         styles={customStyles}
         options={options}
         instanceId={stableInstanceId}
-        value={selectedOption}
+        value={selectedOption ?? null}
         onChange={handleChange}
-        placeholder={placeholder ?? "Select"}
+        placeholder={
+          isMenuOpen && showInlineSearch
+            ? "Search..."
+            : (placeholder ?? "Select")
+        }
         isDisabled={disabled}
         key={stableInstanceId}
         onInputChange={onInputChange}
-        onMenuOpen={onMenuOpen}
+        onMenuOpen={() => {
+          setIsMenuOpen(true);
+          onMenuOpen?.();
+        }}
+        onMenuClose={() => {
+          setIsMenuOpen(false);
+          onMenuClose?.();
+        }}
         isLoading={isLoading}
-        isSearchable={true}
+        isSearchable={isSearchable}
+        controlShouldRenderValue={!(showInlineSearch && isMenuOpen)}
+        noOptionsMessage={() => "No matches found"}
+        filterOption={(option, input) => {
+          const query = input.trim().toLowerCase();
+          if (!query) return true;
+          return (
+            option.label.toLowerCase().includes(query) ||
+            option.value.toLowerCase().includes(query)
+          );
+        }}
+        maxMenuHeight={280}
         menuPortalTarget={typeof window !== "undefined" ? document.body : null}
         menuPosition="fixed"
         formatOptionLabel={formatOptionLabel}

@@ -103,7 +103,7 @@ const DoctorsComponent = () => {
                         <CommonSelect
                           options={Department}
                           className="select"
-                          defaultValue={Department[0]}
+                          placeholder="Search department"
                         />
                       </div>
                       <div className="mb-3">

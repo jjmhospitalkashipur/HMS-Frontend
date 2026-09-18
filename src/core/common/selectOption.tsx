@@ -15,11 +15,83 @@ export const Designation = [
 ];
 export const Department = [
   { value: "Cardiology", label: "Cardiology" },
-  { value: "Orthopedics", label: "Orthopedics" },
-  { value: "Pediatrics", label: "Pediatrics" },
+  { value: "Cardiothoracic Surgery", label: "Cardiothoracic Surgery" },
+  { value: "Neurology", label: "Neurology" },
+  { value: "Neurosurgery", label: "Neurosurgery" },
   { value: "Nephrology", label: "Nephrology" },
-  { value: "Surgeon", label: "Surgeon" },
+  { value: "Urology", label: "Urology" },
+  { value: "Gastroenterology", label: "Gastroenterology" },
+  { value: "Gastrointestinal Surgery", label: "Gastrointestinal Surgery" },
+  { value: "Hepatology", label: "Hepatology" },
+  { value: "Pulmonology (Respiratory Medicine)", label: "Pulmonology (Respiratory Medicine)" },
+  { value: "Endocrinology", label: "Endocrinology" },
+  { value: "Rheumatology", label: "Rheumatology" },
+  { value: "Orthopedics", label: "Orthopedics" },
+  { value: "Oncology (Medical Oncology)", label: "Oncology (Medical Oncology)" },
+  { value: "Surgical Oncology", label: "Surgical Oncology" },
+  { value: "Radiation Oncology", label: "Radiation Oncology" },
+  { value: "Hematology", label: "Hematology" },
+  { value: "Dermatology", label: "Dermatology" },
+  { value: "Cosmetology / Cosmetic Surgery", label: "Cosmetology / Cosmetic Surgery" },
+  { value: "Plastic & Reconstructive Surgery", label: "Plastic & Reconstructive Surgery" },
+  { value: "General Surgery", label: "General Surgery" },
+  { value: "General Medicine (Internal Medicine)", label: "General Medicine (Internal Medicine)" },
+  { value: "Pediatrics", label: "Pediatrics" },
+  { value: "Pediatric Surgery", label: "Pediatric Surgery" },
+  { value: "Neonatology", label: "Neonatology" },
+  { value: "Obstetrics & Gynecology", label: "Obstetrics & Gynecology" },
+  { value: "Ophthalmology", label: "Ophthalmology" },
+  { value: "ENT (Otorhinolaryngology)", label: "ENT (Otorhinolaryngology)" },
+  { value: "Psychiatry", label: "Psychiatry" },
+  { value: "Psychology / Clinical Psychology", label: "Psychology / Clinical Psychology" },
+  { value: "Dentistry / Dental Surgery", label: "Dentistry / Dental Surgery" },
+  { value: "Radiology & Imaging", label: "Radiology & Imaging" },
+  { value: "Anesthesiology", label: "Anesthesiology" },
+  { value: "Emergency Medicine", label: "Emergency Medicine" },
+  { value: "Critical Care Medicine (Intensivist)", label: "Critical Care Medicine (Intensivist)" },
+  { value: "Physiotherapy & Rehabilitation", label: "Physiotherapy & Rehabilitation" },
+  { value: "Nutrition & Dietetics", label: "Nutrition & Dietetics" },
+  { value: "Infectious Diseases", label: "Infectious Diseases" },
+  { value: "Immunology & Allergy", label: "Immunology & Allergy" },
+  { value: "Andrology / Fertility (IVF Specialist)", label: "Andrology / Fertility (IVF Specialist)" },
 ];
+
+const DEPARTMENT_VALUE_ALIASES: Record<string, string> = {
+  anaesthesiology: "Anesthesiology",
+  anaesthesia: "Anesthesiology",
+  anesthesia: "Anesthesiology",
+  emergency: "Emergency Medicine",
+  surgeon: "General Surgery",
+  surgery: "General Surgery",
+  medicine: "General Medicine (Internal Medicine)",
+  "general medicine": "General Medicine (Internal Medicine)",
+  "internal medicine": "General Medicine (Internal Medicine)",
+  obg: "Obstetrics & Gynecology",
+  gynecology: "Obstetrics & Gynecology",
+  gynaecology: "Obstetrics & Gynecology",
+  "obstetrics & gynaecology": "Obstetrics & Gynecology",
+  obstetrics: "Obstetrics & Gynecology",
+  orthopaedics: "Orthopedics",
+  paediatrics: "Pediatrics",
+  physiotherapy: "Physiotherapy & Rehabilitation",
+  radiology: "Radiology & Imaging",
+  "radio diagnosis": "Radiology & Imaging",
+};
+
+export const findDepartmentOption = (value?: string | null) => {
+  if (!value?.trim()) return null;
+  const exact = Department.find((d) => d.value === value);
+  if (exact) return exact;
+  const normalized = value.toLowerCase().trim();
+  const caseInsensitive = Department.find((d) => d.value.toLowerCase() === normalized);
+  if (caseInsensitive) return caseInsensitive;
+  const aliased = DEPARTMENT_VALUE_ALIASES[normalized];
+  if (aliased) return Department.find((d) => d.value === aliased) ?? null;
+  const uniquePartial = Department.filter((d) => d.value.toLowerCase().includes(normalized));
+  if (uniquePartial.length === 1) return uniquePartial[0];
+  return null;
+};
+
 export const Amount = [
   { value: "$501 - $1000", label: "$501 - $1000" },
   { value: "$501 - $1100", label: "$501 - $1100" },

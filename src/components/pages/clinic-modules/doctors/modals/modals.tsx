@@ -9,6 +9,7 @@ import {
   City,
   Country,
   Department,
+  findDepartmentOption,
   Designation,
   Gender,
   State,
@@ -521,7 +522,7 @@ const Modals = () => {
   const [gender, setGender] = useState<Option | null>(Gender[0] || null);
   const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
   const [yearsOfExperience, setYearsOfExperience] = useState<string>("");
-  const [department, setDepartment] = useState<Option | null>(Department[0] || null);
+  const [department, setDepartment] = useState<Option | null>(null);
   const [designation, setDesignation] = useState<Option | null>(Designation[0] || null);
   const [medicalLicenseNo, setMedicalLicenseNo] = useState<string>("");
   const [opdNumber, setOpdNumber] = useState<string>("");
@@ -558,7 +559,7 @@ const Modals = () => {
     setGender(Gender[0] || null);
     setBloodGroup(Blood_Group[0] || null);
     setYearsOfExperience("");
-    setDepartment(Department[0] || null);
+    setDepartment(null);
     setDesignation(Designation[0] || null);
     setMedicalLicenseNo("");
     setOpdNumber("");
@@ -605,7 +606,7 @@ const Modals = () => {
         setGender(Gender.find(g => g.value === doctor.gender) || Gender[0] || null);
         setBloodGroup(Blood_Group.find(bg => bg.value === doctor.bloodGroup) || Blood_Group[0] || null);
         setYearsOfExperience(doctor.yearsOfExperience?.toString() || "");
-        setDepartment(Department.find(d => d.value === doctor.department) || Department[0] || null);
+        setDepartment(findDepartmentOption(doctor.department));
         setDesignation(Designation.find(d => d.value === doctor.designation) || Designation[0] || null);
         setMedicalLicenseNo(doctor.medicalLicenseNo || "");
         setOpdNumber(doctor.opdNumber || "");
@@ -1069,7 +1070,7 @@ const Modals = () => {
                         <CommonSelect
                           options={Department}
                           className="select"
-                          defaultValue={Department[0]}
+                          placeholder="Search department"
                         />
                       </div>
                     </div>
@@ -1636,6 +1637,7 @@ const Modals = () => {
                       className="select"
                       value={department}
                       onChange={setDepartment}
+                      placeholder="Search department"
                     />
                   </div>
                 </div>

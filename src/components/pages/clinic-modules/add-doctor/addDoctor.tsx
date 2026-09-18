@@ -48,7 +48,7 @@ const AddDoctorComponent = () => {
   const [gender, setGender] = useState<Option | null>(Gender[0] || null);
   const [bloodGroup, setBloodGroup] = useState<Option | null>(Blood_Group[0] || null);
   const [yearsOfExperience, setYearsOfExperience] = useState<string>("");
-  const [department, setDepartment] = useState<Option | null>(Department[0] || null);
+  const [department, setDepartment] = useState<Option | null>(null);
   const [designation, setDesignation] = useState<Option | null>(Designation[0] || null);
   const [medicalLicenseNo, setMedicalLicenseNo] = useState<string>("");
   const [opdNumber, setOpdNumber] = useState<string>("");
@@ -384,6 +384,7 @@ const AddDoctorComponent = () => {
                               className="select"
                               value={department}
                               onChange={setDepartment}
+                              placeholder="Search department"
                             />
                           </div>
                         </div>
