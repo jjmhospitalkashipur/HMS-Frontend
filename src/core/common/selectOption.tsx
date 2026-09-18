@@ -46,7 +46,9 @@ export const Department = [
   { value: "Psychology / Clinical Psychology", label: "Psychology / Clinical Psychology" },
   { value: "Dentistry / Dental Surgery", label: "Dentistry / Dental Surgery" },
   { value: "Radiology & Imaging", label: "Radiology & Imaging" },
+  { value: "Pathology", label: "Pathology" },
   { value: "Anesthesiology", label: "Anesthesiology" },
+  { value: "Anaesthesia and Critical Care", label: "Anaesthesia and Critical Care" },
   { value: "Emergency Medicine", label: "Emergency Medicine" },
   { value: "Critical Care Medicine (Intensivist)", label: "Critical Care Medicine (Intensivist)" },
   { value: "Physiotherapy & Rehabilitation", label: "Physiotherapy & Rehabilitation" },
@@ -76,6 +78,9 @@ const DEPARTMENT_VALUE_ALIASES: Record<string, string> = {
   physiotherapy: "Physiotherapy & Rehabilitation",
   radiology: "Radiology & Imaging",
   "radio diagnosis": "Radiology & Imaging",
+  pathology: "Pathology",
+  "anaesthesia and critical care": "Anaesthesia and Critical Care",
+  "anesthesia and critical care": "Anaesthesia and Critical Care",
 };
 
 export const findDepartmentOption = (value?: string | null) => {
