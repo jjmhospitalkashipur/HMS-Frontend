@@ -11,6 +11,7 @@ export const Designation = [
   { value: "Pediatrician", label: "Pediatrician" },
   { value: "Gynecologist", label: "Gynecologist" },
   { value: "Nephrologist", label: "Nephrologist" },
+  { value: "Consultant", label: "Consultant" },
   { value: "Senior Consultant", label: "Senior Consultant" },
 ];
 export const Department = [

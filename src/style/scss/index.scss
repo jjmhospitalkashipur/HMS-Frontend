@@ -234,6 +234,54 @@
 .ant-table-wrapper .ant-table {
   font-family: var(--pr-body-font-family) !important;
 }
+
+.table-responsive:has(.datatable-fit) {
+  overflow-x: hidden;
+}
+
+.ant-table-wrapper.datatable-fit {
+  width: 100%;
+  max-width: 100%;
+
+  .ant-table-container,
+  .ant-table-content {
+    overflow-x: hidden !important;
+  }
+
+  .ant-table,
+  .ant-table table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .ant-table-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .ant-table-cell.datatable-id-cell {
+    max-width: 88px;
+    width: 88px;
+    white-space: nowrap;
+  }
+
+  .ant-table-cell.datatable-name-cell {
+    max-width: 180px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
+  }
+
+  .ant-table-cell:last-child {
+    overflow: visible;
+    white-space: nowrap;
+    word-break: normal;
+  }
+}
 .ant-input {
   width: 220px;
   font-size: 14px;

@@ -1,11 +1,32 @@
 "use client";
 
 // index.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Select, Table } from "antd";
 import type { DatatableProps } from "../../data/interface";
 
 const { Option } = Select;
+
+const NAME_COLUMN_RE = /(^|\s)(name|patient)(\s|$)|patientname|doctorname|fullname|^name$/i;
+const ID_COLUMN_RE = /doctor\s*id|^id$|doctorid/i;
+
+const isIdColumn = (col: { title?: unknown; dataIndex?: unknown }): boolean => {
+  const title = String(col?.title ?? "");
+  const dataIndex = String(col?.dataIndex ?? "");
+  return ID_COLUMN_RE.test(title) || ID_COLUMN_RE.test(dataIndex);
+};
+
+const isNameColumn = (col: { title?: unknown; dataIndex?: unknown }): boolean => {
+  if (isIdColumn(col)) return false;
+  const title = String(col?.title ?? "");
+  const dataIndex = String(col?.dataIndex ?? "");
+  return NAME_COLUMN_RE.test(title) || NAME_COLUMN_RE.test(dataIndex);
+};
+
+const isActionColumn = (col: { title?: unknown }): boolean => {
+  const title = String(col?.title ?? "").trim();
+  return !title || /action|queue/i.test(title);
+};
 
 const Datatable: React.FC<DatatableProps> = ({
   columns,
@@ -58,11 +79,42 @@ const Datatable: React.FC<DatatableProps> = ({
     return `row-${values}`;
   };
 
+  const fittedColumns = useMemo(
+    () =>
+      (columns ?? []).map((col: any) => {
+        if (isActionColumn(col)) {
+          return { ...col, ellipsis: false };
+        }
+        if (isIdColumn(col)) {
+          return {
+            ...col,
+            ellipsis: false,
+            width: col.width ?? 94,
+            className: [col.className, "datatable-id-cell"].filter(Boolean).join(" "),
+          };
+        }
+        if (isNameColumn(col)) {
+          return {
+            ...col,
+            ellipsis: false,
+            width: col.width ?? 180,
+            className: [col.className, "datatable-name-cell"].filter(Boolean).join(" "),
+          };
+        }
+        return {
+          ...col,
+          ellipsis: col.ellipsis ?? true,
+        };
+      }),
+    [columns]
+  );
+
   return (
     <Table
-      className="table table-nowrap datatable"
+      className="table datatable datatable-fit"
+      tableLayout="fixed"
       rowSelection={Selections ? rowSelection : undefined}
-      columns={columns}
+      columns={fittedColumns}
       rowHoverable={false}
       dataSource={filteredDataSource}
       rowKey={getRowKey}
