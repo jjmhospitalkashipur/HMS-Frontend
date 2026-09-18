@@ -236,16 +236,18 @@
 }
 
 .table-responsive:has(.datatable-fit) {
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .ant-table-wrapper.datatable-fit {
   width: 100%;
   max-width: 100%;
+  overflow: visible;
 
   .ant-table-container,
-  .ant-table-content {
-    overflow-x: hidden !important;
+  .ant-table-content,
+  .ant-table-body {
+    overflow: visible !important;
   }
 
   .ant-table,
@@ -276,10 +278,26 @@
     line-height: 1.35;
   }
 
+  .ant-table-cell.datatable-status-cell,
   .ant-table-cell:last-child {
-    overflow: visible;
+    overflow: visible !important;
     white-space: nowrap;
     word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .ant-table-cell.datatable-status-cell {
+    position: relative;
+    z-index: 2;
+  }
+
+  .ant-table-tbody > tr:has(.dropdown-menu.show) {
+    position: relative;
+    z-index: 30;
+  }
+
+  .ant-table-cell.datatable-status-cell .dropdown-menu {
+    z-index: 20;
   }
 }
 .ant-input {

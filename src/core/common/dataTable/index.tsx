@@ -28,6 +28,12 @@ const isActionColumn = (col: { title?: unknown }): boolean => {
   return !title || /action|queue/i.test(title);
 };
 
+const isStatusColumn = (col: { title?: unknown; dataIndex?: unknown }): boolean => {
+  const title = String(col?.title ?? "");
+  const dataIndex = String(col?.dataIndex ?? "");
+  return /status/i.test(title) || /status/i.test(dataIndex);
+};
+
 const Datatable: React.FC<DatatableProps> = ({
   columns,
   dataSource,
@@ -82,8 +88,17 @@ const Datatable: React.FC<DatatableProps> = ({
   const fittedColumns = useMemo(
     () =>
       (columns ?? []).map((col: any) => {
-        if (isActionColumn(col)) {
-          return { ...col, ellipsis: false };
+        if (isActionColumn(col) || isStatusColumn(col)) {
+          return {
+            ...col,
+            ellipsis: false,
+            className: [
+              col.className,
+              isStatusColumn(col) ? "datatable-status-cell" : "",
+            ]
+              .filter(Boolean)
+              .join(" "),
+          };
         }
         if (isIdColumn(col)) {
           return {
@@ -101,10 +116,7 @@ const Datatable: React.FC<DatatableProps> = ({
             className: [col.className, "datatable-name-cell"].filter(Boolean).join(" "),
           };
         }
-        return {
-          ...col,
-          ellipsis: col.ellipsis ?? true,
-        };
+        return col;
       }),
     [columns]
   );
