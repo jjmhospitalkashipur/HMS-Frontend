@@ -1240,13 +1240,13 @@ const NewAppointmentComponent = () => {
       return;
     }
     const appointmentDate = formatDaycareVisitDate();
+    if (!appointmentDate) {
+      setDaycareError("Please select an appointment date.");
+      return;
+    }
     if (daycareHasDialysisProcedure) {
       if (!daycareDialysisSlot?.value) {
         setDaycareError("Please select a dialysis slot for the dialysis procedure.");
-        return;
-      }
-      if (!appointmentDate) {
-        setDaycareError("Please select an appointment date for the dialysis procedure.");
         return;
       }
     }
@@ -1274,18 +1274,20 @@ const NewAppointmentComponent = () => {
         )
       );
       const doctorVisitCharges = daycareDoctorVisitCharges === "Yes";
-      const dialysisProcedurePayload = daycareHasDialysisProcedure
-        ? {
-            appointmentDate,
-            procedures: buildDaycareProceduresPayload(
-              daycareAddedProcedures,
-              daycareDialysisSlot?.value,
-              appointmentDate
-            ),
-          }
-        : {
-            procedureIds,
-          };
+      const dialysisProcedurePayload = {
+        appointmentDate,
+        ...(daycareHasDialysisProcedure
+          ? {
+              procedures: buildDaycareProceduresPayload(
+                daycareAddedProcedures,
+                daycareDialysisSlot?.value,
+                appointmentDate
+              ),
+            }
+          : {
+              procedureIds,
+            }),
+      };
 
       const addDaycareTransactionIfAmountReceived = async (visitId: string) => {
         const amount = Number(daycareAmountReceived) || 0;
@@ -3699,9 +3701,7 @@ const NewAppointmentComponent = () => {
                                       <div style={{ width: "35%", minWidth: 0 }}>
                                         <label className="form-label mb-1 fw-medium d-block">
                                           Appointment Date
-                                          {daycareHasDialysisProcedure ? (
-                                            <span className="text-danger ms-1">*</span>
-                                          ) : null}
+                                          <span className="text-danger ms-1">*</span>
                                         </label>
                                         <div className="input-icon-end position-relative">
                                           <DatePicker

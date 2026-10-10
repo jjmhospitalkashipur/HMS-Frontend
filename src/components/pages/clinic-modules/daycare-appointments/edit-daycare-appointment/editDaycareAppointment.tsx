@@ -454,13 +454,13 @@ const EditDaycareAppointmentComponent = () => {
     const hasDialysisProcedure = addedProcedures.some(
       (proc) => proc.isDialysis || isDialysisProcedureName(proc.name)
     );
+    if (!appointmentDate) {
+      setError("Please select an appointment date.");
+      return;
+    }
     if (hasDialysisProcedure) {
       if (!dialysisSlot?.value) {
         setError("Please select a dialysis slot for the dialysis procedure.");
-        return;
-      }
-      if (!appointmentDate) {
-        setError("Please select an appointment date for the dialysis procedure.");
         return;
       }
     }
@@ -477,9 +477,9 @@ const EditDaycareAppointmentComponent = () => {
         ...(patientId && { patientId }),
         doctorId: selectedDoctor.value,
         ...daycareChargesFields,
+        appointmentDate,
         ...(hasDialysisProcedure
           ? {
-              appointmentDate,
               procedures: buildDaycareProceduresPayload(
                 addedProcedures,
                 dialysisSlot?.value,
@@ -896,11 +896,7 @@ const EditDaycareAppointmentComponent = () => {
                         <div className="mb-3">
                           <label className="form-label mb-1 fw-medium">
                             Appointment Date
-                            {addedProcedures.some(
-                              (proc) => proc.isDialysis || isDialysisProcedureName(proc.name)
-                            ) ? (
-                              <span className="text-danger ms-1">*</span>
-                            ) : null}
+                            <span className="text-danger ms-1">*</span>
                           </label>
                           <div className="input-icon-end position-relative">
                             <DatePicker
