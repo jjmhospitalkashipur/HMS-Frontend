@@ -602,7 +602,7 @@ const IpdDischargeSummaryForm = ({
                       <div className="row g-2">
                         <div className="col-12 col-md-6">
                           <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-refer-hospital">
-                            Refer Hospital Name<span className="text-danger">*</span>
+                            Refer Hospital Name
                           </label>
                           <input
                             id="ipd-refer-hospital"
@@ -616,7 +616,7 @@ const IpdDischargeSummaryForm = ({
                         </div>
                         <div className="col-12 col-md-6">
                           <label className={`${LABEL_CLASS} fs-13`} htmlFor="ipd-refer-reason">
-                            Refer Reason<span className="text-danger">*</span>
+                            Refer Reason
                           </label>
                           <textarea
                             id="ipd-refer-reason"

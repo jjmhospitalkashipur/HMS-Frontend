@@ -538,10 +538,6 @@ export const validateDischargeSummaryForm = (
       if (!form.deathDateTime.trim()) return "Death date & time is required.";
       if (!form.deathCause.trim()) return "Cause of death is required.";
       break;
-    case "Refer":
-      if (!form.referHospitalName.trim()) return "Referral hospital name is required.";
-      if (!form.referReason.trim()) return "Referral reason is required.";
-      break;
     default:
       break;
   }
