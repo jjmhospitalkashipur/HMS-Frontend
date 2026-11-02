@@ -10,6 +10,7 @@ import { API_BASE_URL } from "@/environment";
 import { useRouter } from "next/navigation";
 import Modals from "./modals/modals";
 import SearchPatientByAbhaModal from "./SearchPatientByAbhaModal";
+import { SHOW_ABHA_FEATURES } from "@/core/config/featureFlags";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
 import { formatAgeForListing } from "@/core/common/formatAgeForListing";
@@ -305,14 +306,16 @@ const PatientsComponent = () => {
                   <i className="ti ti-layout-grid fs-14 text-body" />
                 </Link>
               </div> */}
-              <button
-                type="button"
-                className="btn btn-outline-primary ms-2 fs-13 btn-md d-inline-flex align-items-center"
-                onClick={() => setAbhaSearchOpen(true)}
-              >
-                <i className="ti ti-search me-1" />
-                Search by ABHA
-              </button>
+              {SHOW_ABHA_FEATURES ? (
+                <button
+                  type="button"
+                  className="btn btn-outline-primary ms-2 fs-13 btn-md d-inline-flex align-items-center"
+                  onClick={() => setAbhaSearchOpen(true)}
+                >
+                  <i className="ti ti-search me-1" />
+                  Search by ABHA
+                </button>
+              ) : null}
               <Link
                 href={all_routes.createPatient}
                 className="btn btn-primary ms-2 fs-13 btn-md"
@@ -458,10 +461,12 @@ const PatientsComponent = () => {
 			End Page Content
 		========================= */}
       <Modals />
-      <SearchPatientByAbhaModal
-        open={abhaSearchOpen}
-        onClose={() => setAbhaSearchOpen(false)}
-      />
+      {SHOW_ABHA_FEATURES ? (
+        <SearchPatientByAbhaModal
+          open={abhaSearchOpen}
+          onClose={() => setAbhaSearchOpen(false)}
+        />
+      ) : null}
     </>
   );
 };

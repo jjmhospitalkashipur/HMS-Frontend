@@ -22,6 +22,7 @@ import {
   getConsentStatusBadgeClass,
   type IConsentListItem,
 } from "@/core/api/abdmConsentApi";
+import { SHOW_ABHA_FEATURES } from "@/core/config/featureFlags";
 
 interface IPathlabCase {
   _id: string;
@@ -271,14 +272,17 @@ const PatientDetailsComponent = () => {
   const [consentStatus, setConsentStatus] = useState<string | null>(null);
   const [consents, setConsents] = useState<IConsentListItem[]>([]);
 
-  const showConsentsTab = consents.length > 0 || Boolean(consentStatus?.trim());
+  const showConsentsTab =
+    SHOW_ABHA_FEATURES && (consents.length > 0 || Boolean(consentStatus?.trim()));
 
   useEffect(() => {
     if (patientId) {
       fetchedTabsRef.current = new Set();
       fetchPatientDetails();
       fetchAppointments();
-      fetchConsentStatus(patientId);
+      if (SHOW_ABHA_FEATURES) {
+        fetchConsentStatus(patientId);
+      }
       fetchedTabsRef.current.add("appointments");
     } else {
       setLoading(false);
@@ -875,7 +879,7 @@ const PatientDetailsComponent = () => {
                       MR
                     </span>
                   ) : null}
-                  {!loading && patient?.abhaLinked ? (
+                  {SHOW_ABHA_FEATURES && !loading && patient?.abhaLinked ? (
                     <span className="badge badge-soft-success border border-success text-success fs-12 fw-semibold px-2 py-1 rounded-2">
                       ABHA Linked
                     </span>
@@ -905,7 +909,7 @@ const PatientDetailsComponent = () => {
                     <span className="text-dark ms-1">{loading ? "Loading..." : patient?.phone || "N/A"}</span>
                   </p>
                   <div className="d-flex align-items-center gap-2 flex-wrap">
-                    {patient?.abhaLinked ? (
+                    {SHOW_ABHA_FEATURES && patient?.abhaLinked ? (
                       <>
                         {/* Linking handled by backend
                         <button
@@ -1127,7 +1131,7 @@ const PatientDetailsComponent = () => {
                         </div>
                       </div>
                     ) : null}
-                    {(patient?.abhaNumber?.trim() || patientAbhaAddresses.length > 0) ? (
+                    {SHOW_ABHA_FEATURES && (patient?.abhaNumber?.trim() || patientAbhaAddresses.length > 0) ? (
                       <div className="col-sm-12 border-top pt-3 mt-2">
                         <h6 className="fs-14 fw-bold text-dark mb-2">ABHA Details</h6>
                         {patient?.abhaNumber?.trim() ? (
@@ -2705,25 +2709,29 @@ const PatientDetailsComponent = () => {
         }
       />
       */}
-      <UnlinkAbhaConfirmModal
-        open={unlinkAbhaModalOpen}
-        onClose={() => setUnlinkAbhaModalOpen(false)}
-        patientId={patient?._id ?? patientId}
-        patientName={patient ? `${patient.title ?? ""} ${patient.name ?? ""}`.trim() : undefined}
-        onUnlinked={() =>
-          setPatient((prev) => (prev ? { ...prev, abhaLinked: false } : prev))
-        }
-      />
-      <ConsentInitModal
-        open={consentInitModalOpen}
-        onClose={() => setConsentInitModalOpen(false)}
-        patientId={patient?._id ?? patientId}
-        abhaAddresses={patientAbhaAddresses}
-        onSuccess={() => {
-          const id = patient?._id ?? patientId;
-          if (id) fetchConsentStatus(id);
-        }}
-      />
+      {SHOW_ABHA_FEATURES ? (
+        <>
+          <UnlinkAbhaConfirmModal
+            open={unlinkAbhaModalOpen}
+            onClose={() => setUnlinkAbhaModalOpen(false)}
+            patientId={patient?._id ?? patientId}
+            patientName={patient ? `${patient.title ?? ""} ${patient.name ?? ""}`.trim() : undefined}
+            onUnlinked={() =>
+              setPatient((prev) => (prev ? { ...prev, abhaLinked: false } : prev))
+            }
+          />
+          <ConsentInitModal
+            open={consentInitModalOpen}
+            onClose={() => setConsentInitModalOpen(false)}
+            patientId={patient?._id ?? patientId}
+            abhaAddresses={patientAbhaAddresses}
+            onSuccess={() => {
+              const id = patient?._id ?? patientId;
+              if (id) fetchConsentStatus(id);
+            }}
+          />
+        </>
+      ) : null}
     </>
   );
 };

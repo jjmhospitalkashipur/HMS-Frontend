@@ -11,6 +11,7 @@ import PrintReceipt from "../printReceipt";
 import type { IReceiptData, IReceiptTransaction } from "../printReceipt";
 import AddHealthRecordForm from "@/components/pages/clinic-modules/health-records/AddHealthRecordForm";
 import HealthRecordsList from "@/components/pages/clinic-modules/health-records/HealthRecordsList";
+import { SHOW_ABHA_FEATURES } from "@/core/config/featureFlags";
 import dayjs from "dayjs";
 
 interface IVisit {
@@ -376,18 +377,20 @@ const AppointmentDetailsComponent = () => {
               <i className="ti ti-bed me-1" />
               Convert to IPD
             </button>
-            <button
-              type="button"
-              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
-              onClick={() => {
-                setEditingRecordId(null);
-                setShowAddRecord(true);
-              }}
-              disabled={!visit?._id}
-            >
-              <i className="ti ti-file-plus me-1" />
-              Add Record
-            </button>
+            {SHOW_ABHA_FEATURES ? (
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+                onClick={() => {
+                  setEditingRecordId(null);
+                  setShowAddRecord(true);
+                }}
+                disabled={!visit?._id}
+              >
+                <i className="ti ti-file-plus me-1" />
+                Add Record
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -690,17 +693,19 @@ const AppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        <HealthRecordsList
-          sourceType="Visit"
-          sourceId={visit?._id ?? ""}
-          refreshKey={healthRecordsRefreshKey}
-          abhaLinked={Boolean(visit?.abhaLinked)}
-          patientPhone={patient?.phone}
-          onEdit={(fhirId) => {
-            setEditingRecordId(fhirId);
-            setShowAddRecord(true);
-          }}
-        />
+        {SHOW_ABHA_FEATURES ? (
+          <HealthRecordsList
+            sourceType="Visit"
+            sourceId={visit?._id ?? ""}
+            refreshKey={healthRecordsRefreshKey}
+            abhaLinked={Boolean(visit?.abhaLinked)}
+            patientPhone={patient?.phone}
+            onEdit={(fhirId) => {
+              setEditingRecordId(fhirId);
+              setShowAddRecord(true);
+            }}
+          />
+        ) : null}
 
         {showPrintReceipt && visit && (() => {
           const visitCharge: IReceiptTransaction = {
@@ -876,18 +881,20 @@ const AppointmentDetailsComponent = () => {
             </div>
           </>
         )}
-        <AddHealthRecordForm
-          sourceType="Visit"
-          sourceId={visit?._id ?? ""}
-          authorId={visit?.doctorId ?? visit?.doctor?._id}
-          editRecordId={editingRecordId}
-          open={showAddRecord}
-          onClose={() => {
-            setShowAddRecord(false);
-            setEditingRecordId(null);
-          }}
-          onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
-        />
+        {SHOW_ABHA_FEATURES ? (
+          <AddHealthRecordForm
+            sourceType="Visit"
+            sourceId={visit?._id ?? ""}
+            authorId={visit?.doctorId ?? visit?.doctor?._id}
+            editRecordId={editingRecordId}
+            open={showAddRecord}
+            onClose={() => {
+              setShowAddRecord(false);
+              setEditingRecordId(null);
+            }}
+            onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
+          />
+        ) : null}
       </div>
     </div>
   );

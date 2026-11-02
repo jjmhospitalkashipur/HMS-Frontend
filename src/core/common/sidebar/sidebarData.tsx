@@ -3,6 +3,7 @@
 
 import { all_routes } from "@/routes/all_routes";
 import { PATHLAB_PORTAL_BASE_URL } from "@/environment";
+import { SHOW_ABHA_FEATURES } from "@/core/config/featureFlags";
 
 
 const routes = all_routes;
@@ -106,16 +107,20 @@ export const SidebarData = [
         materialicons: "start",
         dot: true,
       },
-      {
-        label: "ABHA Consent",
-        link: routes.abhaConsent,
-        submenu: false,
-        showSubRoute: false,
-        icon: "file-certificate",
-        base: "AbhaConsent",
-        materialicons: "start",
-        dot: true,
-      },
+      ...(SHOW_ABHA_FEATURES
+        ? [
+            {
+              label: "ABHA Consent",
+              link: routes.abhaConsent,
+              submenu: false,
+              showSubRoute: false,
+              icon: "file-certificate",
+              base: "AbhaConsent",
+              materialicons: "start",
+              dot: true,
+            },
+          ]
+        : []),
       {
         label: "Pathlab",
         link: PATHLAB_PORTAL_BASE_URL,

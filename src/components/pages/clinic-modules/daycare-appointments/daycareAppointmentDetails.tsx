@@ -15,6 +15,7 @@ import {
 } from "@/components/pages/clinic-modules/appointments/buildDaycareReceiptData";
 import AddHealthRecordForm from "@/components/pages/clinic-modules/health-records/AddHealthRecordForm";
 import HealthRecordsList from "@/components/pages/clinic-modules/health-records/HealthRecordsList";
+import { SHOW_ABHA_FEATURES } from "@/core/config/featureFlags";
 
 const TRANSACTION_PAYMENT_MODES = ["Cash", "UPI", "Card"] as const;
 
@@ -217,18 +218,20 @@ const DaycareAppointmentDetailsComponent = () => {
           </h6>
           
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
-              onClick={() => {
-                setEditingRecordId(null);
-                setShowAddRecord(true);
-              }}
-              disabled={!daycare?._id}
-            >
-              <i className="ti ti-file-plus me-1" />
-              Add Record
-            </button>
+            {SHOW_ABHA_FEATURES ? (
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+                onClick={() => {
+                  setEditingRecordId(null);
+                  setShowAddRecord(true);
+                }}
+                disabled={!daycare?._id}
+              >
+                <i className="ti ti-file-plus me-1" />
+                Add Record
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn btn-primary btn-sm d-inline-flex align-items-center"
@@ -558,17 +561,19 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </div>
 
-        <HealthRecordsList
-          sourceType="Daycare"
-          sourceId={daycare?._id ?? ""}
-          refreshKey={healthRecordsRefreshKey}
-          abhaLinked={Boolean(daycare?.abhaLinked)}
-          patientPhone={daycare?.patient?.phone}
-          onEdit={(fhirId) => {
-            setEditingRecordId(fhirId);
-            setShowAddRecord(true);
-          }}
-        />
+        {SHOW_ABHA_FEATURES ? (
+          <HealthRecordsList
+            sourceType="Daycare"
+            sourceId={daycare?._id ?? ""}
+            refreshKey={healthRecordsRefreshKey}
+            abhaLinked={Boolean(daycare?.abhaLinked)}
+            patientPhone={daycare?.patient?.phone}
+            onEdit={(fhirId) => {
+              setEditingRecordId(fhirId);
+              setShowAddRecord(true);
+            }}
+          />
+        ) : null}
       </div>
       {/* Print Receipt */}
       {showPrintReceipt && daycare && (
@@ -716,18 +721,20 @@ const DaycareAppointmentDetailsComponent = () => {
           </div>
         </>
       )}
-      <AddHealthRecordForm
-        sourceType="Daycare"
-        sourceId={daycare?._id ?? ""}
-        authorId={daycare?.doctorId ?? daycare?.doctor?._id}
-        editRecordId={editingRecordId}
-        open={showAddRecord}
-        onClose={() => {
-          setShowAddRecord(false);
-          setEditingRecordId(null);
-        }}
-        onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
-      />
+      {SHOW_ABHA_FEATURES ? (
+        <AddHealthRecordForm
+          sourceType="Daycare"
+          sourceId={daycare?._id ?? ""}
+          authorId={daycare?.doctorId ?? daycare?.doctor?._id}
+          editRecordId={editingRecordId}
+          open={showAddRecord}
+          onClose={() => {
+            setShowAddRecord(false);
+            setEditingRecordId(null);
+          }}
+          onSaved={() => setHealthRecordsRefreshKey((k) => k + 1)}
+        />
+      ) : null}
     </div>
   );
 };

@@ -18,6 +18,7 @@ import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import GenerateAbhaQrModal from "./GenerateAbhaQrModal";
 import AbhaScannedUsersDrawer from "./AbhaScannedUsersDrawer";
+import { SHOW_ABHA_FEATURES } from "@/core/config/featureFlags";
 
 interface IOverviewMetric {
   total: number;
@@ -401,22 +402,26 @@ const DashboardComponent = () => {
                 <i className="ti ti-list me-1" />
                 Queue
               </Link>
-              <button
-                type="button"
-                className="btn btn-outline-primary d-inline-flex align-items-center"
-                onClick={() => setAbhaQrModalOpen(true)}
-              >
-                <i className="ti ti-qrcode me-1" />
-                Generate ABHA QR
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-primary d-inline-flex align-items-center"
-                onClick={() => setAbhaScannedUsersOpen(true)}
-              >
-                <i className="ti ti-users me-1" />
-                Show Scanned Users
-              </button>
+              {SHOW_ABHA_FEATURES ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary d-inline-flex align-items-center"
+                    onClick={() => setAbhaQrModalOpen(true)}
+                  >
+                    <i className="ti ti-qrcode me-1" />
+                    Generate ABHA QR
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary d-inline-flex align-items-center"
+                    onClick={() => setAbhaScannedUsersOpen(true)}
+                  >
+                    <i className="ti ti-users me-1" />
+                    Show Scanned Users
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
           {/* End Page Header */}
@@ -787,14 +792,18 @@ const DashboardComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
-      <GenerateAbhaQrModal
-        open={abhaQrModalOpen}
-        onClose={() => setAbhaQrModalOpen(false)}
-      />
-      <AbhaScannedUsersDrawer
-        open={abhaScannedUsersOpen}
-        onClose={() => setAbhaScannedUsersOpen(false)}
-      />
+      {SHOW_ABHA_FEATURES ? (
+        <>
+          <GenerateAbhaQrModal
+            open={abhaQrModalOpen}
+            onClose={() => setAbhaQrModalOpen(false)}
+          />
+          <AbhaScannedUsersDrawer
+            open={abhaScannedUsersOpen}
+            onClose={() => setAbhaScannedUsersOpen(false)}
+          />
+        </>
+      ) : null}
     </>
   );
 };
